@@ -203,6 +203,133 @@ function rbf_trigger_brevo_automation($first_name, $last_name, $email, $date, $t
     ];
 
     $response = wp_remote_post(
+}
+
+/**
+ * Handle booking status change notifications
+ */
+add_action('rbf_booking_status_changed', 'rbf_send_status_change_notification', 10, 4);
+function rbf_send_status_change_notification($booking_id, $old_status, $new_status, $note) {
+    $booking = get_post($booking_id);
+    if (!$booking) return;
+    
+    $first_name = get_post_meta($booking_id, 'rbf_nome', true);
+    $last_name = get_post_meta($booking_id, 'rbf_cognome', true);
+    $email = get_post_meta($booking_id, 'rbf_email', true);
+    $date = get_post_meta($booking_id, 'rbf_data', true);
+    $time = get_post_meta($booking_id, 'rbf_time', true);
+    $people = get_post_meta($booking_id, 'rbf_persone', true);
+    $meal = get_post_meta($booking_id, 'rbf_orario', true);
+    $lang = get_post_meta($booking_id, 'rbf_lang', true) ?: 'it';
+    
+    // Don't send notifications for pending status (initial creation)
+    if ($new_status === 'pending') return;
+    
+    $statuses = rbf_get_booking_statuses();
+    $status_label = $statuses[$new_status] ?? $new_status;
+    
+    $site_name = get_bloginfo('name');
+    $booking_hash = get_post_meta($booking_id, 'rbf_booking_hash', true);
+    
+    // Prepare email content based on language and status
+    if ($lang === 'en') {
+        $subject = "Booking Status Update - #{$booking_id}";
+        $greeting = "Dear {$first_name}";
+        $status_text = "Your booking status has been updated to: <strong>{$status_label}</strong>";
+        $booking_details = "Booking Details";
+        $customer_label = "Customer";
+        $date_label = "Date";
+        $time_label = "Time";
+        $people_label = "Guests";
+        $meal_label = "Service";
+        $thank_you = "Thank you for choosing {$site_name}!";
+    } else {
+        $subject = "Aggiornamento Stato Prenotazione - #{$booking_id}";
+        $greeting = "Gentile {$first_name}";
+        $status_text = "Lo stato della sua prenotazione è stato aggiornato a: <strong>{$status_label}</strong>";
+        $booking_details = "Dettagli Prenotazione";
+        $customer_label = "Cliente";
+        $date_label = "Data";
+        $time_label = "Orario";
+        $people_label = "Persone";
+        $meal_label = "Servizio";
+        $thank_you = "Grazie per aver scelto {$site_name}!";
+    }
+    
+    $formatted_date = date('d/m/Y', strtotime($date));
+    $meal_display = ucfirst($meal);
+    
+    // Status-specific messages
+    $status_message = '';
+    switch ($new_status) {
+        case 'confirmed':
+            $status_message = $lang === 'en' 
+                ? 'Your booking has been confirmed. We look forward to welcoming you!'
+                : 'La sua prenotazione è stata confermata. Non vediamo l\'ora di accoglierla!';
+            break;
+        case 'completed':
+            $status_message = $lang === 'en'
+                ? 'Thank you for dining with us! We hope you enjoyed your experience.'
+                : 'Grazie per aver cenato da noi! Speriamo che abbiate apprezzato l\'esperienza.';
+            break;
+        case 'cancelled':
+            $status_message = $lang === 'en'
+                ? 'Your booking has been cancelled. We hope to see you again soon.'
+                : 'La sua prenotazione è stata cancellata. Speriamo di rivederla presto.';
+            break;
+    }
+    
+    $body = <<<HTML
+<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>
+    body { font-family: Arial, sans-serif; color: #333; line-height: 1.6; }
+    .container { padding: 20px; border: 1px solid #ddd; max-width: 600px; margin: auto; border-radius: 8px; }
+    .header { background-color: #f8f9fa; padding: 15px; border-radius: 8px 8px 0 0; margin: -20px -20px 20px -20px; }
+    .status-badge { display: inline-block; padding: 8px 16px; border-radius: 20px; color: white; font-weight: bold; }
+    .status-confirmed { background-color: #10b981; }
+    .status-completed { background-color: #06b6d4; }
+    .status-cancelled { background-color: #ef4444; }
+    .booking-details { background-color: #f1f5f9; padding: 15px; border-radius: 6px; margin: 15px 0; }
+    .detail-row { margin: 8px 0; }
+    .footer { margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 14px; color: #6b7280; }
+</style>
+</head><body>
+<div class="container">
+    <div class="header">
+        <h2 style="margin: 0; color: #1f2937;">{$subject}</h2>
+    </div>
+    
+    <p>{$greeting},</p>
+    
+    <p>{$status_text}</p>
+    <span class="status-badge status-{$new_status}">{$status_label}</span>
+    
+    {$status_message ? "<p><em>{$status_message}</em></p>" : ""}
+    
+    <div class="booking-details">
+        <h3 style="margin-top: 0; color: #374151;">{$booking_details}</h3>
+        <div class="detail-row"><strong>{$customer_label}:</strong> {$first_name} {$last_name}</div>
+        <div class="detail-row"><strong>{$date_label}:</strong> {$formatted_date}</div>
+        <div class="detail-row"><strong>{$time_label}:</strong> {$time}</div>
+        <div class="detail-row"><strong>{$people_label}:</strong> {$people}</div>
+        <div class="detail-row"><strong>{$meal_label}:</strong> {$meal_display}</div>
+    </div>
+    
+    <p>{$thank_you}</p>
+    
+    <div class="footer">
+        <p>Booking ID: #{$booking_id} | {$site_name}</p>
+    </div>
+</div>
+</body></html>
+HTML;
+
+    $headers = ['Content-Type: text/html; charset=UTF-8'];
+    $from_email = 'noreply@' . preg_replace('/^www\./', '', $_SERVER['SERVER_NAME']);
+    $headers[] = 'From: ' . $site_name . ' <' . $from_email . '>';
+    
+    wp_mail($email, $subject, $body, $headers);
+}
         'https://api.brevo.com/v3/contacts',
         array_merge($base_args, ['body' => wp_json_encode($contact_payload)])
     );

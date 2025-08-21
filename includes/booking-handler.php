@@ -69,9 +69,28 @@ function rbf_handle_booking_submission() {
     }
 
     $remaining_capacity = rbf_get_remaining_capacity($date, $slot);
+    $booking_status = 'pending';
+    
     if ($remaining_capacity < $people) {
-        $error_msg = sprintf(rbf_translate_string('Spiacenti, non ci sono abbastanza posti. Rimasti: %d'), $remaining_capacity);
-        wp_safe_redirect(add_query_arg('rbf_error', urlencode($error_msg), $redirect_url . $anchor)); exit;
+        // Check if waitlist is enabled for this slot
+        if (isset($_POST['rbf_accept_waitlist']) && $_POST['rbf_accept_waitlist'] === 'yes') {
+            $booking_status = 'waitlist';
+        } else {
+            // Show waitlist option instead of error
+            $error_msg = sprintf(
+                rbf_translate_string('Spiacenti, non ci sono abbastanza posti. Rimasti: %d. Vuoi essere aggiunto alla lista d\'attesa?'), 
+                $remaining_capacity
+            );
+            wp_safe_redirect(add_query_arg([
+                'rbf_error' => urlencode($error_msg),
+                'rbf_show_waitlist' => '1',
+                'rbf_meal' => $meal,
+                'rbf_data' => $date, 
+                'rbf_orario' => $time_data,
+                'rbf_persone' => $people
+            ], $redirect_url . $anchor)); 
+            exit;
+        }
     }
 
     $post_id = wp_insert_post([
@@ -99,6 +118,10 @@ function rbf_handle_booking_submission() {
             'rbf_gclid'         => $gclid,
             'rbf_fbclid'        => $fbclid,
             'rbf_referrer'      => $referrer,
+            // Enhanced booking status system
+            'rbf_booking_status' => $booking_status,
+            'rbf_booking_created' => current_time('Y-m-d H:i:s'),
+            'rbf_booking_hash' => wp_generate_password(16, false, false),
         ],
     ]);
 
@@ -164,6 +187,9 @@ function rbf_handle_booking_submission() {
     }
 
     $success_args = ['rbf_success' => '1', 'booking_id' => $post_id];
+    if ($booking_status === 'waitlist') {
+        $success_args['waitlist'] = '1';
+    }
     wp_safe_redirect(add_query_arg($success_args, $redirect_url . $anchor)); exit;
 }
 

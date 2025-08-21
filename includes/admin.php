@@ -77,6 +77,141 @@ function rbf_create_bookings_menu() {
 }
 
 /**
+ * Customize booking list columns
+ */
+add_filter('manage_rbf_booking_posts_columns', 'rbf_set_custom_columns');
+function rbf_set_custom_columns($columns) {
+    unset($columns['date']); // Remove default date column
+    
+    $new_columns = [];
+    $new_columns['cb'] = $columns['cb'];
+    $new_columns['title'] = $columns['title'];
+    $new_columns['rbf_status'] = rbf_translate_string('Stato Prenotazione');
+    $new_columns['rbf_customer'] = rbf_translate_string('Cliente');
+    $new_columns['rbf_booking_date'] = rbf_translate_string('Data');
+    $new_columns['rbf_time'] = rbf_translate_string('Orario');
+    $new_columns['rbf_meal'] = rbf_translate_string('Pasto');
+    $new_columns['rbf_people'] = rbf_translate_string('Persone');
+    $new_columns['rbf_value'] = rbf_translate_string('Valore');
+    $new_columns['rbf_actions'] = rbf_translate_string('Azioni');
+    
+    return $new_columns;
+}
+
+/**
+ * Fill custom columns with data
+ */
+add_action('manage_rbf_booking_posts_custom_column', 'rbf_custom_column_data', 10, 2);
+function rbf_custom_column_data($column, $post_id) {
+    switch ($column) {
+        case 'rbf_status':
+            $status = get_post_meta($post_id, 'rbf_booking_status', true) ?: 'pending';
+            $statuses = rbf_get_booking_statuses();
+            $color = rbf_get_status_color($status);
+            echo '<span style="display: inline-block; padding: 4px 8px; border-radius: 4px; background: ' . esc_attr($color) . '; color: white; font-size: 12px; font-weight: bold;">';
+            echo esc_html($statuses[$status] ?? $status);
+            echo '</span>';
+            break;
+            
+        case 'rbf_customer':
+            $first_name = get_post_meta($post_id, 'rbf_nome', true);
+            $last_name = get_post_meta($post_id, 'rbf_cognome', true);
+            $email = get_post_meta($post_id, 'rbf_email', true);
+            $tel = get_post_meta($post_id, 'rbf_tel', true);
+            echo '<strong>' . esc_html($first_name . ' ' . $last_name) . '</strong><br>';
+            echo '<small><a href="mailto:' . esc_attr($email) . '">' . esc_html($email) . '</a></small><br>';
+            echo '<small><a href="tel:' . esc_attr($tel) . '">' . esc_html($tel) . '</a></small>';
+            break;
+            
+        case 'rbf_booking_date':
+            $date = get_post_meta($post_id, 'rbf_data', true);
+            if ($date) {
+                $datetime = DateTime::createFromFormat('Y-m-d', $date);
+                if ($datetime) {
+                    echo esc_html($datetime->format('d/m/Y'));
+                    echo '<br><small>' . esc_html($datetime->format('l')) . '</small>';
+                }
+            }
+            break;
+            
+        case 'rbf_time':
+            echo esc_html(get_post_meta($post_id, 'rbf_time', true));
+            break;
+            
+        case 'rbf_meal':
+            $meal = get_post_meta($post_id, 'rbf_meal', true);
+            $meals = [
+                'pranzo' => rbf_translate_string('Pranzo'),
+                'cena' => rbf_translate_string('Cena'), 
+                'aperitivo' => rbf_translate_string('Aperitivo')
+            ];
+            echo esc_html($meals[$meal] ?? $meal);
+            break;
+            
+        case 'rbf_people':
+            echo '<strong>' . esc_html(get_post_meta($post_id, 'rbf_persone', true)) . '</strong>';
+            break;
+            
+        case 'rbf_value':
+            $people = intval(get_post_meta($post_id, 'rbf_persone', true));
+            $meal = get_post_meta($post_id, 'rbf_meal', true);
+            $options = get_option('rbf_settings', rbf_get_default_settings());
+            $valore_pp = (float) ($options['valore_' . $meal] ?? 0);
+            $valore_tot = $valore_pp * $people;
+            if ($valore_tot > 0) {
+                echo '<strong>€' . number_format($valore_tot, 2) . '</strong>';
+                echo '<br><small>€' . number_format($valore_pp, 2) . ' x ' . $people . '</small>';
+            }
+            break;
+            
+        case 'rbf_actions':
+            echo '<div class="row-actions" style="position: static;">';
+            rbf_render_booking_actions($post_id);
+            echo '</div>';
+            break;
+    }
+}
+
+/**
+ * Render booking action buttons
+ */
+function rbf_render_booking_actions($post_id) {
+    $status = get_post_meta($post_id, 'rbf_booking_status', true) ?: 'pending';
+    $nonce = wp_create_nonce('rbf_status_' . $post_id);
+    
+    $actions = [];
+    
+    if ($status === 'pending') {
+        $actions['confirm'] = [
+            'label' => rbf_translate_string('Conferma'),
+            'status' => 'confirmed',
+            'color' => '#10b981'
+        ];
+    }
+    
+    if (in_array($status, ['pending', 'confirmed'])) {
+        $actions['complete'] = [
+            'label' => rbf_translate_string('Completa'),
+            'status' => 'completed', 
+            'color' => '#06b6d4'
+        ];
+        $actions['cancel'] = [
+            'label' => rbf_translate_string('Annulla'),
+            'status' => 'cancelled',
+            'color' => '#ef4444'
+        ];
+    }
+    
+    foreach ($actions as $action => $config) {
+        echo '<a href="' . esc_url(admin_url('admin-post.php?action=rbf_update_booking_status&booking_id=' . $post_id . '&status=' . $config['status'] . '&_wpnonce=' . $nonce)) . '" ';
+        echo 'style="color: ' . esc_attr($config['color']) . '; font-weight: bold; text-decoration: none; margin-right: 10px;" ';
+        echo 'onclick="return confirm(\'' . esc_js(sprintf('Confermi di voler %s questa prenotazione?', strtolower($config['label']))) . '\')">';
+        echo esc_html($config['label']);
+        echo '</a>';
+    }
+}
+
+/**
  * Register settings
  */
 add_action('admin_init', 'rbf_register_settings');
@@ -321,6 +456,10 @@ function rbf_add_booking_page_html() {
                 'rbf_campaign' => '',
                 'rbf_privacy' => $privacy,
                 'rbf_marketing' => $marketing,
+                // Enhanced booking system
+                'rbf_booking_status' => 'confirmed', // Backend bookings start confirmed
+                'rbf_booking_created' => current_time('Y-m-d H:i:s'),
+                'rbf_booking_hash' => wp_generate_password(16, false, false),
             ],
         ]);
 
@@ -391,6 +530,116 @@ function rbf_add_booking_page_html() {
                 <tr><th><?php echo esc_html(rbf_translate_string('Marketing')); ?></th>
                     <td><label><input type="checkbox" name="rbf_marketing" value="yes"> <?php echo esc_html(rbf_translate_string('Accettato')); ?></label></td></tr>
             </table>
+}
+
+/**
+ * Handle booking status updates
+ */
+add_action('admin_post_rbf_update_booking_status', 'rbf_handle_status_update');
+function rbf_handle_status_update() {
+    if (!current_user_can('manage_options')) {
+        wp_die(__('You do not have sufficient permissions to access this page.'));
+    }
+    
+    $booking_id = intval($_GET['booking_id'] ?? 0);
+    $new_status = sanitize_text_field($_GET['status'] ?? '');
+    $nonce = $_GET['_wpnonce'] ?? '';
+    
+    if (!$booking_id || !$new_status || !wp_verify_nonce($nonce, 'rbf_status_' . $booking_id)) {
+        wp_die(__('Invalid request'));
+    }
+    
+    $statuses = array_keys(rbf_get_booking_statuses());
+    if (!in_array($new_status, $statuses)) {
+        wp_die(__('Invalid status'));
+    }
+    
+    // Update status with history tracking
+    rbf_update_booking_status($booking_id, $new_status, 'Status updated via admin panel');
+    
+    // Redirect back to bookings list
+    wp_safe_redirect(admin_url('edit.php?post_type=rbf_booking&status_updated=1'));
+    exit;
+}
+
+/**
+ * Make status column sortable
+ */
+add_filter('manage_edit-rbf_booking_sortable_columns', 'rbf_set_sortable_columns');
+function rbf_set_sortable_columns($columns) {
+    $columns['rbf_status'] = 'rbf_booking_status';
+    $columns['rbf_booking_date'] = 'rbf_data';
+    $columns['rbf_people'] = 'rbf_persone';
+    return $columns;
+}
+
+/**
+ * Handle sorting for custom columns
+ */
+add_action('pre_get_posts', 'rbf_handle_custom_sorting');
+function rbf_handle_custom_sorting($query) {
+    if (!is_admin() || !$query->is_main_query()) return;
+    if ($query->get('post_type') !== 'rbf_booking') return;
+    
+    $orderby = $query->get('orderby');
+    
+    switch ($orderby) {
+        case 'rbf_booking_status':
+            $query->set('meta_key', 'rbf_booking_status');
+            $query->set('orderby', 'meta_value');
+            break;
+        case 'rbf_data':
+            $query->set('meta_key', 'rbf_data');
+            $query->set('orderby', 'meta_value');
+            break;
+        case 'rbf_persone':
+            $query->set('meta_key', 'rbf_persone');
+            $query->set('orderby', 'meta_value_num');
+            break;
+    }
+}
+
+/**
+ * Add status filter dropdown
+ */
+add_action('restrict_manage_posts', 'rbf_add_status_filter');
+function rbf_add_status_filter() {
+    global $typenow;
+    
+    if ($typenow === 'rbf_booking') {
+        $selected_status = $_GET['rbf_status'] ?? '';
+        $statuses = rbf_get_booking_statuses();
+        
+        echo '<select name="rbf_status">';
+        echo '<option value="">' . rbf_translate_string('Tutti gli stati') . '</option>';
+        foreach ($statuses as $key => $label) {
+            echo '<option value="' . esc_attr($key) . '"' . selected($selected_status, $key, false) . '>';
+            echo esc_html($label);
+            echo '</option>';
+        }
+        echo '</select>';
+    }
+}
+
+/**
+ * Filter bookings by status
+ */
+add_action('pre_get_posts', 'rbf_filter_by_status');
+function rbf_filter_by_status($query) {
+    if (!is_admin() || !$query->is_main_query()) return;
+    if ($query->get('post_type') !== 'rbf_booking') return;
+    
+    $status = $_GET['rbf_status'] ?? '';
+    if ($status) {
+        $query->set('meta_query', [
+            [
+                'key' => 'rbf_booking_status',
+                'value' => $status,
+                'compare' => '='
+            ]
+        ]);
+    }
+}
             <?php submit_button(esc_html(rbf_translate_string('Aggiungi Prenotazione'))); ?>
         </form>
     </div>

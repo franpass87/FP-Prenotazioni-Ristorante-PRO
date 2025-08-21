@@ -139,6 +139,92 @@ function rbf_translate_string($text) {
         'Diminuisci numero persone' => 'Decrease number of people',
         'Aumenta numero persone' => 'Increase number of people',
         'Inserisci eventuali allergie o note particolari...' => 'Enter any allergies or special notes...',
+        
+        // Enhanced booking status system
+        'Stato Prenotazione' => 'Booking Status',
+        'In Attesa' => 'Pending',
+        'Confermata' => 'Confirmed', 
+        'Completata' => 'Completed',
+        'Annullata' => 'Cancelled',
+        'In Lista d\'Attesa' => 'On Waitlist',
+        'Azioni Prenotazione' => 'Booking Actions',
+        'Conferma Prenotazione' => 'Confirm Booking',
+        'Segna come Completata' => 'Mark as Completed',
+        'Annulla Prenotazione' => 'Cancel Booking',
+        'Cronologia Status' => 'Status History',
+        'Hash Prenotazione' => 'Booking Hash',
+        'Gestisci Prenotazione' => 'Manage Booking',
+        'Modifica/Annulla' => 'Modify/Cancel',
+        'La tua prenotazione #%s è stata aggiornata' => 'Your booking #%s has been updated',
+        'Tutti gli stati' => 'All statuses',
+        'Cliente' => 'Customer',
+        'Valore' => 'Value',
+        'Azioni' => 'Actions',
+        'Conferma' => 'Confirm',
+        'Completa' => 'Complete',
+        
+        // Waitlist functionality
+        'Lista d\'Attesa' => 'Waitlist',
+        'Puoi unirti alla nostra lista d\'attesa. Ti contatteremo appena si libererà un posto per la data e orario richiesti.' => 'You can join our waitlist. We will contact you as soon as a spot becomes available for your requested date and time.',
+        'Unisciti alla Lista d\'Attesa' => 'Join Waitlist',
+        'Grazie! Sei stato aggiunto alla lista d\'attesa. Ti contatteremo appena si libererà un posto.' => 'Thank you! You have been added to the waitlist. We will contact you as soon as a spot becomes available.',
     ];
     return $translations[$text] ?? $text;
+}
+
+/**
+ * Get available booking statuses
+ */
+function rbf_get_booking_statuses() {
+    return [
+        'pending' => rbf_translate_string('In Attesa'),
+        'confirmed' => rbf_translate_string('Confermata'),
+        'completed' => rbf_translate_string('Completata'),
+        'cancelled' => rbf_translate_string('Annullata'),
+        'waitlist' => rbf_translate_string('In Lista d\'Attesa'),
+    ];
+}
+
+/**
+ * Get booking status color
+ */
+function rbf_get_status_color($status) {
+    $colors = [
+        'pending' => '#f59e0b',    // amber
+        'confirmed' => '#10b981',  // emerald
+        'completed' => '#06b6d4',  // cyan
+        'cancelled' => '#ef4444',  // red
+        'waitlist' => '#8b5cf6',   // violet
+    ];
+    return $colors[$status] ?? '#6b7280'; // gray fallback
+}
+
+/**
+ * Update booking status with history tracking
+ */
+function rbf_update_booking_status($booking_id, $new_status, $note = '') {
+    $old_status = get_post_meta($booking_id, 'rbf_booking_status', true);
+    
+    // Update status
+    update_post_meta($booking_id, 'rbf_booking_status', $new_status);
+    update_post_meta($booking_id, 'rbf_status_updated', current_time('Y-m-d H:i:s'));
+    
+    // Add to history
+    $history = get_post_meta($booking_id, 'rbf_status_history', true);
+    if (!is_array($history)) $history = [];
+    
+    $history[] = [
+        'timestamp' => current_time('Y-m-d H:i:s'),
+        'from' => $old_status ?: 'pending',
+        'to' => $new_status,
+        'note' => $note,
+        'user' => get_current_user_id()
+    ];
+    
+    update_post_meta($booking_id, 'rbf_status_history', $history);
+    
+    // Trigger status change hook for notifications
+    do_action('rbf_booking_status_changed', $booking_id, $old_status, $new_status, $note);
+    
+    return true;
 }

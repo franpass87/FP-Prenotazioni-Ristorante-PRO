@@ -79,10 +79,49 @@ function rbf_render_booking_form() {
     <div class="rbf-form-container">
         <div id="rbf-message-anchor"></div>
         <?php if (isset($_GET['rbf_success'])) : ?>
-            <div class="rbf-success-message"><?php echo esc_html(rbf_translate_string('Grazie! La tua prenotazione è stata inviata con successo.')); ?></div>
+            <div class="rbf-success-message">
+                <?php 
+                if (isset($_GET['waitlist']) && $_GET['waitlist'] === '1') {
+                    echo esc_html(rbf_translate_string('Grazie! Sei stato aggiunto alla lista d\'attesa. Ti contatteremo appena si libererà un posto.'));
+                } else {
+                    echo esc_html(rbf_translate_string('Grazie! La tua prenotazione è stata inviata con successo.'));
+                }
+                ?>
+            </div>
         <?php else : ?>
             <?php if (isset($_GET['rbf_error'])) : ?>
-                <div class="rbf-error-message"><?php echo esc_html(urldecode($_GET['rbf_error'])); ?></div>
+                <div class="rbf-error-message">
+                    <?php echo esc_html(urldecode($_GET['rbf_error'])); ?>
+                    
+                    <?php if (isset($_GET['rbf_show_waitlist']) && $_GET['rbf_show_waitlist'] === '1') : ?>
+                        <div class="rbf-waitlist-option" style="margin-top: 15px; padding: 15px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px;">
+                            <h4 style="margin: 0 0 10px 0; color: #856404;"><?php echo esc_html(rbf_translate_string('Lista d\'Attesa')); ?></h4>
+                            <p style="margin: 0 0 15px 0; color: #856404;">
+                                <?php echo esc_html(rbf_translate_string('Puoi unirti alla nostra lista d\'attesa. Ti contatteremo appena si libererà un posto per la data e orario richiesti.')); ?>
+                            </p>
+                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display: inline-block;">
+                                <input type="hidden" name="action" value="rbf_submit_booking">
+                                <input type="hidden" name="rbf_accept_waitlist" value="yes">
+                                <input type="hidden" name="rbf_meal" value="<?php echo esc_attr($_GET['rbf_meal'] ?? ''); ?>">
+                                <input type="hidden" name="rbf_data" value="<?php echo esc_attr($_GET['rbf_data'] ?? ''); ?>">
+                                <input type="hidden" name="rbf_orario" value="<?php echo esc_attr($_GET['rbf_orario'] ?? ''); ?>">
+                                <input type="hidden" name="rbf_persone" value="<?php echo esc_attr($_GET['rbf_persone'] ?? ''); ?>">
+                                <input type="hidden" name="rbf_nome" value="<?php echo esc_attr($_GET['rbf_nome'] ?? ''); ?>">
+                                <input type="hidden" name="rbf_cognome" value="<?php echo esc_attr($_GET['rbf_cognome'] ?? ''); ?>">
+                                <input type="hidden" name="rbf_email" value="<?php echo esc_attr($_GET['rbf_email'] ?? ''); ?>">
+                                <input type="hidden" name="rbf_tel" value="<?php echo esc_attr($_GET['rbf_tel'] ?? ''); ?>">
+                                <input type="hidden" name="rbf_allergie" value="<?php echo esc_attr($_GET['rbf_allergie'] ?? ''); ?>">
+                                <input type="hidden" name="rbf_lang" value="<?php echo esc_attr($_GET['rbf_lang'] ?? 'it'); ?>">
+                                <input type="hidden" name="rbf_privacy" value="yes">
+                                <input type="hidden" name="rbf_marketing" value="<?php echo esc_attr($_GET['rbf_marketing'] ?? ''); ?>">
+                                <?php wp_nonce_field('rbf_booking','rbf_nonce'); ?>
+                                <button type="submit" class="rbf-waitlist-btn" style="background: #d97706; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                                    <?php echo esc_html(rbf_translate_string('Unisciti alla Lista d\'Attesa')); ?>
+                                </button>
+                            </form>
+                        </div>
+                    <?php endif; ?>
+                </div>
             <?php endif; ?>
             <form id="rbf-form" class="rbf-form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
                 <input type="hidden" name="action" value="rbf_submit_booking">
