@@ -349,7 +349,8 @@ function rbf_calendar_page_html() {
     
     wp_localize_script('rbf-admin-js', 'rbfAdminData', [
         'ajaxUrl' => admin_url('admin-ajax.php'),
-        'nonce' => wp_create_nonce('rbf_calendar_nonce')
+        'nonce' => wp_create_nonce('rbf_calendar_nonce'),
+        'editUrl' => admin_url('post.php?post=BOOKING_ID&action=edit')
     ]);
     ?>
     <div class="rbf-admin-wrap">
@@ -386,15 +387,71 @@ function rbf_get_bookings_for_calendar_callback() {
         $date = get_post_meta($booking->ID, 'rbf_data', true);
         $time = get_post_meta($booking->ID, 'rbf_time', true);
         $people = get_post_meta($booking->ID, 'rbf_persone', true);
+        $first_name = get_post_meta($booking->ID, 'rbf_nome', true);
+        $last_name = get_post_meta($booking->ID, 'rbf_cognome', true);
+        $email = get_post_meta($booking->ID, 'rbf_email', true);
+        $phone = get_post_meta($booking->ID, 'rbf_tel', true);
+        $notes = get_post_meta($booking->ID, 'rbf_allergie', true);
+        $status = get_post_meta($booking->ID, 'rbf_booking_status', true) ?: 'confirmed';
+        $meal = get_post_meta($booking->ID, 'rbf_orario', true);
+        
         $title = $booking->post_title . ' (' . $people . ' persone)';
+        
+        // Color coding based on status
+        $color = '#28a745'; // confirmed - green
+        if ($status === 'cancelled') $color = '#dc3545'; // red
+        if ($status === 'completed') $color = '#6c757d'; // gray
+        
         $events[] = [
             'title' => $title,
             'start' => $date . 'T' . $time,
-            'url' => admin_url('post.php?post=' . $booking->ID . '&action=edit')
+            'backgroundColor' => $color,
+            'borderColor' => $color,
+            'className' => 'fc-status-' . $status,
+            'extendedProps' => [
+                'booking_id' => $booking->ID,
+                'customer_name' => trim($first_name . ' ' . $last_name),
+                'customer_email' => $email,
+                'customer_phone' => $phone,
+                'booking_date' => date('d/m/Y', strtotime($date)),
+                'booking_time' => $time,
+                'people' => $people,
+                'notes' => $notes,
+                'status' => $status,
+                'meal' => $meal
+            ]
         ];
     }
 
     wp_send_json_success($events);
+}
+
+/**
+ * AJAX handler for updating booking status
+ */
+add_action('wp_ajax_rbf_update_booking_status', 'rbf_update_booking_status_callback');
+function rbf_update_booking_status_callback() {
+    check_ajax_referer('rbf_calendar_nonce', '_ajax_nonce');
+    
+    $booking_id = intval($_POST['booking_id']);
+    $status = sanitize_text_field($_POST['status']);
+    
+    if (!$booking_id || !in_array($status, ['confirmed', 'cancelled', 'completed'])) {
+        wp_send_json_error('Parametri non validi');
+    }
+    
+    $booking = get_post($booking_id);
+    if (!$booking || $booking->post_type !== 'rbf_booking') {
+        wp_send_json_error('Prenotazione non trovata');
+    }
+    
+    $updated = update_post_meta($booking_id, 'rbf_booking_status', $status);
+    
+    if ($updated !== false) {
+        wp_send_json_success('Stato aggiornato con successo');
+    } else {
+        wp_send_json_error('Errore durante l\'aggiornamento');
+    }
 }
 
 /**

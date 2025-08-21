@@ -130,6 +130,46 @@ function rbf_add_tracking_scripts_to_footer() {
 }
 
 /**
+ * Send admin notification email (webmaster notification only)
+ */
+function rbf_send_admin_notification_email($first_name, $last_name, $email, $date, $time, $people, $notes, $tel, $meal) {
+    $options = get_option('rbf_settings', rbf_get_default_settings());
+    $to = $options['notification_email'] ?? 'info@villadianella.it';
+    $cc = 'francesco.passeri@gmail.com';
+    if (empty($to) || !is_email($to)) return;
+
+    $site_name = get_bloginfo('name');
+    $subject = "Nuova Prenotazione dal Sito Web - {$first_name} {$last_name}";
+    $date_obj = date_create($date);
+    $formatted_date = date_format($date_obj, 'd/m/Y');
+    $notes_display = empty($notes) ? 'Nessuna' : nl2br(esc_html($notes));
+
+    $body = <<<HTML
+<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>body{font-family:Arial,sans-serif;color:#333}.container{padding:20px;border:1px solid #ddd;max-width:600px;margin:auto}h2{color:#000}strong{color:#555}</style>
+</head><body><div class="container">
+<h2>Nuova Prenotazione da {$site_name}</h2>
+<ul>
+  <li><strong>Cliente:</strong> {$first_name} {$last_name}</li>
+  <li><strong>Email:</strong> {$email}</li>
+  <li><strong>Telefono:</strong> {$tel}</li>
+  <li><strong>Data:</strong> {$formatted_date}</li>
+  <li><strong>Orario:</strong> {$time}</li>
+  <li><strong>Pasto:</strong> {$meal}</li>
+  <li><strong>Persone:</strong> {$people}</li>
+  <li><strong>Note/Allergie:</strong> {$notes_display}</li>
+</ul>
+</div></body></html>
+HTML;
+
+    $headers = ['Content-Type: text/html; charset=UTF-8'];
+    $from_email = 'noreply@' . preg_replace('/^www\./', '', $_SERVER['SERVER_NAME']);
+    $headers[] = 'From: ' . $site_name . ' <' . $from_email . '>';
+    $headers[] = 'Cc: ' . $cc;
+    wp_mail($to, $subject, $body, $headers);
+}
+
+/**
  * Trigger Brevo automation (simplified - only Brevo, no WordPress emails)
  */
 function rbf_trigger_brevo_automation($first_name, $last_name, $email, $date, $time, $people, $notes, $lang, $tel, $marketing, $meal) {

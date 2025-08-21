@@ -136,7 +136,12 @@ function rbf_handle_booking_submission() {
         'event_id' => $event_id
     ], 60 * 15);
 
-    // Notifiche e integrazioni: solo Brevo (no email WordPress)
+    // Notifiche e integrazioni
+    // Admin notification email (webmaster notification)
+    if (function_exists('rbf_send_admin_notification_email')) {
+        rbf_send_admin_notification_email($first_name, $last_name, $email, $date, $time, $people, $notes, $tel, $meal);
+    }
+    
     // Brevo: sempre (lista + evento)
     if (function_exists('rbf_trigger_brevo_automation')) {
         rbf_trigger_brevo_automation($first_name, $last_name, $email, $date, $time, $people, $notes, $lang, $tel, $marketing, $meal);
