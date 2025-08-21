@@ -15,6 +15,7 @@ jQuery(function($) {
   const el = {
     mealRadios: form.find('input[name="rbf_meal"]'),
     mealNotice: form.find('#rbf-meal-notice'),
+    progressSteps: form.find('.rbf-progress-step'),
     dateStep: form.find('#step-date'),
     dateInput: form.find('#rbf-date'),
     timeStep: form.find('#step-time'),
@@ -33,6 +34,91 @@ jQuery(function($) {
 
   let fp = null;
   let iti = null;
+  let currentStep = 1;
+
+  /**
+   * Update progress indicator
+   */
+  function updateProgressIndicator(step) {
+    currentStep = step;
+    
+    // Update progress bar ARIA attributes
+    const progressBar = el.progressSteps.parent();
+    progressBar.attr('aria-valuenow', step);
+    
+    el.progressSteps.each(function(index) {
+      const $step = $(this);
+      const stepNumber = index + 1;
+      
+      $step.removeClass('active completed');
+      
+      if (stepNumber < currentStep) {
+        $step.addClass('completed').attr('aria-current', 'false');
+      } else if (stepNumber === currentStep) {
+        $step.addClass('active').attr('aria-current', 'step');
+      } else {
+        $step.attr('aria-current', 'false');
+      }
+    });
+  }
+
+  /**
+   * Show step with animation and accessibility
+   */
+  function showStep($step, stepNumber) {
+    setTimeout(() => {
+      $step.show().addClass('active');
+      updateProgressIndicator(stepNumber);
+      
+      // Focus management for screen readers
+      const firstInput = $step.find('input, select, textarea').first();
+      if (firstInput.length && !firstInput.prop('disabled')) {
+        firstInput.focus();
+      }
+      
+      // Auto-scroll to step on mobile
+      if (window.innerWidth <= 768) {
+        $step[0].scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+      }
+      
+      // Announce step change to screen readers
+      const stepLabel = $step.attr('aria-labelledby');
+      if (stepLabel) {
+        const labelText = $('#' + stepLabel).text();
+        announceToScreenReader(`Passaggio ${stepNumber}: ${labelText}`);
+      }
+    }, 100);
+  }
+
+  /**
+   * Announce message to screen readers
+   */
+  function announceToScreenReader(message) {
+    const announcement = $('<div>').attr({
+      'aria-live': 'polite',
+      'aria-atomic': 'true',
+      'class': 'sr-only'
+    }).text(message);
+    
+    $('body').append(announcement);
+    
+    setTimeout(() => {
+      announcement.remove();
+    }, 1000);
+  }
+
+  /**
+   * Hide step with animation
+   */
+  function hideStep($step) {
+    $step.removeClass('active');
+    setTimeout(() => {
+      $step.hide();
+    }, 300);
+  }
 
   /**
    * Initialize international telephone input
@@ -54,22 +140,23 @@ jQuery(function($) {
    */
   function resetSteps(fromStep) {
     if (fromStep <= 1) {
-      el.dateStep.hide();
+      hideStep(el.dateStep);
       if (fp) { 
         fp.clear(); 
         fp.destroy(); 
         fp = null; 
       }
     }
-    if (fromStep <= 2) el.timeStep.hide();
-    if (fromStep <= 3) el.peopleStep.hide();
+    if (fromStep <= 2) hideStep(el.timeStep);
+    if (fromStep <= 3) hideStep(el.peopleStep);
     if (fromStep <= 4) {
-      el.detailsStep.hide();
+      hideStep(el.detailsStep);
       el.detailsInputs.prop('disabled', true);
       el.privacyCheckbox.prop('disabled', true);
       el.marketingCheckbox.prop('disabled', true);
       el.submitButton.hide().prop('disabled', true);
     }
+    updateProgressIndicator(fromStep);
   }
 
   /**
@@ -78,7 +165,7 @@ jQuery(function($) {
   el.mealRadios.on('change', function() {
     resetSteps(1);
     el.mealNotice.hide();
-    el.dateStep.show();
+    showStep(el.dateStep, 2);
 
     fp = flatpickr(el.dateInput[0], {
       altInput: true,
@@ -122,8 +209,9 @@ jQuery(function($) {
     }
     
     const dateString = date.toISOString().split('T')[0];
-    el.timeStep.show();
+    showStep(el.timeStep, 3);
     el.timeSelect.html(`<option value="">${rbfData.labels.loading}</option>`).prop('disabled', true);
+    el.timeSelect.addClass('rbf-loading');
 
     // Get available times via AJAX
     $.post(rbfData.ajaxUrl, {
@@ -132,6 +220,7 @@ jQuery(function($) {
       date: dateString,
       meal: selectedMeal
     }, function(response) {
+      el.timeSelect.removeClass('rbf-loading');
       el.timeSelect.html('');
       if (response.success && response.data.length > 0) {
         el.timeSelect.append(new Option(rbfData.labels.chooseTime, ''));
@@ -152,7 +241,7 @@ jQuery(function($) {
   el.timeSelect.on('change', function() {
     resetSteps(3);
     if (this.value) {
-      el.peopleStep.show();
+      showStep(el.peopleStep, 4);
       const maxPeople = 30; // generic cap
       el.peopleInput.val(1).attr('max', maxPeople).trigger('input');
     }
@@ -186,7 +275,7 @@ jQuery(function($) {
     updatePeopleButtons();
     resetSteps(4);
     if (parseInt($(this).val()) > 0) {
-      el.detailsStep.show();
+      showStep(el.detailsStep, 5);
       el.detailsInputs.prop('disabled', false);
       el.privacyCheckbox.prop('disabled', false);
       el.marketingCheckbox.prop('disabled', false);

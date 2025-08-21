@@ -2,40 +2,72 @@
  * Admin Styles for Restaurant Booking Plugin
  */
 
+:root {
+    --rbf-admin-primary: #2c5aa0;
+    --rbf-admin-primary-light: #3d6fb7;
+    --rbf-admin-primary-dark: #1e3d70;
+    --rbf-admin-secondary: #f8b500;
+    --rbf-admin-text: #1d2327;
+    --rbf-admin-border: #e1e5e9;
+    --rbf-admin-bg: #f7f7f9;
+    --rbf-admin-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    --rbf-admin-radius: 10px;
+    --rbf-admin-transition: all 0.3s ease;
+}
+
 .rbf-admin-wrap {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: #f7f7f9;
-    padding: 24px;
-    border-radius: 10px;
-    box-shadow: 0 1px 2px rgba(0,0,0,.06);
-    max-width: 980px;
+    background: linear-gradient(135deg, var(--rbf-admin-bg) 0%, #e8eef5 100%);
+    padding: 32px;
+    border-radius: var(--rbf-admin-radius);
+    box-shadow: var(--rbf-admin-shadow);
+    max-width: 1000px;
     margin: 24px auto;
 }
 
 .rbf-admin-wrap h1 {
-    color: #1d2327;
-    font-size: 22px;
-    margin: 0 0 18px;
-    border-bottom: 1px solid #e6e7eb;
-    padding-bottom: 10px;
+    color: var(--rbf-admin-text);
+    font-size: 26px;
+    margin: 0 0 24px;
+    border-bottom: 2px solid var(--rbf-admin-border);
+    padding-bottom: 16px;
+    position: relative;
+}
+
+.rbf-admin-wrap h1::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 60px;
+    height: 2px;
+    background: linear-gradient(135deg, var(--rbf-admin-primary) 0%, var(--rbf-admin-secondary) 100%);
 }
 
 .rbf-admin-wrap .form-table {
-    background: #fff;
-    border-radius: 10px;
-    padding: 18px 20px;
-    box-shadow: 0 1px 2px rgba(0,0,0,.05);
+    background: white;
+    border-radius: var(--rbf-admin-radius);
+    padding: 24px 28px;
+    box-shadow: 0 4px 12px rgba(0,0,0,.08);
+    border: 1px solid var(--rbf-admin-border);
 }
 
 .rbf-admin-wrap .form-table th {
     font-weight: 600;
-    color: #1d2327;
-    padding: 14px 10px;
-    width: 260px;
+    color: var(--rbf-admin-text);
+    padding: 16px 12px;
+    width: 280px;
+    border-bottom: 1px solid #f0f0f1;
 }
 
 .rbf-admin-wrap .form-table td {
-    padding: 14px 10px;
+    padding: 16px 12px;
+    border-bottom: 1px solid #f0f0f1;
+}
+
+.rbf-admin-wrap .form-table tr:last-child th,
+.rbf-admin-wrap .form-table tr:last-child td {
+    border-bottom: none;
 }
 
 .rbf-admin-wrap .form-table input[type="text"],
@@ -45,12 +77,21 @@
 .rbf-admin-wrap .form-table textarea,
 .rbf-admin-wrap .form-table select {
     width: 100%;
-    max-width: 420px;
-    padding: 8px 10px;
-    border: 1px solid #dcdcde;
-    border-radius: 6px;
+    max-width: 450px;
+    padding: 10px 14px;
+    border: 2px solid var(--rbf-admin-border);
+    border-radius: 8px;
     font-size: 14px;
     background: #fcfcfd;
+    transition: var(--rbf-admin-transition);
+}
+
+.rbf-admin-wrap .form-table input:focus,
+.rbf-admin-wrap .form-table textarea:focus,
+.rbf-admin-wrap .form-table select:focus {
+    outline: none;
+    border-color: var(--rbf-admin-primary);
+    box-shadow: 0 0 0 3px rgba(44, 90, 160, 0.1);
 }
 
 .rbf-admin-wrap .form-table textarea {
@@ -59,31 +100,77 @@
 
 .rbf-admin-wrap .submit {
     text-align: right;
-    margin-top: 18px;
+    margin-top: 24px;
 }
 
 .rbf-admin-wrap .button-primary {
-    background: #111827;
-    border-color: #111827;
-    color: #fff;
-    padding: 10px 18px;
+    background: linear-gradient(135deg, var(--rbf-admin-primary) 0%, var(--rbf-admin-primary-dark) 100%);
+    border-color: var(--rbf-admin-primary-dark);
+    color: white;
+    padding: 12px 24px;
     font-size: 14px;
+    font-weight: 600;
     border-radius: 8px;
+    box-shadow: var(--rbf-admin-shadow);
+    transition: var(--rbf-admin-transition);
 }
 
 .rbf-admin-wrap .button-primary:hover {
-    background: #0b1220;
+    background: linear-gradient(135deg, var(--rbf-admin-primary-light) 0%, var(--rbf-admin-primary) 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(44, 90, 160, 0.3);
 }
 
 .notice {
     border-radius: 8px;
+    border-left-width: 4px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
 }
 
 #rbf-calendar {
-    background: #fff;
+    background: white;
+    padding: 24px;
+    border-radius: var(--rbf-admin-radius);
+    box-shadow: 0 4px 12px rgba(0,0,0,.08);
+    max-width: 1000px;
+    margin: 20px auto;
+    border: 1px solid var(--rbf-admin-border);
+}
+
+/* Section headers in form */
+.rbf-admin-wrap .form-table h3 {
+    color: var(--rbf-admin-primary);
+    font-size: 18px;
+    margin: 0;
+    padding: 0;
+    font-weight: 600;
+}
+
+/* Improve form sections */
+.rbf-admin-wrap .form-table tr th[colspan="2"] {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 6px;
     padding: 16px;
-    border-radius: 10px;
-    box-shadow: 0 1px 2px rgba(0,0,0,.05);
-    max-width: 980px;
-    margin: 16px auto;
+    margin: 8px 0;
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+    .rbf-admin-wrap {
+        margin: 12px;
+        padding: 20px;
+    }
+    
+    .rbf-admin-wrap .form-table th,
+    .rbf-admin-wrap .form-table td {
+        display: block;
+        width: 100%;
+        padding: 8px 0;
+    }
+    
+    .rbf-admin-wrap .form-table th {
+        width: auto;
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
 }
