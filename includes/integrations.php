@@ -134,8 +134,7 @@ function rbf_add_tracking_scripts_to_footer() {
  */
 function rbf_send_admin_notification_email($first_name, $last_name, $email, $date, $time, $people, $notes, $tel, $meal) {
     $options = get_option('rbf_settings', rbf_get_default_settings());
-    $to = $options['notification_email'] ?? 'info@villadianella.it';
-    $cc = 'francesco.passeri@gmail.com';
+    $to = $options['notification_email'];
     if (empty($to) || !is_email($to)) return;
 
     $site_name = get_bloginfo('name');
@@ -165,7 +164,6 @@ HTML;
     $headers = ['Content-Type: text/html; charset=UTF-8'];
     $from_email = 'noreply@' . preg_replace('/^www\./', '', $_SERVER['SERVER_NAME']);
     $headers[] = 'From: ' . $site_name . ' <' . $from_email . '>';
-    $headers[] = 'Cc: ' . $cc;
     wp_mail($to, $subject, $body, $headers);
 }
 
