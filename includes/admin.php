@@ -107,7 +107,7 @@ add_action('manage_rbf_booking_posts_custom_column', 'rbf_custom_column_data', 1
 function rbf_custom_column_data($column, $post_id) {
     switch ($column) {
         case 'rbf_status':
-            $status = get_post_meta($post_id, 'rbf_booking_status', true) ?: 'pending';
+            $status = get_post_meta($post_id, 'rbf_booking_status', true) ?: 'confirmed';
             $statuses = rbf_get_booking_statuses();
             $color = rbf_get_status_color($status);
             echo '<span style="display: inline-block; padding: 4px 8px; border-radius: 4px; background: ' . esc_attr($color) . '; color: white; font-size: 12px; font-weight: bold;">';
@@ -175,41 +175,22 @@ function rbf_custom_column_data($column, $post_id) {
 }
 
 /**
- * Render booking action buttons
+ * Render booking action buttons (simplified - no manual status changes)
  */
 function rbf_render_booking_actions($post_id) {
-    $status = get_post_meta($post_id, 'rbf_booking_status', true) ?: 'pending';
-    $nonce = wp_create_nonce('rbf_status_' . $post_id);
+    $status = get_post_meta($post_id, 'rbf_booking_status', true) ?: 'confirmed';
     
-    $actions = [];
-    
-    if ($status === 'pending') {
-        $actions['confirm'] = [
-            'label' => rbf_translate_string('Conferma'),
-            'status' => 'confirmed',
-            'color' => '#10b981'
-        ];
-    }
-    
-    if (in_array($status, ['pending', 'confirmed'])) {
-        $actions['complete'] = [
-            'label' => rbf_translate_string('Completa'),
-            'status' => 'completed', 
-            'color' => '#06b6d4'
-        ];
-        $actions['cancel'] = [
-            'label' => rbf_translate_string('Annulla'),
-            'status' => 'cancelled',
-            'color' => '#ef4444'
-        ];
-    }
-    
-    foreach ($actions as $action => $config) {
-        echo '<a href="' . esc_url(admin_url('admin-post.php?action=rbf_update_booking_status&booking_id=' . $post_id . '&status=' . $config['status'] . '&_wpnonce=' . $nonce)) . '" ';
-        echo 'style="color: ' . esc_attr($config['color']) . '; font-weight: bold; text-decoration: none; margin-right: 10px;" ';
-        echo 'onclick="return confirm(\'' . esc_js(sprintf('Confermi di voler %s questa prenotazione?', strtolower($config['label']))) . '\')">';
-        echo esc_html($config['label']);
+    // Only show delete action for cancelled bookings
+    if ($status === 'cancelled') {
+        $delete_url = admin_url('post.php?post=' . $post_id . '&action=delete');
+        $delete_nonce = wp_create_nonce('delete-post_' . $post_id);
+        echo '<a href="' . esc_url($delete_url . '&_wpnonce=' . $delete_nonce) . '" ';
+        echo 'style="color: #ef4444; font-weight: bold; text-decoration: none;" ';
+        echo 'onclick="return confirm(\'' . esc_js('Elimina definitivamente questa prenotazione?') . '\')">';
+        echo esc_html(rbf_translate_string('Elimina'));
         echo '</a>';
+    } else {
+        echo '<span style="color: #6b7280; font-style: italic;">' . esc_html(rbf_translate_string('Gestione Automatica')) . '</span>';
     }
 }
 
@@ -536,35 +517,7 @@ function rbf_add_booking_page_html() {
             </table>
 }
 
-/**
- * Handle booking status updates
- */
-add_action('admin_post_rbf_update_booking_status', 'rbf_handle_status_update');
-function rbf_handle_status_update() {
-    if (!current_user_can('manage_options')) {
-        wp_die(__('You do not have sufficient permissions to access this page.'));
-    }
-    
-    $booking_id = intval($_GET['booking_id'] ?? 0);
-    $new_status = sanitize_text_field($_GET['status'] ?? '');
-    $nonce = $_GET['_wpnonce'] ?? '';
-    
-    if (!$booking_id || !$new_status || !wp_verify_nonce($nonce, 'rbf_status_' . $booking_id)) {
-        wp_die(__('Invalid request'));
-    }
-    
-    $statuses = array_keys(rbf_get_booking_statuses());
-    if (!in_array($new_status, $statuses)) {
-        wp_die(__('Invalid status'));
-    }
-    
-    // Update status with history tracking
-    rbf_update_booking_status($booking_id, $new_status, 'Status updated via admin panel');
-    
-    // Redirect back to bookings list
-    wp_safe_redirect(admin_url('edit.php?post_type=rbf_booking&status_updated=1'));
-    exit;
-}
+
 
 /**
  * Make status column sortable
@@ -804,10 +757,6 @@ function rbf_reports_page_html() {
     </script>
     <?php
 }
-            <?php submit_button(esc_html(rbf_translate_string('Aggiungi Prenotazione'))); ?>
-        </form>
-    </div>
-    <?php
 
 /**
  * Filter bookings by status
@@ -899,7 +848,7 @@ function rbf_get_booking_analytics($start_date, $end_date) {
     foreach ($bookings as $booking) {
         $people = intval($booking->people ?: 0);
         $meal = $booking->meal ?: 'pranzo';
-        $status = $booking->status ?: 'pending';
+        $status = $booking->status ?: 'confirmed';
         $source = $booking->source ?: 'direct';
         $bucket = $booking->bucket ?: 'direct';
         
@@ -1139,7 +1088,7 @@ function rbf_export_csv($bookings, $start_date, $end_date) {
     // Data rows
     foreach ($bookings as $booking) {
         $statuses = rbf_get_booking_statuses();
-        $status_label = $statuses[$booking->status ?? 'pending'] ?? ($booking->status ?? 'pending');
+        $status_label = $statuses[$booking->status ?? 'confirmed'] ?? ($booking->status ?? 'confirmed');
         
         $row = [
             $booking->ID,
@@ -1212,8 +1161,8 @@ function rbf_export_json($bookings, $start_date, $end_date) {
             'booking_details' => [
                 'people' => intval($booking->people ?: 0),
                 'meal' => $booking->meal,
-                'status' => $booking->status ?: 'pending',
-                'status_label' => $statuses[$booking->status ?? 'pending'] ?? ($booking->status ?? 'pending'),
+                'status' => $booking->status ?: 'confirmed',
+                'status_label' => $statuses[$booking->status ?? 'confirmed'] ?? ($booking->status ?? 'confirmed'),
                 'notes' => $booking->notes
             ],
             'consent' => [
@@ -1238,4 +1187,44 @@ function rbf_export_json($bookings, $start_date, $end_date) {
     echo wp_json_encode($export_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
     exit;
 }
+
+/**
+ * Automatic status management - run daily to update completed bookings
+ */
+add_action('init', 'rbf_schedule_status_updates');
+function rbf_schedule_status_updates() {
+    if (!wp_next_scheduled('rbf_update_booking_statuses')) {
+        // Schedule daily at 6:00 AM to update past bookings to completed
+        wp_schedule_event(strtotime('today 06:00'), 'daily', 'rbf_update_booking_statuses');
+    }
+}
+
+add_action('rbf_update_booking_statuses', 'rbf_auto_complete_past_bookings');
+function rbf_auto_complete_past_bookings() {
+    global $wpdb;
+    
+    // Get all confirmed bookings from yesterday or earlier
+    $yesterday = date('Y-m-d', strtotime('-1 day'));
+    
+    $bookings = $wpdb->get_results($wpdb->prepare(
+        "SELECT p.ID FROM {$wpdb->posts} p
+         INNER JOIN {$wpdb->postmeta} pm_date ON p.ID = pm_date.post_id AND pm_date.meta_key = 'rbf_data'
+         INNER JOIN {$wpdb->postmeta} pm_status ON p.ID = pm_status.post_id AND pm_status.meta_key = 'rbf_booking_status'
+         WHERE p.post_type = 'rbf_booking' AND p.post_status = 'publish'
+         AND pm_date.meta_value <= %s 
+         AND pm_status.meta_value = 'confirmed'",
+        $yesterday
+    ));
+    
+    foreach ($bookings as $booking) {
+        rbf_update_booking_status($booking->ID, 'completed', 'Auto-completed after booking date');
+    }
+}
+
+/**
+ * Clear scheduled events on plugin deactivation
+ */
+register_deactivation_hook(RBF_PLUGIN_FILE, 'rbf_clear_automatic_status_events');
+function rbf_clear_automatic_status_events() {
+    wp_clear_scheduled_hook('rbf_update_booking_statuses');
 }

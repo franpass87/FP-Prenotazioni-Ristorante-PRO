@@ -163,12 +163,6 @@ function rbf_translate_string($text) {
         'Conferma' => 'Confirm',
         'Completa' => 'Complete',
         
-        // Waitlist functionality
-        'Lista d\'Attesa' => 'Waitlist',
-        'Puoi unirti alla nostra lista d\'attesa. Ti contatteremo appena si libererà un posto per la data e orario richiesti.' => 'You can join our waitlist. We will contact you as soon as a spot becomes available for your requested date and time.',
-        'Unisciti alla Lista d\'Attesa' => 'Join Waitlist',
-        'Grazie! Sei stato aggiunto alla lista d\'attesa. Ti contatteremo appena si libererà un posto.' => 'Thank you! You have been added to the waitlist. We will contact you as soon as a spot becomes available.',
-        
         // Reports and Analytics
         'Report & Analytics' => 'Reports & Analytics',
         'Da:' => 'From:',
@@ -228,33 +222,30 @@ function rbf_translate_string($text) {
         'Sorgenti di traffico e parametri UTM' => 'Traffic sources and UTM parameters',
         'Note e preferenze alimentari' => 'Notes and dietary preferences',
         'Consensi privacy e marketing' => 'Privacy and marketing consents',
+        'Gestione Automatica' => 'Automatic Management',
     ];
     return $translations[$text] ?? $text;
 }
 
 /**
- * Get available booking statuses
+ * Get available booking statuses (simplified - no waitlist or pending)
  */
 function rbf_get_booking_statuses() {
     return [
-        'pending' => rbf_translate_string('In Attesa'),
         'confirmed' => rbf_translate_string('Confermata'),
         'completed' => rbf_translate_string('Completata'),
         'cancelled' => rbf_translate_string('Annullata'),
-        'waitlist' => rbf_translate_string('In Lista d\'Attesa'),
     ];
 }
 
 /**
- * Get booking status color
+ * Get booking status color (simplified)
  */
 function rbf_get_status_color($status) {
     $colors = [
-        'pending' => '#f59e0b',    // amber
         'confirmed' => '#10b981',  // emerald
         'completed' => '#06b6d4',  // cyan
         'cancelled' => '#ef4444',  // red
-        'waitlist' => '#8b5cf6',   // violet
     ];
     return $colors[$status] ?? '#6b7280'; // gray fallback
 }

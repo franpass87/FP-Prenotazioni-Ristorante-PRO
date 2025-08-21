@@ -69,29 +69,19 @@ function rbf_handle_booking_submission() {
     }
 
     $remaining_capacity = rbf_get_remaining_capacity($date, $slot);
-    $booking_status = 'pending';
     
+    // Check capacity - if not enough, show error (no waitlist)
     if ($remaining_capacity < $people) {
-        // Check if waitlist is enabled for this slot
-        if (isset($_POST['rbf_accept_waitlist']) && $_POST['rbf_accept_waitlist'] === 'yes') {
-            $booking_status = 'waitlist';
-        } else {
-            // Show waitlist option instead of error
-            $error_msg = sprintf(
-                rbf_translate_string('Spiacenti, non ci sono abbastanza posti. Rimasti: %d. Vuoi essere aggiunto alla lista d\'attesa?'), 
-                $remaining_capacity
-            );
-            wp_safe_redirect(add_query_arg([
-                'rbf_error' => urlencode($error_msg),
-                'rbf_show_waitlist' => '1',
-                'rbf_meal' => $meal,
-                'rbf_data' => $date, 
-                'rbf_orario' => $time_data,
-                'rbf_persone' => $people
-            ], $redirect_url . $anchor)); 
-            exit;
-        }
+        $error_msg = sprintf(
+            rbf_translate_string('Spiacenti, non ci sono abbastanza posti. Rimasti: %d. Scegli un altro orario.'), 
+            $remaining_capacity
+        );
+        wp_safe_redirect(add_query_arg('rbf_error', urlencode($error_msg), $redirect_url . $anchor)); 
+        exit;
     }
+    
+    // All bookings are automatically confirmed
+    $booking_status = 'confirmed';
 
     $post_id = wp_insert_post([
         'post_type' => 'rbf_booking',
@@ -146,11 +136,7 @@ function rbf_handle_booking_submission() {
         'event_id' => $event_id
     ], 60 * 15);
 
-    // Notifiche email (con CC fisso) - check if functions exist
-    if (function_exists('rbf_send_admin_notification_email')) {
-        rbf_send_admin_notification_email($first_name, $last_name, $email, $date, $time, $people, $notes, $tel, $meal);
-    }
-
+    // Notifiche e integrazioni: solo Brevo (no email WordPress)
     // Brevo: sempre (lista + evento)
     if (function_exists('rbf_trigger_brevo_automation')) {
         rbf_trigger_brevo_automation($first_name, $last_name, $email, $date, $time, $people, $notes, $lang, $tel, $marketing, $meal);
@@ -187,9 +173,6 @@ function rbf_handle_booking_submission() {
     }
 
     $success_args = ['rbf_success' => '1', 'booking_id' => $post_id];
-    if ($booking_status === 'waitlist') {
-        $success_args['waitlist'] = '1';
-    }
     wp_safe_redirect(add_query_arg($success_args, $redirect_url . $anchor)); exit;
 }
 
