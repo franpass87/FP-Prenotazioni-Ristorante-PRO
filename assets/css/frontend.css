@@ -351,7 +351,51 @@
     text-decoration: underline;
 }
 
-/* Mobile Responsiveness */
+/* Help text styling */
+.rbf-help-text {
+    display: block;
+    font-size: 13px;
+    color: var(--rbf-text-light);
+    margin-top: 6px;
+    font-style: italic;
+}
+
+/* Section titles */
+.rbf-section-title {
+    color: var(--rbf-primary);
+    font-size: 20px;
+    margin: 0 0 1.5rem 0;
+    font-weight: 600;
+    border-bottom: 2px solid var(--rbf-border);
+    padding-bottom: 8px;
+}
+
+.rbf-consent-title {
+    color: var(--rbf-text);
+    font-size: 16px;
+    margin: 1.5rem 0 1rem 0;
+    font-weight: 600;
+}
+
+/* Focus management for accessibility */
+.rbf-step:focus-within {
+    outline: 2px solid var(--rbf-primary);
+    outline-offset: 4px;
+    border-radius: var(--rbf-radius);
+}
+
+/* Screen reader only content */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
 @media (max-width: 768px) {
     .rbf-form-container {
         padding: 1rem;

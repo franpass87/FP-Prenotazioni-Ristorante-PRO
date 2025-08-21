@@ -127,6 +127,18 @@ function rbf_translate_string($text) {
         'Pranzo' => 'Lunch',
         'Aperitivo' => 'Aperitif',
         'Cena' => 'Dinner',
+        
+        // New accessibility and UX strings
+        'Progresso prenotazione' => 'Booking progress',
+        'Dati personali' => 'Personal details',
+        'I tuoi dati' => 'Your details',
+        'Consensi' => 'Consents',
+        'Seleziona una data dal calendario' => 'Select a date from the calendar',
+        'Seleziona un orario disponibile' => 'Select an available time',
+        'Usa i pulsanti + e - per modificare' => 'Use + and - buttons to change',
+        'Diminuisci numero persone' => 'Decrease number of people',
+        'Aumenta numero persone' => 'Increase number of people',
+        'Inserisci eventuali allergie o note particolari...' => 'Enter any allergies or special notes...',
     ];
     return $translations[$text] ?? $text;
 }

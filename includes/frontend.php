@@ -89,65 +89,75 @@ function rbf_render_booking_form() {
                 <?php wp_nonce_field('rbf_booking','rbf_nonce'); ?>
                 
                 <!-- Progress Indicator -->
-                <div class="rbf-progress-indicator">
-                    <div class="rbf-progress-step active" data-step="1">1</div>
-                    <div class="rbf-progress-step" data-step="2">2</div>
-                    <div class="rbf-progress-step" data-step="3">3</div>
-                    <div class="rbf-progress-step" data-step="4">4</div>
-                    <div class="rbf-progress-step" data-step="5">5</div>
+                <div class="rbf-progress-indicator" role="progressbar" aria-valuenow="1" aria-valuemin="1" aria-valuemax="5" aria-label="<?php echo esc_attr(rbf_translate_string('Progresso prenotazione')); ?>">
+                    <div class="rbf-progress-step active" data-step="1" aria-label="<?php echo esc_attr(rbf_translate_string('Scegli il pasto')); ?>">1</div>
+                    <div class="rbf-progress-step" data-step="2" aria-label="<?php echo esc_attr(rbf_translate_string('Data')); ?>">2</div>
+                    <div class="rbf-progress-step" data-step="3" aria-label="<?php echo esc_attr(rbf_translate_string('Orario')); ?>">3</div>
+                    <div class="rbf-progress-step" data-step="4" aria-label="<?php echo esc_attr(rbf_translate_string('Persone')); ?>">4</div>
+                    <div class="rbf-progress-step" data-step="5" aria-label="<?php echo esc_attr(rbf_translate_string('Dati personali')); ?>">5</div>
                 </div>
 
-                <div id="step-meal" class="rbf-step active">
-                    <label><?php echo esc_html(rbf_translate_string('Scegli il pasto')); ?></label>
-                    <div class="rbf-radio-group">
-                        <input type="radio" name="rbf_meal" value="pranzo" id="rbf_meal_pranzo" required>
+                <div id="step-meal" class="rbf-step active" role="group" aria-labelledby="meal-label">
+                    <label id="meal-label"><?php echo esc_html(rbf_translate_string('Scegli il pasto')); ?></label>
+                    <div class="rbf-radio-group" role="radiogroup" aria-labelledby="meal-label">
+                        <input type="radio" name="rbf_meal" value="pranzo" id="rbf_meal_pranzo" required aria-describedby="rbf-meal-notice">
                         <label for="rbf_meal_pranzo"><?php echo esc_html(rbf_translate_string('Pranzo')); ?></label>
-                        <input type="radio" name="rbf_meal" value="aperitivo" id="rbf_meal_aperitivo" required>
+                        <input type="radio" name="rbf_meal" value="aperitivo" id="rbf_meal_aperitivo" required aria-describedby="rbf-meal-notice">
                         <label for="rbf_meal_aperitivo"><?php echo esc_html(rbf_translate_string('Aperitivo')); ?></label>
-                        <input type="radio" name="rbf_meal" value="cena" id="rbf_meal_cena" required>
+                        <input type="radio" name="rbf_meal" value="cena" id="rbf_meal_cena" required aria-describedby="rbf-meal-notice">
                         <label for="rbf_meal_cena"><?php echo esc_html(rbf_translate_string('Cena')); ?></label>
                     </div>
-                    <p id="rbf-meal-notice" style="display:none;"></p>
+                    <p id="rbf-meal-notice" style="display:none;" role="status" aria-live="polite"></p>
                 </div>
 
-                <div id="step-date" class="rbf-step" style="display:none;">
-                    <label for="rbf-date"><?php echo esc_html(rbf_translate_string('Data')); ?></label>
-                    <input id="rbf-date" name="rbf_data" readonly="readonly" required>
+                <div id="step-date" class="rbf-step" style="display:none;" role="group" aria-labelledby="date-label">
+                    <label id="date-label" for="rbf-date"><?php echo esc_html(rbf_translate_string('Data')); ?></label>
+                    <input id="rbf-date" name="rbf_data" readonly="readonly" required aria-describedby="date-help">
+                    <small id="date-help" class="rbf-help-text"><?php echo esc_html(rbf_translate_string('Seleziona una data dal calendario')); ?></small>
                 </div>
 
-                <div id="step-time" class="rbf-step" style="display:none;">
-                    <label for="rbf-time"><?php echo esc_html(rbf_translate_string('Orario')); ?></label>
-                    <select id="rbf-time" name="rbf_orario" required disabled>
+                <div id="step-time" class="rbf-step" style="display:none;" role="group" aria-labelledby="time-label">
+                    <label id="time-label" for="rbf-time"><?php echo esc_html(rbf_translate_string('Orario')); ?></label>
+                    <select id="rbf-time" name="rbf_orario" required disabled aria-describedby="time-help">
                         <option value=""><?php echo esc_html(rbf_translate_string('Prima scegli la data')); ?></option>
                     </select>
+                    <small id="time-help" class="rbf-help-text"><?php echo esc_html(rbf_translate_string('Seleziona un orario disponibile')); ?></small>
                 </div>
 
-                <div id="step-people" class="rbf-step" style="display:none;">
-                    <label><?php echo esc_html(rbf_translate_string('Persone')); ?></label>
-                    <div class="rbf-people-selector">
-                        <button type="button" id="rbf-people-minus" disabled>-</button>
-                        <input type="number" id="rbf-people" name="rbf_persone" value="1" min="1" readonly="readonly" required>
-                        <button type="button" id="rbf-people-plus">+</button>
+                <div id="step-people" class="rbf-step" style="display:none;" role="group" aria-labelledby="people-label">
+                    <label id="people-label"><?php echo esc_html(rbf_translate_string('Persone')); ?></label>
+                    <div class="rbf-people-selector" role="group" aria-labelledby="people-label">
+                        <button type="button" id="rbf-people-minus" disabled aria-label="<?php echo esc_attr(rbf_translate_string('Diminuisci numero persone')); ?>">-</button>
+                        <input type="number" id="rbf-people" name="rbf_persone" value="1" min="1" readonly="readonly" required aria-describedby="people-help">
+                        <button type="button" id="rbf-people-plus" aria-label="<?php echo esc_attr(rbf_translate_string('Aumenta numero persone')); ?>">+</button>
                     </div>
+                    <small id="people-help" class="rbf-help-text"><?php echo esc_html(rbf_translate_string('Usa i pulsanti + e - per modificare')); ?></small>
                 </div>
 
-                <div id="step-details" class="rbf-step" style="display:none;">
-                    <label for="rbf-name"><?php echo esc_html(rbf_translate_string('Nome')); ?></label>
-                    <input type="text" id="rbf-name" name="rbf_nome" required disabled>
-                    <label for="rbf-surname"><?php echo esc_html(rbf_translate_string('Cognome')); ?></label>
-                    <input type="text" id="rbf-surname" name="rbf_cognome" required disabled>
-                    <label for="rbf-email"><?php echo esc_html(rbf_translate_string('Email')); ?></label>
-                    <input type="email" id="rbf-email" name="rbf_email" required disabled>
-                    <label for="rbf-tel"><?php echo esc_html(rbf_translate_string('Telefono')); ?></label>
-                    <input type="tel" id="rbf-tel" name="rbf_tel" required disabled>
+                <div id="step-details" class="rbf-step" style="display:none;" role="group" aria-labelledby="details-label">
+                    <h3 id="details-label" class="rbf-section-title"><?php echo esc_html(rbf_translate_string('I tuoi dati')); ?></h3>
+                    
+                    <label for="rbf-name"><?php echo esc_html(rbf_translate_string('Nome')); ?> *</label>
+                    <input type="text" id="rbf-name" name="rbf_nome" required disabled aria-required="true">
+                    
+                    <label for="rbf-surname"><?php echo esc_html(rbf_translate_string('Cognome')); ?> *</label>
+                    <input type="text" id="rbf-surname" name="rbf_cognome" required disabled aria-required="true">
+                    
+                    <label for="rbf-email"><?php echo esc_html(rbf_translate_string('Email')); ?> *</label>
+                    <input type="email" id="rbf-email" name="rbf_email" required disabled aria-required="true">
+                    
+                    <label for="rbf-tel"><?php echo esc_html(rbf_translate_string('Telefono')); ?> *</label>
+                    <input type="tel" id="rbf-tel" name="rbf_tel" required disabled aria-required="true">
+                    
                     <label for="rbf-notes"><?php echo esc_html(rbf_translate_string('Allergie/Note')); ?></label>
-                    <textarea id="rbf-notes" name="rbf_allergie" disabled></textarea>
+                    <textarea id="rbf-notes" name="rbf_allergie" disabled placeholder="<?php echo esc_attr(rbf_translate_string('Inserisci eventuali allergie o note particolari...')); ?>"></textarea>
 
-                    <div class="rbf-checkbox-group">
+                    <div class="rbf-checkbox-group" role="group" aria-labelledby="consent-label">
+                        <h4 id="consent-label" class="rbf-consent-title"><?php echo esc_html(rbf_translate_string('Consensi')); ?></h4>
                         <label>
-                            <input type="checkbox" id="rbf-privacy" name="rbf_privacy" value="yes" required disabled>
+                            <input type="checkbox" id="rbf-privacy" name="rbf_privacy" value="yes" required disabled aria-required="true">
                             <?php echo sprintf(
-                                rbf_translate_string('Acconsento al trattamento dei dati secondo l\'<a href="%s" target="_blank">Informativa sulla Privacy</a>'),
+                                rbf_translate_string('Acconsento al trattamento dei dati secondo l\'<a href="%s" target="_blank" rel="noopener">Informativa sulla Privacy</a> *'),
                                 'https://www.villadianella.it/privacy-statement-eu'
                             ); ?>
                         </label>

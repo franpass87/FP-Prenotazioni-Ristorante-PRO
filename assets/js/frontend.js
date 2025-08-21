@@ -41,6 +41,11 @@ jQuery(function($) {
    */
   function updateProgressIndicator(step) {
     currentStep = step;
+    
+    // Update progress bar ARIA attributes
+    const progressBar = el.progressSteps.parent();
+    progressBar.attr('aria-valuenow', step);
+    
     el.progressSteps.each(function(index) {
       const $step = $(this);
       const stepNumber = index + 1;
@@ -48,20 +53,28 @@ jQuery(function($) {
       $step.removeClass('active completed');
       
       if (stepNumber < currentStep) {
-        $step.addClass('completed');
+        $step.addClass('completed').attr('aria-current', 'false');
       } else if (stepNumber === currentStep) {
-        $step.addClass('active');
+        $step.addClass('active').attr('aria-current', 'step');
+      } else {
+        $step.attr('aria-current', 'false');
       }
     });
   }
 
   /**
-   * Show step with animation
+   * Show step with animation and accessibility
    */
   function showStep($step, stepNumber) {
     setTimeout(() => {
       $step.show().addClass('active');
       updateProgressIndicator(stepNumber);
+      
+      // Focus management for screen readers
+      const firstInput = $step.find('input, select, textarea').first();
+      if (firstInput.length && !firstInput.prop('disabled')) {
+        firstInput.focus();
+      }
       
       // Auto-scroll to step on mobile
       if (window.innerWidth <= 768) {
@@ -70,7 +83,31 @@ jQuery(function($) {
           block: 'center' 
         });
       }
+      
+      // Announce step change to screen readers
+      const stepLabel = $step.attr('aria-labelledby');
+      if (stepLabel) {
+        const labelText = $('#' + stepLabel).text();
+        announceToScreenReader(`Passaggio ${stepNumber}: ${labelText}`);
+      }
     }, 100);
+  }
+
+  /**
+   * Announce message to screen readers
+   */
+  function announceToScreenReader(message) {
+    const announcement = $('<div>').attr({
+      'aria-live': 'polite',
+      'aria-atomic': 'true',
+      'class': 'sr-only'
+    }).text(message);
+    
+    $('body').append(announcement);
+    
+    setTimeout(() => {
+      announcement.remove();
+    }, 1000);
   }
 
   /**
