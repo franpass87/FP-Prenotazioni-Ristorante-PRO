@@ -10,43 +10,31 @@
 
 if (!defined('ABSPATH')) exit;
 
+// Load utility class
+require_once __DIR__ . '/includes/class-rbf-utils.php';
+
 /* -------------------------------------------------------------------------
    0) Utils & Traduzioni
 ------------------------------------------------------------------------- */
 
-// Timezone WP compat
+// Timezone WP compat - Legacy wrapper
 if (!function_exists('rbf_wp_timezone')) {
     function rbf_wp_timezone() {
-        if (function_exists('wp_timezone')) return wp_timezone();
-        $tz_string = get_option('timezone_string');
-        if ($tz_string) return new DateTimeZone($tz_string);
-        $offset = (float) get_option('gmt_offset', 0);
-        $hours = (int) $offset;
-        $minutes = abs($offset - $hours) * 60;
-        $sign = $offset < 0 ? '-' : '+';
-        return new DateTimeZone(sprintf('%s%02d:%02d', $sign, abs($hours), $minutes));
+        return RBF_Utils::get_timezone();
     }
 }
 
-// Lingua corrente limitata a it/en (supporto Polylang/WPML; fallback en)
+// Lingua corrente limitata a it/en (supporto Polylang/WPML; fallback en) - Legacy wrapper
 function rbf_current_lang() {
-    if (function_exists('pll_current_language')) {
-        $slug = pll_current_language('slug');
-        return in_array($slug, ['it','en'], true) ? $slug : 'en';
-    }
-    if (defined('ICL_LANGUAGE_CODE')) {
-        $slug = ICL_LANGUAGE_CODE;
-        return in_array($slug, ['it','en'], true) ? $slug : 'en';
-    }
-    $slug = substr(get_locale(), 0, 2);
-    return in_array($slug, ['it','en'], true) ? $slug : 'en';
+    return RBF_Utils::get_current_lang();
 }
 
+// Translation function - Legacy wrapper
 function rbf_translate_string($text) {
-    $locale = rbf_current_lang();
-    if ($locale !== 'en') return $text;
+    return RBF_Utils::translate_string($text);
+}
 
-    static $translations = [
+/* -------------------------------------------------------------------------
         // Backend UI
         'Prenotazioni' => 'Bookings',
         'Prenotazione' => 'Booking',
