@@ -1,3 +1,4 @@
+<?php
 /**
  * Plugin Name: Prenotazioni Ristorante Completo (Flatpickr, lingua dinamica)
  * Description: Prenotazioni con calendario Flatpickr IT/EN, last-minute, capienza per servizio, notifiche email (con CC), Brevo sempre e GA4/Meta (bucket standard).
@@ -245,26 +246,7 @@ function rbf_enqueue_admin_styles($hook) {
         $hook !== 'rbf_bookings_menu_page_rbf_add_booking' &&
         strpos($hook,'edit.php?post_type=rbf_booking') === false) return;
 
-    $css = <<<CSS
-.rbf-admin-wrap{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f7f7f9;padding:24px;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,.06);max-width:980px;margin:24px auto}
-.rbf-admin-wrap h1{color:#1d2327;font-size:22px;margin:0 0 18px;border-bottom:1px solid #e6e7eb;padding-bottom:10px}
-.rbf-admin-wrap .form-table{background:#fff;border-radius:10px;padding:18px 20px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
-.rbf-admin-wrap .form-table th{font-weight:600;color:#1d2327;padding:14px 10px;width:260px}
-.rbf-admin-wrap .form-table td{padding:14px 10px}
-.rbf-admin-wrap .form-table input[type="text"],
-.rbf-admin-wrap .form-table input[type="email"],
-.rbf-admin-wrap .form-table input[type="number"],
-.rbf-admin-wrap .form-table input[type="password"],
-.rbf-admin-wrap .form-table textarea,
-.rbf-admin-wrap .form-table select{width:100%;max-width:420px;padding:8px 10px;border:1px solid #dcdcde;border-radius:6px;font-size:14px;background:#fcfcfd}
-.rbf-admin-wrap .form-table textarea{min-height:100px}
-.rbf-admin-wrap .submit{text-align:right;margin-top:18px}
-.rbf-admin-wrap .button-primary{background:#111827;border-color:#111827;color:#fff;padding:10px 18px;font-size:14px;border-radius:8px}
-.rbf-admin-wrap .button-primary:hover{background:#0b1220}
-.notice{border-radius:8px}
-#rbf-calendar{background:#fff;padding:16px;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,.05);max-width:980px;margin:16px auto}
-CSS;
-    wp_add_inline_style('admin-bar', $css);
+    wp_enqueue_style('rbf-admin-css', plugin_dir_url(__FILE__) . 'assets/css/admin.css', [], '9.3.2');
 }
 
 /* -------------------------------------------------------------------------
@@ -372,8 +354,11 @@ function rbf_enqueue_frontend_assets() {
     wp_enqueue_style('rbf-intl-tel-input-css','https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.13/css/intlTelInput.css',[], '17.0.13');
     wp_enqueue_script('rbf-intl-tel-input','https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.13/js/intlTelInput.min.js',[], '17.0.13', true);
 
-    wp_register_script('rbf-main-script','', $deps, $plugin_version, true);
-    wp_enqueue_script('rbf-main-script');
+    // Frontend styles
+    wp_enqueue_style('rbf-frontend-css', plugin_dir_url(__FILE__) . 'assets/css/frontend.css', ['rbf-flatpickr-css'], '9.3.2');
+
+    // Frontend script
+    wp_enqueue_script('rbf-frontend-js', plugin_dir_url(__FILE__) . 'assets/js/frontend.js', $deps, '9.3.2', true);
 
     // Giorni chiusi
     $closed_days_map = ['sun'=>0,'mon'=>1,'tue'=>2,'wed'=>3,'thu'=>4,'fri'=>5,'sat'=>6];
@@ -383,7 +368,7 @@ function rbf_enqueue_frontend_assets() {
     }
     $closed_specific = rbf_get_closed_specific($options);
 
-    wp_localize_script('rbf-main-script', 'rbfData', [
+    wp_localize_script('rbf-frontend-js', 'rbfData', [
         'ajaxUrl' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('rbf_ajax_nonce'),
         'locale' => $locale, // it/en
@@ -401,235 +386,11 @@ function rbf_enqueue_frontend_assets() {
         ],
     ]);
 
-    // Stili frontend (sintetici)
-    $css = <<<CSS
-.rbf-form-container{position:relative}
-#rbf-message-anchor{position:absolute;top:-20px}
-.rbf-form{max-width:520px;margin:2em auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen-Sans,Ubuntu,Cantarell,'Helvetica Neue',sans-serif}
-.rbf-step{margin-bottom:1.5em}
-.rbf-step>label{display:block;font-weight:600;margin-bottom:.8em}
-#rbf-meal-notice{font-size:.9em;font-style:italic;color:#555;margin-top:12px;padding:8px;background:#f8f9fa;border-left:3px solid #6c757d}
-.rbf-form input[type='text'],.rbf-form input[type='email'],.rbf-form input[type='tel'],.rbf-form select,.rbf-form textarea{box-sizing:border-box;width:100%;padding:10px;border:1px solid #ccc;border-radius:6px;font-size:16px;background:#fff}
-.rbf-radio-group{display:flex;flex-wrap:wrap;gap:10px}
-.rbf-radio-group input[type='radio']{opacity:0;position:fixed;width:0}
-.rbf-radio-group label{display:inline-block;padding:10px 18px;border:1px solid #ccc;border-radius:10px;font-weight:500;text-align:center;cursor:pointer;transition:.2s;background:#f8f9fa;color:#333}
-.rbf-radio-group label:hover{background:#eef1f4;border-color:#bfc7cf}
-.rbf-radio-group input[type='radio']:checked+label{background:#000;color:#fff;border-color:#000;box-shadow:0 2px 5px rgba(0,0,0,.1)}
-.rbf-people-selector{display:flex;align-items:center}
-.rbf-people-selector button{width:44px;height:44px;font-size:24px;font-weight:bold;border:1px solid #ccc;background:#f0f0f0;cursor:pointer;line-height:1;border-radius:6px}
-.rbf-people-selector button:disabled{background:#f8f8f8;cursor:not-allowed;color:#ccc}
-.rbf-people-selector input{height:44px;width:60px;text-align:center;font-weight:700;border:1px solid #ccc;border-left:none;border-right:none;font-size:18px}
-#rbf-submit{width:100%;padding:15px;margin-top:18px;font-size:18px;font-weight:700;color:#fff;background:#000;border:none;border-radius:8px;cursor:pointer}
-#rbf-submit:disabled{background:#bdc3c7;cursor:not-allowed}
-.rbf-success-message,.rbf-error-message{padding:14px;margin-bottom:18px;border-radius:6px;border:2px solid}
-.rbf-success-message{color:#155724;background:#d4edda;border-color:#c3e6cb}
-.rbf-error-message{color:#721c24;background:#f8d7da;border-color:#f5c6cb}
-.iti{width:100%}
-.rbf-checkbox-group{margin-top:12px}
-.rbf-checkbox-group label{display:block;margin-bottom:10px;font-size:14px}
-.rbf-checkbox-group a{color:#000;text-decoration:underline}
-CSS;
-    wp_add_inline_style('rbf-flatpickr-css', $css);
+    // Frontend styles
+    wp_enqueue_style('rbf-frontend-css', plugin_dir_url(__FILE__) . 'assets/css/frontend.css', ['rbf-flatpickr-css'], '9.3.2');
 
-    // Script principale (Flatpickr + UTM capture)
-    $js = <<<'JS'
-jQuery(function($){
-  'use strict';
-  if (typeof rbfData === 'undefined' || typeof flatpickr === 'undefined' || typeof intlTelInput === 'undefined') return;
-
-  const form = $('#rbf-form');
-  if (!form.length) return;
-
-  const el = {
-    mealRadios: form.find('input[name="rbf_meal"]'),
-    mealNotice: form.find('#rbf-meal-notice'),
-    dateStep: form.find('#step-date'),
-    dateInput: form.find('#rbf-date'),
-    timeStep: form.find('#step-time'),
-    timeSelect: form.find('#rbf-time'),
-    peopleStep: form.find('#step-people'),
-    peopleInput: form.find('#rbf-people'),
-    peopleMinus: form.find('#rbf-people-minus'),
-    peoplePlus: form.find('#rbf-people-plus'),
-    detailsStep: form.find('#step-details'),
-    detailsInputs: form.find('#step-details input:not([type=checkbox]), #step-details textarea'),
-    telInput: form.find('#rbf-tel'),
-    privacyCheckbox: form.find('#rbf-privacy'),
-    marketingCheckbox: form.find('#rbf-marketing'),
-    submitButton: form.find('#rbf-submit')
-  };
-
-  let fp = null;
-  let iti = null;
-
-  function initializeTelInput(){
-    if (el.telInput.is(':visible') && !iti) {
-      iti = intlTelInput(el.telInput[0], {
-        utilsScript: rbfData.utilsScript,
-        initialCountry: 'it',
-        preferredCountries: ['it','gb','us','de','fr','es'],
-        separateDialCode: true,
-        nationalMode: false
-      });
-    }
-  }
-
-  function resetSteps(fromStep){
-    if (fromStep <= 1) {
-      el.dateStep.hide();
-      if (fp) { fp.clear(); fp.destroy(); fp = null; }
-    }
-    if (fromStep <= 2) el.timeStep.hide();
-    if (fromStep <= 3) el.peopleStep.hide();
-    if (fromStep <= 4) {
-      el.detailsStep.hide();
-      el.detailsInputs.prop('disabled', true);
-      el.privacyCheckbox.prop('disabled', true);
-      el.marketingCheckbox.prop('disabled', true);
-      el.submitButton.hide().prop('disabled', true);
-    }
-  }
-
-  el.mealRadios.on('change', function(){
-    resetSteps(1);
-    el.mealNotice.hide();
-    el.dateStep.show();
-
-    fp = flatpickr(el.dateInput[0], {
-      altInput: true,
-      altFormat: 'd-m-Y',
-      dateFormat: 'Y-m-d',
-      minDate: 'today',
-      locale: (rbfData.locale === 'it') ? 'it' : 'default',
-      disable: [function(date){
-        const day = date.getDay();
-        if (rbfData.closedDays.includes(day)) return true;
-        const dateStr = date.toISOString().split('T')[0];
-        if (rbfData.closedSingles.includes(dateStr)) return true;
-        for (let range of rbfData.closedRanges) {
-          if (dateStr >= range.from && dateStr <= range.to) return true;
-        }
-        return false;
-      }],
-      onChange: onDateChange
-    });
-  });
-
-  function onDateChange(selectedDates){
-    if (!selectedDates.length) { el.mealNotice.hide(); return; }
-    resetSteps(2);
-    const date = selectedDates[0];
-    const dow = date.getDay();
-    const selectedMeal = el.mealRadios.filter(':checked').val();
-    if (selectedMeal === 'pranzo' && dow === 0) {
-      el.mealNotice.text(rbfData.labels.sundayBrunchNotice).show();
-    } else {
-      el.mealNotice.hide();
-    }
-    const dateString = date.toISOString().split('T')[0];
-    el.timeStep.show();
-    el.timeSelect.html(`<option value="">${rbfData.labels.loading}</option>`).prop('disabled', true);
-
-    $.post(rbfData.ajaxUrl, {
-      action: 'rbf_get_availability',
-      _ajax_nonce: rbfData.nonce,
-      date: dateString,
-      meal: selectedMeal
-    }, function(response){
-      el.timeSelect.html('');
-      if (response.success && response.data.length > 0) {
-        el.timeSelect.append(new Option(rbfData.labels.chooseTime,''));
-        response.data.forEach(item=>{
-          const opt = new Option(item.time, `${item.slot}|${item.time}`);
-          el.timeSelect.append(opt);
-        });
-        el.timeSelect.prop('disabled', false);
-      } else {
-        el.timeSelect.append(new Option(rbfData.labels.noTime,''));
-      }
-    });
-  }
-
-  el.timeSelect.on('change', function(){
-    resetSteps(3);
-    if (this.value) {
-      el.peopleStep.show();
-      const maxPeople = 30; // cap generico
-      el.peopleInput.val(1).attr('max', maxPeople).trigger('input');
-    }
-  });
-
-  function updatePeopleButtons(){
-    const val = parseInt(el.peopleInput.val());
-    const max = parseInt(el.peopleInput.attr('max'));
-    el.peopleMinus.prop('disabled', val <= 1);
-    el.peoplePlus.prop('disabled', val >= max);
-  }
-
-  el.peoplePlus.on('click', function(){
-    let val = parseInt(el.peopleInput.val());
-    let max = parseInt(el.peopleInput.attr('max'));
-    if (val < max) el.peopleInput.val(val+1).trigger('input');
-  });
-  el.peopleMinus.on('click', function(){
-    let val = parseInt(el.peopleInput.val());
-    if (val > 1) el.peopleInput.val(val-1).trigger('input');
-  });
-  el.peopleInput.on('input', function(){
-    updatePeopleButtons();
-    resetSteps(4);
-    if (parseInt($(this).val()) > 0) {
-      el.detailsStep.show();
-      el.detailsInputs.prop('disabled', false);
-      el.privacyCheckbox.prop('disabled', false);
-      el.marketingCheckbox.prop('disabled', false);
-      el.submitButton.show().prop('disabled', true);
-      initializeTelInput();
-    }
-  });
-
-  el.privacyCheckbox.on('change', function(){
-    el.submitButton.prop('disabled', !this.checked);
-  });
-
-  form.on('submit', function(e){
-    el.submitButton.prop('disabled', true);
-    if (!el.privacyCheckbox.is(':checked')) {
-      e.preventDefault();
-      alert(rbfData.labels.privacyRequired);
-      el.submitButton.prop('disabled', false);
-      return;
-    }
-    if (iti && !iti.isValidNumber()) {
-      e.preventDefault();
-      alert(rbfData.labels.invalidPhone);
-      el.submitButton.prop('disabled', false);
-      return;
-    }
-    if (iti) el.telInput.val(iti.getNumber());
-  });
-
-  // --- UTM & clid capture ---
-  (function(){
-    const qs = new URLSearchParams(window.location.search);
-    const get = k => qs.get(k) || '';
-    const setVal = (id,val)=>{ var el=document.getElementById(id); if(el) el.value = val; };
-
-    setVal('rbf_utm_source',   get('utm_source'));
-    setVal('rbf_utm_medium',   get('utm_medium'));
-    setVal('rbf_utm_campaign', get('utm_campaign'));
-
-    setVal('rbf_gclid',  get('gclid'));
-    setVal('rbf_fbclid', get('fbclid'));
-
-    if (document.getElementById('rbf_referrer') && !document.getElementById('rbf_referrer').value) {
-      document.getElementById('rbf_referrer').value = document.referrer || '';
-    }
-  })();
-
-});
-JS;
-    wp_add_inline_script('rbf-main-script', $js);
+    // Frontend script
+    wp_enqueue_script('rbf-frontend-js', plugin_dir_url(__FILE__) . 'assets/js/frontend.js', $deps, '9.3.2', true);
 }
 
 add_shortcode('ristorante_booking_form', 'rbf_render_booking_form');
@@ -1238,29 +999,12 @@ function rbf_trigger_brevo_automation($first_name, $last_name, $email, $date, $t
 function rbf_calendar_page_html() {
     wp_enqueue_style('fullcalendar-css', 'https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css', [], '5.11.3');
     wp_enqueue_script('fullcalendar-js', 'https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js', ['jquery'], '5.11.3', true);
-    wp_localize_script('fullcalendar-js', 'rbfAdminData', [
+    wp_enqueue_script('rbf-admin-js', plugin_dir_url(__FILE__) . 'assets/js/admin.js', ['jquery', 'fullcalendar-js'], '9.3.2', true);
+    
+    wp_localize_script('rbf-admin-js', 'rbfAdminData', [
         'ajaxUrl' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('rbf_calendar_nonce')
     ]);
-    $js = <<<'JS'
-jQuery(function($){
-  var el = document.getElementById('rbf-calendar'); if(!el) return;
-  var calendar = new FullCalendar.Calendar(el,{
-    initialView:'dayGridMonth',
-    firstDay:1,
-    events:function(fetchInfo,success,failure){
-      $.ajax({
-        url: rbfAdminData.ajaxUrl, type: 'POST',
-        data: { action:'rbf_get_bookings_for_calendar', start:fetchInfo.startStr, end:fetchInfo.endStr, _ajax_nonce: rbfAdminData.nonce },
-        success: function(r){ if(r.success) success(r.data); else failure(); },
-        error: failure
-      });
-    }
-  });
-  calendar.render();
-});
-JS;
-    wp_add_inline_script('fullcalendar-js', $js);
     ?>
     <div class="rbf-admin-wrap">
         <h1><?php echo esc_html(rbf_translate_string('Vista Calendario Prenotazioni')); ?></h1>
