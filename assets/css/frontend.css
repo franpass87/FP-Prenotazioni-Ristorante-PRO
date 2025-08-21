@@ -2,8 +2,29 @@
  * Frontend Styles for Restaurant Booking Plugin
  */
 
+:root {
+    --rbf-primary: #2c5aa0;
+    --rbf-primary-light: #3d6fb7;
+    --rbf-primary-dark: #1e3d70;
+    --rbf-secondary: #f8b500;
+    --rbf-success: #28a745;
+    --rbf-error: #dc3545;
+    --rbf-text: #333;
+    --rbf-text-light: #666;
+    --rbf-border: #e1e5e9;
+    --rbf-bg-light: #f8f9fa;
+    --rbf-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    --rbf-shadow-hover: 0 4px 16px rgba(0,0,0,0.15);
+    --rbf-radius: 8px;
+    --rbf-transition: all 0.3s ease;
+}
+
 .rbf-form-container {
     position: relative;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    padding: 2rem;
+    border-radius: var(--rbf-radius);
+    box-shadow: var(--rbf-shadow);
 }
 
 #rbf-message-anchor {
@@ -12,29 +33,98 @@
 }
 
 .rbf-form {
-    max-width: 520px;
-    margin: 2em auto;
+    max-width: 580px;
+    margin: 0 auto;
+    background: white;
+    padding: 2rem;
+    border-radius: var(--rbf-radius);
+    box-shadow: var(--rbf-shadow);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
 }
 
+/* Progress Indicator */
+.rbf-progress-indicator {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+    position: relative;
+}
+
+.rbf-progress-indicator::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--rbf-border);
+    z-index: 1;
+    transform: translateY(-50%);
+}
+
+.rbf-progress-step {
+    position: relative;
+    z-index: 2;
+    background: white;
+    border: 2px solid var(--rbf-border);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    color: var(--rbf-text-light);
+    transition: var(--rbf-transition);
+}
+
+.rbf-progress-step.active {
+    border-color: var(--rbf-primary);
+    background: var(--rbf-primary);
+    color: white;
+    box-shadow: 0 0 0 4px rgba(44, 90, 160, 0.2);
+}
+
+.rbf-progress-step.completed {
+    border-color: var(--rbf-success);
+    background: var(--rbf-success);
+    color: white;
+}
+
+.rbf-progress-step.completed::before {
+    content: '✓';
+}
+
 .rbf-step {
-    margin-bottom: 1.5em;
+    margin-bottom: 2rem;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: var(--rbf-transition);
+}
+
+.rbf-step.active {
+    opacity: 1;
+    transform: translateY(0);
 }
 
 .rbf-step > label {
     display: block;
     font-weight: 600;
-    margin-bottom: .8em;
+    margin-bottom: 1rem;
+    color: var(--rbf-text);
+    font-size: 1.1rem;
 }
 
 #rbf-meal-notice {
     font-size: .9em;
     font-style: italic;
-    color: #555;
-    margin-top: 12px;
-    padding: 8px;
-    background: #f8f9fa;
-    border-left: 3px solid #6c757d;
+    color: var(--rbf-text-light);
+    margin-top: 16px;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #e8f4fd 0%, #d3e8fc 100%);
+    border-left: 4px solid var(--rbf-primary);
+    border-radius: var(--rbf-radius);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
 
 .rbf-form input[type='text'],
@@ -44,65 +134,104 @@
 .rbf-form textarea {
     box-sizing: border-box;
     width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 6px;
+    padding: 14px 16px;
+    border: 2px solid var(--rbf-border);
+    border-radius: var(--rbf-radius);
     font-size: 16px;
+    background: white;
+    color: var(--rbf-text);
+    transition: var(--rbf-transition);
+    font-family: inherit;
+}
+
+.rbf-form input[type='text']:focus,
+.rbf-form input[type='email']:focus,
+.rbf-form input[type='tel']:focus,
+.rbf-form select:focus,
+.rbf-form textarea:focus {
+    outline: none;
+    border-color: var(--rbf-primary);
+    box-shadow: 0 0 0 3px rgba(44, 90, 160, 0.1);
+    transform: translateY(-1px);
+}
+
+.rbf-form textarea {
+    min-height: 100px;
+    resize: vertical;
+}
     background: #fff;
 }
 
 .rbf-radio-group {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 12px;
+    margin-bottom: 1rem;
 }
 
 .rbf-radio-group input[type='radio'] {
     opacity: 0;
-    position: fixed;
+    position: absolute;
     width: 0;
 }
 
 .rbf-radio-group label {
     display: inline-block;
-    padding: 10px 18px;
-    border: 1px solid #ccc;
-    border-radius: 10px;
-    font-weight: 500;
+    padding: 14px 24px;
+    border: 2px solid var(--rbf-border);
+    border-radius: var(--rbf-radius);
+    font-weight: 600;
     text-align: center;
     cursor: pointer;
-    transition: .2s;
-    background: #f8f9fa;
-    color: #333;
+    transition: var(--rbf-transition);
+    background: white;
+    color: var(--rbf-text);
+    flex: 1;
+    min-width: 120px;
 }
 
 .rbf-radio-group label:hover {
-    background: #eef1f4;
-    border-color: #bfc7cf;
+    background: var(--rbf-bg-light);
+    border-color: var(--rbf-primary-light);
+    transform: translateY(-2px);
+    box-shadow: var(--rbf-shadow);
 }
 
 .rbf-radio-group input[type='radio']:checked + label {
-    background: #000;
-    color: #fff;
-    border-color: #000;
-    box-shadow: 0 2px 5px rgba(0,0,0,.1);
+    background: linear-gradient(135deg, var(--rbf-primary) 0%, var(--rbf-primary-dark) 100%);
+    color: white;
+    border-color: var(--rbf-primary);
+    box-shadow: var(--rbf-shadow-hover);
+    transform: translateY(-2px);
 }
 
 .rbf-people-selector {
     display: flex;
     align-items: center;
+    max-width: 200px;
+    margin: 0 auto;
+    border: 2px solid var(--rbf-border);
+    border-radius: var(--rbf-radius);
+    overflow: hidden;
+    background: white;
 }
 
 .rbf-people-selector button {
-    width: 44px;
-    height: 44px;
-    font-size: 24px;
+    width: 50px;
+    height: 50px;
+    font-size: 20px;
     font-weight: bold;
-    border: 1px solid #ccc;
-    background: #f0f0f0;
+    border: none;
+    background: var(--rbf-bg-light);
     cursor: pointer;
     line-height: 1;
-    border-radius: 6px;
+    color: var(--rbf-primary);
+    transition: var(--rbf-transition);
+}
+
+.rbf-people-selector button:hover:not(:disabled) {
+    background: var(--rbf-primary);
+    color: white;
 }
 
 .rbf-people-selector button:disabled {
@@ -112,52 +241,73 @@
 }
 
 .rbf-people-selector input {
-    height: 44px;
-    width: 60px;
+    height: 50px;
+    width: 80px;
     text-align: center;
     font-weight: 700;
-    border: 1px solid #ccc;
-    border-left: none;
-    border-right: none;
+    border: none;
     font-size: 18px;
+    color: var(--rbf-text);
+    background: white;
 }
 
 #rbf-submit {
     width: 100%;
-    padding: 15px;
-    margin-top: 18px;
+    padding: 16px 24px;
+    margin-top: 2rem;
     font-size: 18px;
     font-weight: 700;
-    color: #fff;
-    background: #000;
+    color: white;
+    background: linear-gradient(135deg, var(--rbf-primary) 0%, var(--rbf-primary-dark) 100%);
     border: none;
-    border-radius: 8px;
+    border-radius: var(--rbf-radius);
     cursor: pointer;
+    transition: var(--rbf-transition);
+    box-shadow: var(--rbf-shadow);
+}
+
+#rbf-submit:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: var(--rbf-shadow-hover);
 }
 
 #rbf-submit:disabled {
     background: #bdc3c7;
     cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
 }
 
 .rbf-success-message,
 .rbf-error-message {
-    padding: 14px;
-    margin-bottom: 18px;
-    border-radius: 6px;
-    border: 2px solid;
+    padding: 18px 20px;
+    margin-bottom: 20px;
+    border-radius: var(--rbf-radius);
+    border: none;
+    font-weight: 500;
+    box-shadow: var(--rbf-shadow);
+    animation: slideInDown 0.5s ease;
+}
+
+@keyframes slideInDown {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 
 .rbf-success-message {
-    color: #155724;
-    background: #d4edda;
-    border-color: #c3e6cb;
+    color: white;
+    background: linear-gradient(135deg, var(--rbf-success) 0%, #218838 100%);
 }
 
 .rbf-error-message {
-    color: #721c24;
-    background: #f8d7da;
-    border-color: #f5c6cb;
+    color: white;
+    background: linear-gradient(135deg, var(--rbf-error) 0%, #c82333 100%);
 }
 
 .iti {
@@ -165,16 +315,108 @@
 }
 
 .rbf-checkbox-group {
-    margin-top: 12px;
+    margin-top: 20px;
 }
 
 .rbf-checkbox-group label {
-    display: block;
-    margin-bottom: 10px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 16px;
     font-size: 14px;
+    color: var(--rbf-text);
+    cursor: pointer;
+    transition: var(--rbf-transition);
+}
+
+.rbf-checkbox-group label:hover {
+    color: var(--rbf-primary);
+}
+
+.rbf-checkbox-group input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--rbf-primary);
+    cursor: pointer;
+    margin: 0;
 }
 
 .rbf-checkbox-group a {
-    color: #000;
+    color: var(--rbf-primary);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.rbf-checkbox-group a:hover {
     text-decoration: underline;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+    .rbf-form-container {
+        padding: 1rem;
+        margin: 1rem;
+    }
+    
+    .rbf-form {
+        padding: 1.5rem;
+    }
+    
+    .rbf-progress-step {
+        width: 32px;
+        height: 32px;
+        font-size: 12px;
+    }
+    
+    .rbf-radio-group {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .rbf-radio-group label {
+        min-width: auto;
+    }
+    
+    .rbf-people-selector {
+        max-width: 180px;
+    }
+    
+    .rbf-people-selector button {
+        width: 44px;
+        height: 44px;
+        font-size: 18px;
+    }
+    
+    .rbf-people-selector input {
+        height: 44px;
+        width: 70px;
+    }
+}
+
+/* Loading State */
+.rbf-loading {
+    position: relative;
+    overflow: hidden;
+}
+
+.rbf-loading::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.4),
+        transparent
+    );
+    animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+    to {
+        left: 100%;
+    }
 }

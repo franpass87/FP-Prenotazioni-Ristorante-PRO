@@ -87,7 +87,17 @@ function rbf_render_booking_form() {
             <form id="rbf-form" class="rbf-form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
                 <input type="hidden" name="action" value="rbf_submit_booking">
                 <?php wp_nonce_field('rbf_booking','rbf_nonce'); ?>
-                <div id="step-meal" class="rbf-step">
+                
+                <!-- Progress Indicator -->
+                <div class="rbf-progress-indicator">
+                    <div class="rbf-progress-step active" data-step="1">1</div>
+                    <div class="rbf-progress-step" data-step="2">2</div>
+                    <div class="rbf-progress-step" data-step="3">3</div>
+                    <div class="rbf-progress-step" data-step="4">4</div>
+                    <div class="rbf-progress-step" data-step="5">5</div>
+                </div>
+
+                <div id="step-meal" class="rbf-step active">
                     <label><?php echo esc_html(rbf_translate_string('Scegli il pasto')); ?></label>
                     <div class="rbf-radio-group">
                         <input type="radio" name="rbf_meal" value="pranzo" id="rbf_meal_pranzo" required>
