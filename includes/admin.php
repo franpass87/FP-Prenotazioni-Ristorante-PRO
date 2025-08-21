@@ -34,6 +34,7 @@ function rbf_get_default_settings() {
         'brevo_list_it' => '',
         'brevo_list_en' => '',
         'closed_dates' => '',
+        'max_advance_hours' => 72, // Maximum hours in advance bookings are allowed
     ];
 }
 
@@ -303,6 +304,15 @@ function rbf_settings_page_html() {
                 <tr>
                     <th><label for="rbf_closed_dates"><?php echo esc_html(rbf_translate_string('Date Chiuse (una per riga, formato Y-m-d o Y-m-d - Y-m-d)')); ?></label></th>
                     <td><textarea id="rbf_closed_dates" name="rbf_settings[closed_dates]" rows="5" class="large-text"><?php echo esc_textarea($options['closed_dates']); ?></textarea></td>
+                </tr>
+
+                <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Limiti Temporali Prenotazioni')); ?></h2></th></tr>
+                <tr>
+                    <th><label for="rbf_max_advance_hours"><?php echo esc_html(rbf_translate_string('Ore massime in anticipo per prenotare')); ?></label></th>
+                    <td>
+                        <input type="number" id="rbf_max_advance_hours" name="rbf_settings[max_advance_hours]" value="<?php echo esc_attr($options['max_advance_hours']); ?>" min="1" max="8760">
+                        <p class="description"><?php echo esc_html(rbf_translate_string('Numero massimo di ore in anticipo consentite per le prenotazioni (es. 72 = 3 giorni). Valore minimo 1, massimo 8760 (1 anno).')); ?></p>
+                    </td>
                 </tr>
 
                 <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Valore Economico Pasti (per Tracking)')); ?></h2></th></tr>
