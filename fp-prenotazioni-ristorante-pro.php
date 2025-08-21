@@ -342,7 +342,6 @@ function rbf_settings_page_html() {
             <?php submit_button(); ?>
         </form>
     </div>
-    <?php
 }
 
 /* -------------------------------------------------------------------------
@@ -720,7 +719,6 @@ function rbf_render_booking_form() {
             </form>
         <?php endif; ?>
     </div>
-    <?php
     return ob_get_clean();
 }
 
@@ -1034,7 +1032,7 @@ function rbf_add_tracking_scripts_to_footer() {
             gtag('js', new Date());
             gtag('config', '<?php echo esc_js($ga4_id); ?>', { 'send_page_view': true });
         </script>
-    <?php }
+    }
 
     if ($meta_pixel_id) { ?>
         <script>
@@ -1046,7 +1044,7 @@ function rbf_add_tracking_scripts_to_footer() {
             fbq('init','<?php echo esc_js($meta_pixel_id); ?>');
             fbq('track','PageView');
         </script>
-    <?php }
+    }
 
     if (isset($_GET['rbf_success'], $_GET['booking_id'])) {
         $booking_id = intval($_GET['booking_id']);
@@ -1128,7 +1126,6 @@ function rbf_add_tracking_scripts_to_footer() {
               <?php endif; ?>
             })();
         </script>
-        <?php
         delete_transient('rbf_booking_data_' . $booking_id);
     }
 }
@@ -1266,7 +1263,6 @@ JS;
         <h1><?php echo esc_html(rbf_translate_string('Vista Calendario Prenotazioni')); ?></h1>
         <div id="rbf-calendar"></div>
     </div>
-    <?php
 }
 
 add_action('wp_ajax_rbf_get_bookings_for_calendar', 'rbf_get_bookings_for_calendar_callback');
@@ -1414,5 +1410,4 @@ function rbf_add_booking_page_html() {
             <?php submit_button(esc_html(rbf_translate_string('Aggiungi Prenotazione'))); ?>
         </form>
     </div>
-    <?php
 }
