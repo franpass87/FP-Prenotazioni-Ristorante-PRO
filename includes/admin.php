@@ -73,6 +73,7 @@ function rbf_create_bookings_menu() {
     add_submenu_page('rbf_bookings_menu', rbf_translate_string('Tutte le Prenotazioni'), rbf_translate_string('Tutte le Prenotazioni'), 'manage_options', 'edit.php?post_type=rbf_booking');
     add_submenu_page('rbf_bookings_menu', rbf_translate_string('Aggiungi Prenotazione'), rbf_translate_string('Aggiungi Nuova'), 'manage_options', 'rbf_add_booking', 'rbf_add_booking_page_html');
     add_submenu_page('rbf_bookings_menu', rbf_translate_string('Vista Calendario'), rbf_translate_string('Calendario'), 'manage_options', 'rbf_calendar', 'rbf_calendar_page_html');
+    add_submenu_page('rbf_bookings_menu', rbf_translate_string('Report & Analytics'), rbf_translate_string('Report & Analytics'), 'manage_options', 'rbf_reports', 'rbf_reports_page_html');
     add_submenu_page('rbf_bookings_menu', rbf_translate_string('Impostazioni'), rbf_translate_string('Impostazioni'), 'manage_options', 'rbf_settings', 'rbf_settings_page_html');
 }
 
@@ -271,6 +272,7 @@ function rbf_enqueue_admin_styles($hook) {
     if ($hook !== 'rbf_bookings_menu_page_rbf_settings' &&
         $hook !== 'rbf_bookings_menu_page_rbf_calendar' &&
         $hook !== 'rbf_bookings_menu_page_rbf_add_booking' &&
+        $hook !== 'rbf_bookings_menu_page_rbf_reports' &&
         strpos($hook,'edit.php?post_type=rbf_booking') === false) return;
 
     wp_enqueue_style('rbf-admin-css', plugin_dir_url(dirname(__FILE__)) . 'assets/css/admin.css', [], '9.3.2');
@@ -622,6 +624,190 @@ function rbf_add_status_filter() {
 }
 
 /**
+ * Reports and Analytics page HTML
+ */
+function rbf_reports_page_html() {
+    // Enqueue Chart.js for analytics
+    wp_enqueue_script('chartjs', 'https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js', [], '3.9.1', true);
+    
+    // Get date range for reports (default: last 30 days)
+    $end_date = $_GET['end_date'] ?? date('Y-m-d');
+    $start_date = $_GET['start_date'] ?? date('Y-m-d', strtotime('-30 days'));
+    
+    // Validate dates
+    if (!DateTime::createFromFormat('Y-m-d', $start_date)) $start_date = date('Y-m-d', strtotime('-30 days'));
+    if (!DateTime::createFromFormat('Y-m-d', $end_date)) $end_date = date('Y-m-d');
+    
+    $analytics = rbf_get_booking_analytics($start_date, $end_date);
+    ?>
+    <div class="rbf-admin-wrap">
+        <h1><?php echo esc_html(rbf_translate_string('Report & Analytics')); ?></h1>
+        
+        <!-- Date Range Filter -->
+        <div class="rbf-date-filter" style="background: #f9f9f9; padding: 15px; margin-bottom: 20px; border-radius: 8px;">
+            <form method="get" style="display: flex; align-items: center; gap: 15px;">
+                <input type="hidden" name="page" value="rbf_reports">
+                <label for="start_date"><?php echo esc_html(rbf_translate_string('Da:')); ?></label>
+                <input type="date" id="start_date" name="start_date" value="<?php echo esc_attr($start_date); ?>">
+                <label for="end_date"><?php echo esc_html(rbf_translate_string('A:')); ?></label>
+                <input type="date" id="end_date" name="end_date" value="<?php echo esc_attr($end_date); ?>">
+                <button type="submit" class="button button-primary"><?php echo esc_html(rbf_translate_string('Aggiorna Report')); ?></button>
+            </form>
+        </div>
+        
+        <!-- Key Metrics Cards -->
+        <div class="rbf-metrics-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px;">
+            <div class="rbf-metric-card" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h3 style="margin: 0 0 10px 0; color: #1f2937; font-size: 16px;"><?php echo esc_html(rbf_translate_string('Prenotazioni Totali')); ?></h3>
+                <div style="font-size: 32px; font-weight: bold; color: #10b981;"><?php echo esc_html($analytics['total_bookings']); ?></div>
+                <small style="color: #6b7280;"><?php echo esc_html(sprintf(rbf_translate_string('Dal %s al %s'), date('d/m/Y', strtotime($start_date)), date('d/m/Y', strtotime($end_date)))); ?></small>
+            </div>
+            
+            <div class="rbf-metric-card" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h3 style="margin: 0 0 10px 0; color: #1f2937; font-size: 16px;"><?php echo esc_html(rbf_translate_string('Persone Totali')); ?></h3>
+                <div style="font-size: 32px; font-weight: bold; color: #3b82f6;"><?php echo esc_html($analytics['total_people']); ?></div>
+                <small style="color: #6b7280;"><?php echo esc_html(sprintf(rbf_translate_string('Media: %.1f per prenotazione'), $analytics['avg_people_per_booking'])); ?></small>
+            </div>
+            
+            <div class="rbf-metric-card" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h3 style="margin: 0 0 10px 0; color: #1f2937; font-size: 16px;"><?php echo esc_html(rbf_translate_string('Valore Stimato')); ?></h3>
+                <div style="font-size: 32px; font-weight: bold; color: #f59e0b;">€<?php echo esc_html(number_format($analytics['total_revenue'], 2)); ?></div>
+                <small style="color: #6b7280;"><?php echo esc_html(sprintf(rbf_translate_string('Media: €%.2f per prenotazione'), $analytics['avg_revenue_per_booking'])); ?></small>
+            </div>
+            
+            <div class="rbf-metric-card" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h3 style="margin: 0 0 10px 0; color: #1f2937; font-size: 16px;"><?php echo esc_html(rbf_translate_string('Tasso Completamento')); ?></h3>
+                <div style="font-size: 32px; font-weight: bold; color: #8b5cf6;"><?php echo esc_html(number_format($analytics['completion_rate'], 1)); ?>%</div>
+                <small style="color: #6b7280;"><?php echo esc_html(sprintf(rbf_translate_string('%d completate su %d confermate'), $analytics['completed_bookings'], $analytics['confirmed_bookings'])); ?></small>
+            </div>
+        </div>
+        
+        <!-- Charts Row -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+            <!-- Bookings by Status Chart -->
+            <div class="rbf-chart-container" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h3 style="margin: 0 0 20px 0;"><?php echo esc_html(rbf_translate_string('Prenotazioni per Stato')); ?></h3>
+                <canvas id="statusChart" width="400" height="200"></canvas>
+            </div>
+            
+            <!-- Bookings by Meal Type Chart -->
+            <div class="rbf-chart-container" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h3 style="margin: 0 0 20px 0;"><?php echo esc_html(rbf_translate_string('Prenotazioni per Servizio')); ?></h3>
+                <canvas id="mealChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+        
+        <!-- Daily Bookings Chart -->
+        <div class="rbf-chart-container" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 30px;">
+            <h3 style="margin: 0 0 20px 0;"><?php echo esc_html(rbf_translate_string('Andamento Prenotazioni Giornaliere')); ?></h3>
+            <canvas id="dailyChart" width="800" height="300"></canvas>
+        </div>
+        
+        <!-- Source Attribution Analysis -->
+        <div class="rbf-chart-container" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <h3 style="margin: 0 0 20px 0;"><?php echo esc_html(rbf_translate_string('Analisi Sorgenti di Traffico')); ?></h3>
+            <canvas id="sourceChart" width="800" height="300"></canvas>
+        </div>
+    </div>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const statusData = <?php echo wp_json_encode($analytics['by_status']); ?>;
+        const mealData = <?php echo wp_json_encode($analytics['by_meal']); ?>;
+        const dailyData = <?php echo wp_json_encode($analytics['daily_bookings']); ?>;
+        const sourceData = <?php echo wp_json_encode($analytics['by_source']); ?>;
+        
+        // Status Chart
+        new Chart(document.getElementById('statusChart'), {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(statusData),
+                datasets: [{
+                    data: Object.values(statusData),
+                    backgroundColor: ['#f59e0b', '#10b981', '#06b6d4', '#ef4444', '#8b5cf6'],
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+        
+        // Meal Chart
+        new Chart(document.getElementById('mealChart'), {
+            type: 'bar',
+            data: {
+                labels: Object.keys(mealData),
+                datasets: [{
+                    data: Object.values(mealData),
+                    backgroundColor: ['#3b82f6', '#f59e0b', '#10b981'],
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+        
+        // Daily Chart
+        new Chart(document.getElementById('dailyChart'), {
+            type: 'line',
+            data: {
+                labels: Object.keys(dailyData),
+                datasets: [{
+                    label: '<?php echo esc_js(rbf_translate_string('Prenotazioni')); ?>',
+                    data: Object.values(dailyData),
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    fill: true,
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+        
+        // Source Chart
+        new Chart(document.getElementById('sourceChart'), {
+            type: 'bar',
+            data: {
+                labels: Object.keys(sourceData),
+                datasets: [{
+                    label: '<?php echo esc_js(rbf_translate_string('Prenotazioni')); ?>',
+                    data: Object.values(sourceData),
+                    backgroundColor: ['#3b82f6', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#6b7280'],
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+    });
+    </script>
+    <?php
+}
+            <?php submit_button(esc_html(rbf_translate_string('Aggiungi Prenotazione'))); ?>
+        </form>
+    </div>
+    <?php
+
+/**
  * Filter bookings by status
  */
 add_action('pre_get_posts', 'rbf_filter_by_status');
@@ -640,8 +826,135 @@ function rbf_filter_by_status($query) {
         ]);
     }
 }
-            <?php submit_button(esc_html(rbf_translate_string('Aggiungi Prenotazione'))); ?>
-        </form>
-    </div>
-    <?php
+
+/**
+ * Get booking analytics for reports
+ */
+function rbf_get_booking_analytics($start_date, $end_date) {
+    global $wpdb;
+    
+    // Get all bookings in date range
+    $bookings = $wpdb->get_results($wpdb->prepare(
+        "SELECT p.ID, pm_date.meta_value as booking_date, pm_people.meta_value as people, 
+                pm_meal.meta_value as meal, pm_status.meta_value as status,
+                pm_source.meta_value as source, pm_bucket.meta_value as bucket
+         FROM {$wpdb->posts} p
+         INNER JOIN {$wpdb->postmeta} pm_date ON p.ID = pm_date.post_id AND pm_date.meta_key = 'rbf_data'
+         LEFT JOIN {$wpdb->postmeta} pm_people ON p.ID = pm_people.post_id AND pm_people.meta_key = 'rbf_persone'
+         LEFT JOIN {$wpdb->postmeta} pm_meal ON p.ID = pm_meal.post_id AND pm_meal.meta_key = 'rbf_orario'
+         LEFT JOIN {$wpdb->postmeta} pm_status ON p.ID = pm_status.post_id AND pm_status.meta_key = 'rbf_booking_status'
+         LEFT JOIN {$wpdb->postmeta} pm_source ON p.ID = pm_source.post_id AND pm_source.meta_key = 'rbf_source'
+         LEFT JOIN {$wpdb->postmeta} pm_bucket ON p.ID = pm_bucket.post_id AND pm_bucket.meta_key = 'rbf_source_bucket'
+         WHERE p.post_type = 'rbf_booking' AND p.post_status = 'publish'
+         AND pm_date.meta_value >= %s AND pm_date.meta_value <= %s
+         ORDER BY pm_date.meta_value ASC",
+        $start_date, $end_date
+    ));
+    
+    $options = get_option('rbf_settings', rbf_get_default_settings());
+    $statuses = rbf_get_booking_statuses();
+    $meals = [
+        'pranzo' => rbf_translate_string('Pranzo'),
+        'cena' => rbf_translate_string('Cena'),
+        'aperitivo' => rbf_translate_string('Aperitivo')
+    ];
+    
+    // Initialize analytics data
+    $analytics = [
+        'total_bookings' => 0,
+        'total_people' => 0,
+        'total_revenue' => 0,
+        'avg_people_per_booking' => 0,
+        'avg_revenue_per_booking' => 0,
+        'completion_rate' => 0,
+        'confirmed_bookings' => 0,
+        'completed_bookings' => 0,
+        'by_status' => [],
+        'by_meal' => [],
+        'by_source' => [],
+        'daily_bookings' => []
+    ];
+    
+    // Initialize status counts
+    foreach ($statuses as $key => $label) {
+        $analytics['by_status'][$label] = 0;
+    }
+    
+    // Initialize meal counts
+    foreach ($meals as $key => $label) {
+        $analytics['by_meal'][$label] = 0;
+    }
+    
+    // Initialize daily data for the range
+    $current_date = new DateTime($start_date);
+    $end_date_obj = new DateTime($end_date);
+    while ($current_date <= $end_date_obj) {
+        $analytics['daily_bookings'][$current_date->format('d/m')] = 0;
+        $current_date->modify('+1 day');
+    }
+    
+    // Process each booking
+    foreach ($bookings as $booking) {
+        $people = intval($booking->people ?: 0);
+        $meal = $booking->meal ?: 'pranzo';
+        $status = $booking->status ?: 'pending';
+        $source = $booking->source ?: 'direct';
+        $bucket = $booking->bucket ?: 'direct';
+        
+        // Basic totals
+        $analytics['total_bookings']++;
+        $analytics['total_people'] += $people;
+        
+        // Revenue calculation
+        $meal_value = (float) ($options['valore_' . $meal] ?? 0);
+        $booking_revenue = $meal_value * $people;
+        $analytics['total_revenue'] += $booking_revenue;
+        
+        // Status tracking
+        $status_label = $statuses[$status] ?? $status;
+        $analytics['by_status'][$status_label]++;
+        
+        if ($status === 'confirmed' || $status === 'completed') {
+            $analytics['confirmed_bookings']++;
+        }
+        if ($status === 'completed') {
+            $analytics['completed_bookings']++;
+        }
+        
+        // Meal tracking
+        $meal_label = $meals[$meal] ?? ucfirst($meal);
+        $analytics['by_meal'][$meal_label]++;
+        
+        // Source tracking
+        $source_label = ucfirst($bucket ?: $source);
+        if (!isset($analytics['by_source'][$source_label])) {
+            $analytics['by_source'][$source_label] = 0;
+        }
+        $analytics['by_source'][$source_label]++;
+        
+        // Daily tracking
+        $booking_date = DateTime::createFromFormat('Y-m-d', $booking->booking_date);
+        if ($booking_date) {
+            $day_key = $booking_date->format('d/m');
+            if (isset($analytics['daily_bookings'][$day_key])) {
+                $analytics['daily_bookings'][$day_key]++;
+            }
+        }
+    }
+    
+    // Calculate averages and rates
+    if ($analytics['total_bookings'] > 0) {
+        $analytics['avg_people_per_booking'] = $analytics['total_people'] / $analytics['total_bookings'];
+        $analytics['avg_revenue_per_booking'] = $analytics['total_revenue'] / $analytics['total_bookings'];
+    }
+    
+    if ($analytics['confirmed_bookings'] > 0) {
+        $analytics['completion_rate'] = ($analytics['completed_bookings'] / $analytics['confirmed_bookings']) * 100;
+    }
+    
+    // Sort sources by count
+    arsort($analytics['by_source']);
+    
+    return $analytics;
+}
 }

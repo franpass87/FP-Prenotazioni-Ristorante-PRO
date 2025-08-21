@@ -279,6 +279,15 @@ function rbf_send_status_change_notification($booking_id, $old_status, $new_stat
             break;
     }
     
+    // Management link text
+    $manage_text = $lang === 'en' 
+        ? 'You can view and manage your booking details using the link below:'
+        : 'Puoi visualizzare e gestire la tua prenotazione utilizzando il link qui sotto:';
+    $manage_button = $lang === 'en' ? 'Manage Booking' : 'Gestisci Prenotazione';
+    
+    // Generate management URL (assuming page with [customer_booking_management] shortcode exists)
+    $management_url = home_url('/gestisci-prenotazione/?booking=' . $booking_hash);
+    
     $body = <<<HTML
 <!DOCTYPE html><html><head><meta charset="UTF-8">
 <style>
@@ -292,6 +301,7 @@ function rbf_send_status_change_notification($booking_id, $old_status, $new_stat
     .booking-details { background-color: #f1f5f9; padding: 15px; border-radius: 6px; margin: 15px 0; }
     .detail-row { margin: 8px 0; }
     .footer { margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 14px; color: #6b7280; }
+    .manage-btn { display: inline-block; background-color: #3b82f6; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; margin: 15px 0; }
 </style>
 </head><body>
 <div class="container">
@@ -317,8 +327,12 @@ function rbf_send_status_change_notification($booking_id, $old_status, $new_stat
     
     <p>{$thank_you}</p>
     
+    <p>{$manage_text}</p>
+    <a href="{$management_url}" class="manage-btn">{$manage_button}</a>
+    
     <div class="footer">
-        <p>Booking ID: #{$booking_id} | {$site_name}</p>
+        <p>Booking ID: #{$booking_id} | Booking Code: {$booking_hash}</p>
+        <p>{$site_name}</p>
     </div>
 </div>
 </body></html>

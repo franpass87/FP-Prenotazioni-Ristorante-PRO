@@ -71,6 +71,195 @@ function rbf_enqueue_frontend_assets() {
 }
 
 /**
+ * Customer booking management shortcode
+ */
+add_shortcode('customer_booking_management', 'rbf_render_customer_booking_management');
+function rbf_render_customer_booking_management() {
+    ob_start();
+    
+    // Check if booking hash is provided
+    if (!isset($_GET['booking']) || !$_GET['booking']) {
+        ?>
+        <div class="rbf-customer-management">
+            <h3><?php echo esc_html(rbf_translate_string('Gestisci la tua Prenotazione')); ?></h3>
+            <p><?php echo esc_html(rbf_translate_string('Inserisci il codice della tua prenotazione per visualizzare i dettagli e gestirla.')); ?></p>
+            <form method="get">
+                <div style="display: flex; gap: 10px; align-items: center; max-width: 400px;">
+                    <input type="text" name="booking" placeholder="<?php echo esc_attr(rbf_translate_string('Codice Prenotazione')); ?>" required style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                    <button type="submit" class="button button-primary"><?php echo esc_html(rbf_translate_string('Cerca')); ?></button>
+                </div>
+            </form>
+        </div>
+        <?php
+        return ob_get_clean();
+    }
+    
+    $booking_hash = sanitize_text_field($_GET['booking']);
+    
+    // Find booking by hash
+    global $wpdb;
+    $booking_id = $wpdb->get_var($wpdb->prepare(
+        "SELECT p.ID FROM {$wpdb->posts} p
+         INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id 
+         WHERE p.post_type = 'rbf_booking' AND p.post_status = 'publish'
+         AND pm.meta_key = 'rbf_booking_hash' AND pm.meta_value = %s",
+        $booking_hash
+    ));
+    
+    if (!$booking_id) {
+        ?>
+        <div class="rbf-customer-management">
+            <div class="rbf-error-message">
+                <?php echo esc_html(rbf_translate_string('Prenotazione non trovata. Verifica il codice inserito.')); ?>
+            </div>
+            <a href="?">←<?php echo esc_html(rbf_translate_string('Torna indietro')); ?></a>
+        </div>
+        <?php
+        return ob_get_clean();
+    }
+    
+    // Get booking details
+    $booking = get_post($booking_id);
+    $first_name = get_post_meta($booking_id, 'rbf_nome', true);
+    $last_name = get_post_meta($booking_id, 'rbf_cognome', true);
+    $email = get_post_meta($booking_id, 'rbf_email', true);
+    $tel = get_post_meta($booking_id, 'rbf_tel', true);
+    $date = get_post_meta($booking_id, 'rbf_data', true);
+    $time = get_post_meta($booking_id, 'rbf_time', true);
+    $people = get_post_meta($booking_id, 'rbf_persone', true);
+    $meal = get_post_meta($booking_id, 'rbf_orario', true);
+    $notes = get_post_meta($booking_id, 'rbf_allergie', true);
+    $status = get_post_meta($booking_id, 'rbf_booking_status', true) ?: 'pending';
+    $created = get_post_meta($booking_id, 'rbf_booking_created', true);
+    
+    $statuses = rbf_get_booking_statuses();
+    $status_label = $statuses[$status] ?? $status;
+    $status_color = rbf_get_status_color($status);
+    
+    $formatted_date = date('d/m/Y', strtotime($date));
+    $formatted_created = $created ? date('d/m/Y H:i', strtotime($created)) : '';
+    
+    $meals = [
+        'pranzo' => rbf_translate_string('Pranzo'),
+        'cena' => rbf_translate_string('Cena'),
+        'aperitivo' => rbf_translate_string('Aperitivo')
+    ];
+    $meal_label = $meals[$meal] ?? ucfirst($meal);
+    
+    // Handle cancellation request
+    if (isset($_POST['cancel_booking']) && wp_verify_nonce($_POST['_wpnonce'], 'cancel_booking_' . $booking_id)) {
+        if (in_array($status, ['pending', 'confirmed', 'waitlist'])) {
+            rbf_update_booking_status($booking_id, 'cancelled', 'Cancelled by customer');
+            $status = 'cancelled';
+            $status_label = rbf_translate_string('Annullata');
+            $status_color = rbf_get_status_color('cancelled');
+            ?>
+            <div class="rbf-success-message" style="margin-bottom: 20px;">
+                <?php echo esc_html(rbf_translate_string('La tua prenotazione è stata cancellata con successo.')); ?>
+            </div>
+            <?php
+        }
+    }
+    ?>
+    
+    <div class="rbf-customer-management">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3><?php echo esc_html(rbf_translate_string('Dettagli Prenotazione')); ?> #<?php echo esc_html($booking_id); ?></h3>
+            <a href="?" style="color: #666; text-decoration: none;">← <?php echo esc_html(rbf_translate_string('Nuova ricerca')); ?></a>
+        </div>
+        
+        <div class="rbf-booking-details" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                <div>
+                    <h4 style="margin: 0 0 15px 0; color: #374151;"><?php echo esc_html(rbf_translate_string('Informazioni Cliente')); ?></h4>
+                    <p style="margin: 5px 0;"><strong><?php echo esc_html(rbf_translate_string('Nome')); ?>:</strong> <?php echo esc_html($first_name . ' ' . $last_name); ?></p>
+                    <p style="margin: 5px 0;"><strong><?php echo esc_html(rbf_translate_string('Email')); ?>:</strong> <?php echo esc_html($email); ?></p>
+                    <p style="margin: 5px 0;"><strong><?php echo esc_html(rbf_translate_string('Telefono')); ?>:</strong> <?php echo esc_html($tel); ?></p>
+                </div>
+                
+                <div>
+                    <h4 style="margin: 0 0 15px 0; color: #374151;"><?php echo esc_html(rbf_translate_string('Dettagli Prenotazione')); ?></h4>
+                    <p style="margin: 5px 0;"><strong><?php echo esc_html(rbf_translate_string('Data')); ?>:</strong> <?php echo esc_html($formatted_date); ?></p>
+                    <p style="margin: 5px 0;"><strong><?php echo esc_html(rbf_translate_string('Orario')); ?>:</strong> <?php echo esc_html($time); ?></p>
+                    <p style="margin: 5px 0;"><strong><?php echo esc_html(rbf_translate_string('Servizio')); ?>:</strong> <?php echo esc_html($meal_label); ?></p>
+                    <p style="margin: 5px 0;"><strong><?php echo esc_html(rbf_translate_string('Persone')); ?>:</strong> <?php echo esc_html($people); ?></p>
+                </div>
+            </div>
+            
+            <?php if ($notes) : ?>
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
+                    <p style="margin: 5px 0;"><strong><?php echo esc_html(rbf_translate_string('Note/Allergie')); ?>:</strong></p>
+                    <p style="margin: 5px 0; color: #666;"><?php echo esc_html($notes); ?></p>
+                </div>
+            <?php endif; ?>
+            
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong><?php echo esc_html(rbf_translate_string('Stato')); ?>:</strong>
+                    <span style="display: inline-block; margin-left: 10px; padding: 4px 12px; border-radius: 20px; background: <?php echo esc_attr($status_color); ?>; color: white; font-size: 14px; font-weight: bold;">
+                        <?php echo esc_html($status_label); ?>
+                    </span>
+                </div>
+                <?php if ($formatted_created) : ?>
+                    <small style="color: #6b7280;">
+                        <?php echo esc_html(rbf_translate_string('Creata il')); ?>: <?php echo esc_html($formatted_created); ?>
+                    </small>
+                <?php endif; ?>
+            </div>
+        </div>
+        
+        <?php
+        // Show appropriate actions based on status and date
+        $booking_date = DateTime::createFromFormat('Y-m-d', $date);
+        $today = new DateTime();
+        $can_cancel = in_array($status, ['pending', 'confirmed', 'waitlist']) && $booking_date > $today;
+        
+        if ($can_cancel) : ?>
+            <div class="rbf-booking-actions" style="background: #fff3cd; padding: 15px; border-radius: 8px; border: 1px solid #ffeaa7;">
+                <h4 style="margin: 0 0 10px 0; color: #856404;"><?php echo esc_html(rbf_translate_string('Azioni Disponibili')); ?></h4>
+                <p style="margin: 0 0 15px 0; color: #856404;">
+                    <?php echo esc_html(rbf_translate_string('Puoi cancellare questa prenotazione se necessario. La cancellazione è definitiva.')); ?>
+                </p>
+                <form method="post" style="display: inline-block;">
+                    <?php wp_nonce_field('cancel_booking_' . $booking_id); ?>
+                    <input type="hidden" name="cancel_booking" value="1">
+                    <button type="submit" 
+                            onclick="return confirm('<?php echo esc_js(rbf_translate_string('Sei sicuro di voler cancellare questa prenotazione? L\'operazione non può essere annullata.')); ?>')"
+                            style="background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                        <?php echo esc_html(rbf_translate_string('Cancella Prenotazione')); ?>
+                    </button>
+                </form>
+            </div>
+        <?php elseif ($status === 'cancelled') : ?>
+            <div class="rbf-booking-info" style="background: #fee2e2; padding: 15px; border-radius: 8px; border: 1px solid #fecaca; color: #991b1b;">
+                <p style="margin: 0;">
+                    <strong><?php echo esc_html(rbf_translate_string('Prenotazione Cancellata')); ?></strong><br>
+                    <?php echo esc_html(rbf_translate_string('Questa prenotazione è stata cancellata e non è più attiva.')); ?>
+                </p>
+            </div>
+        <?php elseif ($status === 'completed') : ?>
+            <div class="rbf-booking-info" style="background: #d1fae5; padding: 15px; border-radius: 8px; border: 1px solid #a7f3d0; color: #065f46;">
+                <p style="margin: 0;">
+                    <strong><?php echo esc_html(rbf_translate_string('Prenotazione Completata')); ?></strong><br>
+                    <?php echo esc_html(rbf_translate_string('Grazie per aver scelto il nostro ristorante! Speriamo di rivederti presto.')); ?>
+                </p>
+            </div>
+        <?php elseif ($booking_date <= $today) : ?>
+            <div class="rbf-booking-info" style="background: #f3f4f6; padding: 15px; border-radius: 8px; border: 1px solid #d1d5db; color: #374151;">
+                <p style="margin: 0;">
+                    <strong><?php echo esc_html(rbf_translate_string('Prenotazione Passata')); ?></strong><br>
+                    <?php echo esc_html(rbf_translate_string('Questa prenotazione si riferisce a una data passata.')); ?>
+                </p>
+            </div>
+        <?php endif; ?>
+    </div>
+    
+    <?php
+    return ob_get_clean();
+}
+}
+
+/**
  * Booking form shortcode
  */
 add_shortcode('ristorante_booking_form', 'rbf_render_booking_form');
