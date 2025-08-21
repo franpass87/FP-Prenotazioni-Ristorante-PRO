@@ -365,4 +365,189 @@ HTML;
         array_merge($base_args, ['body' => wp_json_encode($event_payload)])
     );
     if (is_wp_error($response)) error_log('Errore Brevo (evento booking_bistrot): '.$response->get_error_message());
+/**
+ * Send booking reminders
+ */
+add_action('rbf_send_booking_reminders', 'rbf_send_booking_reminders_cron');
+function rbf_send_booking_reminders_cron() {
+    // Get bookings for tomorrow that need reminders
+    $tomorrow = date('Y-m-d', strtotime('+1 day'));
+    
+    global $wpdb;
+    $bookings = $wpdb->get_results($wpdb->prepare(
+        "SELECT p.ID FROM {$wpdb->posts} p
+         INNER JOIN {$wpdb->postmeta} pm_date ON p.ID = pm_date.post_id AND pm_date.meta_key = 'rbf_data'
+         INNER JOIN {$wpdb->postmeta} pm_status ON p.ID = pm_status.post_id AND pm_status.meta_key = 'rbf_booking_status'
+         LEFT JOIN {$wpdb->postmeta} pm_reminder ON p.ID = pm_reminder.post_id AND pm_reminder.meta_key = 'rbf_reminder_sent'
+         WHERE p.post_type = 'rbf_booking' AND p.post_status = 'publish'
+         AND pm_date.meta_value = %s 
+         AND pm_status.meta_value IN ('confirmed', 'pending')
+         AND (pm_reminder.meta_value IS NULL OR pm_reminder.meta_value != '1')",
+        $tomorrow
+    ));
+    
+    foreach ($bookings as $booking) {
+        rbf_send_booking_reminder($booking->ID);
+        // Mark reminder as sent
+        update_post_meta($booking->ID, 'rbf_reminder_sent', '1');
+    }
+}
+
+/**
+ * Send individual booking reminder
+ */
+function rbf_send_booking_reminder($booking_id) {
+    $booking = get_post($booking_id);
+    if (!$booking) return;
+    
+    $first_name = get_post_meta($booking_id, 'rbf_nome', true);
+    $last_name = get_post_meta($booking_id, 'rbf_cognome', true);
+    $email = get_post_meta($booking_id, 'rbf_email', true);
+    $date = get_post_meta($booking_id, 'rbf_data', true);
+    $time = get_post_meta($booking_id, 'rbf_time', true);
+    $people = get_post_meta($booking_id, 'rbf_persone', true);
+    $meal = get_post_meta($booking_id, 'rbf_orario', true);
+    $notes = get_post_meta($booking_id, 'rbf_allergie', true);
+    $lang = get_post_meta($booking_id, 'rbf_lang', true) ?: 'it';
+    $booking_hash = get_post_meta($booking_id, 'rbf_booking_hash', true);
+    
+    if (!$email) return;
+    
+    $site_name = get_bloginfo('name');
+    $formatted_date = date('d/m/Y', strtotime($date));
+    
+    $meals = [
+        'pranzo' => rbf_translate_string('Pranzo'),
+        'cena' => rbf_translate_string('Cena'),
+        'aperitivo' => rbf_translate_string('Aperitivo')
+    ];
+    $meal_label = $meals[$meal] ?? ucfirst($meal);
+    
+    // Prepare content based on language
+    if ($lang === 'en') {
+        $subject = "Booking Reminder - Tomorrow at {$time}";
+        $greeting = "Dear {$first_name}";
+        $reminder_text = "This is a friendly reminder about your booking for tomorrow.";
+        $booking_details = "Booking Details";
+        $customer_label = "Customer";
+        $date_label = "Date";
+        $time_label = "Time";
+        $people_label = "Guests";
+        $meal_label_text = "Service";
+        $notes_label = "Notes";
+        $important_info = "Important Information";
+        $address_info = "Our address: [Restaurant Address]";
+        $contact_info = "For any questions, please contact us at [Restaurant Phone]";
+        $manage_text = "You can view or manage your booking:";
+        $manage_button = "Manage Booking";
+        $looking_forward = "We look forward to welcoming you tomorrow!";
+    } else {
+        $subject = "Promemoria Prenotazione - Domani alle {$time}";
+        $greeting = "Gentile {$first_name}";
+        $reminder_text = "Questo è un promemoria per la sua prenotazione di domani.";
+        $booking_details = "Dettagli Prenotazione";
+        $customer_label = "Cliente";
+        $date_label = "Data";
+        $time_label = "Orario";
+        $people_label = "Persone";
+        $meal_label_text = "Servizio";
+        $notes_label = "Note";
+        $important_info = "Informazioni Importanti";
+        $address_info = "Il nostro indirizzo: [Indirizzo Ristorante]";
+        $contact_info = "Per qualsiasi domanda, ci contatti al [Telefono Ristorante]";
+        $manage_text = "Può visualizzare o gestire la sua prenotazione:";
+        $manage_button = "Gestisci Prenotazione";
+        $looking_forward = "Non vediamo l'ora di accoglierla domani!";
+    }
+    
+    $management_url = home_url('/gestisci-prenotazione/?booking=' . $booking_hash);
+    
+    $body = <<<HTML
+<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>
+    body { font-family: Arial, sans-serif; color: #333; line-height: 1.6; }
+    .container { padding: 20px; border: 1px solid #ddd; max-width: 600px; margin: auto; border-radius: 8px; }
+    .header { background-color: #3b82f6; color: white; padding: 20px; border-radius: 8px 8px 0 0; margin: -20px -20px 20px -20px; text-align: center; }
+    .booking-details { background-color: #f1f5f9; padding: 15px; border-radius: 6px; margin: 15px 0; }
+    .detail-row { margin: 8px 0; }
+    .important-info { background-color: #fef3c7; padding: 15px; border-radius: 6px; margin: 15px 0; border-left: 4px solid #f59e0b; }
+    .footer { margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 14px; color: #6b7280; text-align: center; }
+    .manage-btn { display: inline-block; background-color: #10b981; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; margin: 15px 0; }
+    .highlight { background-color: #dbeafe; padding: 10px; border-radius: 4px; border-left: 4px solid #3b82f6; margin: 10px 0; }
+</style>
+</head><body>
+<div class="container">
+    <div class="header">
+        <h2 style="margin: 0;">📅 {$subject}</h2>
+    </div>
+    
+    <p>{$greeting},</p>
+    
+    <p>{$reminder_text}</p>
+    
+    <div class="highlight">
+        <strong>⏰ {$time_label}: {$time}</strong><br>
+        <strong>📍 {$date_label}: {$formatted_date}</strong><br>
+        <strong>👥 {$people_label}: {$people}</strong>
+    </div>
+    
+    <div class="booking-details">
+        <h3 style="margin-top: 0; color: #374151;">{$booking_details}</h3>
+        <div class="detail-row"><strong>{$customer_label}:</strong> {$first_name} {$last_name}</div>
+        <div class="detail-row"><strong>{$date_label}:</strong> {$formatted_date}</div>
+        <div class="detail-row"><strong>{$time_label}:</strong> {$time}</div>
+        <div class="detail-row"><strong>{$people_label}:</strong> {$people}</div>
+        <div class="detail-row"><strong>{$meal_label_text}:</strong> {$meal_label}</div>
+HTML;
+
+    if ($notes) {
+        $body .= "<div class=\"detail-row\"><strong>{$notes_label}:</strong> " . esc_html($notes) . "</div>";
+    }
+
+    $body .= <<<HTML
+    </div>
+    
+    <div class="important-info">
+        <h4 style="margin-top: 0; color: #92400e;">{$important_info}</h4>
+        <p style="margin: 5px 0;">{$address_info}</p>
+        <p style="margin: 5px 0;">{$contact_info}</p>
+    </div>
+    
+    <p>{$manage_text}</p>
+    <a href="{$management_url}" class="manage-btn">{$manage_button}</a>
+    
+    <p><strong>{$looking_forward}</strong></p>
+    
+    <div class="footer">
+        <p>Booking ID: #{$booking_id} | {$site_name}</p>
+    </div>
+</div>
+</body></html>
+HTML;
+
+    $headers = ['Content-Type: text/html; charset=UTF-8'];
+    $from_email = 'noreply@' . preg_replace('/^www\./', '', $_SERVER['SERVER_NAME']);
+    $headers[] = 'From: ' . $site_name . ' <' . $from_email . '>';
+    
+    wp_mail($email, $subject, $body, $headers);
+}
+
+/**
+ * Schedule reminder system activation
+ */
+add_action('init', 'rbf_schedule_booking_reminders');
+function rbf_schedule_booking_reminders() {
+    if (!wp_next_scheduled('rbf_send_booking_reminders')) {
+        // Schedule daily at 10:00 AM
+        wp_schedule_event(strtotime('today 10:00'), 'daily', 'rbf_send_booking_reminders');
+    }
+}
+
+/**
+ * Clear scheduled events on plugin deactivation
+ */
+register_deactivation_hook(RBF_PLUGIN_FILE, 'rbf_clear_scheduled_events');
+function rbf_clear_scheduled_events() {
+    wp_clear_scheduled_hook('rbf_send_booking_reminders');
+}
 }

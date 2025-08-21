@@ -74,6 +74,7 @@ function rbf_create_bookings_menu() {
     add_submenu_page('rbf_bookings_menu', rbf_translate_string('Aggiungi Prenotazione'), rbf_translate_string('Aggiungi Nuova'), 'manage_options', 'rbf_add_booking', 'rbf_add_booking_page_html');
     add_submenu_page('rbf_bookings_menu', rbf_translate_string('Vista Calendario'), rbf_translate_string('Calendario'), 'manage_options', 'rbf_calendar', 'rbf_calendar_page_html');
     add_submenu_page('rbf_bookings_menu', rbf_translate_string('Report & Analytics'), rbf_translate_string('Report & Analytics'), 'manage_options', 'rbf_reports', 'rbf_reports_page_html');
+    add_submenu_page('rbf_bookings_menu', rbf_translate_string('Esporta Dati'), rbf_translate_string('Esporta Dati'), 'manage_options', 'rbf_export', 'rbf_export_page_html');
     add_submenu_page('rbf_bookings_menu', rbf_translate_string('Impostazioni'), rbf_translate_string('Impostazioni'), 'manage_options', 'rbf_settings', 'rbf_settings_page_html');
 }
 
@@ -273,6 +274,7 @@ function rbf_enqueue_admin_styles($hook) {
         $hook !== 'rbf_bookings_menu_page_rbf_calendar' &&
         $hook !== 'rbf_bookings_menu_page_rbf_add_booking' &&
         $hook !== 'rbf_bookings_menu_page_rbf_reports' &&
+        $hook !== 'rbf_bookings_menu_page_rbf_export' &&
         strpos($hook,'edit.php?post_type=rbf_booking') === false) return;
 
     wp_enqueue_style('rbf-admin-css', plugin_dir_url(dirname(__FILE__)) . 'assets/css/admin.css', [], '9.3.2');
@@ -956,5 +958,284 @@ function rbf_get_booking_analytics($start_date, $end_date) {
     arsort($analytics['by_source']);
     
     return $analytics;
+}
+
+/**
+ * Export page HTML
+ */
+function rbf_export_page_html() {
+    // Handle export request
+    if (isset($_POST['export_bookings']) && wp_verify_nonce($_POST['_wpnonce'], 'rbf_export')) {
+        $start_date = sanitize_text_field($_POST['start_date']);
+        $end_date = sanitize_text_field($_POST['end_date']);
+        $format = sanitize_text_field($_POST['format']);
+        $status_filter = sanitize_text_field($_POST['status_filter']);
+        
+        rbf_handle_export_request($start_date, $end_date, $format, $status_filter);
+        return; // Exit after sending file
+    }
+    
+    $default_start = date('Y-m-d', strtotime('-30 days'));
+    $default_end = date('Y-m-d');
+    ?>
+    <div class="rbf-admin-wrap">
+        <h1><?php echo esc_html(rbf_translate_string('Esporta Dati Prenotazioni')); ?></h1>
+        
+        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <form method="post">
+                <?php wp_nonce_field('rbf_export'); ?>
+                
+                <table class="form-table">
+                    <tr>
+                        <th><label for="start_date"><?php echo esc_html(rbf_translate_string('Data Inizio')); ?></label></th>
+                        <td><input type="date" id="start_date" name="start_date" value="<?php echo esc_attr($default_start); ?>" required></td>
+                    </tr>
+                    <tr>
+                        <th><label for="end_date"><?php echo esc_html(rbf_translate_string('Data Fine')); ?></label></th>
+                        <td><input type="date" id="end_date" name="end_date" value="<?php echo esc_attr($default_end); ?>" required></td>
+                    </tr>
+                    <tr>
+                        <th><label for="status_filter"><?php echo esc_html(rbf_translate_string('Filtra per Stato')); ?></label></th>
+                        <td>
+                            <select id="status_filter" name="status_filter">
+                                <option value=""><?php echo esc_html(rbf_translate_string('Tutti gli stati')); ?></option>
+                                <?php
+                                $statuses = rbf_get_booking_statuses();
+                                foreach ($statuses as $key => $label) {
+                                    echo '<option value="' . esc_attr($key) . '">' . esc_html($label) . '</option>';
+                                }
+                                ?>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><label for="format"><?php echo esc_html(rbf_translate_string('Formato Export')); ?></label></th>
+                        <td>
+                            <select id="format" name="format">
+                                <option value="csv">CSV (Excel)</option>
+                                <option value="json">JSON</option>
+                            </select>
+                        </td>
+                    </tr>
+                </table>
+                
+                <p class="submit">
+                    <input type="submit" name="export_bookings" class="button button-primary" value="<?php echo esc_attr(rbf_translate_string('Esporta Prenotazioni')); ?>">
+                </p>
+            </form>
+        </div>
+        
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 20px;">
+            <h3><?php echo esc_html(rbf_translate_string('Informazioni Export')); ?></h3>
+            <p><?php echo esc_html(rbf_translate_string('L\'export includerà tutti i dati delle prenotazioni nel periodo selezionato:')); ?></p>
+            <ul>
+                <li><?php echo esc_html(rbf_translate_string('Informazioni cliente (nome, email, telefono)')); ?></li>
+                <li><?php echo esc_html(rbf_translate_string('Dettagli prenotazione (data, orario, servizio, persone)')); ?></li>
+                <li><?php echo esc_html(rbf_translate_string('Stato prenotazione e cronologia')); ?></li>
+                <li><?php echo esc_html(rbf_translate_string('Sorgenti di traffico e parametri UTM')); ?></li>
+                <li><?php echo esc_html(rbf_translate_string('Note e preferenze alimentari')); ?></li>
+                <li><?php echo esc_html(rbf_translate_string('Consensi privacy e marketing')); ?></li>
+            </ul>
+        </div>
+    </div>
+    <?php
+}
+
+/**
+ * Handle export request
+ */
+function rbf_handle_export_request($start_date, $end_date, $format, $status_filter) {
+    global $wpdb;
+    
+    // Build query
+    $where_status = '';
+    if ($status_filter) {
+        $where_status = $wpdb->prepare(" AND pm_status.meta_value = %s", $status_filter);
+    }
+    
+    $bookings = $wpdb->get_results($wpdb->prepare(
+        "SELECT p.ID, p.post_title, p.post_date,
+                pm_date.meta_value as booking_date,
+                pm_time.meta_value as booking_time,
+                pm_people.meta_value as people,
+                pm_meal.meta_value as meal,
+                pm_status.meta_value as status,
+                pm_first_name.meta_value as first_name,
+                pm_last_name.meta_value as last_name,
+                pm_email.meta_value as email,
+                pm_tel.meta_value as tel,
+                pm_notes.meta_value as notes,
+                pm_lang.meta_value as language,
+                pm_privacy.meta_value as privacy,
+                pm_marketing.meta_value as marketing,
+                pm_source.meta_value as source,
+                pm_medium.meta_value as medium,
+                pm_campaign.meta_value as campaign,
+                pm_bucket.meta_value as bucket,
+                pm_gclid.meta_value as gclid,
+                pm_fbclid.meta_value as fbclid,
+                pm_created.meta_value as created_date
+         FROM {$wpdb->posts} p
+         INNER JOIN {$wpdb->postmeta} pm_date ON p.ID = pm_date.post_id AND pm_date.meta_key = 'rbf_data'
+         LEFT JOIN {$wpdb->postmeta} pm_time ON p.ID = pm_time.post_id AND pm_time.meta_key = 'rbf_time'
+         LEFT JOIN {$wpdb->postmeta} pm_people ON p.ID = pm_people.post_id AND pm_people.meta_key = 'rbf_persone'
+         LEFT JOIN {$wpdb->postmeta} pm_meal ON p.ID = pm_meal.post_id AND pm_meal.meta_key = 'rbf_orario'
+         LEFT JOIN {$wpdb->postmeta} pm_status ON p.ID = pm_status.post_id AND pm_status.meta_key = 'rbf_booking_status'
+         LEFT JOIN {$wpdb->postmeta} pm_first_name ON p.ID = pm_first_name.post_id AND pm_first_name.meta_key = 'rbf_nome'
+         LEFT JOIN {$wpdb->postmeta} pm_last_name ON p.ID = pm_last_name.post_id AND pm_last_name.meta_key = 'rbf_cognome'
+         LEFT JOIN {$wpdb->postmeta} pm_email ON p.ID = pm_email.post_id AND pm_email.meta_key = 'rbf_email'
+         LEFT JOIN {$wpdb->postmeta} pm_tel ON p.ID = pm_tel.post_id AND pm_tel.meta_key = 'rbf_tel'
+         LEFT JOIN {$wpdb->postmeta} pm_notes ON p.ID = pm_notes.post_id AND pm_notes.meta_key = 'rbf_allergie'
+         LEFT JOIN {$wpdb->postmeta} pm_lang ON p.ID = pm_lang.post_id AND pm_lang.meta_key = 'rbf_lang'
+         LEFT JOIN {$wpdb->postmeta} pm_privacy ON p.ID = pm_privacy.post_id AND pm_privacy.meta_key = 'rbf_privacy'
+         LEFT JOIN {$wpdb->postmeta} pm_marketing ON p.ID = pm_marketing.post_id AND pm_marketing.meta_key = 'rbf_marketing'
+         LEFT JOIN {$wpdb->postmeta} pm_source ON p.ID = pm_source.post_id AND pm_source.meta_key = 'rbf_source'
+         LEFT JOIN {$wpdb->postmeta} pm_medium ON p.ID = pm_medium.post_id AND pm_medium.meta_key = 'rbf_medium'
+         LEFT JOIN {$wpdb->postmeta} pm_campaign ON p.ID = pm_campaign.post_id AND pm_campaign.meta_key = 'rbf_campaign'
+         LEFT JOIN {$wpdb->postmeta} pm_bucket ON p.ID = pm_bucket.post_id AND pm_bucket.meta_key = 'rbf_source_bucket'
+         LEFT JOIN {$wpdb->postmeta} pm_gclid ON p.ID = pm_gclid.post_id AND pm_gclid.meta_key = 'rbf_gclid'
+         LEFT JOIN {$wpdb->postmeta} pm_fbclid ON p.ID = pm_fbclid.post_id AND pm_fbclid.meta_key = 'rbf_fbclid'
+         LEFT JOIN {$wpdb->postmeta} pm_created ON p.ID = pm_created.post_id AND pm_created.meta_key = 'rbf_booking_created'
+         WHERE p.post_type = 'rbf_booking' AND p.post_status = 'publish'
+         AND pm_date.meta_value >= %s AND pm_date.meta_value <= %s
+         {$where_status}
+         ORDER BY pm_date.meta_value DESC, pm_time.meta_value DESC",
+        $start_date, $end_date
+    ));
+    
+    if ($format === 'csv') {
+        rbf_export_csv($bookings, $start_date, $end_date);
+    } else {
+        rbf_export_json($bookings, $start_date, $end_date);
+    }
+}
+
+/**
+ * Export bookings as CSV
+ */
+function rbf_export_csv($bookings, $start_date, $end_date) {
+    $filename = 'bookings_' . $start_date . '_to_' . $end_date . '_' . date('Ymd_His') . '.csv';
+    
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename=' . $filename);
+    header('Pragma: no-cache');
+    header('Expires: 0');
+    
+    $output = fopen('php://output', 'w');
+    
+    // Add BOM for Excel UTF-8 support
+    fwrite($output, "\xEF\xBB\xBF");
+    
+    // CSV Headers
+    $headers = [
+        'ID', 'Data Prenotazione', 'Orario', 'Nome', 'Cognome', 'Email', 'Telefono',
+        'Persone', 'Servizio', 'Stato', 'Note/Allergie', 'Lingua', 'Privacy', 'Marketing',
+        'Sorgente', 'Medium', 'Campagna', 'Bucket', 'Google Click ID', 'Facebook Click ID',
+        'Data Creazione', 'Data Invio'
+    ];
+    
+    fputcsv($output, $headers);
+    
+    // Data rows
+    foreach ($bookings as $booking) {
+        $statuses = rbf_get_booking_statuses();
+        $status_label = $statuses[$booking->status ?? 'pending'] ?? ($booking->status ?? 'pending');
+        
+        $row = [
+            $booking->ID,
+            $booking->booking_date,
+            $booking->booking_time,
+            $booking->first_name,
+            $booking->last_name,
+            $booking->email,
+            $booking->tel,
+            $booking->people,
+            $booking->meal,
+            $status_label,
+            $booking->notes,
+            $booking->language ?: 'it',
+            $booking->privacy === 'yes' ? 'Sì' : 'No',
+            $booking->marketing === 'yes' ? 'Sì' : 'No',
+            $booking->source,
+            $booking->medium,
+            $booking->campaign,
+            $booking->bucket,
+            $booking->gclid,
+            $booking->fbclid,
+            $booking->created_date,
+            $booking->post_date
+        ];
+        
+        fputcsv($output, $row);
+    }
+    
+    fclose($output);
+    exit;
+}
+
+/**
+ * Export bookings as JSON
+ */
+function rbf_export_json($bookings, $start_date, $end_date) {
+    $filename = 'bookings_' . $start_date . '_to_' . $end_date . '_' . date('Ymd_His') . '.json';
+    
+    header('Content-Type: application/json; charset=utf-8');
+    header('Content-Disposition: attachment; filename=' . $filename);
+    header('Pragma: no-cache');
+    header('Expires: 0');
+    
+    $export_data = [
+        'export_info' => [
+            'generated' => current_time('Y-m-d H:i:s'),
+            'date_range' => ['start' => $start_date, 'end' => $end_date],
+            'total_bookings' => count($bookings),
+            'plugin_version' => '9.3.2'
+        ],
+        'bookings' => []
+    ];
+    
+    $statuses = rbf_get_booking_statuses();
+    
+    foreach ($bookings as $booking) {
+        $export_data['bookings'][] = [
+            'id' => intval($booking->ID),
+            'title' => $booking->post_title,
+            'booking_date' => $booking->booking_date,
+            'booking_time' => $booking->booking_time,
+            'customer' => [
+                'first_name' => $booking->first_name,
+                'last_name' => $booking->last_name,
+                'email' => $booking->email,
+                'phone' => $booking->tel,
+                'language' => $booking->language ?: 'it'
+            ],
+            'booking_details' => [
+                'people' => intval($booking->people ?: 0),
+                'meal' => $booking->meal,
+                'status' => $booking->status ?: 'pending',
+                'status_label' => $statuses[$booking->status ?? 'pending'] ?? ($booking->status ?? 'pending'),
+                'notes' => $booking->notes
+            ],
+            'consent' => [
+                'privacy' => $booking->privacy === 'yes',
+                'marketing' => $booking->marketing === 'yes'
+            ],
+            'attribution' => [
+                'source' => $booking->source,
+                'medium' => $booking->medium,
+                'campaign' => $booking->campaign,
+                'bucket' => $booking->bucket,
+                'google_click_id' => $booking->gclid,
+                'facebook_click_id' => $booking->fbclid
+            ],
+            'timestamps' => [
+                'created' => $booking->created_date,
+                'submitted' => $booking->post_date
+            ]
+        ];
+    }
+    
+    echo wp_json_encode($export_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    exit;
 }
 }

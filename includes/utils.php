@@ -211,6 +211,23 @@ function rbf_translate_string($text) {
         'Grazie per aver scelto il nostro ristorante! Speriamo di rivederti presto.' => 'Thank you for choosing our restaurant! We hope to see you again soon.',
         'Prenotazione Passata' => 'Past Booking',
         'Questa prenotazione si riferisce a una data passata.' => 'This booking refers to a past date.',
+        
+        // Export functionality
+        'Esporta Dati' => 'Export Data',
+        'Esporta Dati Prenotazioni' => 'Export Booking Data',
+        'Data Inizio' => 'Start Date',
+        'Data Fine' => 'End Date', 
+        'Filtra per Stato' => 'Filter by Status',
+        'Formato Export' => 'Export Format',
+        'Esporta Prenotazioni' => 'Export Bookings',
+        'Informazioni Export' => 'Export Information',
+        'L\'export includerà tutti i dati delle prenotazioni nel periodo selezionato:' => 'The export will include all booking data for the selected period:',
+        'Informazioni cliente (nome, email, telefono)' => 'Customer information (name, email, phone)',
+        'Dettagli prenotazione (data, orario, servizio, persone)' => 'Booking details (date, time, service, guests)',
+        'Stato prenotazione e cronologia' => 'Booking status and history',
+        'Sorgenti di traffico e parametri UTM' => 'Traffic sources and UTM parameters',
+        'Note e preferenze alimentari' => 'Notes and dietary preferences',
+        'Consensi privacy e marketing' => 'Privacy and marketing consents',
     ];
     return $translations[$text] ?? $text;
 }
