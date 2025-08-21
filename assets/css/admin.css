@@ -1,0 +1,17 @@
+.rbf-admin-wrap{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f7f7f9;padding:24px;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,.06);max-width:980px;margin:24px auto}
+.rbf-admin-wrap h1{color:#1d2327;font-size:22px;margin:0 0 18px;border-bottom:1px solid #e6e7eb;padding-bottom:10px}
+.rbf-admin-wrap .form-table{background:#fff;border-radius:10px;padding:18px 20px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.rbf-admin-wrap .form-table th{font-weight:600;color:#1d2327;padding:14px 10px;width:260px}
+.rbf-admin-wrap .form-table td{padding:14px 10px}
+.rbf-admin-wrap .form-table input[type="text"],
+.rbf-admin-wrap .form-table input[type="email"],
+.rbf-admin-wrap .form-table input[type="number"],
+.rbf-admin-wrap .form-table input[type="password"],
+.rbf-admin-wrap .form-table textarea,
+.rbf-admin-wrap .form-table select{width:100%;max-width:420px;padding:8px 10px;border:1px solid #dcdcde;border-radius:6px;font-size:14px;background:#fcfcfd}
+.rbf-admin-wrap .form-table textarea{min-height:100px}
+.rbf-admin-wrap .submit{text-align:right;margin-top:18px}
+.rbf-admin-wrap .button-primary{background:#111827;border-color:#111827;color:#fff;padding:10px 18px;font-size:14px;border-radius:8px}
+.rbf-admin-wrap .button-primary:hover{background:#0b1220}
+.notice{border-radius:8px}
+#rbf-calendar{background:#fff;padding:16px;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,.05);max-width:980px;margin:16px auto}
