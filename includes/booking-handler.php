@@ -68,11 +68,44 @@ function rbf_handle_booking_submission() {
         wp_safe_redirect(add_query_arg('rbf_error', urlencode(rbf_translate_string('Indirizzo email non valido.')), $redirect_url . $anchor)); exit;
     }
 
-    $remaining_capacity = rbf_get_remaining_capacity($date, $slot);
-    if ($remaining_capacity < $people) {
-        $error_msg = sprintf(rbf_translate_string('Spiacenti, non ci sono abbastanza posti. Rimasti: %d'), $remaining_capacity);
-        wp_safe_redirect(add_query_arg('rbf_error', urlencode($error_msg), $redirect_url . $anchor)); exit;
+    // Get settings for advance booking validation
+    $options = get_option('rbf_settings', rbf_get_default_settings());
+    
+    // Check maximum advance booking time
+    $max_advance_hours = absint($options['max_advance_hours'] ?? 72);
+    $tz = rbf_wp_timezone();
+    $now = new DateTime('now', $tz);
+    $booking_datetime = DateTime::createFromFormat('Y-m-d H:i', $date . ' ' . $time, $tz);
+    
+    if ($booking_datetime) {
+        $hours_diff = ($booking_datetime->getTimestamp() - $now->getTimestamp()) / 3600;
+        
+        if ($hours_diff > $max_advance_hours) {
+            $days_max = ceil($max_advance_hours / 24);
+            $error_msg = sprintf(
+                rbf_translate_string('Spiacenti, è possibile prenotare al massimo %d ore in anticipo (%d giorni). Scegli una data più vicina.'), 
+                $max_advance_hours,
+                $days_max
+            );
+            wp_safe_redirect(add_query_arg('rbf_error', urlencode($error_msg), $redirect_url . $anchor)); 
+            exit;
+        }
     }
+
+    $remaining_capacity = rbf_get_remaining_capacity($date, $slot);
+    
+    // Check capacity - if not enough, show error (no waitlist)
+    if ($remaining_capacity < $people) {
+        $error_msg = sprintf(
+            rbf_translate_string('Spiacenti, non ci sono abbastanza posti. Rimasti: %d. Scegli un altro orario.'), 
+            $remaining_capacity
+        );
+        wp_safe_redirect(add_query_arg('rbf_error', urlencode($error_msg), $redirect_url . $anchor)); 
+        exit;
+    }
+    
+    // All bookings are automatically confirmed
+    $booking_status = 'confirmed';
 
     $post_id = wp_insert_post([
         'post_type' => 'rbf_booking',
@@ -99,6 +132,10 @@ function rbf_handle_booking_submission() {
             'rbf_gclid'         => $gclid,
             'rbf_fbclid'        => $fbclid,
             'rbf_referrer'      => $referrer,
+            // Enhanced booking status system
+            'rbf_booking_status' => $booking_status,
+            'rbf_booking_created' => current_time('Y-m-d H:i:s'),
+            'rbf_booking_hash' => wp_generate_password(16, false, false),
         ],
     ]);
 
@@ -123,11 +160,12 @@ function rbf_handle_booking_submission() {
         'event_id' => $event_id
     ], 60 * 15);
 
-    // Notifiche email (con CC fisso) - check if functions exist
+    // Notifiche e integrazioni
+    // Admin notification email (webmaster notification)
     if (function_exists('rbf_send_admin_notification_email')) {
         rbf_send_admin_notification_email($first_name, $last_name, $email, $date, $time, $people, $notes, $tel, $meal);
     }
-
+    
     // Brevo: sempre (lista + evento)
     if (function_exists('rbf_trigger_brevo_automation')) {
         rbf_trigger_brevo_automation($first_name, $last_name, $email, $date, $time, $people, $notes, $lang, $tel, $marketing, $meal);
@@ -199,9 +237,22 @@ function rbf_ajax_get_availability_callback() {
     $remaining_capacity = rbf_get_remaining_capacity($date, $meal);
     if ($remaining_capacity <= 0) { wp_send_json_success([]); return; }
 
-    // LAST-MINUTE: se oggi, mostra solo orari futuri (margine 15')
+    // Check maximum advance booking time
+    $max_advance_hours = absint($options['max_advance_hours'] ?? 72);
     $tz = rbf_wp_timezone();
     $now = new DateTime('now', $tz);
+    
+    // If the date is beyond the advance booking limit, return no availability
+    $booking_date = DateTime::createFromFormat('Y-m-d', $date, $tz);
+    if ($booking_date) {
+        $hours_diff_start = ($booking_date->getTimestamp() - $now->getTimestamp()) / 3600;
+        if ($hours_diff_start > $max_advance_hours) {
+            wp_send_json_success([]);
+            return;
+        }
+    }
+
+    // LAST-MINUTE: se oggi, mostra solo orari futuri (margine 15')
     $today_str = $now->format('Y-m-d');
     if ($date === $today_str) {
         $now_plus = clone $now;
@@ -209,6 +260,15 @@ function rbf_ajax_get_availability_callback() {
         $cut = $now_plus->format('H:i');
         $times = array_values(array_filter($times, function($t) use ($cut) { return $t > $cut; }));
     }
+    
+    // Filter times that exceed maximum advance booking limit
+    $max_booking_time = clone $now;
+    $max_booking_time->modify("+{$max_advance_hours} hours");
+    
+    $times = array_values(array_filter($times, function($time) use ($date, $max_booking_time, $tz) {
+        $booking_datetime = DateTime::createFromFormat('Y-m-d H:i', $date . ' ' . $time, $tz);
+        return $booking_datetime && $booking_datetime <= $max_booking_time;
+    }));
 
     $available = [];
     foreach ($times as $time) $available[] = ['slot'=>$meal, 'time'=>$time];

@@ -1,7 +1,7 @@
 <?php
 /**
  * Third-party integrations for Restaurant Booking Plugin
- * (Tracking, Email notifications, Brevo automation)
+ * (Tracking, Brevo automation only - no WordPress emails)
  * 
  * @package FP_Prenotazioni_Ristorante_PRO
  */
@@ -48,54 +48,56 @@ function rbf_add_tracking_scripts_to_footer() {
 
         // Fallback se manca il transient: ricostruisci dai meta
         if (!$tracking_data || !is_array($tracking_data)) {
-            $meal   = get_post_meta($booking_id, 'rbf_orario', true);
-            $people = (int) get_post_meta($booking_id, 'rbf_persone', true);
-            $bucket = get_post_meta($booking_id, 'rbf_source_bucket', true) ?: 'direct';
-            $val_per = 0.0;
-            if ($meal) {
-                $val_per = (float) ($options['valore_' . $meal] ?? 0);
-            }
-            $val_tot  = $val_per * max(0,$people);
-            $event_id = 'rbf_' . $booking_id;
+            $value = get_post_meta($booking_id, 'rbf_valore_tot', true) ?: 0;
+            $meal = get_post_meta($booking_id, 'rbf_orario', true) ?: 'pranzo';
+            $people = get_post_meta($booking_id, 'rbf_persone', true) ?: 1;
+            $bucket = get_post_meta($booking_id, 'rbf_source_bucket', true) ?: 'organic';
             $tracking_data = [
-              'id'       => $booking_id,
-              'value'    => $val_tot,
-              'currency' => 'EUR',
-              'meal'     => $meal ?: '',
-              'people'   => max(0,$people),
-              'bucket'   => $bucket,
-              'event_id' => $event_id
+                'id' => $booking_id,
+                'value' => $value,
+                'currency' => 'EUR',
+                'meal' => $meal,
+                'people' => $people,
+                'bucket' => $bucket,
+                'event_id' => 'rbf_' . $booking_id
             ];
-            set_transient('rbf_booking_data_' . $booking_id, $tracking_data, 60 * 15);
         }
 
-        $value = (float) $tracking_data['value'];
-        $currency = esc_js($tracking_data['currency']);
-        $transaction_id = esc_js($tracking_data['id']);
-        $meal_js = esc_js($tracking_data['meal']);
-        $people_js = (int) $tracking_data['people'];
-        $bucket_js = esc_js($tracking_data['bucket']);
-        $event_id_js = esc_js($tracking_data['event_id']); ?>
+        $transaction_id = 'rbf_' . $tracking_data['id'];
+        $value = $tracking_data['value'];
+        $currency = $tracking_data['currency'];
+        $meal = $tracking_data['meal'];
+        $people = $tracking_data['people'];
+        $bucket = $tracking_data['bucket'];
+        $eventId = $tracking_data['event_id'];
+
+        // Bucket standard per dedup
+        $bucketStd = ($bucket === 'gads' || $bucket === 'fbads') ? $bucket : 'organic';
+        ?>
         <script>
-            (function(){
+            (function() {
               var value = <?php echo json_encode($value); ?>;
               var currency = <?php echo json_encode($currency); ?>;
               var transaction_id = <?php echo json_encode($transaction_id); ?>;
-              var meal = <?php echo json_encode($meal_js); ?>;
-              var people = <?php echo json_encode($people_js); ?>;
-              var bucket = <?php echo json_encode($bucket_js); ?>; // es: gads, fbads, fborg, direct, other
-              var eventId = <?php echo json_encode($event_id_js); ?>;
-
-              // standardizza: tutto ciò che NON è gads/fbads => organic
-              var bucketStd = (bucket === 'gads' || bucket === 'fbads') ? bucket : 'organic';
+              var meal = <?php echo json_encode($meal); ?>;
+              var people = <?php echo json_encode($people); ?>;
+              var bucket = <?php echo json_encode($bucket); ?>;
+              var bucketStd = <?php echo json_encode($bucketStd); ?>;
+              var eventId = <?php echo json_encode($eventId); ?>;
 
               <?php if ($ga4_id) : ?>
               if (typeof gtag === 'function') {
-                // Ecommerce standard + bucket standard (per allineo con HIC)
                 gtag('event', 'purchase', {
                   transaction_id: transaction_id,
                   value: Number(value || 0),
                   currency: currency,
+                  items: [{
+                    item_id: 'booking_' + meal,
+                    item_name: 'Prenotazione ' + meal,
+                    category: 'booking',
+                    quantity: Number(people || 0),
+                    price: Number(value || 0) / Number(people || 1)
+                  }],
                   bucket: bucketStd
                 });
                 // Evento custom con dettaglio ristorante
@@ -128,12 +130,11 @@ function rbf_add_tracking_scripts_to_footer() {
 }
 
 /**
- * Send admin notification email
+ * Send admin notification email (webmaster notification only)
  */
 function rbf_send_admin_notification_email($first_name, $last_name, $email, $date, $time, $people, $notes, $tel, $meal) {
     $options = get_option('rbf_settings', rbf_get_default_settings());
-    $to = $options['notification_email'] ?? 'info@villadianella.it';
-    $cc = 'francesco.passeri@gmail.com';
+    $to = $options['notification_email'];
     if (empty($to) || !is_email($to)) return;
 
     $site_name = get_bloginfo('name');
@@ -163,12 +164,11 @@ HTML;
     $headers = ['Content-Type: text/html; charset=UTF-8'];
     $from_email = 'noreply@' . preg_replace('/^www\./', '', $_SERVER['SERVER_NAME']);
     $headers[] = 'From: ' . $site_name . ' <' . $from_email . '>';
-    $headers[] = 'Cc: ' . $cc;
     wp_mail($to, $subject, $body, $headers);
 }
 
 /**
- * Trigger Brevo automation
+ * Trigger Brevo automation (simplified - only Brevo, no WordPress emails)
  */
 function rbf_trigger_brevo_automation($first_name, $last_name, $email, $date, $time, $people, $notes, $lang, $tel, $marketing, $meal) {
     $options = get_option('rbf_settings', rbf_get_default_settings());
