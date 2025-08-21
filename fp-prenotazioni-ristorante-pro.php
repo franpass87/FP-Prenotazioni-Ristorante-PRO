@@ -245,26 +245,7 @@ function rbf_enqueue_admin_styles($hook) {
         $hook !== 'rbf_bookings_menu_page_rbf_add_booking' &&
         strpos($hook,'edit.php?post_type=rbf_booking') === false) return;
 
-    $css = <<<CSS
-.rbf-admin-wrap{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f7f7f9;padding:24px;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,.06);max-width:980px;margin:24px auto}
-.rbf-admin-wrap h1{color:#1d2327;font-size:22px;margin:0 0 18px;border-bottom:1px solid #e6e7eb;padding-bottom:10px}
-.rbf-admin-wrap .form-table{background:#fff;border-radius:10px;padding:18px 20px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
-.rbf-admin-wrap .form-table th{font-weight:600;color:#1d2327;padding:14px 10px;width:260px}
-.rbf-admin-wrap .form-table td{padding:14px 10px}
-.rbf-admin-wrap .form-table input[type="text"],
-.rbf-admin-wrap .form-table input[type="email"],
-.rbf-admin-wrap .form-table input[type="number"],
-.rbf-admin-wrap .form-table input[type="password"],
-.rbf-admin-wrap .form-table textarea,
-.rbf-admin-wrap .form-table select{width:100%;max-width:420px;padding:8px 10px;border:1px solid #dcdcde;border-radius:6px;font-size:14px;background:#fcfcfd}
-.rbf-admin-wrap .form-table textarea{min-height:100px}
-.rbf-admin-wrap .submit{text-align:right;margin-top:18px}
-.rbf-admin-wrap .button-primary{background:#111827;border-color:#111827;color:#fff;padding:10px 18px;font-size:14px;border-radius:8px}
-.rbf-admin-wrap .button-primary:hover{background:#0b1220}
-.notice{border-radius:8px}
-#rbf-calendar{background:#fff;padding:16px;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,.05);max-width:980px;margin:16px auto}
-CSS;
-    wp_add_inline_style('admin-bar', $css);
+    wp_enqueue_style('rbf-admin-style', plugin_dir_url(__FILE__) . 'assets/css/admin.css', [], '9.3.2');
 }
 
 /* -------------------------------------------------------------------------
@@ -371,7 +352,7 @@ function rbf_enqueue_frontend_assets() {
     wp_enqueue_style('rbf-intl-tel-input-css','https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.13/css/intlTelInput.css',[], '17.0.13');
     wp_enqueue_script('rbf-intl-tel-input','https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.13/js/intlTelInput.min.js',[], '17.0.13', true);
 
-    wp_register_script('rbf-main-script','', $deps, $plugin_version, true);
+    wp_register_script('rbf-main-script', plugin_dir_url(__FILE__) . 'assets/js/frontend.js', $deps, $plugin_version, true);
     wp_enqueue_script('rbf-main-script');
 
     // Giorni chiusi
@@ -400,40 +381,14 @@ function rbf_enqueue_frontend_assets() {
         ],
     ]);
 
-    // Stili frontend (sintetici)
-    $css = <<<CSS
-.rbf-form-container{position:relative}
-#rbf-message-anchor{position:absolute;top:-20px}
-.rbf-form{max-width:520px;margin:2em auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen-Sans,Ubuntu,Cantarell,'Helvetica Neue',sans-serif}
-.rbf-step{margin-bottom:1.5em}
-.rbf-step>label{display:block;font-weight:600;margin-bottom:.8em}
-#rbf-meal-notice{font-size:.9em;font-style:italic;color:#555;margin-top:12px;padding:8px;background:#f8f9fa;border-left:3px solid #6c757d}
-.rbf-form input[type='text'],.rbf-form input[type='email'],.rbf-form input[type='tel'],.rbf-form select,.rbf-form textarea{box-sizing:border-box;width:100%;padding:10px;border:1px solid #ccc;border-radius:6px;font-size:16px;background:#fff}
-.rbf-radio-group{display:flex;flex-wrap:wrap;gap:10px}
-.rbf-radio-group input[type='radio']{opacity:0;position:fixed;width:0}
-.rbf-radio-group label{display:inline-block;padding:10px 18px;border:1px solid #ccc;border-radius:10px;font-weight:500;text-align:center;cursor:pointer;transition:.2s;background:#f8f9fa;color:#333}
-.rbf-radio-group label:hover{background:#eef1f4;border-color:#bfc7cf}
-.rbf-radio-group input[type='radio']:checked+label{background:#000;color:#fff;border-color:#000;box-shadow:0 2px 5px rgba(0,0,0,.1)}
-.rbf-people-selector{display:flex;align-items:center}
-.rbf-people-selector button{width:44px;height:44px;font-size:24px;font-weight:bold;border:1px solid #ccc;background:#f0f0f0;cursor:pointer;line-height:1;border-radius:6px}
-.rbf-people-selector button:disabled{background:#f8f8f8;cursor:not-allowed;color:#ccc}
-.rbf-people-selector input{height:44px;width:60px;text-align:center;font-weight:700;border:1px solid #ccc;border-left:none;border-right:none;font-size:18px}
-#rbf-submit{width:100%;padding:15px;margin-top:18px;font-size:18px;font-weight:700;color:#fff;background:#000;border:none;border-radius:8px;cursor:pointer}
-#rbf-submit:disabled{background:#bdc3c7;cursor:not-allowed}
-.rbf-success-message,.rbf-error-message{padding:14px;margin-bottom:18px;border-radius:6px;border:2px solid}
-.rbf-success-message{color:#155724;background:#d4edda;border-color:#c3e6cb}
-.rbf-error-message{color:#721c24;background:#f8d7da;border-color:#f5c6cb}
-.iti{width:100%}
-.rbf-checkbox-group{margin-top:12px}
-.rbf-checkbox-group label{display:block;margin-bottom:10px;font-size:14px}
-.rbf-checkbox-group a{color:#000;text-decoration:underline}
-CSS;
-    wp_add_inline_style('rbf-flatpickr-css', $css);
+    // Stili frontend
+    wp_enqueue_style('rbf-frontend-style', plugin_dir_url(__FILE__) . 'assets/css/frontend.css', ['rbf-flatpickr-css'], '9.3.2');
 
     // Script principale (Flatpickr + UTM capture)
-    $js = <<<'JS'
-jQuery(function($){
-  'use strict';
+    wp_enqueue_script('rbf-frontend-script', plugin_dir_url(__FILE__) . 'assets/js/frontend.js', $deps, '9.3.2', true);
+}
+
+add_shortcode('ristorante_booking_form', 'rbf_render_booking_form');
   if (typeof rbfData === 'undefined' || typeof flatpickr === 'undefined' || typeof intlTelInput === 'undefined') return;
 
   const form = $('#rbf-form');
@@ -1235,29 +1190,11 @@ function rbf_trigger_brevo_automation($first_name, $last_name, $email, $date, $t
 function rbf_calendar_page_html() {
     wp_enqueue_style('fullcalendar-css', 'https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css', [], '5.11.3');
     wp_enqueue_script('fullcalendar-js', 'https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js', ['jquery'], '5.11.3', true);
-    wp_localize_script('fullcalendar-js', 'rbfAdminData', [
+    wp_enqueue_script('rbf-calendar-script', plugin_dir_url(__FILE__) . 'assets/js/calendar.js', ['fullcalendar-js'], '9.3.2', true);
+    wp_localize_script('rbf-calendar-script', 'rbfAdminData', [
         'ajaxUrl' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('rbf_calendar_nonce')
     ]);
-    $js = <<<'JS'
-jQuery(function($){
-  var el = document.getElementById('rbf-calendar'); if(!el) return;
-  var calendar = new FullCalendar.Calendar(el,{
-    initialView:'dayGridMonth',
-    firstDay:1,
-    events:function(fetchInfo,success,failure){
-      $.ajax({
-        url: rbfAdminData.ajaxUrl, type: 'POST',
-        data: { action:'rbf_get_bookings_for_calendar', start:fetchInfo.startStr, end:fetchInfo.endStr, _ajax_nonce: rbfAdminData.nonce },
-        success: function(r){ if(r.success) success(r.data); else failure(); },
-        error: failure
-      });
-    }
-  });
-  calendar.render();
-});
-JS;
-    wp_add_inline_script('fullcalendar-js', $js);
     ?>
     <div class="rbf-admin-wrap">
         <h1><?php echo esc_html(rbf_translate_string('Vista Calendario Prenotazioni')); ?></h1>
