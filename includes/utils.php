@@ -52,8 +52,8 @@ function rbf_current_lang() {
         return in_array($slug, ['it','en'], true) ? $slug : 'en';
     }
     
-    // Safe fallback if WordPress functions are not yet available
-    return 'it';
+    // Consistent fallback to 'en' (English) when WordPress functions are not yet available
+    return 'en';
 }
 
 /**
@@ -137,10 +137,8 @@ function rbf_translate_string($text) {
         'Pasto' => 'Meal',
         'Lingua' => 'Language',
         'Privacy' => 'Privacy',
-        'Accettata' => 'Accepted',
         'Marketing' => 'Marketing',
         'Accettato' => 'Accepted',
-        'Tutte le Prenotazioni' => 'All Bookings',
 
         // Frontend
         'Scegli il pasto' => 'Choose your meal',
@@ -295,6 +293,68 @@ function rbf_get_status_color($status) {
         'cancelled' => '#ef4444',  // red
     ];
     return $colors[$status] ?? '#6b7280'; // gray fallback
+}
+
+/**
+ * Normalize time format to HH:MM
+ */
+function rbf_normalize_time_format($time) {
+    $time = trim($time);
+    
+    // Normalize time format (ensure HH:MM)
+    if (preg_match('/^\d:\d\d$/', $time)) {
+        $time = '0' . $time;
+    }
+    if (preg_match('/^\d\d:\d$/', $time)) {
+        $time = $time . '0';
+    }
+    
+    // Validate time format
+    if (!preg_match('/^\d{2}:\d{2}$/', $time)) {
+        return false;
+    }
+    
+    return $time;
+}
+
+/**
+ * Validate booking time against minimum advance requirement (1 hour)
+ * 
+ * @param string $date Date in Y-m-d format
+ * @param string $time Time in H:i format
+ * @return array|true Returns array with error info if invalid, true if valid
+ */
+function rbf_validate_booking_time($date, $time) {
+    $tz = rbf_wp_timezone();
+    $now = new DateTime('now', $tz);
+    $booking_datetime = DateTime::createFromFormat('Y-m-d H:i', $date . ' ' . $time, $tz);
+    
+    if (!$booking_datetime) {
+        return [
+            'error' => true,
+            'message' => rbf_translate_string('Orario non valido.')
+        ];
+    }
+    
+    $minutes_diff = ($booking_datetime->getTimestamp() - $now->getTimestamp()) / 60;
+    
+    // Check if booking time is in the past
+    if ($minutes_diff < 0) {
+        return [
+            'error' => true,
+            'message' => rbf_translate_string('Non è possibile prenotare per orari già passati. Scegli un orario futuro.')
+        ];
+    }
+    
+    // Check minimum 1-hour advance booking requirement
+    if ($minutes_diff < 60) {
+        return [
+            'error' => true,
+            'message' => rbf_translate_string('Le prenotazioni devono essere effettuate con almeno 1 ora di anticipo.')
+        ];
+    }
+    
+    return true;
 }
 
 /**
