@@ -776,6 +776,11 @@ function rbf_add_status_filter() {
  * Reports and Analytics page HTML
  */
 function rbf_reports_page_html() {
+    // Debug: Log that the function is being called
+    if (function_exists('error_log')) {
+        error_log('rbf_reports_page_html function is being called');
+    }
+    
     // Enqueue Chart.js for analytics
     wp_enqueue_script('chartjs', 'https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js', [], '3.9.1', true);
     
