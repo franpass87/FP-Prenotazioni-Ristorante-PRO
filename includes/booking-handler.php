@@ -36,7 +36,8 @@ function rbf_handle_booking_submission() {
     $date = sanitize_text_field($_POST['rbf_data']);
     $time_data = sanitize_text_field($_POST['rbf_orario']);
     if (strpos($time_data, '|') === false) {
-        wp_safe_redirect(add_query_arg('rbf_error', urlencode(rbf_translate_string('Orario non valido.')), $redirect_url . $anchor)); exit;
+        rbf_handle_error(rbf_translate_string('Orario non valido.'), 'time_validation', $redirect_url . $anchor);
+        return;
     }
     list($slot, $time) = explode('|', $time_data);
     $people = intval($_POST['rbf_persone']);
@@ -94,8 +95,8 @@ function rbf_handle_booking_submission() {
     // Validate booking time using centralized function
     $time_validation = rbf_validate_booking_time($date, $time);
     if ($time_validation !== true) {
-        wp_safe_redirect(add_query_arg('rbf_error', urlencode($time_validation['message']), $redirect_url . $anchor));
-        exit;
+        rbf_handle_error($time_validation['message'], 'time_validation', $redirect_url . $anchor);
+        return;
     }
 
     $remaining_capacity = rbf_get_remaining_capacity($date, $slot);
@@ -106,8 +107,8 @@ function rbf_handle_booking_submission() {
             rbf_translate_string('Spiacenti, non ci sono abbastanza posti. Rimasti: %d. Scegli un altro orario.'), 
             $remaining_capacity
         );
-        wp_safe_redirect(add_query_arg('rbf_error', urlencode($error_msg), $redirect_url . $anchor)); 
-        exit;
+        rbf_handle_error($error_msg, 'capacity_validation', $redirect_url . $anchor);
+        return;
     }
     
     // All bookings are automatically confirmed
@@ -149,7 +150,8 @@ function rbf_handle_booking_submission() {
     ]);
 
     if (is_wp_error($post_id)) {
-        wp_safe_redirect(add_query_arg('rbf_error', urlencode(rbf_translate_string('Errore nel salvataggio.')), $redirect_url . $anchor)); exit;
+        rbf_handle_error(rbf_translate_string('Errore nel salvataggio.'), 'database_error', $redirect_url . $anchor);
+        return;
     }
 
     delete_transient('rbf_avail_' . $date . '_' . $slot);
@@ -227,10 +229,9 @@ function rbf_handle_booking_submission() {
         }
     }
 
-    // End performance monitoring removed
-
+    // Success - redirect with booking confirmation
     $success_args = ['rbf_success' => '1', 'booking_id' => $post_id];
-    wp_safe_redirect(add_query_arg($success_args, $redirect_url . $anchor)); exit;
+    rbf_handle_success('Booking created successfully', $success_args, add_query_arg($success_args, $redirect_url . $anchor));
 }
 
 /**
