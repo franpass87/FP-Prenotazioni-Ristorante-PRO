@@ -112,6 +112,13 @@ function rbf_handle_booking_submission() {
     if ($booking_datetime) {
         $hours_diff = ($booking_datetime->getTimestamp() - $now->getTimestamp()) / 3600;
         
+        // Check if booking time is in the past (negative hours_diff)
+        if ($hours_diff < 0) {
+            $error_msg = rbf_translate_string('Non è possibile prenotare per orari già passati. Scegli un orario futuro.');
+            wp_safe_redirect(add_query_arg('rbf_error', urlencode($error_msg), $redirect_url . $anchor)); 
+            exit;
+        }
+        
         if ($hours_diff > $max_advance_hours) {
             $days_max = ceil($max_advance_hours / 24);
             $error_msg = sprintf(
