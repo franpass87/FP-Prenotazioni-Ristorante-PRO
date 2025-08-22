@@ -5,8 +5,11 @@
 jQuery(function($) {
   'use strict';
   
-  // Check if required dependencies are loaded
-  if (typeof rbfData === 'undefined' || typeof flatpickr === 'undefined' || typeof intlTelInput === 'undefined') return;
+  // Check if essential data is loaded
+  if (typeof rbfData === 'undefined') {
+    console.error('rbfData not loaded - booking form cannot function');
+    return;
+  }
 
   const form = $('#rbf-form');
   if (!form.length) return;
@@ -293,24 +296,29 @@ jQuery(function($) {
     el.mealNotice.hide();
     showStep(el.dateStep, 2);
 
-    fp = flatpickr(el.dateInput[0], {
-      altInput: true,
-      altFormat: 'd-m-Y',
-      dateFormat: 'Y-m-d',
-      minDate: 'today',
-      locale: (rbfData.locale === 'it') ? 'it' : 'default',
-      disable: [function(date) {
-        const day = date.getDay();
-        if (rbfData.closedDays.includes(day)) return true;
-        const dateStr = date.toISOString().split('T')[0];
-        if (rbfData.closedSingles.includes(dateStr)) return true;
-        for (let range of rbfData.closedRanges) {
-          if (dateStr >= range.from && dateStr <= range.to) return true;
-        }
-        return false;
-      }],
-      onChange: onDateChange
-    });
+    // Initialize flatpickr only if available
+    if (typeof flatpickr !== 'undefined') {
+      fp = flatpickr(el.dateInput[0], {
+        altInput: true,
+        altFormat: 'd-m-Y',
+        dateFormat: 'Y-m-d',
+        minDate: 'today',
+        locale: (rbfData.locale === 'it') ? 'it' : 'default',
+        disable: [function(date) {
+          const day = date.getDay();
+          if (rbfData.closedDays.includes(day)) return true;
+          const dateStr = date.toISOString().split('T')[0];
+          if (rbfData.closedSingles.includes(dateStr)) return true;
+          for (let range of rbfData.closedRanges) {
+            if (dateStr >= range.from && dateStr <= range.to) return true;
+          }
+          return false;
+        }],
+        onChange: onDateChange
+      });
+    } else {
+      console.warn('flatpickr not available - date picker functionality disabled');
+    }
   });
 
   /**
