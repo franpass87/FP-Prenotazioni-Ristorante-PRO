@@ -328,6 +328,21 @@
     cursor: pointer;
     transition: var(--rbf-transition);
     text-align: left;
+    line-height: 1.5; /* Improve line spacing for better readability */
+}
+
+/* Ensure the checkbox text content flows properly */
+.rbf-checkbox-group label > span,
+.rbf-checkbox-group label > *:not(input) {
+    flex: 1;
+    word-wrap: break-word;
+    hyphens: auto;
+}
+
+/* Specific styling for privacy link to ensure it flows inline */
+.rbf-checkbox-group label span a {
+    display: inline;
+    white-space: nowrap;
 }
 
 .rbf-checkbox-group label:hover {

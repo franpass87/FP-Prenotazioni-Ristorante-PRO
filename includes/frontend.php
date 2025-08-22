@@ -349,14 +349,14 @@ function rbf_render_booking_form() {
                         <h4 id="consent-label" class="rbf-consent-title"><?php echo esc_html(rbf_translate_string('Consensi')); ?></h4>
                         <label>
                             <input type="checkbox" id="rbf-privacy" name="rbf_privacy" value="yes" required disabled aria-required="true">
-                            <?php echo sprintf(
+                            <span><?php echo sprintf(
                                 rbf_translate_string('Acconsento al trattamento dei dati secondo l\'<a href="%s" target="_blank" rel="noopener">Informativa sulla Privacy</a> *'),
                                 'https://www.villadianella.it/privacy-statement-eu'
-                            ); ?>
+                            ); ?></span>
                         </label>
                         <label>
                             <input type="checkbox" id="rbf-marketing" name="rbf_marketing" value="yes" disabled>
-                            <?php echo rbf_translate_string('Acconsento a ricevere comunicazioni promozionali via email e/o messaggi riguardanti eventi, offerte o novità.'); ?>
+                            <span><?php echo rbf_translate_string('Acconsento a ricevere comunicazioni promozionali via email e/o messaggi riguardanti eventi, offerte o novità.'); ?></span>
                         </label>
                     </div>
                 </div>
