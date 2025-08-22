@@ -316,7 +316,9 @@ jQuery(function($) {
     if (typeof flatpickr !== 'undefined') {
       // Calculate min and max dates based on settings
       const now = new Date();
-      const minDate = new Date(now.getTime() + rbfData.minAdvanceMinutes * 60 * 1000);
+      let minDate = new Date(now.getTime() + rbfData.minAdvanceMinutes * 60 * 1000);
+      // Round to start of day so current date remains selectable
+      minDate.setHours(0, 0, 0, 0);
       let maxDate = null;
       if (rbfData.maxAdvanceMinutes > 0) {
         maxDate = new Date(now.getTime() + rbfData.maxAdvanceMinutes * 60 * 1000);
@@ -405,17 +407,27 @@ jQuery(function($) {
         
         console.log(`RBF Client: Received ${response.data.length} available slots for ${currentDate} (${isToday ? 'TODAY' : (isFuture ? 'FUTURE' : 'PAST')})`);
         
-        // No client-side filtering - server handles all logic
-        // This ensures consistency and prevents double-filtering issues
-        
+        // Filter out past time slots only for today's date
+        let availableCount = 0;
+        const minTime = new Date(today.getTime() + rbfData.minAdvanceMinutes * 60 * 1000);
+
         response.data.forEach(item => {
+          if (isToday) {
+            const [h, m] = item.time.split(':').map(Number);
+            const slotDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), h, m);
+            if (slotDate < minTime) {
+              return; // Skip past times
+            }
+          }
           const opt = new Option(item.time, `${item.slot}|${item.time}`);
           el.timeSelect.append(opt);
+          availableCount++;
         });
-        
-        if (response.data.length > 0) {
+
+        if (availableCount > 0) {
           el.timeSelect.prop('disabled', false);
         } else {
+          el.timeSelect.html('');
           el.timeSelect.append(new Option(rbfData.labels.noTime, ''));
         }
       } else {
