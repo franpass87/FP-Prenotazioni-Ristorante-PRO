@@ -335,6 +335,56 @@ jQuery(function($) {
   });
 
   /**
+   * Mobile enhancement functions
+   */
+  function enhanceMobileExperience() {
+    // Improve form scrolling on mobile
+    if (window.innerWidth <= 768) {
+      // Add smooth scrolling behavior
+      document.documentElement.style.scrollBehavior = 'smooth';
+      
+      // Prevent zoom on iOS when focusing inputs
+      const inputs = form.find('input[type="text"], input[type="email"], input[type="tel"], input[type="number"], select, textarea');
+      inputs.on('touchstart', function() {
+        // Already handled in CSS with font-size: 16px
+      });
+      
+      // Improve people selector on mobile
+      el.peopleMinus.add(el.peoplePlus).on('touchstart', function() {
+        $(this).addClass('touch-active');
+      }).on('touchend', function() {
+        $(this).removeClass('touch-active');
+      });
+      
+      // Improve radio button interaction on mobile
+      el.mealRadios.parent('.rbf-radio-group').find('label').on('touchstart', function() {
+        $(this).addClass('touch-active');
+      }).on('touchend', function() {
+        $(this).removeClass('touch-active');
+      });
+      
+      // Handle viewport changes (orientation changes)
+      let resizeTimer;
+      $(window).on('resize orientationchange', function() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function() {
+          // Re-focus current step if needed
+          const activeStep = form.find('.rbf-step.active');
+          if (activeStep.length && window.innerWidth <= 768) {
+            activeStep[0].scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center' 
+            });
+          }
+        }, 100);
+      });
+    }
+  }
+  
+  // Initialize mobile enhancements
+  enhanceMobileExperience();
+
+  /**
    * UTM parameters and click ID capture
    */
   (function() {
