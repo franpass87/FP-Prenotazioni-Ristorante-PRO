@@ -36,11 +36,13 @@ class RBF_Debug_Logger {
         self::$log_level = defined('RBF_LOG_LEVEL') ? RBF_LOG_LEVEL : 'INFO';
         self::$initialized = true;
         
-        // Schedule cleanup of old logs
-        if (!wp_next_scheduled('rbf_cleanup_debug_logs')) {
+        // Only schedule WordPress cron if we're in WordPress environment
+        if (function_exists('wp_next_scheduled') && !wp_next_scheduled('rbf_cleanup_debug_logs')) {
             wp_schedule_event(time(), 'daily', 'rbf_cleanup_debug_logs');
         }
-        add_action('rbf_cleanup_debug_logs', [self::class, 'cleanup_old_logs']);
+        if (function_exists('add_action')) {
+            add_action('rbf_cleanup_debug_logs', [self::class, 'cleanup_old_logs']);
+        }
     }
     
     /**
@@ -73,7 +75,7 @@ class RBF_Debug_Logger {
         self::save_log_entry($log_entry);
         
         // Also log to WordPress error log if enabled and level is WARNING or higher
-        if (WP_DEBUG_LOG && self::LOG_LEVELS[$level] >= self::LOG_LEVELS['WARNING']) {
+        if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && self::LOG_LEVELS[$level] >= self::LOG_LEVELS['WARNING']) {
             error_log('RBF_TRACKING [' . $level . ']: ' . json_encode([
                 'event' => $event_type,
                 'booking_id' => $data['booking_id'] ?? null,
@@ -227,6 +229,10 @@ class RBF_Debug_Logger {
     }
     
     private static function save_log_entry($log_entry) {
+        if (!function_exists('get_option')) {
+            return; // Not in WordPress environment
+        }
+        
         $logs = get_option('rbf_debug_logs', []);
         $logs[] = $log_entry;
         

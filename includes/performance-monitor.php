@@ -23,11 +23,13 @@ class RBF_Performance_Monitor {
     public static function init() {
         if (self::$initialized) return;
         
-        // Schedule daily metrics aggregation
-        if (!wp_next_scheduled('rbf_aggregate_metrics')) {
+        // Only schedule WordPress cron if we're in WordPress environment
+        if (function_exists('wp_next_scheduled') && !wp_next_scheduled('rbf_aggregate_metrics')) {
             wp_schedule_event(time(), 'daily', 'rbf_aggregate_metrics');
         }
-        add_action('rbf_aggregate_metrics', [self::class, 'aggregate_daily_metrics']);
+        if (function_exists('add_action')) {
+            add_action('rbf_aggregate_metrics', [self::class, 'aggregate_daily_metrics']);
+        }
         
         self::$initialized = true;
     }
@@ -271,6 +273,10 @@ class RBF_Performance_Monitor {
     private static function store_performance_metric($operation, $duration, $memory_used) {
         self::init();
         
+        if (!function_exists('get_option')) {
+            return; // Not in WordPress environment
+        }
+        
         $today = date('Y-m-d');
         $metrics = get_option('rbf_performance_metrics', []);
         
@@ -307,6 +313,10 @@ class RBF_Performance_Monitor {
     
     private static function store_api_metrics($platform, $duration, $success, $response_data) {
         self::init();
+        
+        if (!function_exists('get_option')) {
+            return; // Not in WordPress environment
+        }
         
         $today = date('Y-m-d');
         $metrics = get_option('rbf_api_metrics', []);
