@@ -433,7 +433,12 @@ function rbf_get_remaining_capacity($date, $slot) {
 
     $options = rbf_get_settings();
     $total = (int) ($options['capienza_'.$slot] ?? 0);
-    if ($total === 0) return 0;
+
+    // Treat zero capacity as unlimited to avoid blocking services like aperitivo
+    if ($total === 0) {
+        set_transient($transient_key, PHP_INT_MAX, HOUR_IN_SECONDS);
+        return PHP_INT_MAX;
+    }
 
     global $wpdb;
     $spots_taken = $wpdb->get_var($wpdb->prepare(

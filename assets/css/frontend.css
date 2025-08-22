@@ -682,6 +682,9 @@
 .rbf-tel-fallback {
     padding-left: 30px !important;
 }
+
+/* Style individual consent labels to stack vertically */
+.rbf-checkbox-group label {
     display: flex;
     align-items: flex-start;
     gap: 12px;
