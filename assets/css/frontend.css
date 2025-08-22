@@ -151,7 +151,7 @@
 .rbf-form textarea:focus {
     outline: none;
     border-color: var(--rbf-primary);
-    box-shadow: 0 0 0 3px rgba(44, 90, 160, 0.1);
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
     transform: translateY(-1px);
 }
 
@@ -208,7 +208,7 @@
 .rbf-people-selector {
     display: flex;
     align-items: center;
-    max-width: 200px;
+    width: 100%;
     margin: 0 auto;
     border: 2px solid var(--rbf-border);
     border-radius: var(--rbf-radius);
@@ -241,8 +241,8 @@
 }
 
 .rbf-people-selector input {
+    flex: 1;
     height: 50px;
-    width: 80px;
     text-align: center;
     font-weight: 700;
     border: none;
@@ -422,7 +422,7 @@
     }
     
     .rbf-people-selector {
-        max-width: 180px;
+        width: 100%;
     }
     
     .rbf-people-selector button {
@@ -433,7 +433,7 @@
     
     .rbf-people-selector input {
         height: 44px;
-        width: 70px;
+        flex: 1;
     }
 }
 

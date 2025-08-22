@@ -232,8 +232,8 @@
 }
 
 .rbf-booking-details p {
-    margin: 0 0 12px 0;
-    padding: 8px 0;
+    margin: 0 0 16px 0;
+    padding: 12px 0;
     border-bottom: 1px solid #f0f0f1;
 }
 
@@ -241,11 +241,28 @@
     border-bottom: none;
 }
 
+.rbf-booking-details input,
+.rbf-booking-details textarea,
 .rbf-booking-details select {
-    padding: 4px 8px;
+    margin-top: 4px;
+    padding: 8px 12px;
     border: 1px solid var(--rbf-admin-border);
     border-radius: 4px;
+    font-size: 14px;
+    transition: border-color 0.2s ease;
+}
+
+.rbf-booking-details input:focus,
+.rbf-booking-details textarea:focus,
+.rbf-booking-details select:focus {
+    outline: none;
+    border-color: var(--rbf-admin-primary);
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
+}
+
+.rbf-booking-details select {
     background: white;
+    cursor: pointer;
 }
 
 .rbf-modal-footer {

@@ -592,6 +592,69 @@ function rbf_update_booking_status_callback() {
 }
 
 /**
+ * AJAX handler for updating complete booking data
+ */
+add_action('wp_ajax_rbf_update_booking_data', 'rbf_update_booking_data_callback');
+function rbf_update_booking_data_callback() {
+    check_ajax_referer('rbf_calendar_nonce', '_ajax_nonce');
+    
+    $booking_id = intval($_POST['booking_id']);
+    $booking_data = $_POST['booking_data'];
+    
+    if (!$booking_id || !$booking_data) {
+        wp_send_json_error('Parametri non validi');
+    }
+    
+    $booking = get_post($booking_id);
+    if (!$booking || $booking->post_type !== 'rbf_booking') {
+        wp_send_json_error('Prenotazione non trovata');
+    }
+    
+    // Update customer name (split into first and last name)
+    if (isset($booking_data['customer_name'])) {
+        $name_parts = explode(' ', sanitize_text_field($booking_data['customer_name']), 2);
+        update_post_meta($booking_id, 'rbf_nome', $name_parts[0]);
+        update_post_meta($booking_id, 'rbf_cognome', isset($name_parts[1]) ? $name_parts[1] : '');
+        
+        // Update post title
+        wp_update_post([
+            'ID' => $booking_id,
+            'post_title' => sanitize_text_field($booking_data['customer_name'])
+        ]);
+    }
+    
+    // Update email
+    if (isset($booking_data['customer_email'])) {
+        update_post_meta($booking_id, 'rbf_email', sanitize_email($booking_data['customer_email']));
+    }
+    
+    // Update phone
+    if (isset($booking_data['customer_phone'])) {
+        update_post_meta($booking_id, 'rbf_tel', sanitize_text_field($booking_data['customer_phone']));
+    }
+    
+    // Update people count
+    if (isset($booking_data['people'])) {
+        $people = intval($booking_data['people']);
+        if ($people > 0 && $people <= 30) {
+            update_post_meta($booking_id, 'rbf_persone', $people);
+        }
+    }
+    
+    // Update notes
+    if (isset($booking_data['notes'])) {
+        update_post_meta($booking_id, 'rbf_allergie', sanitize_textarea_field($booking_data['notes']));
+    }
+    
+    // Update status
+    if (isset($booking_data['status']) && in_array($booking_data['status'], ['confirmed', 'cancelled', 'completed'])) {
+        update_post_meta($booking_id, 'rbf_booking_status', $booking_data['status']);
+    }
+    
+    wp_send_json_success('Prenotazione aggiornata con successo');
+}
+
+/**
  * Add booking page HTML
  */
 function rbf_add_booking_page_html() {
