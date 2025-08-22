@@ -51,19 +51,32 @@ function rbf_ajax_clear_debug_logs() {
 
 add_action('wp_ajax_rbf_export_debug_logs', 'rbf_ajax_export_debug_logs');
 function rbf_ajax_export_debug_logs() {
+    // Security checks
     if (!current_user_can('manage_options')) {
         wp_send_json_error('Unauthorized');
+        return;
     }
     
-    check_ajax_referer('rbf_debug_nonce');
+    // Check nonce
+    if (!check_ajax_referer('rbf_debug_nonce', '_ajax_nonce', false)) {
+        wp_send_json_error('Invalid nonce');
+        return;
+    }
     
     if (class_exists('RBF_Debug_Logger')) {
-        $export_data = RBF_Debug_Logger::export_logs();
-        
-        header('Content-Type: application/json');
-        header('Content-Disposition: attachment; filename="rbf-debug-logs-' . date('Y-m-d-H-i-s') . '.json"');
-        echo $export_data;
-        exit;
+        try {
+            $export_data = RBF_Debug_Logger::export_logs();
+            
+            // Return data as JSON response for JavaScript to handle
+            if ($export_data) {
+                wp_send_json_success(json_decode($export_data, true));
+            } else {
+                wp_send_json_error('No log data available');
+            }
+        } catch (Exception $e) {
+            wp_send_json_error('Error exporting logs: ' . $e->getMessage());
+            return;
+        }
     }
     
     wp_send_json_error('Debug Logger not available');
@@ -73,9 +86,24 @@ function rbf_ajax_export_debug_logs() {
  * Render debug dashboard page
  */
 function rbf_render_debug_dashboard() {
-    $debug_stats = class_exists('RBF_Debug_Logger') ? RBF_Debug_Logger::get_log_stats() : [];
-    $recent_logs = class_exists('RBF_Debug_Logger') ? RBF_Debug_Logger::get_recent_logs(20) : [];
-    $performance_report = class_exists('RBF_Performance_Monitor') ? RBF_Performance_Monitor::generate_performance_report(7) : [];
+    // Prevent any redirects or output before headers
+    if (headers_sent()) {
+        echo '<div class="notice notice-error"><p>Headers already sent - debug dashboard cannot display properly. Please refresh the page.</p></div>';
+        return;
+    }
+    
+    // Get data with error handling
+    $debug_stats = [];
+    $recent_logs = [];
+    $performance_report = [];
+    
+    try {
+        $debug_stats = class_exists('RBF_Debug_Logger') ? RBF_Debug_Logger::get_log_stats() : [];
+        $recent_logs = class_exists('RBF_Debug_Logger') ? RBF_Debug_Logger::get_recent_logs(20) : [];
+        $performance_report = class_exists('RBF_Performance_Monitor') ? RBF_Performance_Monitor::generate_performance_report(7) : [];
+    } catch (Exception $e) {
+        echo '<div class="notice notice-warning"><p>Warning: ' . esc_html($e->getMessage()) . '</p></div>';
+    }
     
     ?>
     <div class="wrap">
@@ -275,7 +303,28 @@ function rbf_render_debug_dashboard() {
         });
         
         $('#rbf-export-logs').click(function() {
-            window.location.href = ajaxurl + '?action=rbf_export_debug_logs&_ajax_nonce=' + nonce;
+            // Use AJAX to get the data first, then trigger download
+            $.post(ajaxurl, {
+                action: 'rbf_export_debug_logs',
+                _ajax_nonce: nonce
+            }, function(response) {
+                if (response.success && response.data) {
+                    // Create blob and download
+                    const blob = new Blob([JSON.stringify(response.data, null, 2)], {type: 'application/json'});
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'rbf-debug-logs-' + new Date().toISOString().slice(0,19).replace(/:/g, '-') + '.json';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                } else {
+                    alert('Errore durante l\'esportazione dei log: ' + (response.data?.message || 'Errore sconosciuto'));
+                }
+            }).fail(function() {
+                alert('Errore di connessione durante l\'esportazione');
+            });
         });
     });
     </script>
