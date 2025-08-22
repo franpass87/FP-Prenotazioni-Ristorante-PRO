@@ -33,9 +33,9 @@ function rbf_enqueue_frontend_assets() {
         $deps[] = 'rbf-flatpickr-locale-it';
     }
 
-    // intl-tel-input - Updated to newer stable version for better flag support
-    wp_enqueue_style('rbf-intl-tel-input-css','https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/18.2.1/css/intlTelInput.css',[], '18.2.1');
-    wp_enqueue_script('rbf-intl-tel-input','https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/18.2.1/js/intlTelInput.min.js',[], '18.2.1', true);
+    // intl-tel-input - Updated to latest stable version for enhanced flag support and reliability
+    wp_enqueue_style('rbf-intl-tel-input-css','https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/19.2.16/css/intlTelInput.css',[], '19.2.16');
+    wp_enqueue_script('rbf-intl-tel-input','https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/19.2.16/js/intlTelInput.min.js',[], '19.2.16', true);
     $deps[] = 'rbf-intl-tel-input';
 
     // Frontend styles
@@ -59,7 +59,7 @@ function rbf_enqueue_frontend_assets() {
         'closedDays' => $closed_days,
         'closedSingles' => $closed_specific['singles'],
         'closedRanges' => $closed_specific['ranges'],
-        'utilsScript' => 'https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/18.2.1/js/utils.js',
+        'utilsScript' => 'https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/19.2.16/js/utils.js',
         'labels' => [
             'loading' => rbf_translate_string('Caricamento...'),
             'chooseTime' => rbf_translate_string('Scegli un orario...'),

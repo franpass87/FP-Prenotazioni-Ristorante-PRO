@@ -141,11 +141,11 @@ jQuery(function($) {
   }
 
   /**
-   * Initialize international telephone input with retry mechanism
+   * Initialize international telephone input with enhanced error handling and styling
    */
   function initializeTelInput() {
     let retryCount = 0;
-    const maxRetries = 3;
+    const maxRetries = 5;
     
     function attemptInit() {
       // Check if intlTelInput is available
@@ -163,78 +163,99 @@ jQuery(function($) {
         }
       }
       
-      // Use a small delay to ensure the element is fully visible after CSS transitions
+      // Use a small delay to ensure the element is fully visible
       setTimeout(() => {
         if (el.telInput.length && !iti) {
           try {
-            console.log('Initializing intlTelInput...');
+            console.log('Initializing enhanced intlTelInput...');
+            
+            // Enhanced initialization with better flag support
             iti = intlTelInput(el.telInput[0], {
               utilsScript: rbfData.utilsScript,
               initialCountry: 'it',
-              preferredCountries: ['it','gb','us','de','fr','es'],
+              preferredCountries: ['it', 'gb', 'us', 'de', 'fr', 'es', 'ch', 'at'],
               separateDialCode: true,
               nationalMode: false,
               autoPlaceholder: 'aggressive',
-              // Fix flag display issues by ensuring proper flag container setup
               allowDropdown: true,
               showSelectedDialCode: true,
+              formatOnDisplay: true,
+              autoFormat: true,
+              // Enhanced flag container styling
+              dropdownContainer: document.body,
               customPlaceholder: function(selectedCountryPlaceholder, selectedCountryData) {
                 return rbfData.labels.phonePlaceholder || selectedCountryPlaceholder;
               }
             });
             
             if (iti) {
-              console.log('intlTelInput initialized successfully');
+              console.log('Enhanced intlTelInput initialized successfully');
               
-              // Add change event listener to log country selection
+              // Enhanced event handling
               el.telInput[0].addEventListener('countrychange', function() {
                 const countryData = iti.getSelectedCountryData();
                 console.log('Country changed to:', countryData.iso2, '-', countryData.name);
-                
-                // Update hidden field immediately when country changes
                 $('#rbf_country_code').val(countryData.iso2);
+                
+                // Announce to screen readers
+                announceToScreenReader(`Country selected: ${countryData.name}`);
               });
               
-              // Ensure the dropdown is clickable and properly positioned
-              const flagContainer = el.telInput.parent().find('.iti__flag-container');
-              if (flagContainer.length) {
-                flagContainer.on('click', function(e) {
-                  e.stopPropagation();
-                  console.log('Flag container clicked');
-                  // Ensure dropdown appears properly
-                  const dropdown = el.telInput.parent().find('.iti__country-list');
-                  if (dropdown.length) {
-                    dropdown.css('z-index', '9999');
-                  }
-                });
-              }
+              // Enhanced dropdown handling
+              el.telInput[0].addEventListener('open:countrydropdown', function() {
+                console.log('Country dropdown opened');
+                // Ensure proper z-index
+                const dropdown = document.querySelector('.iti__country-list');
+                if (dropdown) {
+                  dropdown.style.zIndex = '9999';
+                }
+              });
               
-              // Fix initial country code setup
+              el.telInput[0].addEventListener('close:countrydropdown', function() {
+                console.log('Country dropdown closed');
+              });
+              
+              // Improved validation feedback
+              el.telInput[0].addEventListener('blur', function() {
+                if (iti && el.telInput.val().trim()) {
+                  const isValid = iti.isValidNumber();
+                  if (!isValid) {
+                    console.log('Invalid phone number detected');
+                    el.telInput.addClass('rbf-tel-invalid');
+                  } else {
+                    el.telInput.removeClass('rbf-tel-invalid');
+                  }
+                }
+              });
+              
+              // Set initial country code
               const initialCountryData = iti.getSelectedCountryData();
               if (initialCountryData) {
                 $('#rbf_country_code').val(initialCountryData.iso2);
               }
               
-              // Remove any fallback styling
+              // Remove fallback styling
               el.telInput.removeClass('rbf-tel-fallback');
+              
+              // Add custom CSS class for styling
+              el.telInput.closest('.iti').addClass('rbf-iti-enhanced');
               
             } else {
               console.error('Failed to initialize intlTelInput - returned null');
               el.telInput.addClass('rbf-tel-fallback');
-              $('#rbf_country_code').val('it'); // Default to Italy
+              $('#rbf_country_code').val('it');
             }
           } catch (error) {
             console.error('Failed to initialize intlTelInput:', error);
-            // Add fallback styling to make it clear there's an issue
             el.telInput.addClass('rbf-tel-fallback');
-            $('#rbf_country_code').val('it'); // Default to Italy
+            $('#rbf_country_code').val('it');
           }
         } else if (!el.telInput.length) {
           console.warn('Tel input element not found');
         } else if (iti) {
           console.log('intlTelInput already initialized');
         }
-      }, 300); // Increased delay to ensure proper element rendering
+      }, 500); // Increased delay for better element rendering
     }
     
     attemptInit();
@@ -335,19 +356,24 @@ jQuery(function($) {
         const currentDate = dateString;
         const todayString = today.toISOString().split('T')[0];
         
-        // Apply 1-hour minimum advance booking filter (consistent with server-side)
-        if (currentDate <= todayString || (new Date(currentDate).getTime() - today.getTime()) < (24 * 60 * 60 * 1000)) {
-          // For today or near dates, add 1 hour buffer to current time
-          const currentTimePlus1Hour = new Date(today.getTime() + 60 * 60 * 1000);
-          const currentHours = currentTimePlus1Hour.getHours();
-          const currentMinutes = currentTimePlus1Hour.getMinutes();
+        // Enhanced client-side filtering - 1 hour minimum advance booking (1.5 hours for same day)
+        const today = new Date();
+        const currentDate = dateString;
+        const todayString = today.toISOString().split('T')[0];
+        
+        // Apply enhanced time filtering for better user experience
+        if (currentDate === todayString) {
+          // For today's bookings, add 1.5 hour buffer to current time for extra safety
+          const currentTimePlusBuffer = new Date(today.getTime() + 90 * 60 * 1000); // 1.5 hours
+          const currentHours = currentTimePlusBuffer.getHours();
+          const currentMinutes = currentTimePlusBuffer.getMinutes();
           
           response.data = response.data.filter(item => {
             const timeParts = item.time.split(':');
             const timeHours = parseInt(timeParts[0], 10);
             const timeMinutes = parseInt(timeParts[1], 10);
             
-            // Compare times - return true if slot time is after current + 1 hour
+            // Compare times - return true if slot time is after current + 1.5 hours (for same day)
             if (timeHours > currentHours) {
               return true;
             } else if (timeHours === currentHours) {
@@ -356,7 +382,31 @@ jQuery(function($) {
             return false;
           });
           
-          console.log(`Client-side filtered past times. Current time +1hr: ${currentHours}:${currentMinutes}, Available slots: ${response.data.length}`);
+          console.log(`Client-side enhanced filtering for TODAY. Current time +1.5hr: ${currentHours}:${String(currentMinutes).padStart(2, '0')}, Available slots: ${response.data.length}`);
+        } else {
+          // For future dates, standard 1 hour minimum advance booking
+          const futureDate = new Date(currentDate);
+          const timeDiffDays = Math.floor((futureDate.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
+          
+          if (timeDiffDays === 1) {
+            // Tomorrow - still apply some filtering but less strict
+            const currentTimePlus1Hour = new Date(today.getTime() + 60 * 60 * 1000);
+            const currentHours = currentTimePlus1Hour.getHours();
+            const currentMinutes = currentTimePlus1Hour.getMinutes();
+            
+            // Only filter very early times if it's late in the current day
+            if (today.getHours() >= 22) { // After 10 PM
+              response.data = response.data.filter(item => {
+                const timeParts = item.time.split(':');
+                const timeHours = parseInt(timeParts[0], 10);
+                return timeHours >= 10; // No very early morning slots if booking late at night
+              });
+            }
+            
+            console.log(`Client-side filtering for TOMORROW. Late booking protection applied: ${response.data.length} slots available`);
+          } else {
+            console.log(`Client-side filtering for FUTURE DATE (${timeDiffDays} days ahead). No additional filtering needed: ${response.data.length} slots available`);
+          }
         }
         
         response.data.forEach(item => {
