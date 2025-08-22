@@ -319,7 +319,7 @@ function rbf_enqueue_admin_styles($hook) {
         $hook !== 'prenotazioni_page_rbf_export' &&
         strpos($hook,'edit.php?post_type=rbf_booking') === false) return;
 
-    wp_enqueue_style('rbf-admin-css', plugin_dir_url(dirname(__FILE__)) . 'assets/css/admin.css', [], '2.5');
+    wp_enqueue_style('rbf-admin-css', plugin_dir_url(dirname(__FILE__)) . 'assets/css/admin.css', [], '10.0.0');
 }
 
 /**
@@ -481,7 +481,7 @@ function rbf_settings_page_html() {
 function rbf_calendar_page_html() {
     wp_enqueue_style('fullcalendar-css', 'https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css', [], '5.11.3');
     wp_enqueue_script('fullcalendar-js', 'https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js', ['jquery'], '5.11.3', true);
-    wp_enqueue_script('rbf-admin-js', plugin_dir_url(dirname(__FILE__)) . 'assets/js/admin.js', ['jquery', 'fullcalendar-js'], '2.5', true);
+    wp_enqueue_script('rbf-admin-js', plugin_dir_url(dirname(__FILE__)) . 'assets/js/admin.js', ['jquery', 'fullcalendar-js'], '10.0.0', true);
     
     wp_localize_script('rbf-admin-js', 'rbfAdminData', [
         'ajaxUrl' => admin_url('admin-ajax.php'),
@@ -1399,7 +1399,7 @@ function rbf_export_json($bookings, $start_date, $end_date) {
             'generated' => current_time('Y-m-d H:i:s'),
             'date_range' => ['start' => $start_date, 'end' => $end_date],
             'total_bookings' => count($bookings),
-            'plugin_version' => '2.5'
+            'plugin_version' => '10.0.0'
         ],
         'bookings' => []
     ];

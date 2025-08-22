@@ -347,6 +347,9 @@ jQuery(function($) {
     el.timeSelect.html(`<option value="">${rbfData.labels.loading}</option>`).prop('disabled', true);
     el.timeSelect.addClass('rbf-loading');
 
+    // Debug logging for availability request
+    console.log('RBF: Requesting availability for date:', dateString, 'meal:', selectedMeal);
+
     // Get available times via AJAX
     $.post(rbfData.ajaxUrl, {
       action: 'rbf_get_availability',
@@ -354,6 +357,7 @@ jQuery(function($) {
       date: dateString,
       meal: selectedMeal
     }, function(response) {
+      console.log('RBF: Availability response:', response);
       el.timeSelect.removeClass('rbf-loading');
       el.timeSelect.html('');
       if (response.success && response.data.length > 0) {
@@ -424,6 +428,17 @@ jQuery(function($) {
         }
       } else {
         el.timeSelect.append(new Option(rbfData.labels.noTime, ''));
+      }
+    }).fail(function(xhr, status, error) {
+      // Handle AJAX errors
+      console.error('RBF AJAX Error:', {status, error, xhr});
+      el.timeSelect.removeClass('rbf-loading');
+      el.timeSelect.html('');
+      el.timeSelect.append(new Option(rbfData.labels.noTime, ''));
+      
+      // Show user-friendly error message
+      if (typeof announceToScreenReader === 'function') {
+        announceToScreenReader('Errore nel caricamento degli orari. Riprova.');
       }
     });
   }
