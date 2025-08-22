@@ -59,9 +59,22 @@ function rbf_handle_booking_submission() {
     $lang = sanitize_text_field($_POST['rbf_lang'] ?? 'it');
     $country_code = strtolower(sanitize_text_field($_POST['rbf_country_code'] ?? ''));
     
+    // Fallback: if no country code is provided, default to Italy
+    if (empty($country_code)) {
+        $country_code = 'it';
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('RBF Booking: No country code provided, defaulting to IT');
+        }
+    }
+    
     // Determine Brevo language based on country selection
     // If Italy is selected, use Italian list, otherwise use English list
     $brevo_lang = ($country_code === 'it') ? 'it' : 'en';
+    
+    // Debug logging if enabled
+    if (defined('WP_DEBUG') && WP_DEBUG) {
+        error_log("RBF Booking: Country code={$country_code}, Brevo language={$brevo_lang}");
+    }
     
     $privacy = (isset($_POST['rbf_privacy']) && $_POST['rbf_privacy']==='yes') ? 'yes' : 'no';
     $marketing = (isset($_POST['rbf_marketing']) && $_POST['rbf_marketing']==='yes') ? 'yes' : 'no';
@@ -351,7 +364,26 @@ function rbf_ajax_get_availability_callback() {
         $now_plus = clone $now;
         $now_plus->modify('+15 minutes');
         $cut = $now_plus->format('H:i');
-        $times = array_values(array_filter($times, function($t) use ($cut) { return $t > $cut; }));
+        
+        // More robust time filtering with normalization
+        $original_count = count($times);
+        $times = array_values(array_filter($times, function($t) use ($cut) { 
+            $normalized_time = trim($t);
+            // Ensure proper HH:MM format (pad single digits)
+            if (preg_match('/^\d:\d\d$/', $normalized_time)) {
+                $normalized_time = '0' . $normalized_time;
+            }
+            if (preg_match('/^\d\d:\d$/', $normalized_time)) {
+                $normalized_time = $normalized_time . '0';
+            }
+            return $normalized_time > $cut; 
+        }));
+        $filtered_count = count($times);
+        
+        // Debug logging if debug is enabled
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log("RBF Time Filtering: Date={$date}, Current time={$now->format('H:i')}, Cut-off={$cut}, Original times={$original_count}, Filtered times={$filtered_count}");
+        }
     }
     
     // Filter times that exceed maximum advance booking limit
