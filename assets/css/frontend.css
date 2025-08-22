@@ -327,6 +327,7 @@
     color: var(--rbf-text);
     cursor: pointer;
     transition: var(--rbf-transition);
+    text-align: left;
 }
 
 .rbf-checkbox-group label:hover {
@@ -377,12 +378,8 @@
     font-weight: 600;
 }
 
-/* Focus management for accessibility */
-.rbf-step:focus-within {
-    outline: 2px solid var(--rbf-primary);
-    outline-offset: 4px;
-    border-radius: var(--rbf-radius);
-}
+/* Focus management for accessibility - REMOVED */
+/* .rbf-step:focus-within rule removed as requested */
 
 /* Screen reader only content */
 .sr-only {
@@ -398,12 +395,12 @@
 }
 @media (max-width: 768px) {
     .rbf-form-container {
-        padding: 1rem;
-        margin: 1rem;
+        padding: 0.5rem;
+        margin: 0.5rem;
     }
     
     .rbf-form {
-        padding: 1.5rem;
+        padding: 1rem;
     }
     
     .rbf-progress-step {
