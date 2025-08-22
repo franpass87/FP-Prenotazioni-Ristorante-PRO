@@ -57,6 +57,12 @@ function rbf_handle_booking_submission() {
     $tel = sanitize_text_field($_POST['rbf_tel']);
     $notes = sanitize_textarea_field($_POST['rbf_allergie'] ?? '');
     $lang = sanitize_text_field($_POST['rbf_lang'] ?? 'it');
+    $country_code = sanitize_text_field($_POST['rbf_country_code'] ?? '');
+    
+    // Determine Brevo language based on country selection
+    // If Italy is selected, use Italian list, otherwise use English list
+    $brevo_lang = ($country_code === 'it') ? 'it' : 'en';
+    
     $privacy = (isset($_POST['rbf_privacy']) && $_POST['rbf_privacy']==='yes') ? 'yes' : 'no';
     $marketing = (isset($_POST['rbf_marketing']) && $_POST['rbf_marketing']==='yes') ? 'yes' : 'no';
 
@@ -135,6 +141,8 @@ function rbf_handle_booking_submission() {
             'rbf_tel' => $tel,
             'rbf_allergie' => $notes,
             'rbf_lang' => $lang,
+            'rbf_country_code' => $country_code,
+            'rbf_brevo_lang' => $brevo_lang,
             'rbf_privacy' => $privacy,
             'rbf_marketing' => $marketing,
             // sorgente
@@ -179,9 +187,9 @@ function rbf_handle_booking_submission() {
         rbf_send_admin_notification_email($first_name, $last_name, $email, $date, $time, $people, $notes, $tel, $meal);
     }
     
-    // Brevo: sempre (lista + evento)
+    // Brevo: sempre (lista + evento) - use country-based language for list selection
     if (function_exists('rbf_trigger_brevo_automation')) {
-        rbf_trigger_brevo_automation($first_name, $last_name, $email, $date, $time, $people, $notes, $lang, $tel, $marketing, $meal);
+        rbf_trigger_brevo_automation($first_name, $last_name, $email, $date, $time, $people, $notes, $brevo_lang, $tel, $marketing, $meal);
     }
 
     // Meta CAPI server-side (dedup con event_id) + bucket standard
