@@ -3,9 +3,9 @@
  */
 
 :root {
-    --rbf-primary: #2c5aa0;
-    --rbf-primary-light: #3d6fb7;
-    --rbf-primary-dark: #1e3d70;
+    --rbf-primary: #000000;
+    --rbf-primary-light: #333333;
+    --rbf-primary-dark: #000000;
     --rbf-secondary: #f8b500;
     --rbf-success: #28a745;
     --rbf-error: #dc3545;

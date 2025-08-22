@@ -36,6 +36,7 @@ function rbf_enqueue_frontend_assets() {
     // intl-tel-input
     wp_enqueue_style('rbf-intl-tel-input-css','https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.13/css/intlTelInput.css',[], '17.0.13');
     wp_enqueue_script('rbf-intl-tel-input','https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.13/js/intlTelInput.min.js',[], '17.0.13', true);
+    $deps[] = 'rbf-intl-tel-input';
 
     // Frontend styles
     wp_enqueue_style('rbf-frontend-css', plugin_dir_url(dirname(__FILE__)) . 'assets/css/frontend.css', ['rbf-flatpickr-css'], '9.3.2');

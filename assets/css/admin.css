@@ -3,9 +3,9 @@
  */
 
 :root {
-    --rbf-admin-primary: #2c5aa0;
-    --rbf-admin-primary-light: #3d6fb7;
-    --rbf-admin-primary-dark: #1e3d70;
+    --rbf-admin-primary: #000000;
+    --rbf-admin-primary-light: #333333;
+    --rbf-admin-primary-dark: #000000;
     --rbf-admin-secondary: #f8b500;
     --rbf-admin-text: #1d2327;
     --rbf-admin-border: #e1e5e9;

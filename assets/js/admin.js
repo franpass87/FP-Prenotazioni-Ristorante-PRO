@@ -50,7 +50,7 @@ jQuery(function($) {
   /**
    * Show booking modal with edit functionality
    */
-  function showBookingModal(event) {
+  window.showBookingModal = function(event) {
     var bookingId = event.extendedProps.booking_id;
     
     // Create modal HTML
