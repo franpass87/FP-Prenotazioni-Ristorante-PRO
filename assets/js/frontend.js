@@ -141,75 +141,103 @@ jQuery(function($) {
   }
 
   /**
-   * Initialize international telephone input
+   * Initialize international telephone input with retry mechanism
    */
   function initializeTelInput() {
-    // Use a small delay to ensure the element is fully visible after CSS transitions
-    setTimeout(() => {
-      if (el.telInput.length && !iti) {
-        try {
-          console.log('Initializing intlTelInput...');
-          iti = intlTelInput(el.telInput[0], {
-            utilsScript: rbfData.utilsScript,
-            initialCountry: 'it',
-            preferredCountries: ['it','gb','us','de','fr','es'],
-            separateDialCode: true,
-            nationalMode: false,
-            autoPlaceholder: 'aggressive',
-            // Fix flag display issues by ensuring proper flag container setup
-            allowDropdown: true,
-            showSelectedDialCode: true,
-            customPlaceholder: function(selectedCountryPlaceholder, selectedCountryData) {
-              return rbfData.labels.phonePlaceholder || selectedCountryPlaceholder;
-            }
-          });
-          
-          if (iti) {
-            console.log('intlTelInput initialized successfully');
-            
-            // Add change event listener to log country selection
-            el.telInput[0].addEventListener('countrychange', function() {
-              const countryData = iti.getSelectedCountryData();
-              console.log('Country changed to:', countryData.iso2, '-', countryData.name);
-              
-              // Update hidden field immediately when country changes
-              $('#rbf_country_code').val(countryData.iso2);
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    function attemptInit() {
+      // Check if intlTelInput is available
+      if (typeof intlTelInput === 'undefined') {
+        console.warn('intlTelInput not loaded, retrying...');
+        if (retryCount < maxRetries) {
+          retryCount++;
+          setTimeout(attemptInit, 1000 * retryCount); // Exponential backoff
+          return;
+        } else {
+          console.error('intlTelInput failed to load after retries, using fallback');
+          el.telInput.addClass('rbf-tel-fallback');
+          $('#rbf_country_code').val('it'); // Default to Italy
+          return;
+        }
+      }
+      
+      // Use a small delay to ensure the element is fully visible after CSS transitions
+      setTimeout(() => {
+        if (el.telInput.length && !iti) {
+          try {
+            console.log('Initializing intlTelInput...');
+            iti = intlTelInput(el.telInput[0], {
+              utilsScript: rbfData.utilsScript,
+              initialCountry: 'it',
+              preferredCountries: ['it','gb','us','de','fr','es'],
+              separateDialCode: true,
+              nationalMode: false,
+              autoPlaceholder: 'aggressive',
+              // Fix flag display issues by ensuring proper flag container setup
+              allowDropdown: true,
+              showSelectedDialCode: true,
+              customPlaceholder: function(selectedCountryPlaceholder, selectedCountryData) {
+                return rbfData.labels.phonePlaceholder || selectedCountryPlaceholder;
+              }
             });
             
-            // Ensure the dropdown is clickable and properly positioned
-            const flagContainer = el.telInput.parent().find('.iti__flag-container');
-            if (flagContainer.length) {
-              flagContainer.on('click', function(e) {
-                e.stopPropagation();
-                console.log('Flag container clicked');
-                // Ensure dropdown appears properly
-                const dropdown = el.telInput.parent().find('.iti__country-list');
-                if (dropdown.length) {
-                  dropdown.css('z-index', '9999');
-                }
+            if (iti) {
+              console.log('intlTelInput initialized successfully');
+              
+              // Add change event listener to log country selection
+              el.telInput[0].addEventListener('countrychange', function() {
+                const countryData = iti.getSelectedCountryData();
+                console.log('Country changed to:', countryData.iso2, '-', countryData.name);
+                
+                // Update hidden field immediately when country changes
+                $('#rbf_country_code').val(countryData.iso2);
               });
+              
+              // Ensure the dropdown is clickable and properly positioned
+              const flagContainer = el.telInput.parent().find('.iti__flag-container');
+              if (flagContainer.length) {
+                flagContainer.on('click', function(e) {
+                  e.stopPropagation();
+                  console.log('Flag container clicked');
+                  // Ensure dropdown appears properly
+                  const dropdown = el.telInput.parent().find('.iti__country-list');
+                  if (dropdown.length) {
+                    dropdown.css('z-index', '9999');
+                  }
+                });
+              }
+              
+              // Fix initial country code setup
+              const initialCountryData = iti.getSelectedCountryData();
+              if (initialCountryData) {
+                $('#rbf_country_code').val(initialCountryData.iso2);
+              }
+              
+              // Remove any fallback styling
+              el.telInput.removeClass('rbf-tel-fallback');
+              
+            } else {
+              console.error('Failed to initialize intlTelInput - returned null');
+              el.telInput.addClass('rbf-tel-fallback');
+              $('#rbf_country_code').val('it'); // Default to Italy
             }
-            
-            // Fix initial country code setup
-            const initialCountryData = iti.getSelectedCountryData();
-            if (initialCountryData) {
-              $('#rbf_country_code').val(initialCountryData.iso2);
-            }
-            
-          } else {
-            console.error('Failed to initialize intlTelInput - returned null');
+          } catch (error) {
+            console.error('Failed to initialize intlTelInput:', error);
+            // Add fallback styling to make it clear there's an issue
+            el.telInput.addClass('rbf-tel-fallback');
+            $('#rbf_country_code').val('it'); // Default to Italy
           }
-        } catch (error) {
-          console.error('Failed to initialize intlTelInput:', error);
-          // Add fallback styling to make it clear there's an issue
-          el.telInput.addClass('rbf-tel-fallback');
+        } else if (!el.telInput.length) {
+          console.warn('Tel input element not found');
+        } else if (iti) {
+          console.log('intlTelInput already initialized');
         }
-      } else if (!el.telInput.length) {
-        console.warn('Tel input element not found');
-      } else if (iti) {
-        console.log('intlTelInput already initialized');
-      }
-    }, 300); // Increased delay to ensure proper element rendering
+      }, 300); // Increased delay to ensure proper element rendering
+    }
+    
+    attemptInit();
   }
 
   /**
