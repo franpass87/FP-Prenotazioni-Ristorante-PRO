@@ -89,6 +89,16 @@ add_action('plugins_loaded', 'rbf_load_modules', 0);
  */
 register_activation_hook(__FILE__, 'rbf_activate_plugin');
 function rbf_activate_plugin() {
+    // Load modules to ensure custom post types are registered before flushing rules
+    if (!function_exists('rbf_register_post_type')) {
+        rbf_load_modules();
+    }
+    
+    // Register custom post type before flushing rewrite rules
+    if (function_exists('rbf_register_post_type')) {
+        rbf_register_post_type();
+    }
+    
     // Flush rewrite rules to ensure custom post types work
     flush_rewrite_rules();
 }
