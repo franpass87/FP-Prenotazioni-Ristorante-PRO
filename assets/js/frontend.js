@@ -40,6 +40,12 @@ jQuery(function($) {
   let currentStep = 1;
   let stepTimeouts = new Map(); // Track timeouts for each step element
 
+  function formatLocalISO(date) {
+    return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+      .toISOString()
+      .split('T')[0];
+  }
+
   /**
    * Update progress indicator
    */
@@ -335,7 +341,7 @@ jQuery(function($) {
         disable: [function(date) {
           const day = date.getDay();
           if (rbfData.closedDays.includes(day)) return true;
-          const dateStr = date.toISOString().split('T')[0];
+          const dateStr = formatLocalISO(date);
           if (rbfData.closedSingles.includes(dateStr)) return true;
           for (let range of rbfData.closedRanges) {
             if (dateStr >= range.from && dateStr <= range.to) return true;
@@ -377,7 +383,7 @@ jQuery(function($) {
       el.mealNotice.hide();
     }
     
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = formatLocalISO(date);
     showStep(el.timeStep, 3);
     el.timeSelect.html(`<option value="">${rbfData.labels.loading}</option>`).prop('disabled', true);
     el.timeSelect.addClass('rbf-loading');
@@ -401,7 +407,7 @@ jQuery(function($) {
         // Simplified client-side logging (server handles all filtering logic)
         const today = new Date();
         const currentDate = dateString;
-        const todayString = today.toISOString().split('T')[0];
+        const todayString = formatLocalISO(today);
         const isToday = (currentDate === todayString);
         const isFuture = (currentDate > todayString);
         
