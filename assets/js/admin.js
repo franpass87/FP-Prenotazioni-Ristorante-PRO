@@ -162,37 +162,6 @@ jQuery(function($) {
   }
 
   /**
-   * Save booking status via AJAX (legacy function for compatibility)
-   */
-  function saveBookingStatus(bookingId, newStatus) {
-    $.ajax({
-      url: rbfAdminData.ajaxUrl,
-      type: 'POST',
-      data: {
-        action: 'rbf_update_booking_status',
-        booking_id: bookingId,
-        status: newStatus,
-        _ajax_nonce: rbfAdminData.nonce
-      },
-      success: function(response) {
-        if (response.success) {
-          // Show success message
-          showNotification('Stato prenotazione aggiornato con successo', 'success');
-          // Refresh calendar
-          calendar.refetchEvents();
-          // Close modal
-          $('#rbf-booking-modal').remove();
-        } else {
-          showNotification('Errore nell\'aggiornamento dello stato', 'error');
-        }
-      },
-      error: function() {
-        showNotification('Errore di connessione', 'error');
-      }
-    });
-  }
-
-  /**
    * Show notification
    */
   function showNotification(message, type) {

@@ -79,27 +79,11 @@ function rbf_handle_booking_submission() {
         wp_safe_redirect(add_query_arg('rbf_error', urlencode(rbf_translate_string('Indirizzo email non valido.')), $redirect_url . $anchor)); exit;
     }
 
-    // Simple 1-hour minimum advance booking validation
-    $tz = rbf_wp_timezone();
-    $now = new DateTime('now', $tz);
-    $booking_datetime = DateTime::createFromFormat('Y-m-d H:i', $date . ' ' . $time, $tz);
-    
-    if ($booking_datetime) {
-        $minutes_diff = ($booking_datetime->getTimestamp() - $now->getTimestamp()) / 60;
-        
-        // Check if booking time is in the past (negative minutes_diff)
-        if ($minutes_diff < 0) {
-            $error_msg = rbf_translate_string('Non è possibile prenotare per orari già passati. Scegli un orario futuro.');
-            wp_safe_redirect(add_query_arg('rbf_error', urlencode($error_msg), $redirect_url . $anchor)); 
-            exit;
-        }
-        
-        // Check minimum 1-hour advance booking requirement
-        if ($minutes_diff < 60) {
-            $error_msg = rbf_translate_string('Le prenotazioni devono essere effettuate con almeno 1 ora di anticipo.');
-            wp_safe_redirect(add_query_arg('rbf_error', urlencode($error_msg), $redirect_url . $anchor));
-            exit;
-        }
+    // Validate booking time using centralized function
+    $time_validation = rbf_validate_booking_time($date, $time);
+    if ($time_validation !== true) {
+        wp_safe_redirect(add_query_arg('rbf_error', urlencode($time_validation['message']), $redirect_url . $anchor));
+        exit;
     }
 
     $remaining_capacity = rbf_get_remaining_capacity($date, $slot);
@@ -304,31 +288,20 @@ function rbf_ajax_get_availability_callback() {
     // Step 5: Filter times based on simple 1-hour minimum advance requirement
     $tz = rbf_wp_timezone();
     $now = new DateTime('now', $tz);
-    
-    // Simple 1-hour minimum advance requirement
     $min_datetime = clone $now;
     $min_datetime->modify("+60 minutes");
 
     $available_times = [];
 
     foreach ($times as $time) {
-        $time = trim($time);
-
-        // Normalize time format (ensure HH:MM)
-        if (preg_match('/^\d:\d\d$/', $time)) {
-            $time = '0' . $time;
-        }
-        if (preg_match('/^\d\d:\d$/', $time)) {
-            $time = $time . '0';
-        }
-
-        // Validate time format
-        if (!preg_match('/^\d{2}:\d{2}$/', $time)) {
+        // Use centralized time normalization
+        $normalized_time = rbf_normalize_time_format($time);
+        if ($normalized_time === false) {
             continue;
         }
 
         try {
-            $slot_datetime = DateTime::createFromFormat('Y-m-d H:i', $date . ' ' . $time, $tz);
+            $slot_datetime = DateTime::createFromFormat('Y-m-d H:i', $date . ' ' . $normalized_time, $tz);
             if (!$slot_datetime) {
                 continue;
             }
@@ -338,7 +311,7 @@ function rbf_ajax_get_availability_callback() {
                 continue;
             }
 
-            $available_times[] = $time;
+            $available_times[] = $normalized_time;
         } catch (Exception $e) {
             continue;
         }

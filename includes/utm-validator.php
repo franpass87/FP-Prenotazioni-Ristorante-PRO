@@ -11,6 +11,14 @@ if (!defined('ABSPATH')) {
 }
 
 /**
+ * Helper function to sanitize and limit UTM parameter length
+ */
+function rbf_sanitize_utm_param($value, $max_length = 100) {
+    $sanitized = sanitize_text_field($value);
+    return substr(preg_replace('/[<>"\'\\/\\\\]/', '', $sanitized), 0, $max_length);
+}
+
+/**
  * Enhanced UTM parameter validation with security improvements
  */
 function rbf_validate_utm_parameters($utm_data) {
@@ -19,10 +27,7 @@ function rbf_validate_utm_parameters($utm_data) {
     // Source validation - alphanumeric, dots, hyphens, underscores only
     if (!empty($utm_data['utm_source'])) {
         $source = strtolower(trim($utm_data['utm_source']));
-        $validated['utm_source'] = preg_replace('/[^a-zA-Z0-9._-]/', '', $source);
-        
-        // Limit length to prevent data bloat
-        $validated['utm_source'] = substr($validated['utm_source'], 0, 100);
+        $validated['utm_source'] = substr(preg_replace('/[^a-zA-Z0-9._-]/', '', $source), 0, 100);
     }
     
     // Medium validation with predefined valid values
@@ -35,45 +40,22 @@ function rbf_validate_utm_parameters($utm_data) {
         ];
         
         // Check if it's a recognized medium
-        if (in_array($medium, $valid_mediums, true)) {
-            $validated['utm_medium'] = $medium;
-        } else {
-            // Fallback for unrecognized mediums
-            $validated['utm_medium'] = 'other';
-            
-            // Log unrecognized medium for analysis removed
-        }
+        $validated['utm_medium'] = in_array($medium, $valid_mediums, true) ? $medium : 'other';
     }
     
-    // Campaign validation
+    // Campaign validation using helper function
     if (!empty($utm_data['utm_campaign'])) {
-        $campaign = sanitize_text_field($utm_data['utm_campaign']);
-        // Remove potentially dangerous characters and limit length
-        $validated['utm_campaign'] = substr(
-            preg_replace('/[<>"\'\\/\\\\]/', '', $campaign), 
-            0, 
-            150
-        );
+        $validated['utm_campaign'] = rbf_sanitize_utm_param($utm_data['utm_campaign'], 150);
     }
     
-    // UTM Term validation (for search keywords)
+    // UTM Term validation using helper function
     if (!empty($utm_data['utm_term'])) {
-        $term = sanitize_text_field($utm_data['utm_term']);
-        $validated['utm_term'] = substr(
-            preg_replace('/[<>"\'\\/\\\\]/', '', $term), 
-            0, 
-            100
-        );
+        $validated['utm_term'] = rbf_sanitize_utm_param($utm_data['utm_term'], 100);
     }
     
-    // UTM Content validation (for A/B testing)
+    // UTM Content validation using helper function
     if (!empty($utm_data['utm_content'])) {
-        $content = sanitize_text_field($utm_data['utm_content']);
-        $validated['utm_content'] = substr(
-            preg_replace('/[<>"\'\\/\\\\]/', '', $content), 
-            0, 
-            100
-        );
+        $validated['utm_content'] = rbf_sanitize_utm_param($utm_data['utm_content'], 100);
     }
     
     // Google Ads Click ID validation
