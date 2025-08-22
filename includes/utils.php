@@ -66,6 +66,7 @@ function rbf_translate_string($text) {
     static $translations = [
         // Backend UI
         'Prenotazioni' => 'Bookings',
+        'Tutte le Prenotazioni' => 'All Bookings',
         'Prenotazione' => 'Booking',
         'Aggiungi Nuova' => 'Add New',
         'Aggiungi Nuova Prenotazione' => 'Add New Booking',
