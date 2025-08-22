@@ -365,51 +365,47 @@ function rbf_ajax_get_availability_callback() {
         }
     }
 
-    // LAST-MINUTE: se oggi, mostra solo orari futuri (margine 15')
-    $today_str = $now->format('Y-m-d');
-    if ($date === $today_str) {
-        $now_plus = clone $now;
-        $now_plus->modify('+15 minutes');
-        $cut_time = $now_plus->format('H:i');
+    // Filter out past times and times within 1 hour of booking (as requested)
+    $now_plus_1hour = clone $now;
+    $now_plus_1hour->modify('+1 hour');
+    
+    // Apply minimum advance booking time filter to all dates
+    $original_count = count($times);
+    $times = array_values(array_filter($times, function($t) use ($date, $now_plus_1hour, $tz) { 
+        $normalized_time = trim($t);
         
-        // More robust time filtering with proper time comparison
-        $original_count = count($times);
-        $times = array_values(array_filter($times, function($t) use ($cut_time, $date, $tz) { 
-            $normalized_time = trim($t);
-            
-            // Ensure proper HH:MM format (pad single digits if needed)
-            if (preg_match('/^\d:\d\d$/', $normalized_time)) {
-                $normalized_time = '0' . $normalized_time;
-            }
-            if (preg_match('/^\d\d:\d$/', $normalized_time)) {
-                $normalized_time = $normalized_time . '0';
-            }
-            
-            // Create DateTime objects for proper comparison
-            try {
-                $slot_datetime = DateTime::createFromFormat('Y-m-d H:i', $date . ' ' . $normalized_time, $tz);
-                $cut_datetime = DateTime::createFromFormat('Y-m-d H:i', $date . ' ' . $cut_time, $tz);
-                
-                if ($slot_datetime && $cut_datetime) {
-                    return $slot_datetime > $cut_datetime;
-                }
-                
-                // Fallback to string comparison if DateTime creation fails
-                return $normalized_time > $cut_time;
-                
-            } catch (Exception $e) {
-                // Fallback to string comparison
-                return $normalized_time > $cut_time;
-            }
-        }));
-        $filtered_count = count($times);
+        // Ensure proper HH:MM format (pad single digits if needed)
+        if (preg_match('/^\d:\d\d$/', $normalized_time)) {
+            $normalized_time = '0' . $normalized_time;
+        }
+        if (preg_match('/^\d\d:\d$/', $normalized_time)) {
+            $normalized_time = $normalized_time . '0';
+        }
         
-        // Enhanced debug logging
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log("RBF Time Filtering: Date={$date}, Current time={$now->format('H:i')}, Cut-off={$cut_time}, Original times={$original_count}, Filtered times={$filtered_count}, Timezone={$tz->getName()}");
-            if ($original_count > 0) {
-                error_log("RBF First original time: " . (isset($times[0]) ? 'N/A (filtered out)' : 'Available times exist'));
+        // Create DateTime objects for proper comparison
+        try {
+            $slot_datetime = DateTime::createFromFormat('Y-m-d H:i', $date . ' ' . $normalized_time, $tz);
+            
+            if ($slot_datetime) {
+                // Must be at least 1 hour in the future
+                return $slot_datetime >= $now_plus_1hour;
             }
+            
+            return false;
+            
+        } catch (Exception $e) {
+            // If DateTime creation fails, exclude the time slot for safety
+            return false;
+        }
+    }));
+    $filtered_count = count($times);
+    
+    // Enhanced debug logging
+    if (defined('WP_DEBUG') && WP_DEBUG) {
+        $cut_time = $now_plus_1hour->format('H:i');
+        error_log("RBF Time Filtering: Date={$date}, Current time={$now->format('H:i')}, Cut-off={$cut_time} (1hr advance), Original times={$original_count}, Filtered times={$filtered_count}, Timezone={$tz->getName()}");
+        if ($original_count > 0 && $filtered_count > 0) {
+            error_log("RBF Available times after filtering: " . implode(', ', $times));
         }
     }
     
@@ -418,8 +414,12 @@ function rbf_ajax_get_availability_callback() {
     $max_booking_time->modify("+{$max_advance_hours} hours");
     
     $times = array_values(array_filter($times, function($time) use ($date, $max_booking_time, $tz) {
-        $booking_datetime = DateTime::createFromFormat('Y-m-d H:i', $date . ' ' . $time, $tz);
-        return $booking_datetime && $booking_datetime <= $max_booking_time;
+        try {
+            $booking_datetime = DateTime::createFromFormat('Y-m-d H:i', $date . ' ' . $time, $tz);
+            return $booking_datetime && $booking_datetime <= $max_booking_time;
+        } catch (Exception $e) {
+            return false; // Exclude invalid times for safety
+        }
     }));
 
     $available = [];
