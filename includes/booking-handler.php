@@ -82,8 +82,8 @@ function rbf_handle_booking_submission() {
     // Get settings for advance booking validation
     $options = rbf_get_settings();
     
-    // Check maximum advance booking time
-    $max_advance_hours = absint($options['max_advance_hours'] ?? 72);
+    // Check minimum advance booking time
+    $min_advance_hours = absint($options['min_advance_hours'] ?? 0);
     $tz = rbf_wp_timezone();
     $now = new DateTime('now', $tz);
     $booking_datetime = DateTime::createFromFormat('Y-m-d H:i', $date . ' ' . $time, $tz);
@@ -98,14 +98,12 @@ function rbf_handle_booking_submission() {
             exit;
         }
         
-        if ($hours_diff > $max_advance_hours) {
-            $days_max = ceil($max_advance_hours / 24);
+        if ($hours_diff < $min_advance_hours) {
             $error_msg = sprintf(
-                rbf_translate_string('Spiacenti, è possibile prenotare al massimo %d ore in anticipo (%d giorni). Scegli una data più vicina.'), 
-                $max_advance_hours,
-                $days_max
+                rbf_translate_string('Le prenotazioni devono essere effettuate con almeno %d ore di anticipo.'),
+                $min_advance_hours
             );
-            wp_safe_redirect(add_query_arg('rbf_error', urlencode($error_msg), $redirect_url . $anchor)); 
+            wp_safe_redirect(add_query_arg('rbf_error', urlencode($error_msg), $redirect_url . $anchor));
             exit;
         }
     }
@@ -312,29 +310,15 @@ function rbf_ajax_get_availability_callback() {
     // Step 5: Filter times based on date and time constraints
     $tz = rbf_wp_timezone();
     $now = new DateTime('now', $tz);
-    $today_string = $now->format('Y-m-d');
-    $is_today = ($date === $today_string);
-    $is_future = ($date > $today_string);
+    $min_advance_hours = absint($options['min_advance_hours'] ?? 0);
+    $min_datetime = clone $now;
+    $min_datetime->modify("+{$min_advance_hours} hours");
 
-
-    // Check maximum advance booking limit
-    $max_advance_hours = absint($options['max_advance_hours'] ?? 72);
-    $booking_date = DateTime::createFromFormat('Y-m-d', $date, $tz);
-    
-    if ($booking_date) {
-        $hours_diff = ($booking_date->getTimestamp() - $now->getTimestamp()) / 3600;
-        if ($hours_diff > $max_advance_hours) {
-            wp_send_json_success([]);
-            return;
-        }
-    }
-
-    // Filter times based on whether it's today or a future date
     $available_times = [];
-    
+
     foreach ($times as $time) {
         $time = trim($time);
-        
+
         // Normalize time format (ensure HH:MM)
         if (preg_match('/^\d:\d\d$/', $time)) {
             $time = '0' . $time;
@@ -342,36 +326,23 @@ function rbf_ajax_get_availability_callback() {
         if (preg_match('/^\d\d:\d$/', $time)) {
             $time = $time . '0';
         }
-        
+
         // Validate time format
         if (!preg_match('/^\d{2}:\d{2}$/', $time)) {
             continue;
         }
 
-        // For future dates, include all times (no time-based filtering needed)
-        if ($is_future) {
-            $available_times[] = $time;
-            continue;
-        }
-
-        // For today, filter based on current time + buffer
-        if ($is_today) {
-            try {
-                $slot_datetime = DateTime::createFromFormat('Y-m-d H:i', $date . ' ' . $time, $tz);
-                if (!$slot_datetime) {
-                    continue;
-                }
-
-                // Use 1 hour minimum advance booking for same day (reasonable buffer)
-                $now_plus_buffer = clone $now;
-                $now_plus_buffer->modify('+1 hour');
-                
-                if ($slot_datetime > $now_plus_buffer) {
-                    $available_times[] = $time;
-                }
-            } catch (Exception $e) {
+        try {
+            $slot_datetime = DateTime::createFromFormat('Y-m-d H:i', $date . ' ' . $time, $tz);
+            if (!$slot_datetime) {
                 continue;
             }
+
+            if ($slot_datetime >= $min_datetime) {
+                $available_times[] = $time;
+            }
+        } catch (Exception $e) {
+            continue;
         }
     }
 
