@@ -130,12 +130,23 @@ function rbf_add_tracking_scripts_to_footer() {
 }
 
 /**
- * Send admin notification email (webmaster notification only)
+ * Send admin notification email (to both restaurant and webmaster)
  */
 function rbf_send_admin_notification_email($first_name, $last_name, $email, $date, $time, $people, $notes, $tel, $meal) {
     $options = get_option('rbf_settings', rbf_get_default_settings());
-    $to = $options['notification_email'];
-    if (empty($to) || !is_email($to)) return;
+    $restaurant_email = $options['notification_email'];
+    $webmaster_email = $options['webmaster_email'];
+    
+    // Collect valid email addresses
+    $recipients = [];
+    if (!empty($restaurant_email) && is_email($restaurant_email)) {
+        $recipients[] = $restaurant_email;
+    }
+    if (!empty($webmaster_email) && is_email($webmaster_email) && $webmaster_email !== $restaurant_email) {
+        $recipients[] = $webmaster_email;
+    }
+    
+    if (empty($recipients)) return;
 
     $site_name = get_bloginfo('name');
     $subject = "Nuova Prenotazione dal Sito Web - {$first_name} {$last_name}";
@@ -164,7 +175,11 @@ HTML;
     $headers = ['Content-Type: text/html; charset=UTF-8'];
     $from_email = 'noreply@' . preg_replace('/^www\./', '', $_SERVER['SERVER_NAME']);
     $headers[] = 'From: ' . $site_name . ' <' . $from_email . '>';
-    wp_mail($to, $subject, $body, $headers);
+    
+    // Send to all recipients
+    foreach ($recipients as $recipient) {
+        wp_mail($recipient, $subject, $body, $headers);
+    }
 }
 
 /**
