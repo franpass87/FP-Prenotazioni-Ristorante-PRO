@@ -57,7 +57,7 @@ function rbf_handle_booking_submission() {
     $tel = sanitize_text_field($_POST['rbf_tel']);
     $notes = sanitize_textarea_field($_POST['rbf_allergie'] ?? '');
     $lang = sanitize_text_field($_POST['rbf_lang'] ?? 'it');
-    $country_code = sanitize_text_field($_POST['rbf_country_code'] ?? '');
+    $country_code = strtolower(sanitize_text_field($_POST['rbf_country_code'] ?? ''));
     
     // Determine Brevo language based on country selection
     // If Italy is selected, use Italian list, otherwise use English list
