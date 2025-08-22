@@ -30,15 +30,25 @@ function rbf_clear_transients() {
         return;
     }
 
-    $prefix  = $wpdb->esc_like('_transient_rbf_') . '%';
-    $timeout = $wpdb->esc_like('_transient_timeout_rbf_') . '%';
+    // Clear RBF-specific transients with improved pattern matching
+    $transient_patterns = [
+        '_transient_rbf_%',
+        '_transient_timeout_rbf_%'
+    ];
+    
+    foreach ($transient_patterns as $pattern) {
+        $escaped_pattern = $wpdb->esc_like($pattern);
+        $wpdb->query(
+            $wpdb->prepare(
+                "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",
+                $escaped_pattern
+            )
+        );
+    }
 
+    // Also clear specific availability transients
     $wpdb->query(
-        $wpdb->prepare(
-            "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s",
-            $prefix,
-            $timeout
-        )
+        "DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_rbf_avail_%'"
     );
 
     if (function_exists('wp_cache_flush')) {
