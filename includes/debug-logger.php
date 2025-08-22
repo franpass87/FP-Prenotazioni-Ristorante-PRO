@@ -205,7 +205,7 @@ class RBF_Debug_Logger {
         $logs = get_option('rbf_debug_logs', []);
         $export_data = [
             'timestamp' => current_time('mysql'),
-            'version' => get_option('rbf_version', '9.3.2'),
+            'version' => get_option('rbf_version', '2.5'),
             'logs' => $logs,
             'stats' => self::get_log_stats()
         ];

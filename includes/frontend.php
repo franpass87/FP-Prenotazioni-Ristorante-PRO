@@ -18,7 +18,7 @@ function rbf_enqueue_frontend_assets() {
     global $post;
     if (!is_singular() || !$post || !has_shortcode($post->post_content, 'ristorante_booking_form')) return;
 
-    $plugin_version = '9.3.2';
+    $plugin_version = '2.5';
     $options = get_option('rbf_settings', rbf_get_default_settings());
     $locale = rbf_current_lang(); // 'it' o 'en'
 
@@ -39,10 +39,10 @@ function rbf_enqueue_frontend_assets() {
     $deps[] = 'rbf-intl-tel-input';
 
     // Frontend styles
-    wp_enqueue_style('rbf-frontend-css', plugin_dir_url(dirname(__FILE__)) . 'assets/css/frontend.css', ['rbf-flatpickr-css'], '9.3.2');
+    wp_enqueue_style('rbf-frontend-css', plugin_dir_url(dirname(__FILE__)) . 'assets/css/frontend.css', ['rbf-flatpickr-css'], '2.5');
 
     // Frontend script (must be enqueued before wp_localize_script)
-    wp_enqueue_script('rbf-frontend-js', plugin_dir_url(dirname(__FILE__)) . 'assets/js/frontend.js', $deps, '9.3.2', true);
+    wp_enqueue_script('rbf-frontend-js', plugin_dir_url(dirname(__FILE__)) . 'assets/js/frontend.js', $deps, '2.5', true);
 
     // Giorni chiusi
     $closed_days_map = ['sun'=>0,'mon'=>1,'tue'=>2,'wed'=>3,'thu'=>4,'fri'=>5,'sat'=>6];
