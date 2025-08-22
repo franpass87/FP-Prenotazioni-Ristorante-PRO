@@ -5,27 +5,11 @@
 jQuery(function($) {
   'use strict';
   
-  // Check if required dependencies are loaded with detailed logging
-  if (typeof rbfData === 'undefined') {
-    console.error('RBF: rbfData is not defined. Script localization may have failed.');
-    return;
-  }
-  if (typeof flatpickr === 'undefined') {
-    console.error('RBF: flatpickr is not defined. CDN resource may not have loaded.');
-    return;
-  }
-  if (typeof intlTelInput === 'undefined') {
-    console.error('RBF: intlTelInput is not defined. CDN resource may not have loaded.');
-    return;
-  }
+  // Check if required dependencies are loaded
+  if (typeof rbfData === 'undefined' || typeof flatpickr === 'undefined' || typeof intlTelInput === 'undefined') return;
 
   const form = $('#rbf-form');
-  if (!form.length) {
-    console.error('RBF: Form #rbf-form not found on page');
-    return;
-  }
-
-  console.log('RBF: Form found, initializing booking form...');
+  if (!form.length) return;
 
   // Cache DOM elements
   const el = {
@@ -48,11 +32,10 @@ jQuery(function($) {
     submitButton: form.find('#rbf-submit')
   };
 
-  console.log('RBF: Found', el.mealRadios.length, 'meal radio buttons');
-
   let fp = null;
   let iti = null;
   let currentStep = 1;
+  let stepTimeouts = new Map(); // Track timeouts for each step element
 
   /**
    * Update progress indicator
@@ -84,7 +67,13 @@ jQuery(function($) {
    * Show step with animation and accessibility
    */
   function showStep($step, stepNumber) {
-    setTimeout(() => {
+    // Cancel any pending hide timeout for this step
+    if (stepTimeouts.has($step[0])) {
+      clearTimeout(stepTimeouts.get($step[0]));
+      stepTimeouts.delete($step[0]);
+    }
+    
+    const timeout = setTimeout(() => {
       $step.show().addClass('active');
       updateProgressIndicator(stepNumber);
       
@@ -108,7 +97,11 @@ jQuery(function($) {
         const labelText = $('#' + stepLabel).text();
         announceToScreenReader(`Passaggio ${stepNumber}: ${labelText}`);
       }
+      
+      stepTimeouts.delete($step[0]);
     }, 100);
+    
+    stepTimeouts.set($step[0], timeout);
   }
 
   /**
@@ -132,10 +125,19 @@ jQuery(function($) {
    * Hide step with animation
    */
   function hideStep($step) {
+    // Cancel any pending show timeout for this step
+    if (stepTimeouts.has($step[0])) {
+      clearTimeout(stepTimeouts.get($step[0]));
+      stepTimeouts.delete($step[0]);
+    }
+    
     $step.removeClass('active');
-    setTimeout(() => {
+    const timeout = setTimeout(() => {
       $step.hide();
+      stepTimeouts.delete($step[0]);
     }, 300);
+    
+    stepTimeouts.set($step[0], timeout);
   }
 
   /**
@@ -181,7 +183,6 @@ jQuery(function($) {
    * Handle meal selection change
    */
   el.mealRadios.on('change', function() {
-    console.log('RBF: Meal selection changed to:', this.value);
     resetSteps(1);
     el.mealNotice.hide();
     showStep(el.dateStep, 2);
@@ -204,7 +205,6 @@ jQuery(function($) {
       }],
       onChange: onDateChange
     });
-    console.log('RBF: Flatpickr initialized');
   });
 
   /**
