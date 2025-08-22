@@ -35,6 +35,7 @@ jQuery(function($) {
   let fp = null;
   let iti = null;
   let currentStep = 1;
+  let stepTimeouts = new Map(); // Track timeouts for each step element
 
   /**
    * Update progress indicator
@@ -66,7 +67,13 @@ jQuery(function($) {
    * Show step with animation and accessibility
    */
   function showStep($step, stepNumber) {
-    setTimeout(() => {
+    // Cancel any pending hide timeout for this step
+    if (stepTimeouts.has($step[0])) {
+      clearTimeout(stepTimeouts.get($step[0]));
+      stepTimeouts.delete($step[0]);
+    }
+    
+    const timeout = setTimeout(() => {
       $step.show().addClass('active');
       updateProgressIndicator(stepNumber);
       
@@ -90,7 +97,11 @@ jQuery(function($) {
         const labelText = $('#' + stepLabel).text();
         announceToScreenReader(`Passaggio ${stepNumber}: ${labelText}`);
       }
+      
+      stepTimeouts.delete($step[0]);
     }, 100);
+    
+    stepTimeouts.set($step[0], timeout);
   }
 
   /**
@@ -114,10 +125,19 @@ jQuery(function($) {
    * Hide step with animation
    */
   function hideStep($step) {
+    // Cancel any pending show timeout for this step
+    if (stepTimeouts.has($step[0])) {
+      clearTimeout(stepTimeouts.get($step[0]));
+      stepTimeouts.delete($step[0]);
+    }
+    
     $step.removeClass('active');
-    setTimeout(() => {
+    const timeout = setTimeout(() => {
       $step.hide();
+      stepTimeouts.delete($step[0]);
     }, 300);
+    
+    stepTimeouts.set($step[0], timeout);
   }
 
   /**

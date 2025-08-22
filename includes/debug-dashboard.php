@@ -21,7 +21,7 @@ function rbf_add_debug_dashboard() {
     }
     
     add_submenu_page(
-        'rbf_bookings_menu',
+        'rbf_calendar',
         'Debug & Performance',
         '🔧 Debug',
         'manage_options',
