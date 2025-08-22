@@ -1,6 +1,6 @@
 # FP-Prenotazioni-Ristorante-PRO
 
-**Version:** 10.0.1
+**Version:** 10.0.2
 **Author:** Francesco Passeri  
 **License:** GPLv2 or later
 
@@ -11,6 +11,7 @@ Sistema completo di prenotazioni per ristoranti con calendario Flatpickr multili
 ### 📅 Sistema di Prenotazione
 - **Calendario Interattivo**: Flatpickr con supporto multilingue (IT/EN)
 - **Gestione Last-Minute**: Prenotazioni con controllo orari dinamici
+- **Smart Same-Day Booking**: Logica intelligente per prenotazioni pranzo stesso giorno (prima delle 6:00)
 - **Capienza per Servizio**: Controllo automatico disponibilità per pranzo/cena/aperitivo
 - **Slot Temporali Personalizzabili**: Configurazione flessibile degli orari
 
@@ -65,6 +66,29 @@ fp-prenotazioni-ristorante-pro/
 4. **Shortcode**: Inserisci `[ristorante_booking_form]` nella pagina desiderata
 
 ## ⚙️ Configurazione
+
+### Smart Same-Day Booking Feature
+
+Il plugin include una funzionalità intelligente per le prenotazioni pranzo dello stesso giorno:
+
+**Come funziona:**
+- Le prenotazioni per il pranzo possono essere effettuate lo stesso giorno se fatte prima delle 6:00
+- La logica si applica solo per il servizio "pranzo" 
+- Rimangono attive le normali regole di anticipo per tutti gli altri casi
+
+**Esempio Pratico:**
+```
+Configurazione: Anticipo minimo 24 ore (1440 minuti)
+Scenario: Utente prenota alle 00:06 del 23 gennaio per il pranzo del 23 gennaio alle 12:00
+
+❌ Logica Standard: BLOCCATA (mancano 12 ore per raggiungere le 24 richieste)
+✅ Smart Logic: CONSENTITA (prenotazione pranzo stesso giorno prima delle 6:00)
+```
+
+**Vantaggi:**
+- Migliora l'esperienza utente per clienti mattinieri
+- Mantiene sicurezza per altre tipologie di prenotazione
+- Supporta operatività ristoranti con prep time mattutino
 
 ### Impostazioni Base
 - **Orari Servizio**: Configura slot pranzo, cena, aperitivo
@@ -249,7 +273,12 @@ update_post_meta($post_id, 'rbf_source_bucket', $src['bucket']);
 
 ## 📋 Changelog
 
-### Version 10.0.1 (Current)
+### Version 10.0.2 (Current)
+- 🐛 **Fix**: Risolto problema prenotazioni pranzo stesso giorno con anticipo minimo elevato
+- ✨ **Smart Booking Logic**: Introdotta logica intelligente per prenotazioni pranzo mattutine
+- 📚 **Documentazione**: Aggiornate guide utente con nuove funzionalità
+
+### Version 10.0.1
 - 🐛 Fix: Availability check returning no time slots when new settings were missing.
 
 ### Version 10.0.0
