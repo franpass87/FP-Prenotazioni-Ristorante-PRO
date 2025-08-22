@@ -363,58 +363,17 @@ jQuery(function($) {
       if (response.success && response.data.length > 0) {
         el.timeSelect.append(new Option(rbfData.labels.chooseTime, ''));
         
-        // Enhanced client-side filtering - 1 hour minimum advance booking (1.5 hours for same day)
+        // Simplified client-side logging (server handles all filtering logic)
         const today = new Date();
         const currentDate = dateString;
         const todayString = today.toISOString().split('T')[0];
+        const isToday = (currentDate === todayString);
+        const isFuture = (currentDate > todayString);
         
-        // Apply enhanced time filtering for better user experience
-        if (currentDate === todayString) {
-          // For today's bookings, add 1.5 hour buffer to current time for extra safety
-          const currentTimePlusBuffer = new Date(today.getTime() + 90 * 60 * 1000); // 1.5 hours
-          const currentHours = currentTimePlusBuffer.getHours();
-          const currentMinutes = currentTimePlusBuffer.getMinutes();
-          
-          response.data = response.data.filter(item => {
-            const timeParts = item.time.split(':');
-            const timeHours = parseInt(timeParts[0], 10);
-            const timeMinutes = parseInt(timeParts[1], 10);
-            
-            // Compare times - return true if slot time is after current + 1.5 hours (for same day)
-            if (timeHours > currentHours) {
-              return true;
-            } else if (timeHours === currentHours) {
-              return timeMinutes > currentMinutes;
-            }
-            return false;
-          });
-          
-          console.log(`Client-side enhanced filtering for TODAY. Current time +1.5hr: ${currentHours}:${String(currentMinutes).padStart(2, '0')}, Available slots: ${response.data.length}`);
-        } else {
-          // For future dates, standard 1 hour minimum advance booking
-          const futureDate = new Date(currentDate);
-          const timeDiffDays = Math.floor((futureDate.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
-          
-          if (timeDiffDays === 1) {
-            // Tomorrow - still apply some filtering but less strict
-            const currentTimePlus1Hour = new Date(today.getTime() + 60 * 60 * 1000);
-            const currentHours = currentTimePlus1Hour.getHours();
-            const currentMinutes = currentTimePlus1Hour.getMinutes();
-            
-            // Only filter very early times if it's late in the current day
-            if (today.getHours() >= 22) { // After 10 PM
-              response.data = response.data.filter(item => {
-                const timeParts = item.time.split(':');
-                const timeHours = parseInt(timeParts[0], 10);
-                return timeHours >= 10; // No very early morning slots if booking late at night
-              });
-            }
-            
-            console.log(`Client-side filtering for TOMORROW. Late booking protection applied: ${response.data.length} slots available`);
-          } else {
-            console.log(`Client-side filtering for FUTURE DATE (${timeDiffDays} days ahead). No additional filtering needed: ${response.data.length} slots available`);
-          }
-        }
+        console.log(`RBF Client: Received ${response.data.length} available slots for ${currentDate} (${isToday ? 'TODAY' : (isFuture ? 'FUTURE' : 'PAST')})`);
+        
+        // No client-side filtering - server handles all logic
+        // This ensures consistency and prevents double-filtering issues
         
         response.data.forEach(item => {
           const opt = new Option(item.time, `${item.slot}|${item.time}`);

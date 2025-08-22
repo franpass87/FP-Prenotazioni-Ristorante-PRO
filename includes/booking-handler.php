@@ -319,134 +319,203 @@ function rbf_handle_booking_submission() {
 }
 
 /**
- * AJAX handler for availability check
+ * AJAX handler for availability check - Completely rebuilt for reliability
  */
 add_action('wp_ajax_rbf_get_availability', 'rbf_ajax_get_availability_callback');
 add_action('wp_ajax_nopriv_rbf_get_availability', 'rbf_ajax_get_availability_callback');
 function rbf_ajax_get_availability_callback() {
+    // Enhanced debug logging from the start
+    if (defined('WP_DEBUG') && WP_DEBUG) {
+        error_log("RBF: Starting availability check");
+    }
+    
     check_ajax_referer('rbf_ajax_nonce');
-    if (empty($_POST['date']) || empty($_POST['meal'])) wp_send_json_error();
+    
+    if (empty($_POST['date']) || empty($_POST['meal'])) {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log("RBF: Missing required parameters - date or meal");
+        }
+        wp_send_json_error(['message' => 'Missing required parameters']);
+        return;
+    }
 
     $date = sanitize_text_field($_POST['date']);
     $meal = sanitize_text_field($_POST['meal']);
-    $day_of_week = date('w', strtotime($date));
+    
+    if (defined('WP_DEBUG') && WP_DEBUG) {
+        error_log("RBF: Checking availability for date={$date}, meal={$meal}");
+    }
+
+    // Get settings
     $options = get_option('rbf_settings', rbf_get_default_settings());
+    
+    // Step 1: Check if restaurant is open on this day of the week
+    $day_of_week = date('w', strtotime($date));
     $day_keys = ['sun','mon','tue','wed','thu','fri','sat'];
     $day_key = $day_keys[$day_of_week];
 
-    if (($options["open_{$day_key}"] ?? 'no') !== 'yes') { wp_send_json_success([]); return; }
-
-    $closed_specific = rbf_get_closed_specific($options);
-    if (in_array($date, $closed_specific['singles'], true)) { wp_send_json_success([]); return; }
-    foreach ($closed_specific['ranges'] as $range) {
-        if ($date >= $range['from'] && $date <= $range['to']) { wp_send_json_success([]); return; }
+    if (($options["open_{$day_key}"] ?? 'no') !== 'yes') {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log("RBF: Restaurant closed on {$day_key}");
+        }
+        wp_send_json_success([]);
+        return;
     }
 
-    $times_csv = $options['orari_'.$meal] ?? '';
-    if (empty($times_csv)) { wp_send_json_success([]); return; }
-    $times = array_values(array_filter(array_map('trim', explode(',', $times_csv))));
-    if (empty($times)) { wp_send_json_success([]); return; }
-
-    $remaining_capacity = rbf_get_remaining_capacity($date, $meal);
-    if ($remaining_capacity <= 0) { wp_send_json_success([]); return; }
-
-    // Check maximum advance booking time
-    $max_advance_hours = absint($options['max_advance_hours'] ?? 72);
-    $tz = rbf_wp_timezone();
-    $now = new DateTime('now', $tz);
+    // Step 2: Check specific closed dates
+    $closed_specific = rbf_get_closed_specific($options);
+    if (in_array($date, $closed_specific['singles'], true)) {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log("RBF: Date {$date} is specifically closed");
+        }
+        wp_send_json_success([]);
+        return;
+    }
     
-    // If the date is beyond the advance booking limit, return no availability
-    $booking_date = DateTime::createFromFormat('Y-m-d', $date, $tz);
-    if ($booking_date) {
-        $hours_diff_start = ($booking_date->getTimestamp() - $now->getTimestamp()) / 3600;
-        if ($hours_diff_start > $max_advance_hours) {
+    foreach ($closed_specific['ranges'] as $range) {
+        if ($date >= $range['from'] && $date <= $range['to']) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log("RBF: Date {$date} falls within closed range {$range['from']} to {$range['to']}");
+            }
             wp_send_json_success([]);
             return;
         }
     }
 
-    // Filter out past times and times within 1 hour of booking (enhanced logic)
-    $now_plus_1hour = clone $now;
-    $now_plus_1hour->modify('+1 hour');
-    
-    // Apply minimum advance booking time filter to all dates
-    $original_count = count($times);
-    $times = array_values(array_filter($times, function($t) use ($date, $now_plus_1hour, $tz) { 
-        $normalized_time = trim($t);
-        
-        // Ensure proper HH:MM format (pad single digits if needed)
-        if (preg_match('/^\d:\d\d$/', $normalized_time)) {
-            $normalized_time = '0' . $normalized_time;
+    // Step 3: Get configured time slots for this meal
+    $times_csv = $options['orari_'.$meal] ?? '';
+    if (empty($times_csv)) {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log("RBF: No time slots configured for meal {$meal}");
         }
-        if (preg_match('/^\d\d:\d$/', $normalized_time)) {
-            $normalized_time = $normalized_time . '0';
+        wp_send_json_success([]);
+        return;
+    }
+    
+    $times = array_values(array_filter(array_map('trim', explode(',', $times_csv))));
+    if (empty($times)) {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log("RBF: No valid time slots found for meal {$meal}");
+        }
+        wp_send_json_success([]);
+        return;
+    }
+
+    if (defined('WP_DEBUG') && WP_DEBUG) {
+        error_log("RBF: Found " . count($times) . " configured time slots: " . implode(', ', $times));
+    }
+
+    // Step 4: Check remaining capacity
+    $remaining_capacity = rbf_get_remaining_capacity($date, $meal);
+    if ($remaining_capacity <= 0) {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log("RBF: No remaining capacity for {$date} {$meal} (capacity: {$remaining_capacity})");
+        }
+        wp_send_json_success([]);
+        return;
+    }
+
+    if (defined('WP_DEBUG') && WP_DEBUG) {
+        error_log("RBF: Remaining capacity: {$remaining_capacity}");
+    }
+
+    // Step 5: Filter times based on date and time constraints
+    $tz = rbf_wp_timezone();
+    $now = new DateTime('now', $tz);
+    $today_string = $now->format('Y-m-d');
+    $is_today = ($date === $today_string);
+    $is_future = ($date > $today_string);
+
+    if (defined('WP_DEBUG') && WP_DEBUG) {
+        error_log("RBF: Date analysis - Today: {$today_string}, Requested: {$date}, IsToday: " . ($is_today ? 'YES' : 'NO') . ", IsFuture: " . ($is_future ? 'YES' : 'NO'));
+    }
+
+    // Check maximum advance booking limit
+    $max_advance_hours = absint($options['max_advance_hours'] ?? 72);
+    $booking_date = DateTime::createFromFormat('Y-m-d', $date, $tz);
+    
+    if ($booking_date) {
+        $hours_diff = ($booking_date->getTimestamp() - $now->getTimestamp()) / 3600;
+        if ($hours_diff > $max_advance_hours) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log("RBF: Date {$date} is beyond max advance booking limit ({$max_advance_hours}h). Hours diff: {$hours_diff}");
+            }
+            wp_send_json_success([]);
+            return;
+        }
+    }
+
+    // Filter times based on whether it's today or a future date
+    $available_times = [];
+    
+    foreach ($times as $time) {
+        $time = trim($time);
+        
+        // Normalize time format (ensure HH:MM)
+        if (preg_match('/^\d:\d\d$/', $time)) {
+            $time = '0' . $time;
+        }
+        if (preg_match('/^\d\d:\d$/', $time)) {
+            $time = $time . '0';
         }
         
         // Validate time format
-        if (!preg_match('/^\d{2}:\d{2}$/', $normalized_time)) {
-            return false;
-        }
-        
-        // Create DateTime objects for proper comparison
-        try {
-            $slot_datetime = DateTime::createFromFormat('Y-m-d H:i', $date . ' ' . $normalized_time, $tz);
-            
-            if ($slot_datetime) {
-                // Enhanced validation: Must be at least 1 hour in the future
-                $is_future = $slot_datetime > $now_plus_1hour;
-                
-                // Additional check for same-day bookings
-                $today_string = $now->format('Y-m-d');
-                if ($date === $today_string) {
-                    // For today's bookings, be extra strict about past times
-                    $current_time_plus_buffer = clone $now;
-                    $current_time_plus_buffer->modify('+1 hour 30 minutes'); // 1.5 hour buffer for same day
-                    $is_future = $slot_datetime > $current_time_plus_buffer;
-                }
-                
-                return $is_future;
+        if (!preg_match('/^\d{2}:\d{2}$/', $time)) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log("RBF: Invalid time format: {$time}");
             }
-            
-            return false;
-            
-        } catch (Exception $e) {
-            // If DateTime creation fails, exclude the time slot for safety
-            return false;
+            continue;
         }
-    }));
-    $filtered_count = count($times);
-    
-    // Enhanced debug logging with detailed information
-    if (defined('WP_DEBUG') && WP_DEBUG) {
-        $cut_time = $now_plus_1hour->format('H:i');
-        $is_today = ($date === $now->format('Y-m-d'));
-        $buffer_info = $is_today ? ' (Same day: 1.5hr buffer)' : ' (Standard: 1hr buffer)';
-        error_log("RBF Time Filtering: Date={$date}, IsToday={$is_today}, Current time={$now->format('H:i')}, Cut-off={$cut_time}{$buffer_info}, Original times={$original_count}, Filtered times={$filtered_count}, Timezone={$tz->getName()}");
-        if ($original_count > 0) {
-            error_log("RBF Original times: " . implode(', ', array_slice($times, 0, $original_count)));
+
+        // For future dates, include all times (no time-based filtering needed)
+        if ($is_future) {
+            $available_times[] = $time;
+            continue;
         }
-        if ($filtered_count > 0) {
-            error_log("RBF Available times after filtering: " . implode(', ', $times));
-        }
-        if ($original_count > 0 && $filtered_count === 0) {
-            error_log("RBF WARNING: All times filtered out - no availability returned");
+
+        // For today, filter based on current time + buffer
+        if ($is_today) {
+            try {
+                $slot_datetime = DateTime::createFromFormat('Y-m-d H:i', $date . ' ' . $time, $tz);
+                if (!$slot_datetime) {
+                    if (defined('WP_DEBUG') && WP_DEBUG) {
+                        error_log("RBF: Could not create datetime for {$date} {$time}");
+                    }
+                    continue;
+                }
+
+                // Use 1 hour minimum advance booking for same day (reasonable buffer)
+                $now_plus_buffer = clone $now;
+                $now_plus_buffer->modify('+1 hour');
+                
+                if ($slot_datetime > $now_plus_buffer) {
+                    $available_times[] = $time;
+                } else {
+                    if (defined('WP_DEBUG') && WP_DEBUG) {
+                        error_log("RBF: Time slot {$time} is too soon (within 1 hour buffer)");
+                    }
+                }
+            } catch (Exception $e) {
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log("RBF: Exception processing time {$time}: " . $e->getMessage());
+                }
+                continue;
+            }
         }
     }
-    
-    // Filter times that exceed maximum advance booking limit
-    $max_booking_time = clone $now;
-    $max_booking_time->modify("+{$max_advance_hours} hours");
-    
-    $times = array_values(array_filter($times, function($time) use ($date, $max_booking_time, $tz) {
-        try {
-            $booking_datetime = DateTime::createFromFormat('Y-m-d H:i', $date . ' ' . $time, $tz);
-            return $booking_datetime && $booking_datetime <= $max_booking_time;
-        } catch (Exception $e) {
-            return false; // Exclude invalid times for safety
-        }
-    }));
 
-    $available = [];
-    foreach ($times as $time) $available[] = ['slot'=>$meal, 'time'=>$time];
-    wp_send_json_success($available);
+    if (defined('WP_DEBUG') && WP_DEBUG) {
+        error_log("RBF: Final available times for {$date}: " . implode(', ', $available_times) . " (Total: " . count($available_times) . ")");
+    }
+
+    // Format response
+    $response = [];
+    foreach ($available_times as $time) {
+        $response[] = [
+            'slot' => $meal,
+            'time' => $time
+        ];
+    }
+
+    wp_send_json_success($response);
 }
