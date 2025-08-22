@@ -334,7 +334,7 @@
     top: 0;
     bottom: 0;
     left: 0;
-    width: 65px;
+    width: 90px;
     background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
     border-right: 1px solid var(--rbf-border);
     border-radius: var(--rbf-radius) 0 0 var(--rbf-radius);
@@ -505,7 +505,7 @@
 
 /* Enhanced Input Field Integration */
 .iti input[type="tel"] {
-    padding-left: 75px !important;
+    padding-left: 100px !important;
     border-radius: 0 var(--rbf-radius) var(--rbf-radius) 0 !important;
     border: none !important;
     width: 100% !important;
@@ -535,7 +535,7 @@
 }
 
 .iti--allow-dropdown input {
-    padding-left: 75px !important;
+    padding-left: 100px !important;
     border-radius: 0 var(--rbf-radius) var(--rbf-radius) 0 !important;
 }
 
@@ -569,20 +569,20 @@
     
     .iti__selected-flag {
         min-height: 56px;
-        width: 70px;
+        width: 95px;
         display: flex;
         align-items: center;
         justify-content: center;
         border-radius: var(--rbf-radius) 0 0 var(--rbf-radius);
     }
-    
+
     .iti__flag-container {
-        width: 70px;
+        width: 95px;
         border-radius: var(--rbf-radius) 0 0 var(--rbf-radius);
     }
-    
+
     .iti input[type="tel"] {
-        padding-left: 80px !important;
+        padding-left: 105px !important;
         font-size: 16px !important; /* Prevent iOS zoom */
         min-height: 54px;
         border-radius: 0 var(--rbf-radius) var(--rbf-radius) 0 !important;

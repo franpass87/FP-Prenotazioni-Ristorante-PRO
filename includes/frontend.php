@@ -373,7 +373,7 @@ function rbf_render_booking_form() {
                 <input type="hidden" name="rbf_referrer" id="rbf_referrer" value="">
 
                 <input type="hidden" name="rbf_lang" value="<?php echo esc_attr(rbf_current_lang()); ?>">
-                <input type="hidden" name="rbf_country_code" id="rbf_country_code" value="">
+                <input type="hidden" name="rbf_country_code" id="rbf_country_code" value="it">
                 <button id="rbf-submit" type="submit" disabled style="display:none;"><?php echo esc_html(rbf_translate_string('Prenota')); ?></button>
             </form>
         <?php endif; ?>
