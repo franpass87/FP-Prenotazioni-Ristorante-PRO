@@ -359,11 +359,6 @@ jQuery(function($) {
       if (response.success && response.data.length > 0) {
         el.timeSelect.append(new Option(rbfData.labels.chooseTime, ''));
         
-        // Additional client-side filtering - 1 hour minimum advance booking
-        const today = new Date();
-        const currentDate = dateString;
-        const todayString = today.toISOString().split('T')[0];
-        
         // Enhanced client-side filtering - 1 hour minimum advance booking (1.5 hours for same day)
         const today = new Date();
         const currentDate = dateString;
