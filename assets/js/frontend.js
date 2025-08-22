@@ -156,6 +156,9 @@ jQuery(function($) {
             separateDialCode: true,
             nationalMode: false,
             autoPlaceholder: 'aggressive',
+            // Fix flag display issues by ensuring proper flag container setup
+            allowDropdown: true,
+            showSelectedDialCode: true,
             customPlaceholder: function(selectedCountryPlaceholder, selectedCountryData) {
               return rbfData.labels.phonePlaceholder || selectedCountryPlaceholder;
             }
@@ -173,13 +176,24 @@ jQuery(function($) {
               $('#rbf_country_code').val(countryData.iso2);
             });
             
-            // Ensure the dropdown is clickable by adding explicit click handler
+            // Ensure the dropdown is clickable and properly positioned
             const flagContainer = el.telInput.parent().find('.iti__flag-container');
             if (flagContainer.length) {
               flagContainer.on('click', function(e) {
                 e.stopPropagation();
                 console.log('Flag container clicked');
+                // Ensure dropdown appears properly
+                const dropdown = el.telInput.parent().find('.iti__country-list');
+                if (dropdown.length) {
+                  dropdown.css('z-index', '9999');
+                }
               });
+            }
+            
+            // Fix initial country code setup
+            const initialCountryData = iti.getSelectedCountryData();
+            if (initialCountryData) {
+              $('#rbf_country_code').val(initialCountryData.iso2);
             }
             
           } else {
@@ -287,11 +301,44 @@ jQuery(function($) {
       el.timeSelect.html('');
       if (response.success && response.data.length > 0) {
         el.timeSelect.append(new Option(rbfData.labels.chooseTime, ''));
+        
+        // Additional client-side filtering for today's bookings
+        const today = new Date();
+        const isToday = dateString === today.toISOString().split('T')[0];
+        
+        if (isToday) {
+          // Add 15 minutes buffer to current time
+          const currentTime = new Date(today.getTime() + 15 * 60000);
+          const currentHours = currentTime.getHours();
+          const currentMinutes = currentTime.getMinutes();
+          
+          response.data = response.data.filter(item => {
+            const timeParts = item.time.split(':');
+            const timeHours = parseInt(timeParts[0], 10);
+            const timeMinutes = parseInt(timeParts[1], 10);
+            
+            // Compare times - return true if slot time is after current + 15 min
+            if (timeHours > currentHours) {
+              return true;
+            } else if (timeHours === currentHours) {
+              return timeMinutes > currentMinutes;
+            }
+            return false;
+          });
+          
+          console.log(`Client-side filtered past times. Current time: ${currentHours}:${currentMinutes}, Available slots: ${response.data.length}`);
+        }
+        
         response.data.forEach(item => {
           const opt = new Option(item.time, `${item.slot}|${item.time}`);
           el.timeSelect.append(opt);
         });
-        el.timeSelect.prop('disabled', false);
+        
+        if (response.data.length > 0) {
+          el.timeSelect.prop('disabled', false);
+        } else {
+          el.timeSelect.append(new Option(rbfData.labels.noTime, ''));
+        }
       } else {
         el.timeSelect.append(new Option(rbfData.labels.noTime, ''));
       }
