@@ -18,12 +18,25 @@ if (!defined('ABSPATH')) {
 define('RBF_PLUGIN_FILE', __FILE__);
 define('RBF_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('RBF_PLUGIN_URL', plugin_dir_url(__FILE__));
+define('RBF_VERSION', '9.3.2');
+
+// Debug configuration (can be overridden in wp-config.php)
+if (!defined('RBF_DEBUG')) {
+    define('RBF_DEBUG', WP_DEBUG);
+}
+if (!defined('RBF_LOG_LEVEL')) {
+    define('RBF_LOG_LEVEL', 'INFO'); // DEBUG, INFO, WARNING, ERROR
+}
 
 /**
  * Load plugin modules
  */
 function rbf_load_modules() {
     $modules = [
+        'debug-logger.php',      // Load debug system first
+        'performance-monitor.php', // Load performance monitor
+        'utm-validator.php',     // Load UTM validation
+        'debug-dashboard.php',   // Load debug dashboard
         'utils.php',
         'admin.php',
         'frontend.php',
@@ -36,6 +49,19 @@ function rbf_load_modules() {
         if (file_exists($file)) {
             require_once $file;
         }
+    }
+    
+    // Initialize debug and performance monitoring
+    if (RBF_DEBUG) {
+        RBF_Debug_Logger::init();
+        RBF_Performance_Monitor::init();
+        
+        // Log plugin initialization
+        RBF_Debug_Logger::track_event('plugin_initialized', [
+            'version' => RBF_VERSION,
+            'debug_enabled' => true,
+            'log_level' => RBF_LOG_LEVEL
+        ], 'INFO');
     }
 }
 
