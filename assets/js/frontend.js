@@ -144,15 +144,22 @@ jQuery(function($) {
    * Initialize international telephone input
    */
   function initializeTelInput() {
-    if (el.telInput.is(':visible') && !iti) {
-      iti = intlTelInput(el.telInput[0], {
-        utilsScript: rbfData.utilsScript,
-        initialCountry: 'it',
-        preferredCountries: ['it','gb','us','de','fr','es'],
-        separateDialCode: true,
-        nationalMode: false
-      });
-    }
+    // Use a small delay to ensure the element is fully visible after CSS transitions
+    setTimeout(() => {
+      if (el.telInput.length && !iti) {
+        try {
+          iti = intlTelInput(el.telInput[0], {
+            utilsScript: rbfData.utilsScript,
+            initialCountry: 'it',
+            preferredCountries: ['it','gb','us','de','fr','es'],
+            separateDialCode: true,
+            nationalMode: false
+          });
+        } catch (error) {
+          console.warn('Failed to initialize intlTelInput:', error);
+        }
+      }
+    }, 200); // Small delay to ensure visibility after CSS transitions
   }
 
   /**
@@ -344,18 +351,23 @@ jQuery(function($) {
       return;
     }
     
-    if (iti && !iti.isValidNumber()) {
-      e.preventDefault();
-      alert(rbfData.labels.invalidPhone);
-      el.submitButton.prop('disabled', false);
-      return;
-    }
-    
     if (iti) {
+      // Validate phone number if intlTelInput is initialized
+      if (!iti.isValidNumber()) {
+        e.preventDefault();
+        alert(rbfData.labels.invalidPhone);
+        el.submitButton.prop('disabled', false);
+        return;
+      }
+      
+      // Set the full international number and country code
       el.telInput.val(iti.getNumber());
-      // Capture the selected country code for Brevo list selection
       const countryCode = iti.getSelectedCountryData().iso2;
       $('#rbf_country_code').val(countryCode);
+    } else {
+      // Fallback: if intlTelInput is not initialized, default to Italy
+      console.warn('intlTelInput not initialized, defaulting to Italy (IT)');
+      $('#rbf_country_code').val('it');
     }
   });
 
