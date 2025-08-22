@@ -351,7 +351,12 @@ jQuery(function($) {
       return;
     }
     
-    if (iti) el.telInput.val(iti.getNumber());
+    if (iti) {
+      el.telInput.val(iti.getNumber());
+      // Capture the selected country code for Brevo list selection
+      const countryCode = iti.getSelectedCountryData().iso2;
+      $('#rbf_country_code').val(countryCode);
+    }
   });
 
   /**
