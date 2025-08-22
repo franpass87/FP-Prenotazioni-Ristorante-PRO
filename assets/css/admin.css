@@ -333,8 +333,149 @@
 
 /* Responsive improvements */
 
-/* Small Mobile (up to 479px) */
-@media (max-width: 479px) {
+/* Extra Small Mobile (up to 374px) */
+@media (max-width: 374px) {
+    .rbf-admin-wrap {
+        margin: 4px;
+        padding: 12px;
+    }
+    
+    .rbf-admin-wrap h1 {
+        font-size: 20px;
+        margin-bottom: 16px;
+    }
+    
+    .rbf-admin-wrap .form-table {
+        padding: 12px;
+    }
+    
+    .rbf-admin-wrap .form-table th,
+    .rbf-admin-wrap .form-table td {
+        display: block;
+        width: 100%;
+        padding: 4px 0;
+    }
+    
+    .rbf-admin-wrap .form-table th {
+        width: auto;
+        font-weight: 600;
+        margin-bottom: 1px;
+        font-size: 13px;
+    }
+    
+    .rbf-admin-wrap .form-table input[type="text"],
+    .rbf-admin-wrap .form-table input[type="email"],
+    .rbf-admin-wrap .form-table input[type="number"],
+    .rbf-admin-wrap .form-table input[type="password"],
+    .rbf-admin-wrap .form-table textarea,
+    .rbf-admin-wrap .form-table select {
+        font-size: 16px; /* Prevent iOS zoom */
+        padding: 10px;
+        max-width: 100%;
+        min-height: 44px;
+        -webkit-appearance: none;
+    }
+    
+    .rbf-admin-wrap .form-table textarea {
+        min-height: 70px;
+    }
+    
+    .rbf-admin-wrap .button-primary {
+        width: 100%;
+        padding: 12px 18px;
+        font-size: 15px;
+        min-height: 44px;
+    }
+    
+    /* Modal adjustments for extra small screens */
+    .rbf-modal-content {
+        width: 98%;
+        margin: 5px;
+    }
+    
+    .rbf-modal-header {
+        padding: 12px;
+    }
+    
+    .rbf-modal-header h3 {
+        font-size: 15px;
+    }
+    
+    .rbf-modal-body {
+        padding: 12px;
+    }
+    
+    .rbf-booking-details input,
+    .rbf-booking-details textarea,
+    .rbf-booking-details select {
+        font-size: 16px;
+        padding: 8px;
+        min-height: 44px;
+    }
+    
+    .rbf-modal-footer .button {
+        font-size: 15px;
+        padding: 10px 14px;
+        min-height: 44px;
+    }
+}
+
+/* Small Mobile (375px - 479px) */
+@media (min-width: 375px) and (max-width: 479px) {
+    .rbf-admin-wrap {
+        margin: 6px;
+        padding: 14px;
+    }
+    
+    .rbf-admin-wrap .form-table {
+        padding: 14px;
+    }
+    
+    .rbf-admin-wrap .form-table input[type="text"],
+    .rbf-admin-wrap .form-table input[type="email"],
+    .rbf-admin-wrap .form-table input[type="number"],
+    .rbf-admin-wrap .form-table input[type="password"],
+    .rbf-admin-wrap .form-table textarea,
+    .rbf-admin-wrap .form-table select {
+        min-height: 48px;
+        -webkit-appearance: none;
+    }
+    
+    .rbf-booking-details input,
+    .rbf-booking-details textarea,
+    .rbf-booking-details select {
+        min-height: 48px;
+        -webkit-appearance: none;
+    }
+    
+    .rbf-modal-footer .button {
+        min-height: 48px;
+    }
+    
+    .rbf-admin-wrap .button-primary {
+        min-height: 48px;
+    }
+}
+
+/* Medium Mobile (414px - 479px) */
+@media (min-width: 414px) and (max-width: 479px) {
+    .rbf-modal-content {
+        width: 95%;
+    }
+    
+    .rbf-modal-footer {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    
+    .rbf-modal-footer .button {
+        flex: 1;
+        min-width: calc(50% - 6px);
+    }
+}
+
+/* Small Mobile (480px+ devices) - Updated */
+@media (min-width: 480px) and (max-width: 479px) {
     .rbf-admin-wrap {
         margin: 8px;
         padding: 16px;
@@ -446,6 +587,25 @@
         margin-bottom: 3px;
     }
     
+    .rbf-admin-wrap .form-table input[type="text"],
+    .rbf-admin-wrap .form-table input[type="email"],
+    .rbf-admin-wrap .form-table input[type="number"],
+    .rbf-admin-wrap .form-table input[type="password"],
+    .rbf-admin-wrap .form-table textarea,
+    .rbf-admin-wrap .form-table select {
+        min-height: 48px;
+        -webkit-appearance: none;
+        touch-action: manipulation;
+    }
+    
+    .rbf-booking-details input,
+    .rbf-booking-details textarea,
+    .rbf-booking-details select {
+        min-height: 48px;
+        -webkit-appearance: none;
+        touch-action: manipulation;
+    }
+    
     .rbf-modal-footer {
         flex-direction: row;
         flex-wrap: wrap;
@@ -455,6 +615,15 @@
     .rbf-modal-footer .button {
         flex: 1;
         min-width: calc(50% - 5px);
+        min-height: 48px;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+    }
+    
+    .rbf-admin-wrap .button-primary {
+        min-height: 48px;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
     }
 }
 
@@ -478,6 +647,23 @@
         margin-bottom: 4px;
     }
     
+    .rbf-admin-wrap .form-table input[type="text"],
+    .rbf-admin-wrap .form-table input[type="email"],
+    .rbf-admin-wrap .form-table input[type="number"],
+    .rbf-admin-wrap .form-table input[type="password"],
+    .rbf-admin-wrap .form-table textarea,
+    .rbf-admin-wrap .form-table select {
+        min-height: 48px;
+        touch-action: manipulation;
+    }
+    
+    .rbf-booking-details input,
+    .rbf-booking-details textarea,
+    .rbf-booking-details select {
+        min-height: 48px;
+        touch-action: manipulation;
+    }
+    
     /* Modal improvements for tablet */
     .rbf-modal-content {
         max-width: 600px;
@@ -487,6 +673,18 @@
     .rbf-booking-details {
         max-height: 60vh;
         overflow-y: auto;
+    }
+    
+    .rbf-modal-footer .button {
+        min-height: 48px;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+    }
+    
+    .rbf-admin-wrap .button-primary {
+        min-height: 48px;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
     }
 }
 
@@ -512,9 +710,30 @@
     .rbf-admin-wrap .form-table textarea,
     .rbf-admin-wrap .form-table select {
         max-width: 400px;
+        min-height: 48px;
+        touch-action: manipulation;
+    }
+    
+    .rbf-booking-details input,
+    .rbf-booking-details textarea,
+    .rbf-booking-details select {
+        min-height: 48px;
+        touch-action: manipulation;
     }
     
     .rbf-modal-content {
         max-width: 550px;
+    }
+    
+    .rbf-modal-footer .button {
+        min-height: 48px;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+    }
+    
+    .rbf-admin-wrap .button-primary {
+        min-height: 48px;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
     }
 }
