@@ -16,6 +16,13 @@ if (!defined('ABSPATH')) {
 if (!function_exists('rbf_wp_timezone')) {
     function rbf_wp_timezone() {
         if (function_exists('wp_timezone')) return wp_timezone();
+        
+        // Only access WordPress options if WordPress is fully loaded
+        if (!function_exists('get_option')) {
+            // Fallback to UTC if WordPress is not loaded
+            return new DateTimeZone('UTC');
+        }
+        
         $tz_string = get_option('timezone_string');
         if ($tz_string) return new DateTimeZone($tz_string);
         $offset = (float) get_option('gmt_offset', 0);
@@ -38,8 +45,15 @@ function rbf_current_lang() {
         $slug = ICL_LANGUAGE_CODE;
         return in_array($slug, ['it','en'], true) ? $slug : 'en';
     }
-    $slug = substr(get_locale(), 0, 2);
-    return in_array($slug, ['it','en'], true) ? $slug : 'en';
+    
+    // Only use get_locale if WordPress is fully loaded
+    if (function_exists('get_locale')) {
+        $slug = substr(get_locale(), 0, 2);
+        return in_array($slug, ['it','en'], true) ? $slug : 'en';
+    }
+    
+    // Safe fallback if WordPress functions are not yet available
+    return 'it';
 }
 
 /**

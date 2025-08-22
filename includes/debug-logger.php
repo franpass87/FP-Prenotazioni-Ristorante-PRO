@@ -290,9 +290,4 @@ class RBF_Debug_Logger {
     }
 }
 
-// Initialize logger if debugging is enabled (check database settings or constants)
-if (function_exists('rbf_is_debug_enabled') && rbf_is_debug_enabled()) {
-    RBF_Debug_Logger::init();
-} else if (defined('RBF_DEBUG') && RBF_DEBUG) {
-    RBF_Debug_Logger::init();
-}
+// Note: Logger initialization is handled by rbf_load_modules() in the main plugin file

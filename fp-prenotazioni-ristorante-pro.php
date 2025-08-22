@@ -20,24 +20,27 @@ define('RBF_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('RBF_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('RBF_VERSION', '9.3.2');
 
-// Debug configuration (can be overridden in wp-config.php or managed via admin settings)
-if (!defined('RBF_DEBUG')) {
-    // Check database settings first, then fall back to WP_DEBUG
-    $settings = get_option('rbf_settings', []);
-    $debug_enabled = isset($settings['debug_enabled']) ? ($settings['debug_enabled'] === 'yes') : WP_DEBUG;
-    define('RBF_DEBUG', $debug_enabled);
-}
-if (!defined('RBF_LOG_LEVEL')) {
-    // Check database settings first, then fall back to default
-    $settings = get_option('rbf_settings', []);
-    $log_level = isset($settings['debug_log_level']) ? $settings['debug_log_level'] : 'INFO';
-    define('RBF_LOG_LEVEL', $log_level); // DEBUG, INFO, WARNING, ERROR
-}
+// Debug configuration (will be set during WordPress initialization)
+// These constants will be defined in rbf_load_modules() to ensure WordPress functions are available
 
 /**
  * Load plugin modules
  */
 function rbf_load_modules() {
+    // Define debug constants now that WordPress is initialized
+    if (!defined('RBF_DEBUG')) {
+        // Check database settings first, then fall back to WP_DEBUG
+        $settings = get_option('rbf_settings', []);
+        $debug_enabled = isset($settings['debug_enabled']) ? ($settings['debug_enabled'] === 'yes') : (defined('WP_DEBUG') ? WP_DEBUG : false);
+        define('RBF_DEBUG', $debug_enabled);
+    }
+    if (!defined('RBF_LOG_LEVEL')) {
+        // Check database settings first, then fall back to default
+        $settings = get_option('rbf_settings', []);
+        $log_level = isset($settings['debug_log_level']) ? $settings['debug_log_level'] : 'INFO';
+        define('RBF_LOG_LEVEL', $log_level); // DEBUG, INFO, WARNING, ERROR
+    }
+
     $modules = [
         'debug-logger.php',      // Load debug system first
         'performance-monitor.php', // Load performance monitor
