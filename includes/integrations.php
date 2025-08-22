@@ -217,26 +217,13 @@ function rbf_trigger_brevo_automation($first_name, $last_name, $email, $date, $t
         'updateEnabled' => true,
     ];
 
-    // Track Brevo contact API performance
-    $brevo_contact_start = microtime(true);
     $response = wp_remote_post(
         'https://api.brevo.com/v3/contacts',
         array_merge($base_args, ['body' => wp_json_encode($contact_payload)])
     );
     
-    if (RBF_DEBUG && class_exists('RBF_Performance_Monitor')) {
-        RBF_Performance_Monitor::track_api_call('brevo_contact', 'https://api.brevo.com/v3/contacts', $brevo_contact_start, $response);
-    }
-    
     if (is_wp_error($response)) {
         error_log('Errore Brevo (upsert contatto): '.$response->get_error_message());
-        if (RBF_DEBUG && class_exists('RBF_Debug_Logger')) {
-            RBF_Debug_Logger::track_event('brevo_contact_error', [
-                'email' => $email,
-                'error' => $response->get_error_message(),
-                'list_id' => $list_id
-            ], 'ERROR');
-        }
     }
 
     // 2) Custom Event via /v3/events: sempre
@@ -250,35 +237,12 @@ function rbf_trigger_brevo_automation($first_name, $last_name, $email, $date, $t
         ],
     ];
 
-    // Track Brevo events API performance
-    $brevo_events_start = microtime(true);
     $response = wp_remote_post(
         'https://api.brevo.com/v3/events',
         array_merge($base_args, ['body' => wp_json_encode($event_payload)])
     );
     
-    if (RBF_DEBUG && class_exists('RBF_Performance_Monitor')) {
-        RBF_Performance_Monitor::track_api_call('brevo_events', 'https://api.brevo.com/v3/events', $brevo_events_start, $response);
-    }
-    
     if (is_wp_error($response)) {
         error_log('Errore Brevo (evento booking_bistrot): '.$response->get_error_message());
-        if (RBF_DEBUG && class_exists('RBF_Debug_Logger')) {
-            RBF_Debug_Logger::track_event('brevo_event_error', [
-                'email' => $email,
-                'event_name' => 'booking_bistrot',
-                'error' => $response->get_error_message()
-            ], 'ERROR');
-        }
-    } else {
-        // Log successful Brevo integration
-        if (RBF_DEBUG && class_exists('RBF_Debug_Logger')) {
-            RBF_Debug_Logger::track_event('brevo_integration_success', [
-                'email' => $email,
-                'list_id' => $list_id,
-                'language' => $lang,
-                'marketing_consent' => ($marketing === 'yes')
-            ], 'INFO');
-        }
     }
 }

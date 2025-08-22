@@ -58,62 +58,23 @@ function rbf_maybe_clear_transients_on_load() {
 }
 add_action('plugins_loaded', 'rbf_maybe_clear_transients_on_load', -1);
 
-// Debug configuration (will be set during WordPress initialization)
-// These constants will be defined in rbf_load_modules() to ensure WordPress functions are available
-
 /**
  * Load plugin modules
  */
 function rbf_load_modules() {
-    // Define debug constants now that WordPress is initialized
-    if (!defined('RBF_DEBUG')) {
-        // Check database settings first, then fall back to WP_DEBUG
-        $settings = get_option('rbf_settings', []);
-        $debug_enabled = isset($settings['debug_enabled']) ? ($settings['debug_enabled'] === 'yes') : (defined('WP_DEBUG') ? WP_DEBUG : false);
-        define('RBF_DEBUG', $debug_enabled);
-    }
-    if (!defined('RBF_LOG_LEVEL')) {
-        // Check database settings first, then fall back to default
-        $settings = get_option('rbf_settings', []);
-        $log_level = isset($settings['debug_log_level']) ? $settings['debug_log_level'] : 'INFO';
-        define('RBF_LOG_LEVEL', $log_level); // DEBUG, INFO, WARNING, ERROR
-    }
-
     $modules = [
-        'debug-logger.php',      // Load debug system first
-        'performance-monitor.php', // Load performance monitor
-        'utm-validator.php',     // Load UTM validation
-        'debug-dashboard.php',   // Load debug dashboard
+        'utm-validator.php',
         'utils.php',
         'admin.php',
         'frontend.php',
         'booking-handler.php',
         'integrations.php'
     ];
-    
+
     foreach ($modules as $module) {
         $file = RBF_PLUGIN_DIR . 'includes/' . $module;
         if (file_exists($file)) {
             require_once $file;
-        }
-    }
-    
-    // Initialize debug and performance monitoring
-    if (RBF_DEBUG) {
-        if (class_exists('RBF_Debug_Logger')) {
-            RBF_Debug_Logger::init();
-        }
-        if (class_exists('RBF_Performance_Monitor')) {
-            RBF_Performance_Monitor::init();
-        }
-        
-        // Log plugin initialization
-        if (class_exists('RBF_Debug_Logger')) {
-            RBF_Debug_Logger::track_event('plugin_initialized', [
-                'version' => RBF_VERSION,
-                'debug_enabled' => true,
-                'log_level' => RBF_LOG_LEVEL
-            ], 'INFO');
         }
     }
 }
