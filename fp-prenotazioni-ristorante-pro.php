@@ -20,6 +20,44 @@ define('RBF_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('RBF_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('RBF_VERSION', '10.0.1');
 
+/**
+ * Clear all transients used by the plugin.
+ */
+function rbf_clear_transients() {
+    global $wpdb;
+
+    if (!isset($wpdb)) {
+        return;
+    }
+
+    $prefix  = $wpdb->esc_like('_transient_rbf_') . '%';
+    $timeout = $wpdb->esc_like('_transient_timeout_rbf_') . '%';
+
+    $wpdb->query(
+        $wpdb->prepare(
+            "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s",
+            $prefix,
+            $timeout
+        )
+    );
+
+    if (function_exists('wp_cache_flush')) {
+        wp_cache_flush();
+    }
+}
+
+/**
+ * Clear transients when plugin version changes.
+ */
+function rbf_maybe_clear_transients_on_load() {
+    $version = get_option('rbf_plugin_version');
+    if ($version !== RBF_VERSION) {
+        rbf_clear_transients();
+        update_option('rbf_plugin_version', RBF_VERSION);
+    }
+}
+add_action('plugins_loaded', 'rbf_maybe_clear_transients_on_load', -1);
+
 // Debug configuration (will be set during WordPress initialization)
 // These constants will be defined in rbf_load_modules() to ensure WordPress functions are available
 
@@ -89,6 +127,8 @@ add_action('plugins_loaded', 'rbf_load_modules', 0);
  */
 register_activation_hook(__FILE__, 'rbf_activate_plugin');
 function rbf_activate_plugin() {
+    rbf_clear_transients();
+
     // Load modules to ensure custom post types are registered before flushing rules
     if (!function_exists('rbf_register_post_type')) {
         rbf_load_modules();
@@ -111,3 +151,4 @@ function rbf_deactivate_plugin() {
     // Clean up rewrite rules
     flush_rewrite_rules();
 }
+
