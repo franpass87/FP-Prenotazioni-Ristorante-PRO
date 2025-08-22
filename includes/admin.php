@@ -197,7 +197,7 @@ function rbf_custom_column_data($column, $post_id) {
         case 'rbf_value':
             $people = intval(get_post_meta($post_id, 'rbf_persone', true));
             $meal = get_post_meta($post_id, 'rbf_meal', true);
-            $options = get_option('rbf_settings', rbf_get_default_settings());
+            $options = rbf_get_settings();
             $valore_pp = (float) ($options['valore_' . $meal] ?? 0);
             $valore_tot = $valore_pp * $people;
             if ($valore_tot > 0) {
@@ -327,7 +327,7 @@ function rbf_enqueue_admin_styles($hook) {
         $hook !== 'prenotazioni_page_rbf_export' &&
         strpos($hook,'edit.php?post_type=rbf_booking') === false) return;
 
-    wp_enqueue_style('rbf-admin-css', plugin_dir_url(dirname(__FILE__)) . 'assets/css/admin.css', [], '10.0.0.' . time());
+    wp_enqueue_style('rbf-admin-css', plugin_dir_url(dirname(__FILE__)) . 'assets/css/admin.css', [], RBF_VERSION . '.' . time());
 }
 
 /**
@@ -489,7 +489,7 @@ function rbf_settings_page_html() {
 function rbf_calendar_page_html() {
     wp_enqueue_style('fullcalendar-css', 'https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css', [], '5.11.3');
     wp_enqueue_script('fullcalendar-js', 'https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js', ['jquery'], '5.11.3', true);
-    wp_enqueue_script('rbf-admin-js', plugin_dir_url(dirname(__FILE__)) . 'assets/js/admin.js', ['jquery', 'fullcalendar-js'], '10.0.0.' . time(), true);
+    wp_enqueue_script('rbf-admin-js', plugin_dir_url(dirname(__FILE__)) . 'assets/js/admin.js', ['jquery', 'fullcalendar-js'], RBF_VERSION . '.' . time(), true);
     
     wp_localize_script('rbf-admin-js', 'rbfAdminData', [
         'ajaxUrl' => admin_url('admin-ajax.php'),
@@ -666,7 +666,7 @@ function rbf_update_booking_data_callback() {
  * Add booking page HTML
  */
 function rbf_add_booking_page_html() {
-    $options = get_option('rbf_settings', rbf_get_default_settings());
+    $options = rbf_get_settings();
     $message = '';
 
     if (!empty($_POST) && check_admin_referer('rbf_add_backend_booking')) {
@@ -1071,7 +1071,7 @@ function rbf_get_booking_analytics($start_date, $end_date) {
         $start_date, $end_date
     ));
     
-    $options = get_option('rbf_settings', rbf_get_default_settings());
+    $options = rbf_get_settings();
     $statuses = rbf_get_booking_statuses();
     $meals = [
         'pranzo' => rbf_translate_string('Pranzo'),
@@ -1407,7 +1407,7 @@ function rbf_export_json($bookings, $start_date, $end_date) {
             'generated' => current_time('Y-m-d H:i:s'),
             'date_range' => ['start' => $start_date, 'end' => $end_date],
             'total_bookings' => count($bookings),
-            'plugin_version' => '10.0.0'
+            'plugin_version' => RBF_VERSION
         ],
         'bookings' => []
     ];

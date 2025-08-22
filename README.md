@@ -1,6 +1,6 @@
 # FP-Prenotazioni-Ristorante-PRO
 
-**Version:** 10.0.0  
+**Version:** 10.0.1
 **Author:** Francesco Passeri  
 **License:** GPLv2 or later
 
@@ -286,7 +286,10 @@ update_post_meta($post_id, 'rbf_source_bucket', $src['bucket']);
 
 ## 📋 Changelog
 
-### Version 10.0.0 (Current)
+### Version 10.0.1 (Current)
+- 🐛 Fix: Availability check returning no time slots when new settings were missing.
+
+### Version 10.0.0
 **🏗️ Architettura Completamente Refactorizzata**
 - ✅ **Modularizzazione Completa**: Suddivisione in 9 moduli specializzati (4430+ linee totali)
 - ✅ **Debug System Avanzato**: `RBF_Debug_Logger` con logging strutturato JSON

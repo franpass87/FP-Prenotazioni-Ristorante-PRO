@@ -18,8 +18,7 @@ function rbf_enqueue_frontend_assets() {
     global $post;
     if (!is_singular() || !$post || !has_shortcode($post->post_content, 'ristorante_booking_form')) return;
 
-    $plugin_version = '10.0.0';
-    $options = get_option('rbf_settings', rbf_get_default_settings());
+    $options = rbf_get_settings();
     $locale = rbf_current_lang(); // 'it' o 'en'
 
     // Flatpickr
@@ -39,10 +38,10 @@ function rbf_enqueue_frontend_assets() {
     $deps[] = 'rbf-intl-tel-input';
 
     // Frontend styles
-    wp_enqueue_style('rbf-frontend-css', plugin_dir_url(dirname(__FILE__)) . 'assets/css/frontend.css', ['rbf-flatpickr-css'], '10.0.0.' . time());
+    wp_enqueue_style('rbf-frontend-css', plugin_dir_url(dirname(__FILE__)) . 'assets/css/frontend.css', ['rbf-flatpickr-css'], RBF_VERSION . '.' . time());
 
     // Frontend script (must be enqueued before wp_localize_script)
-    wp_enqueue_script('rbf-frontend-js', plugin_dir_url(dirname(__FILE__)) . 'assets/js/frontend.js', $deps, '10.0.0.' . time(), true);
+    wp_enqueue_script('rbf-frontend-js', plugin_dir_url(dirname(__FILE__)) . 'assets/js/frontend.js', $deps, RBF_VERSION . '.' . time(), true);
 
     // Giorni chiusi
     $closed_days_map = ['sun'=>0,'mon'=>1,'tue'=>2,'wed'=>3,'thu'=>4,'fri'=>5,'sat'=>6];
@@ -432,7 +431,7 @@ function rbf_get_remaining_capacity($date, $slot) {
     $cached = get_transient($transient_key);
     if ($cached !== false) return (int) $cached;
 
-    $options = get_option('rbf_settings', rbf_get_default_settings());
+    $options = rbf_get_settings();
     $total = (int) ($options['capienza_'.$slot] ?? 0);
     if ($total === 0) return 0;
 
@@ -456,7 +455,7 @@ function rbf_get_remaining_capacity($date, $slot) {
  * Get closed specific dates
  */
 function rbf_get_closed_specific($options = null) {
-    if (is_null($options)) $options = get_option('rbf_settings', rbf_get_default_settings());
+    if (is_null($options)) $options = rbf_get_settings();
     $closed_dates_str = $options['closed_dates'] ?? '';
     $closed_items = array_filter(array_map('trim', explode("\n", $closed_dates_str)));
     $singles = []; $ranges = [];
