@@ -27,29 +27,20 @@ Sistema completo di prenotazioni per ristoranti con calendario Flatpickr multili
 - **UTM Intelligence**: Sistema sofisticato di classificazione sorgenti
 - **Bucket Standardization**: Attribution unificata cross-platform (gads/fbads/organic)
 
-### 🛡️ Debug & Performance
-- **Sistema Debug Avanzato**: Dashboard analytics con metriche real-time
-- **Performance Monitoring**: Tracciamento performance API calls
-- **UTM Validation**: Validazione parametri con detection minacce
-- **Error Handling**: Gestione robusta errori con fallback systems
-
 ## 🏗️ Architettura Modulare
 
 Il plugin è stato refactorizzato da una struttura monolitica (1162+ linee) in un'architettura modulare avanzata per migliore manutenibilità e performance:
 
 ```
 fp-prenotazioni-ristorante-pro/
-├── fp-prenotazioni-ristorante-pro.php    # Main plugin file (112 lines)
-├── includes/                             # Moduli core (9 moduli)
-│   ├── admin.php                        # Backend e configurazione (1499 lines)  
-│   ├── booking-handler.php              # Gestione prenotazioni (520 lines)
-│   ├── frontend.php                     # Frontend e shortcode (473 lines)
-│   ├── debug-dashboard.php              # Dashboard debug avanzato (355 lines)
-│   ├── performance-monitor.php          # Monitoraggio performance (374 lines)
-│   ├── utils.php                        # Utilities e traduzioni (295 lines)
-│   ├── debug-logger.php                 # Sistema di debug strutturato (292 lines)
-│   ├── integrations.php                 # Integrazioni third-party (283 lines)
-│   └── utm-validator.php                # Validazione UTM avanzata (227 lines)
+├── fp-prenotazioni-ristorante-pro.php    # Main plugin file
+├── includes/                             # Moduli core (6 moduli)
+│   ├── admin.php                        # Backend e configurazione
+│   ├── booking-handler.php              # Gestione prenotazioni
+│   ├── frontend.php                     # Frontend e shortcode
+│   ├── utils.php                        # Utilities e traduzioni
+│   ├── integrations.php                 # Integrazioni third-party
+│   └── utm-validator.php                # Validazione UTM avanzata
 └── assets/                              # CSS e JavaScript
     ├── css/
     │   ├── admin.css                    # Stili backend (17KB)
@@ -84,7 +75,6 @@ fp-prenotazioni-ristorante-pro/
 - **Google Analytics 4**: Inserisci GA4 Measurement ID
 - **Meta Pixel**: Configura Pixel ID e Access Token per CAPI
 - **Brevo**: API Key per automazioni email
-- **Debug Mode**: Abilita per monitoraggio avanzato
 
 ## 🎯 Tracciamento Marketing - Valutazione: 9.5/10
 
@@ -177,31 +167,7 @@ var bucketStd = (bucket === 'gads' || bucket === 'fbads') ? bucket : 'organic';
 | **Security** | 9/10 | Sanitizzazione, validazione, protezione CSRF |
 | **Deduplicazione** | 10/10 | Event ID perfetti per evitare double counting |
 
-## 🐛 Debug & Monitoring
-
-### Abilitare Debug Mode
-```php
-// In wp-config.php
-define('RBF_DEBUG', true);
-define('RBF_LOG_LEVEL', 'INFO'); // INFO, WARNING, ERROR
-```
-
-### Dashboard Debug
-- **Analytics Real-time**: Statistiche performance in tempo reale
-- **API Monitoring**: Tracciamento chiamate Meta CAPI, Brevo, GA4
-- **UTM Analysis**: Validazione parametri con detection anomalie
-- **Performance Metrics**: Execution time, memory usage, success rates
-
-### Log Export
-I log strutturati sono esportabili in formato JSON per analisi esterne e integrazione con sistemi di business intelligence.
-
 ## 📊 Funzionalità Avanzate Implementate
-
-### Performance Monitoring
-- ⚡ Tracciamento tempi di risposta API
-- 📈 Success rate delle chiamate esterne
-- 🎯 Identification colli di bottiglia performance
-- 📊 Metriche aggregated per period analysis
 
 ### UTM Validation Avanzata
 - 🔍 Controllo formato parametri UTM
@@ -251,9 +217,9 @@ update_post_meta($post_id, 'rbf_source_bucket', $src['bucket']);
 
 ### Requisiti Minimi
 - **WordPress:** 5.0+
-- **PHP:** 7.4+  
+- **PHP:** 7.4+
 - **MySQL:** 5.7+
-- **Memory:** 128MB+ (256MB consigliato per debug mode)
+- **Memory:** 128MB+
 
 ### Compatibilità
 - ✅ **Backwards Compatible**: Non rompe funzionalità esistenti
@@ -279,9 +245,6 @@ update_post_meta($post_id, 'rbf_source_bucket', $src['bucket']);
 ## 🆘 Troubleshooting
 
 ### Problemi Comuni
-- **Debug dashboard non appare**: Verifica `RBF_DEBUG=true` e permessi admin
-- **Performance lenta**: Riduci `RBF_LOG_LEVEL` a WARNING o ERROR
-- **Logs non vengono salvati**: Controlla permessi database e memoria PHP
 - **Eventi non tracciati**: Verifica configurazione GA4/Meta IDs
 
 ## 📋 Changelog
@@ -292,16 +255,12 @@ update_post_meta($post_id, 'rbf_source_bucket', $src['bucket']);
 ### Version 10.0.0
 **🏗️ Architettura Completamente Refactorizzata**
 - ✅ **Modularizzazione Completa**: Suddivisione in 9 moduli specializzati (4430+ linee totali)
-- ✅ **Debug System Avanzato**: `RBF_Debug_Logger` con logging strutturato JSON
-- ✅ **Performance Monitoring**: `RBF_Performance_Monitor` per tracciamento real-time
 - ✅ **UTM Validation**: `RBF_UTM_Validator` con security hardening
 - ✅ **Meta CAPI Integration**: Server-side tracking per iOS 14.5+ compliance
 - ✅ **Enhanced Frontend**: Form multi-step con accessibility ARIA completo
 - ✅ **Mobile Optimization**: Touch-friendly con responsive design avanzato
 
 **🔧 Miglioramenti Tecnici**
-- 🔄 Debug logging standardizzato (eliminazione `WP_DEBUG`/`error_log` legacy)
-- 📊 Dashboard analytics con metriche performance
 - 🛡️ Security hardening: CSRF protection, input sanitization
 - ⚡ Conditional asset loading per performance ottimizzata
 - 📱 International telephone input con country detection
@@ -317,33 +276,9 @@ update_post_meta($post_id, 'rbf_source_bucket', $src['bucket']);
 - Debug logging basic con WP_DEBUG
 - Marketing tracking semplificato
 
-### Test di Funzionamento
-```bash
-# Test debug logger
-# 1. Abilita RBF_DEBUG=true
-# 2. Effettua una prenotazione
-# 3. Controlla dashboard debug per logs
-
-# Test performance monitor  
-# 1. Effettua multiple prenotazioni
-# 2. Verifica report performance nel dashboard
-# 3. Controlla success rate API calls
-
-# Test UTM validation
-# 1. Accedi con parametri UTM: ?utm_source=test&utm_medium=cpc
-# 2. Effettua prenotazione  
-# 3. Verifica logs per UTM validation success
-```
-
 ## 📞 Supporto
 
 Per supporto tecnico e sviluppi personalizzati, contattare Francesco Passeri.
-
-### Log Location
-I log di sistema sono accessibili tramite:
-- Dashboard Admin → Prenotazioni → Debug Dashboard
-- Export JSON per analisi esterne
-- WordPress debug.log (se WP_DEBUG enabled)
 
 ---
 

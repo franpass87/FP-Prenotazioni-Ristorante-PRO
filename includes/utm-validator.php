@@ -41,14 +41,7 @@ function rbf_validate_utm_parameters($utm_data) {
             // Fallback for unrecognized mediums
             $validated['utm_medium'] = 'other';
             
-            // Log unrecognized medium for analysis
-            if (RBF_DEBUG && class_exists('RBF_Debug_Logger')) {
-                RBF_Debug_Logger::track_event('unrecognized_utm_medium', [
-                    'medium' => $medium,
-                    'original_medium' => $utm_data['utm_medium'],
-                    'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
-                ], 'INFO');
-            }
+            // Log unrecognized medium for analysis removed
         }
     }
     
@@ -90,14 +83,7 @@ function rbf_validate_utm_parameters($utm_data) {
         if (preg_match('/^[a-zA-Z0-9._-]+$/', $gclid) && strlen($gclid) <= 200) {
             $validated['gclid'] = $gclid;
         } else {
-            // Log suspicious gclid for security analysis
-            if (RBF_DEBUG && class_exists('RBF_Debug_Logger')) {
-                RBF_Debug_Logger::track_event('suspicious_gclid', [
-                    'gclid' => $gclid,
-                    'length' => strlen($gclid),
-                    'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
-                ], 'WARNING');
-            }
+            // Suspicious gclid handling
         }
     }
     
@@ -108,26 +94,11 @@ function rbf_validate_utm_parameters($utm_data) {
         if (preg_match('/^[a-zA-Z0-9._-]+$/', $fbclid) && strlen($fbclid) <= 200) {
             $validated['fbclid'] = $fbclid;
         } else {
-            // Log suspicious fbclid for security analysis
-            if (RBF_DEBUG && class_exists('RBF_Debug_Logger')) {
-                RBF_Debug_Logger::track_event('suspicious_fbclid', [
-                    'fbclid' => $fbclid,
-                    'length' => strlen($fbclid),
-                    'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
-                ], 'WARNING');
-            }
+            // Suspicious fbclid handling
         }
     }
     
-    // Log successful validation
-    if (RBF_DEBUG && class_exists('RBF_Debug_Logger') && !empty($validated)) {
-        RBF_Debug_Logger::track_event('utm_validation_success', [
-            'validated_params' => array_keys($validated),
-            'utm_source' => $validated['utm_source'] ?? null,
-            'utm_medium' => $validated['utm_medium'] ?? null,
-            'has_click_id' => !empty($validated['gclid']) || !empty($validated['fbclid'])
-        ], 'DEBUG');
-    }
+    // Successful validation logging removed
     
     return $validated;
 }
@@ -143,18 +114,7 @@ function rbf_detect_source_enhanced($data = []) {
     if (function_exists('rbf_detect_source')) {
         $result = rbf_detect_source($validated_data);
         
-        // Log source detection for analytics
-        if (RBF_DEBUG && class_exists('RBF_Debug_Logger')) {
-            RBF_Debug_Logger::track_event('source_detection', [
-                'detected_bucket' => $result['bucket'] ?? 'unknown',
-                'source' => $result['source'] ?? null,
-                'medium' => $result['medium'] ?? null,
-                'campaign' => $result['campaign'] ?? null,
-                'has_gclid' => !empty($validated_data['gclid']),
-                'has_fbclid' => !empty($validated_data['fbclid']),
-                'referrer' => $_SERVER['HTTP_REFERER'] ?? null
-            ], 'INFO');
-        }
+        // Source detection analytics removed
         
         return $result;
     }
