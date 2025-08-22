@@ -98,7 +98,7 @@ function rbf_register_post_type() {
         ],
         'public' => false,
         'show_ui' => true,
-        'show_in_menu' => 'rbf_bookings_menu',
+        'show_in_menu' => false,
         'menu_icon' => 'dashicons-calendar-alt',
         'supports' => ['title', 'custom-fields'],
         'menu_position' => 20,
@@ -111,9 +111,8 @@ function rbf_register_post_type() {
 add_action('admin_menu', 'rbf_create_bookings_menu');
 function rbf_create_bookings_menu() {
     add_menu_page(rbf_translate_string('Prenotazioni'), rbf_translate_string('Prenotazioni'), 'manage_options', 'rbf_bookings_menu', null, 'dashicons-calendar-alt', 20);
-    add_submenu_page('rbf_bookings_menu', rbf_translate_string('Tutte le Prenotazioni'), rbf_translate_string('Tutte le Prenotazioni'), 'manage_options', 'edit.php?post_type=rbf_booking');
     add_submenu_page('rbf_bookings_menu', rbf_translate_string('Aggiungi Prenotazione'), rbf_translate_string('Aggiungi Nuova'), 'manage_options', 'rbf_add_booking', 'rbf_add_booking_page_html');
-    add_submenu_page('rbf_bookings_menu', rbf_translate_string('Vista Calendario'), rbf_translate_string('Calendario'), 'manage_options', 'rbf_calendar', 'rbf_calendar_page_html');
+    add_submenu_page('rbf_bookings_menu', rbf_translate_string('Prenotazioni'), rbf_translate_string('Prenotazioni'), 'manage_options', 'rbf_calendar', 'rbf_calendar_page_html');
     add_submenu_page('rbf_bookings_menu', rbf_translate_string('Report & Analytics'), rbf_translate_string('Report & Analytics'), 'manage_options', 'rbf_reports', 'rbf_reports_page_html');
     add_submenu_page('rbf_bookings_menu', rbf_translate_string('Esporta Dati'), rbf_translate_string('Esporta Dati'), 'manage_options', 'rbf_export', 'rbf_export_page_html');
     add_submenu_page('rbf_bookings_menu', rbf_translate_string('Impostazioni'), rbf_translate_string('Impostazioni'), 'manage_options', 'rbf_settings', 'rbf_settings_page_html');
@@ -491,9 +490,123 @@ function rbf_calendar_page_html() {
     ]);
     ?>
     <div class="rbf-admin-wrap">
-        <h1><?php echo esc_html(rbf_translate_string('Vista Calendario Prenotazioni')); ?></h1>
+        <h1><?php echo esc_html(rbf_translate_string('Prenotazioni')); ?></h1>
+        
+        <!-- View Toggle -->
+        <div class="rbf-view-toggle" style="margin-bottom: 20px;">
+            <button id="calendar-view" class="button button-primary"><?php echo esc_html(rbf_translate_string('Vista Calendario')); ?></button>
+            <button id="list-view" class="button"><?php echo esc_html(rbf_translate_string('Lista')); ?></button>
+        </div>
+        
         <div id="rbf-calendar"></div>
+        
+        <!-- List View -->
+        <div id="rbf-list-view" style="display: none;">
+            <?php 
+            // Get recent bookings for list view
+            $bookings = get_posts([
+                'post_type' => 'rbf_booking',
+                'posts_per_page' => 50,
+                'post_status' => 'publish',
+                'meta_key' => '_rbf_booking_date',
+                'orderby' => 'meta_value',
+                'order' => 'DESC'
+            ]);
+            
+            if ($bookings) {
+                echo '<table class="wp-list-table widefat fixed striped bookings">';
+                echo '<thead><tr>';
+                echo '<th>' . esc_html(rbf_translate_string('Cliente')) . '</th>';
+                echo '<th>' . esc_html(rbf_translate_string('Data')) . '</th>';
+                echo '<th>' . esc_html(rbf_translate_string('Orario')) . '</th>';
+                echo '<th>' . esc_html(rbf_translate_string('Pasto')) . '</th>';
+                echo '<th>' . esc_html(rbf_translate_string('Persone')) . '</th>';
+                echo '<th>' . esc_html(rbf_translate_string('Stato')) . '</th>';
+                echo '<th>' . esc_html(rbf_translate_string('Azioni')) . '</th>';
+                echo '</tr></thead><tbody>';
+                
+                foreach ($bookings as $booking) {
+                    $customer_name = get_post_meta($booking->ID, '_rbf_customer_name', true);
+                    $customer_email = get_post_meta($booking->ID, '_rbf_customer_email', true);
+                    $customer_phone = get_post_meta($booking->ID, '_rbf_customer_phone', true);
+                    $booking_date = get_post_meta($booking->ID, '_rbf_booking_date', true);
+                    $booking_time = get_post_meta($booking->ID, '_rbf_booking_time', true);
+                    $meal = get_post_meta($booking->ID, '_rbf_meal', true);
+                    $people = get_post_meta($booking->ID, '_rbf_people', true);
+                    $status = get_post_meta($booking->ID, '_rbf_status', true);
+                    $notes = get_post_meta($booking->ID, '_rbf_notes', true);
+                    
+                    $status_class = $status === 'confirmed' ? 'confirmed' : ($status === 'cancelled' ? 'cancelled' : 'completed');
+                    $status_label = $status === 'confirmed' ? rbf_translate_string('Confermata') : ($status === 'cancelled' ? rbf_translate_string('Cancellata') : rbf_translate_string('Completata'));
+                    
+                    echo '<tr>';
+                    echo '<td><strong>' . esc_html($customer_name) . '</strong><br><small>' . esc_html($customer_email) . '</small></td>';
+                    echo '<td>' . esc_html(date('d/m/Y', strtotime($booking_date))) . '</td>';
+                    echo '<td>' . esc_html($booking_time) . '</td>';
+                    echo '<td>' . esc_html(ucfirst($meal)) . '</td>';
+                    echo '<td>' . esc_html($people) . '</td>';
+                    echo '<td><span class="status-' . esc_attr($status_class) . '">' . esc_html($status_label) . '</span></td>';
+                    echo '<td><button class="button button-small rbf-edit-booking" data-booking-id="' . $booking->ID . '" data-customer-name="' . esc_attr($customer_name) . '" data-customer-email="' . esc_attr($customer_email) . '" data-customer-phone="' . esc_attr($customer_phone) . '" data-booking-date="' . esc_attr(date('d/m/Y', strtotime($booking_date))) . '" data-booking-time="' . esc_attr($booking_time) . '" data-people="' . esc_attr($people) . '" data-notes="' . esc_attr($notes) . '" data-status="' . esc_attr($status) . '">' . esc_html(rbf_translate_string('Modifica')) . '</button></td>';
+                    echo '</tr>';
+                }
+                
+                echo '</tbody></table>';
+            } else {
+                echo '<p>' . esc_html(rbf_translate_string('Nessuna prenotazione trovata.')) . '</p>';
+            }
+            ?>
+        </div>
     </div>
+    
+    <script>
+    jQuery(function($) {
+        $('#calendar-view').on('click', function() {
+            $(this).addClass('button-primary').removeClass('button');
+            $('#list-view').removeClass('button-primary').addClass('button');
+            $('#rbf-calendar').show();
+            $('#rbf-list-view').hide();
+        });
+        
+        $('#list-view').on('click', function() {
+            $(this).addClass('button-primary').removeClass('button');
+            $('#calendar-view').removeClass('button-primary').addClass('button');
+            $('#rbf-calendar').hide();
+            $('#rbf-list-view').show();
+        });
+        
+        // Handle list view booking edit
+        $('.rbf-edit-booking').on('click', function() {
+            var bookingData = $(this).data();
+            
+            // Create event object similar to calendar
+            var event = {
+                extendedProps: {
+                    booking_id: bookingData.bookingId,
+                    customer_name: bookingData.customerName,
+                    customer_email: bookingData.customerEmail,
+                    customer_phone: bookingData.customerPhone,
+                    booking_date: bookingData.bookingDate,
+                    booking_time: bookingData.bookingTime,
+                    people: bookingData.people,
+                    notes: bookingData.notes,
+                    status: bookingData.status
+                }
+            };
+            
+            // Use the same modal function as calendar
+            if (typeof showBookingModal === 'function') {
+                showBookingModal(event);
+            }
+        });
+    });
+    </script>
+    
+    <style>
+    .status-confirmed { color: #28a745; font-weight: bold; }
+    .status-cancelled { color: #dc3545; font-weight: bold; }
+    .status-completed { color: #6c757d; font-weight: bold; }
+    .rbf-view-toggle button { margin-right: 10px; }
+    </style>
     <?php
 }
 
