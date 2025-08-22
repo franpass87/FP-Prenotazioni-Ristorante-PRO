@@ -99,25 +99,33 @@ function rbf_handle_booking_submission() {
             exit;
         }
         
-        // Check minimum advance booking time
+        // Check minimum advance booking time with smart same-day booking logic
         if ($minutes_diff < $min_advance_minutes) {
-            $hours = floor($min_advance_minutes / 60);
-            $minutes = $min_advance_minutes % 60;
-            if ($hours > 0) {
-                $time_text = $hours . ' ore';
-                if ($minutes > 0) {
-                    $time_text .= ' e ' . $minutes . ' minuti';
-                }
-            } else {
-                $time_text = $minutes . ' minuti';
-            }
+            // Allow same-day lunch bookings if made early enough (before 6 AM for lunch after 12 PM)
+            $is_same_day = $booking_datetime->format('Y-m-d') === $now->format('Y-m-d');
+            $is_lunch = $meal === 'pranzo';
+            $is_early_morning = $now->format('H') < 6; // Before 6 AM
+            $is_lunch_time = $booking_datetime->format('H') >= 12; // Lunch is 12 PM or later
             
-            $error_msg = sprintf(
-                rbf_translate_string('Le prenotazioni devono essere effettuate con almeno %s di anticipo.'),
-                $time_text
-            );
-            wp_safe_redirect(add_query_arg('rbf_error', urlencode($error_msg), $redirect_url . $anchor));
-            exit;
+            if (!($is_same_day && $is_lunch && $is_early_morning && $is_lunch_time)) {
+                $hours = floor($min_advance_minutes / 60);
+                $minutes = $min_advance_minutes % 60;
+                if ($hours > 0) {
+                    $time_text = $hours . ' ore';
+                    if ($minutes > 0) {
+                        $time_text .= ' e ' . $minutes . ' minuti';
+                    }
+                } else {
+                    $time_text = $minutes . ' minuti';
+                }
+                
+                $error_msg = sprintf(
+                    rbf_translate_string('Le prenotazioni devono essere effettuate con almeno %s di anticipo.'),
+                    $time_text
+                );
+                wp_safe_redirect(add_query_arg('rbf_error', urlencode($error_msg), $redirect_url . $anchor));
+                exit;
+            }
         }
         
         // Check maximum advance booking time
@@ -380,9 +388,17 @@ function rbf_ajax_get_availability_callback() {
                 continue;
             }
 
-            // Check minimum advance time
+            // Check minimum advance time with smart same-day booking logic
             if ($slot_datetime < $min_datetime) {
-                continue;
+                // Allow same-day lunch bookings if made early enough (before 6 AM for lunch after 12 PM)
+                $is_same_day = $slot_datetime->format('Y-m-d') === $now->format('Y-m-d');
+                $is_lunch = $meal === 'pranzo';
+                $is_early_morning = $now->format('H') < 6; // Before 6 AM
+                $is_lunch_time = $slot_datetime->format('H') >= 12; // Lunch is 12 PM or later
+                
+                if (!($is_same_day && $is_lunch && $is_early_morning && $is_lunch_time)) {
+                    continue;
+                }
             }
             
             // Check maximum advance time
