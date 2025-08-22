@@ -171,7 +171,6 @@ function rbf_translate_string($text) {
         'Devi accettare la Privacy Policy per procedere.' => 'You must accept the Privacy Policy to proceed.',
         'Le prenotazioni devono essere effettuate con almeno %s di anticipo.' => 'Bookings must be made at least %s in advance.',
         'Le prenotazioni possono essere effettuate al massimo %s in anticipo.' => 'Bookings can be made at most %s in advance.',
-        'Le prenotazioni devono essere effettuate con almeno %d ore di anticipo.' => 'Bookings must be made at least %d hours in advance.',
         'Pranzo' => 'Lunch',
         'Aperitivo' => 'Aperitif',
         'Cena' => 'Dinner',
