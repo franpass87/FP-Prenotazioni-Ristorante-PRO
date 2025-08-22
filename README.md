@@ -1,6 +1,6 @@
 # FP-Prenotazioni-Ristorante-PRO
 
-**Version:** 10.0.1
+**Version:** 10.0.2
 **Author:** Francesco Passeri  
 **License:** GPLv2 or later
 
@@ -10,7 +10,8 @@ Sistema completo di prenotazioni per ristoranti con calendario Flatpickr multili
 
 ### 📅 Sistema di Prenotazione
 - **Calendario Interattivo**: Flatpickr con supporto multilingue (IT/EN)
-- **Gestione Last-Minute**: Prenotazioni con controllo orari dinamici
+- **Gestione Semplificata**: Prenotazioni con limite minimo di 1 ora
+- **Sistema Intuitivo**: Se sono le 12:00, puoi prenotare dalle 13:00 in poi
 - **Capienza per Servizio**: Controllo automatico disponibilità per pranzo/cena/aperitivo
 - **Slot Temporali Personalizzabili**: Configurazione flessibile degli orari
 
@@ -65,6 +66,31 @@ fp-prenotazioni-ristorante-pro/
 4. **Shortcode**: Inserisci `[ristorante_booking_form]` nella pagina desiderata
 
 ## ⚙️ Configurazione
+
+### Sistema di Prenotazione Semplificato
+
+Il plugin utilizza un sistema di prenotazione semplificato e intuitivo:
+
+**Regola Base:**
+- Tutte le prenotazioni richiedono un **minimo di 1 ora di anticipo**
+- Se sono le 12:00, puoi prenotare dalle 13:00 in poi
+- Non ci sono limitazioni massime di anticipo
+
+**Esempio Pratico:**
+```
+Scenario attuale: Ore 14:30
+Prenotazione per: Ore 15:30 (stesso giorno)
+✅ CONSENTITA (1 ora di anticipo rispettata)
+
+Scenario attuale: Ore 11:00
+Prenotazione per: Ore 11:30 (stesso giorno)
+❌ BLOCCATA (meno di 1 ora di anticipo)
+```
+
+**Vantaggi del Sistema Semplificato:**
+- Regole chiare e comprensibili per tutti gli utenti
+- Nessuna configurazione complessa necessaria
+- Massima flessibilità per i clienti
 
 ### Impostazioni Base
 - **Orari Servizio**: Configura slot pranzo, cena, aperitivo
@@ -249,7 +275,13 @@ update_post_meta($post_id, 'rbf_source_bucket', $src['bucket']);
 
 ## 📋 Changelog
 
-### Version 10.0.1 (Current)
+### Version 10.0.2 (Current)
+- 🔧 **Semplificazione Sistema**: Rimossi tutti i limiti configurabili dalle impostazioni
+- ⚡ **Nuovo Sistema**: Implementato limite fisso di 1 ora (se sono le 12:00, prenotabile dalle 13:00)
+- 🎯 **UX Migliorata**: Sistema più intuitivo e user-friendly per i clienti
+- 📚 **Documentazione**: Aggiornate guide utente con nuove funzionalità
+
+### Version 10.0.1
 - 🐛 Fix: Availability check returning no time slots when new settings were missing.
 
 ### Version 10.0.0

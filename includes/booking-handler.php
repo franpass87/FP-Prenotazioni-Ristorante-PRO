@@ -79,12 +79,7 @@ function rbf_handle_booking_submission() {
         wp_safe_redirect(add_query_arg('rbf_error', urlencode(rbf_translate_string('Indirizzo email non valido.')), $redirect_url . $anchor)); exit;
     }
 
-    // Get settings for advance booking validation
-    $options = rbf_get_settings();
-    
-    // Check minimum and maximum advance booking time (in minutes)
-    $min_advance_minutes = absint($options['min_advance_minutes'] ?? 0);
-    $max_advance_minutes = absint($options['max_advance_minutes'] ?? 10080);
+    // Simple 1-hour minimum advance booking validation
     $tz = rbf_wp_timezone();
     $now = new DateTime('now', $tz);
     $booking_datetime = DateTime::createFromFormat('Y-m-d H:i', $date . ' ' . $time, $tz);
@@ -99,44 +94,9 @@ function rbf_handle_booking_submission() {
             exit;
         }
         
-        // Check minimum advance booking time
-        if ($minutes_diff < $min_advance_minutes) {
-            $hours = floor($min_advance_minutes / 60);
-            $minutes = $min_advance_minutes % 60;
-            if ($hours > 0) {
-                $time_text = $hours . ' ore';
-                if ($minutes > 0) {
-                    $time_text .= ' e ' . $minutes . ' minuti';
-                }
-            } else {
-                $time_text = $minutes . ' minuti';
-            }
-            
-            $error_msg = sprintf(
-                rbf_translate_string('Le prenotazioni devono essere effettuate con almeno %s di anticipo.'),
-                $time_text
-            );
-            wp_safe_redirect(add_query_arg('rbf_error', urlencode($error_msg), $redirect_url . $anchor));
-            exit;
-        }
-        
-        // Check maximum advance booking time
-        if ($max_advance_minutes > 0 && $minutes_diff > $max_advance_minutes) {
-            $hours = floor($max_advance_minutes / 60);
-            $minutes = $max_advance_minutes % 60;
-            if ($hours > 0) {
-                $time_text = $hours . ' ore';
-                if ($minutes > 0) {
-                    $time_text .= ' e ' . $minutes . ' minuti';
-                }
-            } else {
-                $time_text = $minutes . ' minuti';
-            }
-            
-            $error_msg = sprintf(
-                rbf_translate_string('Le prenotazioni possono essere effettuate al massimo %s in anticipo.'),
-                $time_text
-            );
+        // Check minimum 1-hour advance booking requirement
+        if ($minutes_diff < 60) {
+            $error_msg = rbf_translate_string('Le prenotazioni devono essere effettuate con almeno 1 ora di anticipo.');
             wp_safe_redirect(add_query_arg('rbf_error', urlencode($error_msg), $redirect_url . $anchor));
             exit;
         }
@@ -341,20 +301,13 @@ function rbf_ajax_get_availability_callback() {
     }
 
 
-    // Step 5: Filter times based on date and time constraints
+    // Step 5: Filter times based on simple 1-hour minimum advance requirement
     $tz = rbf_wp_timezone();
     $now = new DateTime('now', $tz);
-    $min_advance_minutes = absint($options['min_advance_minutes'] ?? 0);
-    $max_advance_minutes = absint($options['max_advance_minutes'] ?? 10080);
     
+    // Simple 1-hour minimum advance requirement
     $min_datetime = clone $now;
-    $min_datetime->modify("+{$min_advance_minutes} minutes");
-    
-    $max_datetime = null;
-    if ($max_advance_minutes > 0) {
-        $max_datetime = clone $now;
-        $max_datetime->modify("+{$max_advance_minutes} minutes");
-    }
+    $min_datetime->modify("+60 minutes");
 
     $available_times = [];
 
@@ -380,13 +333,8 @@ function rbf_ajax_get_availability_callback() {
                 continue;
             }
 
-            // Check minimum advance time
+            // Simple 1-hour minimum advance check
             if ($slot_datetime < $min_datetime) {
-                continue;
-            }
-            
-            // Check maximum advance time
-            if ($max_datetime && $slot_datetime > $max_datetime) {
                 continue;
             }
 
