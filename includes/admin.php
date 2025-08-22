@@ -35,7 +35,8 @@ function rbf_get_default_settings() {
         'brevo_list_it' => '',
         'brevo_list_en' => '',
         'closed_dates' => '',
-        'min_advance_hours' => 0, // Minimum hours in advance bookings are required
+        'min_advance_minutes' => 0, // Minimum minutes in advance bookings are required
+        'max_advance_minutes' => 10080, // Maximum minutes in advance (default: 7 days = 10080 minutes)
     ];
 }
 
@@ -245,12 +246,25 @@ function rbf_sanitize_settings_callback($input) {
 
     if (isset($input['closed_dates'])) $output['closed_dates'] = sanitize_textarea_field($input['closed_dates']);
 
-    // Validate min advance hours (minimum 0 hours, maximum 8760 hours = 1 year)
-    if (isset($input['min_advance_hours'])) {
-        $min_hours = absint($input['min_advance_hours']);
-        $output['min_advance_hours'] = max(0, min(8760, $min_hours));
+    // Validate advance booking time limits in minutes
+    // Minimum: 0 minutes, Maximum: 525600 minutes (1 year)
+    if (isset($input['min_advance_minutes'])) {
+        $min_minutes = absint($input['min_advance_minutes']);
+        $output['min_advance_minutes'] = max(0, min(525600, $min_minutes));
     } else {
-        $output['min_advance_hours'] = $defaults['min_advance_hours'] ?? 0;
+        $output['min_advance_minutes'] = $defaults['min_advance_minutes'] ?? 0;
+    }
+    
+    if (isset($input['max_advance_minutes'])) {
+        $max_minutes = absint($input['max_advance_minutes']);
+        $output['max_advance_minutes'] = max(0, min(525600, $max_minutes));
+    } else {
+        $output['max_advance_minutes'] = $defaults['max_advance_minutes'] ?? 10080;
+    }
+    
+    // Ensure min is not greater than max
+    if ($output['min_advance_minutes'] > $output['max_advance_minutes']) {
+        $output['max_advance_minutes'] = $output['min_advance_minutes'];
     }
 
     return $output;
@@ -317,10 +331,17 @@ function rbf_settings_page_html() {
 
                 <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Limiti Temporali Prenotazioni')); ?></h2></th></tr>
                 <tr>
-                    <th><label for="rbf_min_advance_hours"><?php echo esc_html(rbf_translate_string('Ore minime in anticipo per prenotare')); ?></label></th>
+                    <th><label for="rbf_min_advance_minutes"><?php echo esc_html(rbf_translate_string('Minuti minimi in anticipo per prenotare')); ?></label></th>
                     <td>
-                        <input type="number" id="rbf_min_advance_hours" name="rbf_settings[min_advance_hours]" value="<?php echo esc_attr($options['min_advance_hours']); ?>" min="0" max="8760">
-                        <p class="description"><?php echo esc_html(rbf_translate_string('Numero minimo di ore richieste in anticipo per le prenotazioni. Valore minimo 0, massimo 8760 (1 anno).')); ?></p>
+                        <input type="number" id="rbf_min_advance_minutes" name="rbf_settings[min_advance_minutes]" value="<?php echo esc_attr($options['min_advance_minutes']); ?>" min="0" max="525600">
+                        <p class="description"><?php echo esc_html(rbf_translate_string('Numero minimo di minuti richiesti in anticipo per le prenotazioni. Valore minimo 0, massimo 525600 (1 anno). Esempi: 60 = 1 ora, 1440 = 1 giorno.')); ?></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="rbf_max_advance_minutes"><?php echo esc_html(rbf_translate_string('Minuti massimi in anticipo per prenotare')); ?></label></th>
+                    <td>
+                        <input type="number" id="rbf_max_advance_minutes" name="rbf_settings[max_advance_minutes]" value="<?php echo esc_attr($options['max_advance_minutes']); ?>" min="0" max="525600">
+                        <p class="description"><?php echo esc_html(rbf_translate_string('Numero massimo di minuti entro cui è possibile prenotare. Valore minimo 0, massimo 525600 (1 anno). Esempi: 10080 = 7 giorni, 43200 = 30 giorni.')); ?></p>
                     </td>
                 </tr>
 

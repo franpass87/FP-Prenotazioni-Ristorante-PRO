@@ -314,11 +314,21 @@ jQuery(function($) {
 
     // Initialize flatpickr only if available
     if (typeof flatpickr !== 'undefined') {
-      fp = flatpickr(el.dateInput[0], {
+      // Calculate min and max dates based on settings
+      const now = new Date();
+      const minDate = new Date(now.getTime() + rbfData.minAdvanceMinutes * 60 * 1000);
+      let maxDate = null;
+      if (rbfData.maxAdvanceMinutes > 0) {
+        maxDate = new Date(now.getTime() + rbfData.maxAdvanceMinutes * 60 * 1000);
+      }
+      
+      console.log('RBF: Flatpickr date limits - Min:', minDate, 'Max:', maxDate, 'Min minutes:', rbfData.minAdvanceMinutes, 'Max minutes:', rbfData.maxAdvanceMinutes);
+      
+      const flatpickrConfig = {
         altInput: true,
         altFormat: 'd-m-Y',
         dateFormat: 'Y-m-d',
-        minDate: 'today',
+        minDate: minDate,
         locale: (rbfData.locale === 'it') ? 'it' : 'default',
         disable: [function(date) {
           const day = date.getDay();
@@ -331,7 +341,14 @@ jQuery(function($) {
           return false;
         }],
         onChange: onDateChange
-      });
+      };
+      
+      // Add maxDate if it exists
+      if (maxDate) {
+        flatpickrConfig.maxDate = maxDate;
+      }
+      
+      fp = flatpickr(el.dateInput[0], flatpickrConfig);
     } else {
       console.warn('flatpickr not available - date picker functionality disabled');
     }

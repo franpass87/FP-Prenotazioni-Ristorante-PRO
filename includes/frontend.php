@@ -58,6 +58,8 @@ function rbf_enqueue_frontend_assets() {
         'closedDays' => $closed_days,
         'closedSingles' => $closed_specific['singles'],
         'closedRanges' => $closed_specific['ranges'],
+        'minAdvanceMinutes' => absint($options['min_advance_minutes'] ?? 0),
+        'maxAdvanceMinutes' => absint($options['max_advance_minutes'] ?? 10080),
         'utilsScript' => 'https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/19.2.16/js/utils.js',
         'labels' => [
             'loading' => rbf_translate_string('Caricamento...'),

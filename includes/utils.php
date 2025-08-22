@@ -66,7 +66,19 @@ function rbf_current_lang() {
  */
 function rbf_get_settings() {
     $saved = get_option('rbf_settings', []);
-    return wp_parse_args($saved, rbf_get_default_settings());
+    $defaults = rbf_get_default_settings();
+    $settings = wp_parse_args($saved, $defaults);
+    
+    // Migration: Convert old hour-based settings to minute-based settings
+    if (isset($settings['min_advance_hours']) && !isset($saved['min_advance_minutes'])) {
+        $settings['min_advance_minutes'] = $settings['min_advance_hours'] * 60;
+        // Remove old setting
+        unset($settings['min_advance_hours']);
+        // Update the saved options
+        update_option('rbf_settings', $settings);
+    }
+    
+    return $settings;
 }
 
 /**
@@ -103,8 +115,10 @@ function rbf_translate_string($text) {
         'Chiusure Straordinarie' => 'Extraordinary Closures',
         'Date Chiuse (una per riga, formato Y-m-d o Y-m-d - Y-m-d)' => 'Closed Dates (one per line, format Y-m-d or Y-m-d - Y-m-d)',
         'Limiti Temporali Prenotazioni' => 'Booking Time Limits',
-        'Ore minime in anticipo per prenotare' => 'Minimum hours in advance to book',
-        'Numero minimo di ore richieste in anticipo per le prenotazioni. Valore minimo 0, massimo 8760 (1 anno).' => 'Minimum number of hours required in advance for bookings. Minimum value 0, maximum 8760 (1 year).',
+        'Minuti minimi in anticipo per prenotare' => 'Minimum minutes in advance to book',
+        'Numero minimo di minuti richiesti in anticipo per le prenotazioni. Valore minimo 0, massimo 525600 (1 anno). Esempi: 60 = 1 ora, 1440 = 1 giorno.' => 'Minimum number of minutes required in advance for bookings. Minimum value 0, maximum 525600 (1 year). Examples: 60 = 1 hour, 1440 = 1 day.',
+        'Minuti massimi in anticipo per prenotare' => 'Maximum minutes in advance to book',
+        'Numero massimo di minuti entro cui è possibile prenotare. Valore minimo 0, massimo 525600 (1 anno). Esempi: 10080 = 7 giorni, 43200 = 30 giorni.' => 'Maximum number of minutes within which it is possible to book. Minimum value 0, maximum 525600 (1 year). Examples: 10080 = 7 days, 43200 = 30 days.',
         'Valore Economico Pasti (per Tracking)' => 'Meal Economic Value (for Tracking)',
         'Valore medio Pranzo (€)' => 'Average Lunch Value (€)',
         'Valore medio Cena (€)' => 'Average Dinner Value (€)',
@@ -155,6 +169,8 @@ function rbf_translate_string($text) {
         'Acconsento al trattamento dei dati secondo l\'<a href="%s" target="_blank">Informativa sulla Privacy</a>' => 'I consent to the processing of my data in accordance with the <a href="%s" target="_blank">Privacy Policy</a>',
         'Acconsento a ricevere comunicazioni promozionali via email e/o messaggi riguardanti eventi, offerte o novità.' => 'I agree to receive promotional emails and/or messages about events, offers, or news.',
         'Devi accettare la Privacy Policy per procedere.' => 'You must accept the Privacy Policy to proceed.',
+        'Le prenotazioni devono essere effettuate con almeno %s di anticipo.' => 'Bookings must be made at least %s in advance.',
+        'Le prenotazioni possono essere effettuate al massimo %s in anticipo.' => 'Bookings can be made at most %s in advance.',
         'Le prenotazioni devono essere effettuate con almeno %d ore di anticipo.' => 'Bookings must be made at least %d hours in advance.',
         'Pranzo' => 'Lunch',
         'Aperitivo' => 'Aperitif',
