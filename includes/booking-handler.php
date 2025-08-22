@@ -62,8 +62,11 @@ function rbf_handle_booking_submission() {
     // Fallback: if no country code is provided, default to Italy
     if (empty($country_code)) {
         $country_code = 'it';
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('RBF Booking: No country code provided, defaulting to IT');
+        if (RBF_DEBUG && class_exists('RBF_Debug_Logger')) {
+            RBF_Debug_Logger::track_event('country_code_fallback', [
+                'default_country' => 'it',
+                'reason' => 'no_country_code_provided'
+            ], 'INFO');
         }
     }
     
@@ -72,8 +75,11 @@ function rbf_handle_booking_submission() {
     $brevo_lang = ($country_code === 'it') ? 'it' : 'en';
     
     // Debug logging if enabled
-    if (defined('WP_DEBUG') && WP_DEBUG) {
-        error_log("RBF Booking: Country code={$country_code}, Brevo language={$brevo_lang}");
+    if (RBF_DEBUG && class_exists('RBF_Debug_Logger')) {
+        RBF_Debug_Logger::track_event('language_detection', [
+            'country_code' => $country_code,
+            'brevo_language' => $brevo_lang
+        ], 'DEBUG');
     }
     
     $privacy = (isset($_POST['rbf_privacy']) && $_POST['rbf_privacy']==='yes') ? 'yes' : 'no';
@@ -325,15 +331,19 @@ add_action('wp_ajax_rbf_get_availability', 'rbf_ajax_get_availability_callback')
 add_action('wp_ajax_nopriv_rbf_get_availability', 'rbf_ajax_get_availability_callback');
 function rbf_ajax_get_availability_callback() {
     // Enhanced debug logging from the start
-    if (defined('WP_DEBUG') && WP_DEBUG) {
-        error_log("RBF: Starting availability check");
+    if (RBF_DEBUG && class_exists('RBF_Debug_Logger')) {
+        RBF_Debug_Logger::track_event('availability_check_started', [], 'DEBUG');
     }
     
     check_ajax_referer('rbf_ajax_nonce');
     
     if (empty($_POST['date']) || empty($_POST['meal'])) {
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log("RBF: Missing required parameters - date or meal");
+        if (RBF_DEBUG && class_exists('RBF_Debug_Logger')) {
+            RBF_Debug_Logger::track_event('availability_check_error', [
+                'error' => 'missing_required_parameters',
+                'date_provided' => !empty($_POST['date']),
+                'meal_provided' => !empty($_POST['meal'])
+            ], 'WARNING');
         }
         wp_send_json_error(['message' => 'Missing required parameters']);
         return;
@@ -342,8 +352,11 @@ function rbf_ajax_get_availability_callback() {
     $date = sanitize_text_field($_POST['date']);
     $meal = sanitize_text_field($_POST['meal']);
     
-    if (defined('WP_DEBUG') && WP_DEBUG) {
-        error_log("RBF: Checking availability for date={$date}, meal={$meal}");
+    if (RBF_DEBUG && class_exists('RBF_Debug_Logger')) {
+        RBF_Debug_Logger::track_event('availability_check_params', [
+            'date' => $date,
+            'meal' => $meal
+        ], 'DEBUG');
     }
 
     // Get settings
@@ -355,8 +368,11 @@ function rbf_ajax_get_availability_callback() {
     $day_key = $day_keys[$day_of_week];
 
     if (($options["open_{$day_key}"] ?? 'no') !== 'yes') {
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log("RBF: Restaurant closed on {$day_key}");
+        if (RBF_DEBUG && class_exists('RBF_Debug_Logger')) {
+            RBF_Debug_Logger::track_event('restaurant_closed', [
+                'day' => $day_key,
+                'date' => $date
+            ], 'INFO');
         }
         wp_send_json_success([]);
         return;

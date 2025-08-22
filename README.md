@@ -1,6 +1,6 @@
 # FP-Prenotazioni-Ristorante-PRO
 
-**Version:** 2.5  
+**Version:** 10.0.0  
 **Author:** Francesco Passeri  
 **License:** GPLv2 or later
 
@@ -35,27 +35,28 @@ Sistema completo di prenotazioni per ristoranti con calendario Flatpickr multili
 
 ## 🏗️ Architettura Modulare
 
-Il plugin è stato refactorizzato da una struttura monolitica (1162+ linee) in un'architettura modulare per migliore manutenibilità:
+Il plugin è stato refactorizzato da una struttura monolitica (1162+ linee) in un'architettura modulare avanzata per migliore manutenibilità e performance:
 
 ```
 fp-prenotazioni-ristorante-pro/
-├── fp-prenotazioni-ristorante-pro.php    # Main plugin file (60 lines)
-├── includes/                             # Moduli core
-│   ├── utils.php                        # Utilities e traduzioni (131 lines)
-│   ├── admin.php                        # Backend e configurazione (397 lines)  
-│   ├── frontend.php                     # Frontend e shortcode (258 lines)
-│   ├── booking-handler.php              # Gestione prenotazioni (215 lines)
-│   ├── integrations.php                 # Integrazioni third-party (226 lines)
-│   ├── debug-logger.php                 # Sistema di debug avanzato
-│   ├── performance-monitor.php          # Monitoraggio performance
-│   └── utm-validator.php                # Validazione UTM avanzata
+├── fp-prenotazioni-ristorante-pro.php    # Main plugin file (112 lines)
+├── includes/                             # Moduli core (9 moduli)
+│   ├── admin.php                        # Backend e configurazione (1499 lines)  
+│   ├── booking-handler.php              # Gestione prenotazioni (520 lines)
+│   ├── frontend.php                     # Frontend e shortcode (473 lines)
+│   ├── debug-dashboard.php              # Dashboard debug avanzato (355 lines)
+│   ├── performance-monitor.php          # Monitoraggio performance (374 lines)
+│   ├── utils.php                        # Utilities e traduzioni (295 lines)
+│   ├── debug-logger.php                 # Sistema di debug strutturato (292 lines)
+│   ├── integrations.php                 # Integrazioni third-party (283 lines)
+│   └── utm-validator.php                # Validazione UTM avanzata (227 lines)
 └── assets/                              # CSS e JavaScript
     ├── css/
-    │   ├── admin.css                    # Stili backend
-    │   └── frontend.css                 # Stili frontend
+    │   ├── admin.css                    # Stili backend (17KB)
+    │   └── frontend.css                 # Stili frontend responsive (26KB)
     └── js/
-        ├── admin.js                     # JavaScript backend
-        └── frontend.js                  # UTM capture e form logic
+        ├── admin.js                     # JavaScript backend (8KB)
+        └── frontend.js                  # UTM capture e form logic (20KB)
 ```
 
 ### Vantaggi Architettura Modulare
@@ -70,7 +71,7 @@ fp-prenotazioni-ristorante-pro/
 1. **Upload**: Carica la cartella del plugin in `/wp-content/plugins/`
 2. **Attivazione**: Attiva il plugin dal pannello WordPress
 3. **Configurazione**: Vai su "Prenotazioni" nel menu admin
-4. **Shortcode**: Inserisci `[restaurant_booking_form]` nella pagina desiderata
+4. **Shortcode**: Inserisci `[ristorante_booking_form]` nella pagina desiderata
 
 ## ⚙️ Configurazione
 
@@ -282,6 +283,36 @@ update_post_meta($post_id, 'rbf_source_bucket', $src['bucket']);
 - **Performance lenta**: Riduci `RBF_LOG_LEVEL` a WARNING o ERROR
 - **Logs non vengono salvati**: Controlla permessi database e memoria PHP
 - **Eventi non tracciati**: Verifica configurazione GA4/Meta IDs
+
+## 📋 Changelog
+
+### Version 10.0.0 (Current)
+**🏗️ Architettura Completamente Refactorizzata**
+- ✅ **Modularizzazione Completa**: Suddivisione in 9 moduli specializzati (4430+ linee totali)
+- ✅ **Debug System Avanzato**: `RBF_Debug_Logger` con logging strutturato JSON
+- ✅ **Performance Monitoring**: `RBF_Performance_Monitor` per tracciamento real-time
+- ✅ **UTM Validation**: `RBF_UTM_Validator` con security hardening
+- ✅ **Meta CAPI Integration**: Server-side tracking per iOS 14.5+ compliance
+- ✅ **Enhanced Frontend**: Form multi-step con accessibility ARIA completo
+- ✅ **Mobile Optimization**: Touch-friendly con responsive design avanzato
+
+**🔧 Miglioramenti Tecnici**
+- 🔄 Debug logging standardizzato (eliminazione `WP_DEBUG`/`error_log` legacy)
+- 📊 Dashboard analytics con metriche performance
+- 🛡️ Security hardening: CSRF protection, input sanitization
+- ⚡ Conditional asset loading per performance ottimizzata
+- 📱 International telephone input con country detection
+
+**🎯 Marketing Intelligence**
+- 🔍 Sophisticated source detection e bucket standardization
+- 📈 Cross-platform attribution unificata (gads/fbads/organic)
+- 📊 Real-time conversion tracking con GA4 Enhanced Ecommerce
+- 🎨 Template email responsive con automazione Brevo
+
+### Version 2.5 (Legacy)
+- Struttura monolitica (1162+ linee)
+- Debug logging basic con WP_DEBUG
+- Marketing tracking semplificato
 
 ### Test di Funzionamento
 ```bash
