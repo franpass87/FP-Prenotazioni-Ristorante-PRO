@@ -365,7 +365,7 @@ function rbf_ajax_get_availability_callback() {
         }
     }
 
-    // Filter out past times and times within 1 hour of booking (as requested)
+    // Filter out past times and times within 1 hour of booking (enhanced logic)
     $now_plus_1hour = clone $now;
     $now_plus_1hour->modify('+1 hour');
     
@@ -382,13 +382,29 @@ function rbf_ajax_get_availability_callback() {
             $normalized_time = $normalized_time . '0';
         }
         
+        // Validate time format
+        if (!preg_match('/^\d{2}:\d{2}$/', $normalized_time)) {
+            return false;
+        }
+        
         // Create DateTime objects for proper comparison
         try {
             $slot_datetime = DateTime::createFromFormat('Y-m-d H:i', $date . ' ' . $normalized_time, $tz);
             
             if ($slot_datetime) {
-                // Must be at least 1 hour in the future
-                return $slot_datetime >= $now_plus_1hour;
+                // Enhanced validation: Must be at least 1 hour in the future
+                $is_future = $slot_datetime > $now_plus_1hour;
+                
+                // Additional check for same-day bookings
+                $today_string = $now->format('Y-m-d');
+                if ($date === $today_string) {
+                    // For today's bookings, be extra strict about past times
+                    $current_time_plus_buffer = clone $now;
+                    $current_time_plus_buffer->modify('+1 hour 30 minutes'); // 1.5 hour buffer for same day
+                    $is_future = $slot_datetime > $current_time_plus_buffer;
+                }
+                
+                return $is_future;
             }
             
             return false;
@@ -400,12 +416,20 @@ function rbf_ajax_get_availability_callback() {
     }));
     $filtered_count = count($times);
     
-    // Enhanced debug logging
+    // Enhanced debug logging with detailed information
     if (defined('WP_DEBUG') && WP_DEBUG) {
         $cut_time = $now_plus_1hour->format('H:i');
-        error_log("RBF Time Filtering: Date={$date}, Current time={$now->format('H:i')}, Cut-off={$cut_time} (1hr advance), Original times={$original_count}, Filtered times={$filtered_count}, Timezone={$tz->getName()}");
-        if ($original_count > 0 && $filtered_count > 0) {
+        $is_today = ($date === $now->format('Y-m-d'));
+        $buffer_info = $is_today ? ' (Same day: 1.5hr buffer)' : ' (Standard: 1hr buffer)';
+        error_log("RBF Time Filtering: Date={$date}, IsToday={$is_today}, Current time={$now->format('H:i')}, Cut-off={$cut_time}{$buffer_info}, Original times={$original_count}, Filtered times={$filtered_count}, Timezone={$tz->getName()}");
+        if ($original_count > 0) {
+            error_log("RBF Original times: " . implode(', ', array_slice($times, 0, $original_count)));
+        }
+        if ($filtered_count > 0) {
             error_log("RBF Available times after filtering: " . implode(', ', $times));
+        }
+        if ($original_count > 0 && $filtered_count === 0) {
+            error_log("RBF WARNING: All times filtered out - no availability returned");
         }
     }
     
