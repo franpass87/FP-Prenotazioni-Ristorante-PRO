@@ -330,22 +330,24 @@ jQuery(function($) {
       if (response.success && response.data.length > 0) {
         el.timeSelect.append(new Option(rbfData.labels.chooseTime, ''));
         
-        // Additional client-side filtering for today's bookings
+        // Additional client-side filtering - 1 hour minimum advance booking
         const today = new Date();
-        const isToday = dateString === today.toISOString().split('T')[0];
+        const currentDate = dateString;
+        const todayString = today.toISOString().split('T')[0];
         
-        if (isToday) {
-          // Add 15 minutes buffer to current time
-          const currentTime = new Date(today.getTime() + 15 * 60000);
-          const currentHours = currentTime.getHours();
-          const currentMinutes = currentTime.getMinutes();
+        // Apply 1-hour minimum advance booking filter (consistent with server-side)
+        if (currentDate <= todayString || (new Date(currentDate).getTime() - today.getTime()) < (24 * 60 * 60 * 1000)) {
+          // For today or near dates, add 1 hour buffer to current time
+          const currentTimePlus1Hour = new Date(today.getTime() + 60 * 60 * 1000);
+          const currentHours = currentTimePlus1Hour.getHours();
+          const currentMinutes = currentTimePlus1Hour.getMinutes();
           
           response.data = response.data.filter(item => {
             const timeParts = item.time.split(':');
             const timeHours = parseInt(timeParts[0], 10);
             const timeMinutes = parseInt(timeParts[1], 10);
             
-            // Compare times - return true if slot time is after current + 15 min
+            // Compare times - return true if slot time is after current + 1 hour
             if (timeHours > currentHours) {
               return true;
             } else if (timeHours === currentHours) {
@@ -354,7 +356,7 @@ jQuery(function($) {
             return false;
           });
           
-          console.log(`Client-side filtered past times. Current time: ${currentHours}:${currentMinutes}, Available slots: ${response.data.length}`);
+          console.log(`Client-side filtered past times. Current time +1hr: ${currentHours}:${currentMinutes}, Available slots: ${response.data.length}`);
         }
         
         response.data.forEach(item => {
