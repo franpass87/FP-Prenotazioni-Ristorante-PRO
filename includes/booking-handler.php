@@ -398,10 +398,9 @@ function rbf_ajax_get_availability_callback() {
                 // Additional check for same-day bookings
                 $today_string = $now->format('Y-m-d');
                 if ($date === $today_string) {
-                    // For today's bookings, be extra strict about past times
-                    $current_time_plus_buffer = clone $now;
-                    $current_time_plus_buffer->modify('+1 hour 30 minutes'); // 1.5 hour buffer for same day
-                    $is_future = $slot_datetime > $current_time_plus_buffer;
+                    // For today's bookings, use standard 1 hour buffer (same as future dates)
+                    // This prevents overly aggressive filtering while maintaining reasonable advance booking time
+                    $is_future = $slot_datetime > $now_plus_1hour;
                 }
                 
                 return $is_future;
@@ -420,7 +419,7 @@ function rbf_ajax_get_availability_callback() {
     if (defined('WP_DEBUG') && WP_DEBUG) {
         $cut_time = $now_plus_1hour->format('H:i');
         $is_today = ($date === $now->format('Y-m-d'));
-        $buffer_info = $is_today ? ' (Same day: 1.5hr buffer)' : ' (Standard: 1hr buffer)';
+        $buffer_info = $is_today ? ' (Same day: 1hr buffer)' : ' (Standard: 1hr buffer)';
         error_log("RBF Time Filtering: Date={$date}, IsToday={$is_today}, Current time={$now->format('H:i')}, Cut-off={$cut_time}{$buffer_info}, Original times={$original_count}, Filtered times={$filtered_count}, Timezone={$tz->getName()}");
         if ($original_count > 0) {
             error_log("RBF Original times: " . implode(', ', array_slice($times, 0, $original_count)));

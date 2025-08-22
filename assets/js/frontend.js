@@ -370,8 +370,8 @@ jQuery(function($) {
         
         // Apply enhanced time filtering for better user experience
         if (currentDate === todayString) {
-          // For today's bookings, add 1.5 hour buffer to current time for extra safety
-          const currentTimePlusBuffer = new Date(today.getTime() + 90 * 60 * 1000); // 1.5 hours
+          // For today's bookings, use standard 1 hour buffer (same as server-side)
+          const currentTimePlusBuffer = new Date(today.getTime() + 60 * 60 * 1000); // 1 hour
           const currentHours = currentTimePlusBuffer.getHours();
           const currentMinutes = currentTimePlusBuffer.getMinutes();
           
@@ -380,7 +380,7 @@ jQuery(function($) {
             const timeHours = parseInt(timeParts[0], 10);
             const timeMinutes = parseInt(timeParts[1], 10);
             
-            // Compare times - return true if slot time is after current + 1.5 hours (for same day)
+            // Compare times - return true if slot time is after current + 1 hour (consistent with server-side)
             if (timeHours > currentHours) {
               return true;
             } else if (timeHours === currentHours) {
@@ -389,7 +389,7 @@ jQuery(function($) {
             return false;
           });
           
-          console.log(`Client-side enhanced filtering for TODAY. Current time +1.5hr: ${currentHours}:${String(currentMinutes).padStart(2, '0')}, Available slots: ${response.data.length}`);
+          console.log(`Client-side filtering for TODAY. Current time +1hr: ${currentHours}:${String(currentMinutes).padStart(2, '0')}, Available slots: ${response.data.length}`);
         } else {
           // For future dates, standard 1 hour minimum advance booking
           const futureDate = new Date(currentDate);
