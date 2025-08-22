@@ -63,15 +63,25 @@ jQuery(function($) {
           </div>
           <div class="rbf-modal-body">
             <div class="rbf-booking-details">
-              <p><strong>Cliente:</strong> <span id="rbf-customer-name">${event.extendedProps.customer_name}</span></p>
-              <p><strong>Email:</strong> <span id="rbf-customer-email">${event.extendedProps.customer_email}</span></p>
-              <p><strong>Telefono:</strong> <span id="rbf-customer-phone">${event.extendedProps.customer_phone}</span></p>
+              <p><strong>Cliente:</strong> 
+                <input type="text" id="rbf-customer-name" value="${event.extendedProps.customer_name}" style="width: 100%; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px;">
+              </p>
+              <p><strong>Email:</strong> 
+                <input type="email" id="rbf-customer-email" value="${event.extendedProps.customer_email}" style="width: 100%; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px;">
+              </p>
+              <p><strong>Telefono:</strong> 
+                <input type="tel" id="rbf-customer-phone" value="${event.extendedProps.customer_phone}" style="width: 100%; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px;">
+              </p>
               <p><strong>Data:</strong> <span id="rbf-booking-date">${event.extendedProps.booking_date}</span></p>
               <p><strong>Orario:</strong> <span id="rbf-booking-time">${event.extendedProps.booking_time}</span></p>
-              <p><strong>Persone:</strong> <span id="rbf-booking-people">${event.extendedProps.people}</span></p>
-              <p><strong>Note:</strong> <span id="rbf-booking-notes">${event.extendedProps.notes || 'Nessuna'}</span></p>
+              <p><strong>Persone:</strong> 
+                <input type="number" id="rbf-booking-people" value="${event.extendedProps.people}" min="1" max="30" style="width: 80px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px;">
+              </p>
+              <p><strong>Note:</strong> 
+                <textarea id="rbf-booking-notes" rows="2" style="width: 100%; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;">${event.extendedProps.notes || ''}</textarea>
+              </p>
               <p><strong>Stato:</strong> 
-                <select id="rbf-booking-status" data-booking-id="${bookingId}">
+                <select id="rbf-booking-status" data-booking-id="${bookingId}" style="padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px;">
                   <option value="confirmed" ${event.extendedProps.status === 'confirmed' ? 'selected' : ''}>Confermata</option>
                   <option value="cancelled" ${event.extendedProps.status === 'cancelled' ? 'selected' : ''}>Cancellata</option>
                   <option value="completed" ${event.extendedProps.status === 'completed' ? 'selected' : ''}>Completata</option>
@@ -97,7 +107,15 @@ jQuery(function($) {
     });
     
     $('#rbf-save-booking').on('click', function() {
-      saveBookingStatus(bookingId, $('#rbf-booking-status').val());
+      var bookingData = {
+        customer_name: $('#rbf-customer-name').val(),
+        customer_email: $('#rbf-customer-email').val(),
+        customer_phone: $('#rbf-customer-phone').val(),
+        people: $('#rbf-booking-people').val(),
+        notes: $('#rbf-booking-notes').val(),
+        status: $('#rbf-booking-status').val()
+      };
+      saveBookingData(bookingId, bookingData);
     });
     
     $('#rbf-edit-full').on('click', function() {
@@ -113,7 +131,38 @@ jQuery(function($) {
   }
 
   /**
-   * Save booking status via AJAX
+   * Save booking data via AJAX
+   */
+  function saveBookingData(bookingId, bookingData) {
+    $.ajax({
+      url: rbfAdminData.ajaxUrl,
+      type: 'POST',
+      data: {
+        action: 'rbf_update_booking_data',
+        booking_id: bookingId,
+        booking_data: bookingData,
+        _ajax_nonce: rbfAdminData.nonce
+      },
+      success: function(response) {
+        if (response.success) {
+          // Show success message
+          showNotification('Prenotazione aggiornata con successo', 'success');
+          // Refresh calendar
+          calendar.refetchEvents();
+          // Close modal
+          $('#rbf-booking-modal').remove();
+        } else {
+          showNotification('Errore nell\'aggiornamento della prenotazione', 'error');
+        }
+      },
+      error: function() {
+        showNotification('Errore di connessione', 'error');
+      }
+    });
+  }
+
+  /**
+   * Save booking status via AJAX (legacy function for compatibility)
    */
   function saveBookingStatus(bookingId, newStatus) {
     $.ajax({
