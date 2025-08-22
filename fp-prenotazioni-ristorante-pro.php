@@ -62,20 +62,27 @@ function rbf_load_modules() {
     
     // Initialize debug and performance monitoring
     if (RBF_DEBUG) {
-        RBF_Debug_Logger::init();
-        RBF_Performance_Monitor::init();
+        if (class_exists('RBF_Debug_Logger')) {
+            RBF_Debug_Logger::init();
+        }
+        if (class_exists('RBF_Performance_Monitor')) {
+            RBF_Performance_Monitor::init();
+        }
         
         // Log plugin initialization
-        RBF_Debug_Logger::track_event('plugin_initialized', [
-            'version' => RBF_VERSION,
-            'debug_enabled' => true,
-            'log_level' => RBF_LOG_LEVEL
-        ], 'INFO');
+        if (class_exists('RBF_Debug_Logger')) {
+            RBF_Debug_Logger::track_event('plugin_initialized', [
+                'version' => RBF_VERSION,
+                'debug_enabled' => true,
+                'log_level' => RBF_LOG_LEVEL
+            ], 'INFO');
+        }
     }
 }
 
-// Load modules after WordPress is initialized
-add_action('init', 'rbf_load_modules', 1);
+// Load modules immediately after WordPress functions are available
+// Use 'plugins_loaded' hook instead of 'init' to load earlier
+add_action('plugins_loaded', 'rbf_load_modules', 0);
 
 /**
  * Plugin activation hook
