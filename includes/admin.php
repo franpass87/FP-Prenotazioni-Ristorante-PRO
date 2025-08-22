@@ -303,6 +303,14 @@ function rbf_sanitize_settings_callback($input) {
     } else {
         $output['debug_cleanup_days'] = $defaults['debug_cleanup_days'] ?? 7;
     }
+    
+    // Validate max advance hours (minimum 1 hour, maximum 8760 hours = 1 year)
+    if (isset($input['max_advance_hours'])) {
+        $max_hours = absint($input['max_advance_hours']);
+        $output['max_advance_hours'] = max(1, min(8760, $max_hours));
+    } else {
+        $output['max_advance_hours'] = $defaults['max_advance_hours'] ?? 72;
+    }
 
     return $output;
 }
