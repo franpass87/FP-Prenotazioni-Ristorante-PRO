@@ -30,6 +30,7 @@ function rbf_get_default_settings() {
         'meta_pixel_id' => '',
         'meta_access_token' => '',
         'notification_email' => 'info@villadianella.it',
+        'webmaster_email' => get_option('admin_email', ''),
         'brevo_api' => '',
         'brevo_list_it' => '',
         'brevo_list_en' => '',
@@ -235,6 +236,7 @@ function rbf_sanitize_settings_callback($input) {
     }
 
     if (isset($input['notification_email'])) $output['notification_email'] = sanitize_email($input['notification_email']);
+    if (isset($input['webmaster_email'])) $output['webmaster_email'] = sanitize_email($input['webmaster_email']);
 
     $float_keys = ['valore_pranzo','valore_cena','valore_aperitivo'];
     foreach ($float_keys as $key) $output[$key] = isset($input[$key]) ? floatval($input[$key]) : ($defaults[$key] ?? 0);
@@ -326,6 +328,8 @@ function rbf_settings_page_html() {
                 <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Integrazioni e Marketing')); ?></h2></th></tr>
                 <tr><th><label for="rbf_notification_email"><?php echo esc_html(rbf_translate_string('Email per Notifiche Ristorante')); ?></label></th>
                     <td><input type="email" id="rbf_notification_email" name="rbf_settings[notification_email]" value="<?php echo esc_attr($options['notification_email']); ?>" class="regular-text" placeholder="es. ristorante@esempio.com"></td></tr>
+                <tr><th><label for="rbf_webmaster_email"><?php echo esc_html(rbf_translate_string('Email per Notifiche Webmaster')); ?></label></th>
+                    <td><input type="email" id="rbf_webmaster_email" name="rbf_settings[webmaster_email]" value="<?php echo esc_attr($options['webmaster_email']); ?>" class="regular-text" placeholder="es. webmaster@esempio.com"></td></tr>
                 <tr><th><label for="rbf_ga4_id"><?php echo esc_html(rbf_translate_string('ID misurazione GA4')); ?></label></th>
                     <td><input type="text" id="rbf_ga4_id" name="rbf_settings[ga4_id]" value="<?php echo esc_attr($options['ga4_id']); ?>" class="regular-text" placeholder="G-XXXXXXXXXX"></td></tr>
                 <tr><th><label for="rbf_ga4_api_secret">GA4 API Secret (per invii server-side)</label></th>
