@@ -57,6 +57,32 @@ function rbf_current_lang() {
 }
 
 /**
+ * Retrieve plugin settings merged with defaults.
+ *
+ * Ensures new options have sensible default values even if the settings
+ * were saved before the option was introduced.
+ *
+ * @return array
+ */
+function rbf_get_settings() {
+    $saved = get_option('rbf_settings', []);
+    return wp_parse_args($saved, rbf_get_default_settings());
+}
+
+/**
+ * Clear cached availability transients.
+ */
+function rbf_clear_availability_cache() {
+    global $wpdb;
+    // Retrieve all transient names related to availability
+    $options = $wpdb->get_col("SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE '_transient_rbf_avail_%'");
+    foreach ($options as $option) {
+        $key = str_replace('_transient_', '', $option);
+        delete_transient($key);
+    }
+}
+
+/**
  * Translate strings to English
  */
 function rbf_translate_string($text) {

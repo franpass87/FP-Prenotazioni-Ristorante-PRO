@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Prenotazioni Ristorante Completo (Flatpickr, lingua dinamica)
  * Description: Prenotazioni con calendario Flatpickr IT/EN, last-minute, capienza per servizio, notifiche email (con CC), Brevo sempre e GA4/Meta (bucket standard).
- * Version:     10.0.0
+ * Version:     10.0.2
  * Author:      Francesco Passeri
  * Text Domain: rbf
  * License:     GPLv2 or later
@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
 define('RBF_PLUGIN_FILE', __FILE__);
 define('RBF_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('RBF_PLUGIN_URL', plugin_dir_url(__FILE__));
-define('RBF_VERSION', '10.0.0');
+define('RBF_VERSION', '10.0.2');
 
 // Debug configuration (will be set during WordPress initialization)
 // These constants will be defined in rbf_load_modules() to ensure WordPress functions are available
@@ -98,7 +98,12 @@ function rbf_activate_plugin() {
     if (function_exists('rbf_register_post_type')) {
         rbf_register_post_type();
     }
-    
+
+    // Clear any cached availability to prevent stale results
+    if (function_exists('rbf_clear_availability_cache')) {
+        rbf_clear_availability_cache();
+    }
+
     // Flush rewrite rules to ensure custom post types work
     flush_rewrite_rules();
 }

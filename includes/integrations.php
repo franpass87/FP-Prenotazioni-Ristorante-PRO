@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) {
  */
 add_action('wp_footer','rbf_add_tracking_scripts_to_footer');
 function rbf_add_tracking_scripts_to_footer() {
-    $options = get_option('rbf_settings', rbf_get_default_settings());
+    $options = rbf_get_settings();
     $ga4_id = $options['ga4_id'] ?? '';
     $meta_pixel_id = $options['meta_pixel_id'] ?? '';
 
@@ -133,7 +133,7 @@ function rbf_add_tracking_scripts_to_footer() {
  * Send admin notification email (to both restaurant and webmaster)
  */
 function rbf_send_admin_notification_email($first_name, $last_name, $email, $date, $time, $people, $notes, $tel, $meal) {
-    $options = get_option('rbf_settings', rbf_get_default_settings());
+    $options = rbf_get_settings();
     $restaurant_email = $options['notification_email'];
     $webmaster_email = $options['webmaster_email'];
     
@@ -186,7 +186,7 @@ HTML;
  * Trigger Brevo automation (simplified - only Brevo, no WordPress emails)
  */
 function rbf_trigger_brevo_automation($first_name, $last_name, $email, $date, $time, $people, $notes, $lang, $tel, $marketing, $meal) {
-    $options = get_option('rbf_settings', rbf_get_default_settings());
+    $options = rbf_get_settings();
     $api_key = $options['brevo_api'] ?? '';
     $list_id = $lang === 'en' ? ($options['brevo_list_en'] ?? '') : ($options['brevo_list_it'] ?? '');
 
