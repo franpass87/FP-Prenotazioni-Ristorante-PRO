@@ -57,6 +57,19 @@ function rbf_current_lang() {
 }
 
 /**
+ * Retrieve plugin settings merged with defaults.
+ *
+ * Ensures new options have sensible default values even if the settings
+ * were saved before the option was introduced.
+ *
+ * @return array
+ */
+function rbf_get_settings() {
+    $saved = get_option('rbf_settings', []);
+    return wp_parse_args($saved, rbf_get_default_settings());
+}
+
+/**
  * Translate strings to English
  */
 function rbf_translate_string($text) {

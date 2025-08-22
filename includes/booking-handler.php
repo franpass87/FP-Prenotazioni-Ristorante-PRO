@@ -107,7 +107,7 @@ function rbf_handle_booking_submission() {
     }
 
     // Get settings for advance booking validation
-    $options = get_option('rbf_settings', rbf_get_default_settings());
+    $options = rbf_get_settings();
     
     // Check maximum advance booking time
     $max_advance_hours = absint($options['max_advance_hours'] ?? 72);
@@ -191,7 +191,7 @@ function rbf_handle_booking_submission() {
     }
 
     delete_transient('rbf_avail_' . $date . '_' . $slot);
-    $options = get_option('rbf_settings', rbf_get_default_settings());
+    $options = rbf_get_settings();
     $valore_pp  = (float) ($options['valore_' . $meal] ?? 0);
     $valore_tot = $valore_pp * $people;
     $event_id   = 'rbf_' . $post_id; // usato per Pixel (browser) e CAPI (server)
@@ -360,7 +360,7 @@ function rbf_ajax_get_availability_callback() {
     }
 
     // Get settings
-    $options = get_option('rbf_settings', rbf_get_default_settings());
+    $options = rbf_get_settings();
     
     // Step 1: Check if restaurant is open on this day of the week
     $day_of_week = date('w', strtotime($date));
