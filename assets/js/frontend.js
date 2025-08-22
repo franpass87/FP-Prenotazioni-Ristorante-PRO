@@ -185,12 +185,13 @@ jQuery(function($) {
               formatOnDisplay: true,
               autoFormat: true,
               // Enhanced flag container styling
-              dropdownContainer: document.body,
+              // Attach dropdown directly to the input wrapper to avoid page jumps
+              // when the user clicks the flag button
               customPlaceholder: function(selectedCountryPlaceholder, selectedCountryData) {
                 return rbfData.labels.phonePlaceholder || selectedCountryPlaceholder;
               }
             });
-            
+
             if (iti) {
               console.log('Enhanced intlTelInput initialized successfully');
               
@@ -242,7 +243,22 @@ jQuery(function($) {
               
               // Add custom CSS class for styling
               el.telInput.closest('.iti').addClass('rbf-iti-enhanced');
-              
+
+              // Rebuild flag selector button to prevent anchor jumps and improve accessibility
+              const flagButton = el.telInput.closest('.iti').find('.iti__selected-flag');
+              if (flagButton.length) {
+                flagButton
+                  .attr({
+                    role: 'button',
+                    title: rbfData.labels.selectPrefix || 'Seleziona prefisso',
+                    'aria-label': rbfData.labels.selectPrefix || 'Seleziona prefisso'
+                  })
+                  .on('click', function(e) {
+                    // Prevent the default anchor behavior which caused page jump
+                    e.preventDefault();
+                  });
+              }
+
             } else {
               console.error('Failed to initialize intlTelInput - returned null');
               el.telInput.addClass('rbf-tel-fallback');
