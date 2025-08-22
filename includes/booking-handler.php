@@ -107,7 +107,8 @@ function rbf_handle_booking_submission() {
         'post_status' => 'publish',
         'meta_input' => [
             'rbf_data' => $date,
-            'rbf_orario' => $slot,
+            'rbf_meal' => $slot,
+            'rbf_orario' => $slot, // Keep for backward compatibility
             'rbf_time' => $time,
             'rbf_persone' => $people,
             'rbf_nome' => $first_name,
@@ -226,15 +227,33 @@ function rbf_handle_booking_submission() {
 add_action('wp_ajax_rbf_get_availability', 'rbf_ajax_get_availability_callback');
 add_action('wp_ajax_nopriv_rbf_get_availability', 'rbf_ajax_get_availability_callback');
 function rbf_ajax_get_availability_callback() {
-    check_ajax_referer('rbf_ajax_nonce');
+    // Verify nonce for security
+    if (!check_ajax_referer('rbf_ajax_nonce', 'nonce', false)) {
+        wp_send_json_error(['message' => 'Security check failed']);
+        return;
+    }
 
+    // Validate required parameters
     if (empty($_POST['date']) || empty($_POST['meal'])) {
         wp_send_json_error(['message' => 'Missing required parameters']);
         return;
     }
 
+    // Sanitize and validate inputs
     $date = sanitize_text_field($_POST['date']);
     $meal = sanitize_text_field($_POST['meal']);
+    
+    // Validate date format
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || !DateTime::createFromFormat('Y-m-d', $date)) {
+        wp_send_json_error(['message' => 'Invalid date format']);
+        return;
+    }
+    
+    // Validate meal type
+    if (!in_array($meal, ['pranzo', 'cena', 'aperitivo'], true)) {
+        wp_send_json_error(['message' => 'Invalid meal type']);
+        return;
+    }
 
     // Get settings
     $options = rbf_get_settings();

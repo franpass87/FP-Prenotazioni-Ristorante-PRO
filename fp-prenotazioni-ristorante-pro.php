@@ -91,9 +91,7 @@ function rbf_activate_plugin() {
     rbf_clear_transients();
 
     // Load modules to ensure custom post types are registered before flushing rules
-    if (!function_exists('rbf_register_post_type')) {
-        rbf_load_modules();
-    }
+    rbf_load_modules();
     
     // Register custom post type before flushing rewrite rules
     if (function_exists('rbf_register_post_type')) {
