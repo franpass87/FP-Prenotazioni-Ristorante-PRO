@@ -15,13 +15,13 @@ if (!defined('ABSPATH')) {
  */
 add_action('admin_menu', 'rbf_add_debug_dashboard');
 function rbf_add_debug_dashboard() {
-    // Only show debug dashboard if debugging is enabled
-    if (!RBF_DEBUG || !current_user_can('manage_options')) {
+    // Only show debug dashboard if debugging is enabled and user has permission
+    if (!rbf_is_debug_enabled() || !current_user_can('manage_options')) {
         return;
     }
     
     add_submenu_page(
-        'edit.php?post_type=rbf_booking',
+        'rbf_bookings_menu',
         'Debug & Performance',
         '🔧 Debug',
         'manage_options',
@@ -82,9 +82,17 @@ function rbf_render_debug_dashboard() {
         <h1>🔧 Debug & Performance Dashboard</h1>
         <p>Sistema di monitoraggio avanzato per le prestazioni del plugin e le integrazioni API.</p>
         
-        <?php if (!RBF_DEBUG): ?>
-            <div class="notice notice-warning">
-                <p><strong>Debug Mode Disabled:</strong> Per attivare il debug, aggiungi <code>define('RBF_DEBUG', true);</code> nel tuo wp-config.php</p>
+        <?php if (!rbf_is_debug_enabled()): ?>
+            <div class="notice notice-info" style="border-left-color: #1d4ed8;">
+                <h3>🔧 Sistema Debug Non Attivo</h3>
+                <p>Il sistema di debug e monitoraggio avanzato non è attualmente attivo.</p>
+                <p><strong>Per attivarlo:</strong></p>
+                <ol>
+                    <li>Vai su <strong><a href="<?php echo admin_url('admin.php?page=rbf_settings'); ?>">Prenotazioni → Impostazioni</a></strong></li>
+                    <li>Scorri fino alla sezione <strong>"🔧 Debug e Monitoraggio Performance"</strong></li>
+                    <li>Spunta <strong>"Abilita Sistema Debug"</strong> e salva le impostazioni</li>
+                </ol>
+                <p><em>Una volta attivo, questa pagina mostrerà statistiche dettagliate, monitoraggio API e funzionalità di export.</em></p>
             </div>
         <?php else: ?>
             

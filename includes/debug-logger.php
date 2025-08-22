@@ -32,8 +32,17 @@ class RBF_Debug_Logger {
     public static function init() {
         if (self::$initialized) return;
         
-        self::$enabled = defined('RBF_DEBUG') && RBF_DEBUG;
-        self::$log_level = defined('RBF_LOG_LEVEL') ? RBF_LOG_LEVEL : 'INFO';
+        // Check if we're in WordPress environment to access database settings
+        if (function_exists('get_option')) {
+            // Use the new helper functions that check database first
+            self::$enabled = rbf_is_debug_enabled();
+            self::$log_level = rbf_get_debug_log_level();
+        } else {
+            // Fallback for non-WordPress environments
+            self::$enabled = defined('RBF_DEBUG') && RBF_DEBUG;
+            self::$log_level = defined('RBF_LOG_LEVEL') ? RBF_LOG_LEVEL : 'INFO';
+        }
+        
         self::$initialized = true;
         
         // Only schedule WordPress cron if we're in WordPress environment
@@ -248,8 +257,22 @@ class RBF_Debug_Logger {
      * Cleanup old logs (called daily via cron)
      */
     public static function cleanup_old_logs() {
+        // Check if auto cleanup is enabled
+        if (function_exists('get_option')) {
+            $settings = get_option('rbf_settings', []);
+            $auto_cleanup = $settings['debug_auto_cleanup'] ?? 'yes';
+            $cleanup_days = $settings['debug_cleanup_days'] ?? 7;
+            
+            if ($auto_cleanup !== 'yes') {
+                return; // Auto cleanup disabled
+            }
+        } else {
+            // Fallback for non-WordPress environments
+            $cleanup_days = 7;
+        }
+        
         $logs = get_option('rbf_debug_logs', []);
-        $cutoff_date = date('Y-m-d H:i:s', strtotime('-7 days'));
+        $cutoff_date = date('Y-m-d H:i:s', strtotime("-{$cleanup_days} days"));
         
         $filtered_logs = array_filter($logs, function($log) use ($cutoff_date) {
             return $log['timestamp'] >= $cutoff_date;
@@ -260,13 +283,16 @@ class RBF_Debug_Logger {
             update_option('rbf_debug_logs', $filtered_logs, false);
             self::track_event('logs_cleanup', [
                 'removed_count' => count($logs) - count($filtered_logs),
-                'remaining_count' => count($filtered_logs)
+                'remaining_count' => count($filtered_logs),
+                'cleanup_days' => $cleanup_days
             ], 'INFO');
         }
     }
 }
 
-// Initialize logger if debugging is enabled
-if (defined('RBF_DEBUG') && RBF_DEBUG) {
+// Initialize logger if debugging is enabled (check database settings or constants)
+if (function_exists('rbf_is_debug_enabled') && rbf_is_debug_enabled()) {
+    RBF_Debug_Logger::init();
+} else if (defined('RBF_DEBUG') && RBF_DEBUG) {
     RBF_Debug_Logger::init();
 }

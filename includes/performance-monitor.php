@@ -367,7 +367,9 @@ class RBF_Performance_Monitor {
     }
 }
 
-// Initialize if debugging is enabled
-if (defined('RBF_DEBUG') && RBF_DEBUG) {
+// Initialize if debugging is enabled (check database settings or constants)
+if (function_exists('rbf_is_debug_enabled') && rbf_is_debug_enabled()) {
+    RBF_Performance_Monitor::init();
+} else if (defined('RBF_DEBUG') && RBF_DEBUG) {
     RBF_Performance_Monitor::init();
 }

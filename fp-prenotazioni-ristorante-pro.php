@@ -20,12 +20,18 @@ define('RBF_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('RBF_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('RBF_VERSION', '9.3.2');
 
-// Debug configuration (can be overridden in wp-config.php)
+// Debug configuration (can be overridden in wp-config.php or managed via admin settings)
 if (!defined('RBF_DEBUG')) {
-    define('RBF_DEBUG', WP_DEBUG);
+    // Check database settings first, then fall back to WP_DEBUG
+    $settings = get_option('rbf_settings', []);
+    $debug_enabled = isset($settings['debug_enabled']) ? ($settings['debug_enabled'] === 'yes') : WP_DEBUG;
+    define('RBF_DEBUG', $debug_enabled);
 }
 if (!defined('RBF_LOG_LEVEL')) {
-    define('RBF_LOG_LEVEL', 'INFO'); // DEBUG, INFO, WARNING, ERROR
+    // Check database settings first, then fall back to default
+    $settings = get_option('rbf_settings', []);
+    $log_level = isset($settings['debug_log_level']) ? $settings['debug_log_level'] : 'INFO';
+    define('RBF_LOG_LEVEL', $log_level); // DEBUG, INFO, WARNING, ERROR
 }
 
 /**

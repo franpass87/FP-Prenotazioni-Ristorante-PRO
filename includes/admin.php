@@ -11,6 +11,40 @@ if (!defined('ABSPATH')) {
 }
 
 /**
+ * Check if debug mode is enabled (database settings take priority over constants)
+ * 
+ * @return bool
+ */
+function rbf_is_debug_enabled() {
+    $settings = get_option('rbf_settings', []);
+    
+    // Check database setting first
+    if (isset($settings['debug_enabled'])) {
+        return $settings['debug_enabled'] === 'yes';
+    }
+    
+    // Fallback to constant if database setting not available
+    return defined('RBF_DEBUG') ? RBF_DEBUG : false;
+}
+
+/**
+ * Get debug log level (database settings take priority over constants)
+ * 
+ * @return string
+ */
+function rbf_get_debug_log_level() {
+    $settings = get_option('rbf_settings', []);
+    
+    // Check database setting first
+    if (isset($settings['debug_log_level'])) {
+        return $settings['debug_log_level'];
+    }
+    
+    // Fallback to constant if database setting not available
+    return defined('RBF_LOG_LEVEL') ? RBF_LOG_LEVEL : 'INFO';
+}
+
+/**
  * Get default plugin settings
  */
 function rbf_get_default_settings() {
@@ -36,6 +70,11 @@ function rbf_get_default_settings() {
         'brevo_list_en' => '',
         'closed_dates' => '',
         'max_advance_hours' => 72, // Maximum hours in advance bookings are allowed
+        // Debug & Performance Settings
+        'debug_enabled' => 'no',
+        'debug_log_level' => 'INFO',
+        'debug_auto_cleanup' => 'yes',
+        'debug_cleanup_days' => 7,
     ];
 }
 
@@ -215,7 +254,7 @@ function rbf_sanitize_settings_callback($input) {
     $output = [];
     $input = (array) $input;
 
-    $int_keys = ['capienza_pranzo','capienza_cena','capienza_aperitivo','brevo_list_it','brevo_list_en'];
+    $int_keys = ['capienza_pranzo','capienza_cena','capienza_aperitivo','brevo_list_it','brevo_list_en','debug_cleanup_days'];
     foreach ($int_keys as $key) $output[$key] = isset($input[$key]) ? absint($input[$key]) : ($defaults[$key] ?? '');
 
     $text_keys = ['orari_pranzo','orari_cena','orari_aperitivo','brevo_api','ga4_api_secret','meta_access_token'];
@@ -245,6 +284,26 @@ function rbf_sanitize_settings_callback($input) {
     foreach ($days as $day) $output["open_{$day}"] = (isset($input["open_{$day}"]) && $input["open_{$day}"]==='yes') ? 'yes' : 'no';
 
     if (isset($input['closed_dates'])) $output['closed_dates'] = sanitize_textarea_field($input['closed_dates']);
+    
+    // Debug settings sanitization
+    $output['debug_enabled'] = (isset($input['debug_enabled']) && $input['debug_enabled'] === 'yes') ? 'yes' : 'no';
+    $output['debug_auto_cleanup'] = (isset($input['debug_auto_cleanup']) && $input['debug_auto_cleanup'] === 'yes') ? 'yes' : 'no';
+    
+    // Validate debug log level
+    $valid_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR'];
+    if (isset($input['debug_log_level']) && in_array($input['debug_log_level'], $valid_levels)) {
+        $output['debug_log_level'] = $input['debug_log_level'];
+    } else {
+        $output['debug_log_level'] = $defaults['debug_log_level'] ?? 'INFO';
+    }
+    
+    // Validate debug cleanup days (minimum 1 day, maximum 30 days)
+    if (isset($input['debug_cleanup_days'])) {
+        $cleanup_days = absint($input['debug_cleanup_days']);
+        $output['debug_cleanup_days'] = max(1, min(30, $cleanup_days));
+    } else {
+        $output['debug_cleanup_days'] = $defaults['debug_cleanup_days'] ?? 7;
+    }
 
     return $output;
 }
@@ -346,6 +405,70 @@ function rbf_settings_page_html() {
                     <td><input type="number" id="rbf_brevo_list_it" name="rbf_settings[brevo_list_it]" value="<?php echo esc_attr($options['brevo_list_it']); ?>"></td></tr>
                 <tr><th><label for="rbf_brevo_list_en"><?php echo esc_html(rbf_translate_string('ID Lista Brevo (EN)')); ?></label></th>
                     <td><input type="number" id="rbf_brevo_list_en" name="rbf_settings[brevo_list_en]" value="<?php echo esc_attr($options['brevo_list_en']); ?>"></td></tr>
+
+                <tr><th colspan="2"><h2 style="color: #1d4ed8;">🔧 <?php echo esc_html(rbf_translate_string('Debug e Monitoraggio Performance')); ?></h2></th></tr>
+                <tr>
+                    <th><label for="rbf_debug_enabled"><?php echo esc_html(rbf_translate_string('Abilita Sistema Debug')); ?></label></th>
+                    <td>
+                        <label>
+                            <input type="checkbox" id="rbf_debug_enabled" name="rbf_settings[debug_enabled]" value="yes" <?php checked($options['debug_enabled'], 'yes'); ?>>
+                            <?php echo esc_html(rbf_translate_string('Attiva debug avanzato, logging e monitoraggio performance')); ?>
+                        </label>
+                        <p class="description">
+                            <?php echo esc_html(rbf_translate_string('Quando attivo, il sistema registra eventi dettagliati, monitora le performance delle API e fornisce analytics avanzate. Impatto minimo sulle prestazioni quando disattivato.')); ?>
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="rbf_debug_log_level"><?php echo esc_html(rbf_translate_string('Livello di Logging')); ?></label></th>
+                    <td>
+                        <select id="rbf_debug_log_level" name="rbf_settings[debug_log_level]">
+                            <option value="DEBUG" <?php selected($options['debug_log_level'], 'DEBUG'); ?>>DEBUG - Tutto (molto dettagliato)</option>
+                            <option value="INFO" <?php selected($options['debug_log_level'], 'INFO'); ?>>INFO - Eventi importanti</option>
+                            <option value="WARNING" <?php selected($options['debug_log_level'], 'WARNING'); ?>>WARNING - Solo avvisi</option>
+                            <option value="ERROR" <?php selected($options['debug_log_level'], 'ERROR'); ?>>ERROR - Solo errori</option>
+                        </select>
+                        <p class="description">
+                            <?php echo esc_html(rbf_translate_string('DEBUG registra tutto (utile per sviluppo), INFO registra eventi chiave (raccomandato), WARNING e ERROR registrano solo problemi.')); ?>
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="rbf_debug_auto_cleanup"><?php echo esc_html(rbf_translate_string('Pulizia Automatica Log')); ?></label></th>
+                    <td>
+                        <label>
+                            <input type="checkbox" id="rbf_debug_auto_cleanup" name="rbf_settings[debug_auto_cleanup]" value="yes" <?php checked($options['debug_auto_cleanup'], 'yes'); ?>>
+                            <?php echo esc_html(rbf_translate_string('Elimina automaticamente i log più vecchi (raccomandato per GDPR)')); ?>
+                        </label>
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="rbf_debug_cleanup_days"><?php echo esc_html(rbf_translate_string('Giorni di Conservazione Log')); ?></label></th>
+                    <td>
+                        <input type="number" id="rbf_debug_cleanup_days" name="rbf_settings[debug_cleanup_days]" value="<?php echo esc_attr($options['debug_cleanup_days']); ?>" min="1" max="30">
+                        <p class="description">
+                            <?php echo esc_html(rbf_translate_string('Numero di giorni per cui mantenere i log (minimo 1, massimo 30). I log più vecchi vengono eliminati automaticamente se la pulizia automatica è abilitata.')); ?>
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <th></th>
+                    <td>
+                        <div style="background: #f0f8ff; border: 1px solid #1d4ed8; border-radius: 4px; padding: 15px; margin: 10px 0;">
+                            <h4 style="margin: 0 0 10px 0; color: #1d4ed8;">ℹ️ <?php echo esc_html(rbf_translate_string('Funzionalità Debug Avanzato:')); ?></h4>
+                            <ul style="margin: 0; list-style-type: disc; padding-left: 20px;">
+                                <li><?php echo esc_html(rbf_translate_string('Dashboard analytics con statistiche in tempo reale')); ?></li>
+                                <li><?php echo esc_html(rbf_translate_string('Monitoraggio performance API (Meta CAPI, Brevo, GA4)')); ?></li>
+                                <li><?php echo esc_html(rbf_translate_string('Validazione avanzata parametri UTM con rilevamento minacce')); ?></li>
+                                <li><?php echo esc_html(rbf_translate_string('Log strutturati con export JSON per analisi esterne')); ?></li>
+                                <li><?php echo esc_html(rbf_translate_string('Tracciamento prestazioni operazioni critiche')); ?></li>
+                            </ul>
+                            <p style="margin: 10px 0 0 0; font-style: italic; color: #666;">
+                                <?php echo esc_html(rbf_translate_string('Accedi al pannello debug da: Admin → Prenotazioni → 🔧 Debug (visibile solo quando abilitato)')); ?>
+                            </p>
+                        </div>
+                    </td>
+                </tr>
             </table>
             <?php submit_button(); ?>
         </form>
