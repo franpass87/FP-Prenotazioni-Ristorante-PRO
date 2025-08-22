@@ -310,27 +310,41 @@
     background: linear-gradient(135deg, var(--rbf-error) 0%, #c82333 100%);
 }
 
-/* International Telephone Input Styling */
+/* International Telephone Input Styling - Enhanced for v18.2.1 */
 .iti {
     width: 100% !important;
     position: relative;
+    display: block;
 }
 
 .iti__flag-container {
     background: #f8f9fa;
     border-radius: var(--rbf-radius) 0 0 var(--rbf-radius);
     border-right: 1px solid var(--rbf-border);
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 52px;
+    z-index: 3;
+    border: 2px solid var(--rbf-border);
+    border-right: none;
 }
 
 .iti__selected-flag {
-    padding: 14px 16px;
+    padding: 0;
     background: #f8f9fa;
     border: none;
-    height: auto;
+    height: 100% !important;
+    min-height: 52px;
     outline: none;
     cursor: pointer;
     transition: var(--rbf-transition);
     border-radius: var(--rbf-radius) 0 0 var(--rbf-radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
 }
 
 .iti__selected-flag:hover {
@@ -342,11 +356,19 @@
     box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.1);
 }
 
+.iti__flag {
+    width: 20px;
+    height: 15px;
+    background-size: cover;
+    flex-shrink: 0;
+    margin-right: 4px;
+}
+
 .iti__arrow {
-    border-left: 4px solid transparent;
-    border-right: 4px solid transparent;
+    border-left: 3px solid transparent;
+    border-right: 3px solid transparent;
     border-top: 4px solid #666;
-    margin-left: 6px;
+    margin-left: 2px;
     transition: var(--rbf-transition);
 }
 
@@ -360,13 +382,14 @@
     border: 2px solid var(--rbf-border);
     border-radius: var(--rbf-radius);
     box-shadow: var(--rbf-shadow-hover);
-    z-index: 1000 !important;
+    z-index: 9999 !important;
     max-height: 200px;
     overflow-y: auto;
     position: absolute;
-    width: 100%;
+    width: 300px !important; /* Fixed width to prevent narrow dropdown */
     top: 100%;
     left: 0;
+    margin-top: 2px;
 }
 
 .iti__country {
@@ -376,6 +399,7 @@
     transition: background-color 0.2s ease;
     display: flex;
     align-items: center;
+    min-height: 44px;
 }
 
 .iti__country:hover,
@@ -406,26 +430,35 @@
     color: rgba(255, 255, 255, 0.8);
 }
 
-.iti__flag {
-    width: 20px;
-    height: 15px;
-    background-size: cover;
-    flex-shrink: 0;
-}
-
+/* Critical: Fix input field positioning to prevent overlap */
 .iti input[type="tel"] {
-    padding-left: 60px !important;
+    padding-left: 64px !important;
     border-radius: 0 var(--rbf-radius) var(--rbf-radius) 0 !important;
     border-left: none !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    position: relative;
+    z-index: 1;
 }
 
-/* Ensure dropdown appears above other elements */
+/* Ensure no overlap issues */
 .rbf-form .iti {
     z-index: 10;
+    position: relative;
 }
 
 .rbf-form .iti.iti--container-open {
-    z-index: 1001;
+    z-index: 9999;
+}
+
+.rbf-form .iti__country-list {
+    z-index: 9999 !important;
+}
+
+/* Fix for any potential layout issues */
+.iti--allow-dropdown input {
+    padding-left: 64px !important;
+    border-radius: 0 var(--rbf-radius) var(--rbf-radius) 0 !important;
 }
 
 /* Mobile specific adjustments */
@@ -433,6 +466,7 @@
     .iti__country-list {
         max-height: 150px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        width: 280px !important; /* Slightly smaller on mobile */
     }
     
     .iti__country {
@@ -451,24 +485,50 @@
     }
     
     .iti__selected-flag {
-        padding: 16px;
-        min-height: 48px;
+        padding: 0;
+        min-height: 54px; /* Slightly larger touch target on mobile */
         display: flex;
         align-items: center;
         justify-content: center;
+        width: 54px;
+    }
+    
+    .iti__flag-container {
+        width: 54px;
     }
     
     .iti input[type="tel"] {
-        padding-left: 70px !important;
+        padding-left: 66px !important;
         font-size: 16px !important; /* Prevent iOS zoom */
+        min-height: 54px;
     }
 }
 
-.rbf-checkbox-group {
-    margin-top: 20px;
+/* Fallback styling when intlTelInput fails */
+.rbf-tel-fallback {
+    background-color: #fff3cd !important;
+    border-color: #ffeaa7 !important;
+    position: relative;
 }
 
-.rbf-checkbox-group label {
+.rbf-tel-fallback::placeholder {
+    color: #856404 !important;
+}
+
+/* Add visual indicator for fallback mode */
+.rbf-tel-fallback::before {
+    content: "⚠️ ";
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+}
+
+/* Ensure proper spacing when in fallback mode */
+.rbf-tel-fallback {
+    padding-left: 30px !important;
+}
     display: flex;
     align-items: flex-start;
     gap: 12px;

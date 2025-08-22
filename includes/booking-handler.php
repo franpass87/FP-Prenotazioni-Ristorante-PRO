@@ -363,26 +363,46 @@ function rbf_ajax_get_availability_callback() {
     if ($date === $today_str) {
         $now_plus = clone $now;
         $now_plus->modify('+15 minutes');
-        $cut = $now_plus->format('H:i');
+        $cut_time = $now_plus->format('H:i');
         
-        // More robust time filtering with normalization
+        // More robust time filtering with proper time comparison
         $original_count = count($times);
-        $times = array_values(array_filter($times, function($t) use ($cut) { 
+        $times = array_values(array_filter($times, function($t) use ($cut_time, $date, $tz) { 
             $normalized_time = trim($t);
-            // Ensure proper HH:MM format (pad single digits)
+            
+            // Ensure proper HH:MM format (pad single digits if needed)
             if (preg_match('/^\d:\d\d$/', $normalized_time)) {
                 $normalized_time = '0' . $normalized_time;
             }
             if (preg_match('/^\d\d:\d$/', $normalized_time)) {
                 $normalized_time = $normalized_time . '0';
             }
-            return $normalized_time > $cut; 
+            
+            // Create DateTime objects for proper comparison
+            try {
+                $slot_datetime = DateTime::createFromFormat('Y-m-d H:i', $date . ' ' . $normalized_time, $tz);
+                $cut_datetime = DateTime::createFromFormat('Y-m-d H:i', $date . ' ' . $cut_time, $tz);
+                
+                if ($slot_datetime && $cut_datetime) {
+                    return $slot_datetime > $cut_datetime;
+                }
+                
+                // Fallback to string comparison if DateTime creation fails
+                return $normalized_time > $cut_time;
+                
+            } catch (Exception $e) {
+                // Fallback to string comparison
+                return $normalized_time > $cut_time;
+            }
         }));
         $filtered_count = count($times);
         
-        // Debug logging if debug is enabled
+        // Enhanced debug logging
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log("RBF Time Filtering: Date={$date}, Current time={$now->format('H:i')}, Cut-off={$cut}, Original times={$original_count}, Filtered times={$filtered_count}");
+            error_log("RBF Time Filtering: Date={$date}, Current time={$now->format('H:i')}, Cut-off={$cut_time}, Original times={$original_count}, Filtered times={$filtered_count}, Timezone={$tz->getName()}");
+            if ($original_count > 0) {
+                error_log("RBF First original time: " . (isset($times[0]) ? 'N/A (filtered out)' : 'Available times exist'));
+            }
         }
     }
     
