@@ -263,7 +263,9 @@ jQuery(function($) {
     if (this.value) {
       showStep(el.peopleStep, 4);
       const maxPeople = 30; // generic cap
-      el.peopleInput.val(1).attr('max', maxPeople).trigger('input');
+      el.peopleInput.val(1).attr('max', maxPeople);
+      updatePeopleButtons(); // Update buttons without triggering input event
+      // Don't trigger input event here - let user interact with people selector first
     }
   });
 
@@ -283,26 +285,44 @@ jQuery(function($) {
   el.peoplePlus.on('click', function() {
     let val = parseInt(el.peopleInput.val());
     let max = parseInt(el.peopleInput.attr('max'));
-    if (val < max) el.peopleInput.val(val + 1).trigger('input');
+    if (val < max) {
+      el.peopleInput.val(val + 1).trigger('input');
+      // Show details step when user interacts with people selector
+      showDetailsStepIfNeeded();
+    }
   });
   
   el.peopleMinus.on('click', function() {
     let val = parseInt(el.peopleInput.val());
-    if (val > 1) el.peopleInput.val(val - 1).trigger('input');
+    if (val > 1) {
+      el.peopleInput.val(val - 1).trigger('input');
+      // Show details step when user interacts with people selector
+      showDetailsStepIfNeeded();
+    }
   });
   
   el.peopleInput.on('input', function() {
     updatePeopleButtons();
     resetSteps(4);
-    if (parseInt($(this).val()) > 0) {
-      showStep(el.detailsStep, 5);
-      el.detailsInputs.prop('disabled', false);
-      el.privacyCheckbox.prop('disabled', false);
-      el.marketingCheckbox.prop('disabled', false);
-      el.submitButton.show().prop('disabled', true);
-      initializeTelInput();
-    }
   });
+
+  /**
+   * Show details step after user interaction with people selector
+   */
+  function showDetailsStepIfNeeded() {
+    const peopleVal = parseInt(el.peopleInput.val());
+    if (peopleVal > 0) {
+      // Small delay to let user see the people selection before showing details
+      setTimeout(() => {
+        showStep(el.detailsStep, 5);
+        el.detailsInputs.prop('disabled', false);
+        el.privacyCheckbox.prop('disabled', false);
+        el.marketingCheckbox.prop('disabled', false);
+        el.submitButton.show().prop('disabled', true);
+        initializeTelInput();
+      }, 500); // 500ms delay to let users see the people section
+    }
+  }
 
   /**
    * Privacy checkbox handler
