@@ -379,8 +379,6 @@
 .iti__flag {
     width: 26px;
     height: 20px;
-    background-size: cover;
-    background-position: center;
     flex-shrink: 0;
     margin-right: 6px;
     border-radius: 3px;
