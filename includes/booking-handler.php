@@ -16,10 +16,23 @@ if (!defined('ABSPATH')) {
 add_action('admin_post_rbf_submit_booking', 'rbf_handle_booking_submission');
 add_action('admin_post_nopriv_rbf_submit_booking', 'rbf_handle_booking_submission');
 function rbf_handle_booking_submission() {
+    // Start performance monitoring
+    if (RBF_DEBUG && class_exists('RBF_Performance_Monitor')) {
+        RBF_Performance_Monitor::start_timing('booking_submission');
+    }
+    
     $redirect_url = wp_get_referer() ? strtok(wp_get_referer(), '?') : home_url();
     $anchor = '#rbf-message-anchor';
 
     if (!isset($_POST['rbf_nonce']) || !wp_verify_nonce($_POST['rbf_nonce'], 'rbf_booking')) {
+        // Log security error
+        if (RBF_DEBUG && class_exists('RBF_Debug_Logger')) {
+            RBF_Debug_Logger::track_event('booking_security_error', [
+                'user_ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+                'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
+                'referer' => wp_get_referer() ?? 'none'
+            ], 'WARNING');
+        }
         wp_safe_redirect(add_query_arg('rbf_error', urlencode(rbf_translate_string('Errore di sicurezza.')), $redirect_url . $anchor)); exit;
     }
 
@@ -194,10 +207,82 @@ function rbf_handle_booking_submission() {
                 ]
             ]]
         ];
-        wp_remote_post($meta_url, [
+        
+        // Track Meta CAPI performance
+        $meta_start_time = microtime(true);
+        $response = wp_remote_post($meta_url, [
             'body' => wp_json_encode($meta_payload),
             'headers' => ['Content-Type' => 'application/json'],
             'timeout' => 8
+        ]);
+        
+        // Monitor API performance and log results
+        if (RBF_DEBUG && class_exists('RBF_Performance_Monitor')) {
+            RBF_Performance_Monitor::track_api_call('meta_capi', $meta_url, $meta_start_time, $response);
+        }
+        
+        // Enhanced error handling
+        if (is_wp_error($response)) {
+            $error_message = $response->get_error_message();
+            error_log('RBF Meta CAPI Error - Booking ID: ' . $post_id . ', Error: ' . $error_message);
+            
+            // Log detailed error information
+            if (RBF_DEBUG && class_exists('RBF_Debug_Logger')) {
+                RBF_Debug_Logger::track_event('meta_capi_error', [
+                    'booking_id' => $post_id,
+                    'error_message' => $error_message,
+                    'error_code' => $response->get_error_code(),
+                    'bucket' => $bucket_std,
+                    'value' => $valore_tot
+                ], 'ERROR');
+            }
+            
+            // Notify admin of critical API failures
+            if ($response->get_error_code() === 'http_request_timeout') {
+                wp_mail(
+                    get_option('admin_email'),
+                    'RBF: Meta CAPI Timeout Warning',
+                    "Timeout su chiamata Meta CAPI per prenotazione #{$post_id}. Valore: €{$valore_tot}"
+                );
+            }
+        } else {
+            // Log successful API call
+            if (RBF_DEBUG && class_exists('RBF_Debug_Logger')) {
+                $response_code = wp_remote_retrieve_response_code($response);
+                RBF_Debug_Logger::track_event('meta_capi_success', [
+                    'booking_id' => $post_id,
+                    'response_code' => $response_code,
+                    'bucket' => $bucket_std,
+                    'value' => $valore_tot
+                ], 'INFO');
+            }
+        }
+    }
+
+    // Log successful booking creation
+    if (RBF_DEBUG && class_exists('RBF_Debug_Logger')) {
+        RBF_Debug_Logger::track_event('booking_created', [
+            'booking_id' => $post_id,
+            'source_bucket' => $src['bucket'],
+            'meal' => $meal,
+            'people' => $people,
+            'value' => $valore_tot,
+            'utm_source' => $utm_source,
+            'utm_medium' => $utm_medium,
+            'utm_campaign' => $utm_campaign,
+            'gclid' => $gclid,
+            'fbclid' => $fbclid
+        ], 'INFO');
+    }
+
+    // End performance monitoring
+    if (RBF_DEBUG && class_exists('RBF_Performance_Monitor')) {
+        RBF_Performance_Monitor::end_timing('booking_submission', [
+            'booking_id' => $post_id,
+            'integrations_called' => [
+                'brevo' => function_exists('rbf_trigger_brevo_automation'),
+                'meta_capi' => !empty($options['meta_pixel_id']) && !empty($options['meta_access_token'])
+            ]
         ]);
     }
 
