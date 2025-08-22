@@ -65,6 +65,7 @@ function rbf_enqueue_frontend_assets() {
             'chooseTime' => rbf_translate_string('Scegli un orario...'),
             'noTime' => rbf_translate_string('Nessun orario disponibile'),
             'invalidPhone' => rbf_translate_string('Il numero di telefono inserito non è valido.'),
+            'phonePlaceholder' => rbf_translate_string('Inserisci il numero di telefono'),
             'sundayBrunchNotice' => rbf_translate_string('Di Domenica il servizio è Brunch con menù alla carta.'),
             'privacyRequired' => rbf_translate_string('Devi accettare la Privacy Policy per procedere.'),
         ],

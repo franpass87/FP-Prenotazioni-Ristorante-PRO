@@ -148,18 +148,54 @@ jQuery(function($) {
     setTimeout(() => {
       if (el.telInput.length && !iti) {
         try {
+          console.log('Initializing intlTelInput...');
           iti = intlTelInput(el.telInput[0], {
             utilsScript: rbfData.utilsScript,
             initialCountry: 'it',
             preferredCountries: ['it','gb','us','de','fr','es'],
             separateDialCode: true,
-            nationalMode: false
+            nationalMode: false,
+            autoPlaceholder: 'aggressive',
+            customPlaceholder: function(selectedCountryPlaceholder, selectedCountryData) {
+              return rbfData.labels.phonePlaceholder || selectedCountryPlaceholder;
+            }
           });
+          
+          if (iti) {
+            console.log('intlTelInput initialized successfully');
+            
+            // Add change event listener to log country selection
+            el.telInput[0].addEventListener('countrychange', function() {
+              const countryData = iti.getSelectedCountryData();
+              console.log('Country changed to:', countryData.iso2, '-', countryData.name);
+              
+              // Update hidden field immediately when country changes
+              $('#rbf_country_code').val(countryData.iso2);
+            });
+            
+            // Ensure the dropdown is clickable by adding explicit click handler
+            const flagContainer = el.telInput.parent().find('.iti__flag-container');
+            if (flagContainer.length) {
+              flagContainer.on('click', function(e) {
+                e.stopPropagation();
+                console.log('Flag container clicked');
+              });
+            }
+            
+          } else {
+            console.error('Failed to initialize intlTelInput - returned null');
+          }
         } catch (error) {
-          console.warn('Failed to initialize intlTelInput:', error);
+          console.error('Failed to initialize intlTelInput:', error);
+          // Add fallback styling to make it clear there's an issue
+          el.telInput.addClass('rbf-tel-fallback');
         }
+      } else if (!el.telInput.length) {
+        console.warn('Tel input element not found');
+      } else if (iti) {
+        console.log('intlTelInput already initialized');
       }
-    }, 200); // Small delay to ensure visibility after CSS transitions
+    }, 300); // Increased delay to ensure proper element rendering
   }
 
   /**
@@ -352,23 +388,46 @@ jQuery(function($) {
     }
     
     if (iti) {
+      console.log('intlTelInput is initialized, validating phone...');
+      
       // Validate phone number if intlTelInput is initialized
       if (!iti.isValidNumber()) {
         e.preventDefault();
+        console.warn('Invalid phone number entered');
         alert(rbfData.labels.invalidPhone);
         el.submitButton.prop('disabled', false);
         return;
       }
       
       // Set the full international number and country code
-      el.telInput.val(iti.getNumber());
-      const countryCode = iti.getSelectedCountryData().iso2;
-      $('#rbf_country_code').val(countryCode);
+      const fullNumber = iti.getNumber();
+      const countryData = iti.getSelectedCountryData();
+      
+      console.log('Phone validation passed:', {
+        number: fullNumber,
+        country: countryData.iso2,
+        name: countryData.name
+      });
+      
+      el.telInput.val(fullNumber);
+      $('#rbf_country_code').val(countryData.iso2);
+      
     } else {
+      console.warn('intlTelInput not initialized, using fallback');
       // Fallback: if intlTelInput is not initialized, default to Italy
-      console.warn('intlTelInput not initialized, defaulting to Italy (IT)');
       $('#rbf_country_code').val('it');
+      
+      // Basic phone validation as fallback
+      const phoneValue = el.telInput.val().trim();
+      if (!phoneValue || phoneValue.length < 6) {
+        e.preventDefault();
+        alert(rbfData.labels.invalidPhone);
+        el.submitButton.prop('disabled', false);
+        return;
+      }
     }
+    
+    console.log('Form submission proceeding with country code:', $('#rbf_country_code').val());
   });
 
   /**
