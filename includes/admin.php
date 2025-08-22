@@ -567,6 +567,7 @@ function rbf_get_bookings_for_calendar_callback() {
  * AJAX handler for updating booking status
  */
 add_action('wp_ajax_rbf_update_booking_status', 'rbf_update_booking_status_callback');
+add_action('wp_ajax_rbf_update_booking_details', 'rbf_update_booking_details_callback');
 function rbf_update_booking_status_callback() {
     check_ajax_referer('rbf_calendar_nonce', '_ajax_nonce');
     
@@ -588,6 +589,86 @@ function rbf_update_booking_status_callback() {
         wp_send_json_success('Stato aggiornato con successo');
     } else {
         wp_send_json_error('Errore durante l\'aggiornamento');
+    }
+}
+
+/**
+ * Update booking details via AJAX
+ */
+function rbf_update_booking_details_callback() {
+    check_ajax_referer('rbf_calendar_nonce', '_ajax_nonce');
+    
+    $booking_id = intval($_POST['booking_id']);
+    $booking_data = $_POST['booking_data'] ?? [];
+    
+    if (!$booking_id || empty($booking_data)) {
+        wp_send_json_error('Parametri non validi');
+    }
+    
+    $booking = get_post($booking_id);
+    if (!$booking || $booking->post_type !== 'rbf_booking') {
+        wp_send_json_error('Prenotazione non trovata');
+    }
+    
+    // Sanitize and validate input data
+    $customer_name = sanitize_text_field($booking_data['customer_name'] ?? '');
+    $customer_email = sanitize_email($booking_data['customer_email'] ?? '');
+    $customer_phone = sanitize_text_field($booking_data['customer_phone'] ?? '');
+    $booking_date = sanitize_text_field($booking_data['booking_date'] ?? '');
+    $booking_time = sanitize_text_field($booking_data['booking_time'] ?? '');
+    $people = intval($booking_data['people'] ?? 0);
+    $notes = sanitize_textarea_field($booking_data['notes'] ?? '');
+    $status = sanitize_text_field($booking_data['status'] ?? '');
+    
+    // Basic validation
+    if (!$customer_email || !$booking_date || !$booking_time || $people < 1 || $people > 20) {
+        wp_send_json_error('Dati non validi: controllare email, data, orario e numero persone');
+    }
+    
+    if (!in_array($status, ['confirmed', 'cancelled', 'completed'])) {
+        wp_send_json_error('Stato non valido');
+    }
+    
+    // Parse customer name into first and last name
+    $name_parts = explode(' ', trim($customer_name), 2);
+    $first_name = $name_parts[0] ?? '';
+    $last_name = $name_parts[1] ?? '';
+    
+    // Update booking metadata
+    $meta_updates = [
+        'rbf_nome' => $first_name,
+        'rbf_cognome' => $last_name,
+        'rbf_email' => $customer_email,
+        'rbf_tel' => $customer_phone,
+        'rbf_data' => $booking_date,
+        'rbf_time' => $booking_time,
+        'rbf_persone' => $people,
+        'rbf_allergie' => $notes,
+        'rbf_booking_status' => $status,
+    ];
+    
+    $update_success = true;
+    foreach ($meta_updates as $meta_key => $meta_value) {
+        $result = update_post_meta($booking_id, $meta_key, $meta_value);
+        if ($result === false) {
+            $update_success = false;
+        }
+    }
+    
+    // Update post title to reflect changes
+    $title = (!empty($first_name) && !empty($last_name)) 
+        ? "Prenotazione per {$first_name} {$last_name} - {$booking_date} {$booking_time}"
+        : "Prenotazione - {$booking_date} {$booking_time}";
+    
+    wp_update_post([
+        'ID' => $booking_id,
+        'post_title' => $title,
+    ]);
+    
+    if ($update_success) {
+        wp_send_json_success('Prenotazione aggiornata con successo');
+    } else {
+        wp_send_json_error('Errore durante l\'aggiornamento della prenotazione');
     }
 }
 

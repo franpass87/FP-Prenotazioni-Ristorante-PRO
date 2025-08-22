@@ -248,6 +248,30 @@
     background: white;
 }
 
+/* Edit fields in booking modal */
+.rbf-booking-details .rbf-edit-field {
+    width: 100%;
+    max-width: 300px;
+    padding: 6px 10px;
+    border: 1px solid var(--rbf-admin-border);
+    border-radius: 4px;
+    background: white;
+    font-size: 14px;
+    font-family: inherit;
+    transition: var(--rbf-admin-transition);
+}
+
+.rbf-booking-details .rbf-edit-field:focus {
+    outline: none;
+    border-color: var(--rbf-admin-primary);
+    box-shadow: 0 0 0 2px rgba(44, 90, 160, 0.1);
+}
+
+.rbf-booking-details textarea.rbf-edit-field {
+    min-height: 60px;
+    resize: vertical;
+}
+
 .rbf-modal-footer {
     padding: 16px 24px;
     border-top: 1px solid var(--rbf-admin-border);
