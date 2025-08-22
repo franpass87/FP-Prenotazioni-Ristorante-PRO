@@ -10,8 +10,8 @@ Sistema completo di prenotazioni per ristoranti con calendario Flatpickr multili
 
 ### 📅 Sistema di Prenotazione
 - **Calendario Interattivo**: Flatpickr con supporto multilingue (IT/EN)
-- **Gestione Last-Minute**: Prenotazioni con controllo orari dinamici
-- **Smart Same-Day Booking**: Logica intelligente per prenotazioni pranzo stesso giorno (prima delle 6:00)
+- **Gestione Semplificata**: Prenotazioni con limite minimo di 1 ora
+- **Sistema Intuitivo**: Se sono le 12:00, puoi prenotare dalle 13:00 in poi
 - **Capienza per Servizio**: Controllo automatico disponibilità per pranzo/cena/aperitivo
 - **Slot Temporali Personalizzabili**: Configurazione flessibile degli orari
 
@@ -67,28 +67,30 @@ fp-prenotazioni-ristorante-pro/
 
 ## ⚙️ Configurazione
 
-### Smart Same-Day Booking Feature
+### Sistema di Prenotazione Semplificato
 
-Il plugin include una funzionalità intelligente per le prenotazioni pranzo dello stesso giorno:
+Il plugin utilizza un sistema di prenotazione semplificato e intuitivo:
 
-**Come funziona:**
-- Le prenotazioni per il pranzo possono essere effettuate lo stesso giorno se fatte prima delle 6:00
-- La logica si applica solo per il servizio "pranzo" 
-- Rimangono attive le normali regole di anticipo per tutti gli altri casi
+**Regola Base:**
+- Tutte le prenotazioni richiedono un **minimo di 1 ora di anticipo**
+- Se sono le 12:00, puoi prenotare dalle 13:00 in poi
+- Non ci sono limitazioni massime di anticipo
 
 **Esempio Pratico:**
 ```
-Configurazione: Anticipo minimo 24 ore (1440 minuti)
-Scenario: Utente prenota alle 00:06 del 23 gennaio per il pranzo del 23 gennaio alle 12:00
+Scenario attuale: Ore 14:30
+Prenotazione per: Ore 15:30 (stesso giorno)
+✅ CONSENTITA (1 ora di anticipo rispettata)
 
-❌ Logica Standard: BLOCCATA (mancano 12 ore per raggiungere le 24 richieste)
-✅ Smart Logic: CONSENTITA (prenotazione pranzo stesso giorno prima delle 6:00)
+Scenario attuale: Ore 11:00
+Prenotazione per: Ore 11:30 (stesso giorno)
+❌ BLOCCATA (meno di 1 ora di anticipo)
 ```
 
-**Vantaggi:**
-- Migliora l'esperienza utente per clienti mattinieri
-- Mantiene sicurezza per altre tipologie di prenotazione
-- Supporta operatività ristoranti con prep time mattutino
+**Vantaggi del Sistema Semplificato:**
+- Regole chiare e comprensibili per tutti gli utenti
+- Nessuna configurazione complessa necessaria
+- Massima flessibilità per i clienti
 
 ### Impostazioni Base
 - **Orari Servizio**: Configura slot pranzo, cena, aperitivo
@@ -274,8 +276,9 @@ update_post_meta($post_id, 'rbf_source_bucket', $src['bucket']);
 ## 📋 Changelog
 
 ### Version 10.0.2 (Current)
-- 🐛 **Fix**: Risolto problema prenotazioni pranzo stesso giorno con anticipo minimo elevato
-- ✨ **Smart Booking Logic**: Introdotta logica intelligente per prenotazioni pranzo mattutine
+- 🔧 **Semplificazione Sistema**: Rimossi tutti i limiti configurabili dalle impostazioni
+- ⚡ **Nuovo Sistema**: Implementato limite fisso di 1 ora (se sono le 12:00, prenotabile dalle 13:00)
+- 🎯 **UX Migliorata**: Sistema più intuitivo e user-friendly per i clienti
 - 📚 **Documentazione**: Aggiornate guide utente con nuove funzionalità
 
 ### Version 10.0.1

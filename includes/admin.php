@@ -35,8 +35,9 @@ function rbf_get_default_settings() {
         'brevo_list_it' => '',
         'brevo_list_en' => '',
         'closed_dates' => '',
-        'min_advance_minutes' => 0, // Minimum minutes in advance bookings are required
-        'max_advance_minutes' => 10080, // Maximum minutes in advance (default: 7 days = 10080 minutes)
+        // Note: Advance booking limits removed - using fixed 1-hour minimum rule
+        'min_advance_minutes' => 60, // Fixed at 1 hour for system compatibility
+        'max_advance_minutes' => 0, // No maximum limit
     ];
 }
 
@@ -246,26 +247,9 @@ function rbf_sanitize_settings_callback($input) {
 
     if (isset($input['closed_dates'])) $output['closed_dates'] = sanitize_textarea_field($input['closed_dates']);
 
-    // Validate advance booking time limits in minutes
-    // Minimum: 0 minutes, Maximum: 525600 minutes (1 year)
-    if (isset($input['min_advance_minutes'])) {
-        $min_minutes = absint($input['min_advance_minutes']);
-        $output['min_advance_minutes'] = max(0, min(525600, $min_minutes));
-    } else {
-        $output['min_advance_minutes'] = $defaults['min_advance_minutes'] ?? 0;
-    }
-    
-    if (isset($input['max_advance_minutes'])) {
-        $max_minutes = absint($input['max_advance_minutes']);
-        $output['max_advance_minutes'] = max(0, min(525600, $max_minutes));
-    } else {
-        $output['max_advance_minutes'] = $defaults['max_advance_minutes'] ?? 10080;
-    }
-    
-    // Ensure min is not greater than max
-    if ($output['min_advance_minutes'] > $output['max_advance_minutes']) {
-        $output['max_advance_minutes'] = $output['min_advance_minutes'];
-    }
+    // Fixed advance booking settings (no longer configurable - using 1-hour minimum rule)
+    $output['min_advance_minutes'] = 60; // Fixed at 1 hour
+    $output['max_advance_minutes'] = 0;  // No maximum limit
 
     return $output;
 }
@@ -329,21 +313,8 @@ function rbf_settings_page_html() {
                     <td><textarea id="rbf_closed_dates" name="rbf_settings[closed_dates]" rows="5" class="large-text"><?php echo esc_textarea($options['closed_dates']); ?></textarea></td>
                 </tr>
 
-                <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Limiti Temporali Prenotazioni')); ?></h2></th></tr>
-                <tr>
-                    <th><label for="rbf_min_advance_minutes"><?php echo esc_html(rbf_translate_string('Minuti minimi in anticipo per prenotare')); ?></label></th>
-                    <td>
-                        <input type="number" id="rbf_min_advance_minutes" name="rbf_settings[min_advance_minutes]" value="<?php echo esc_attr($options['min_advance_minutes']); ?>" min="0" max="525600">
-                        <p class="description"><?php echo esc_html(rbf_translate_string('Numero minimo di minuti richiesti in anticipo per le prenotazioni. Valore minimo 0, massimo 525600 (1 anno). Esempi: 60 = 1 ora, 1440 = 1 giorno.')); ?></p>
-                    </td>
-                </tr>
-                <tr>
-                    <th><label for="rbf_max_advance_minutes"><?php echo esc_html(rbf_translate_string('Minuti massimi in anticipo per prenotare')); ?></label></th>
-                    <td>
-                        <input type="number" id="rbf_max_advance_minutes" name="rbf_settings[max_advance_minutes]" value="<?php echo esc_attr($options['max_advance_minutes']); ?>" min="0" max="525600">
-                        <p class="description"><?php echo esc_html(rbf_translate_string('Numero massimo di minuti entro cui è possibile prenotare. Valore minimo 0, massimo 525600 (1 anno). Esempi: 10080 = 7 giorni, 43200 = 30 giorni.')); ?></p>
-                    </td>
-                </tr>
+                <!-- Advance booking time limits removed as per user request - now using fixed 1-hour minimum -->
+                <!-- <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Limiti Temporali Prenotazioni')); ?></h2></th></tr> -->
 
                 <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Valore Economico Pasti (per Tracking)')); ?></h2></th></tr>
                 <tr><th><label for="rbf_valore_pranzo"><?php echo esc_html(rbf_translate_string('Valore medio Pranzo (€)')); ?></label></th>
