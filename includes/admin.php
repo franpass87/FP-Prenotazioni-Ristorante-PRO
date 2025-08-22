@@ -98,7 +98,7 @@ function rbf_register_post_type() {
         ],
         'public' => false,
         'show_ui' => true,
-        'show_in_menu' => 'rbf_bookings_menu',
+        'show_in_menu' => false,
         'menu_icon' => 'dashicons-calendar-alt',
         'supports' => ['title', 'custom-fields'],
         'menu_position' => 20,
