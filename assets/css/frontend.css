@@ -377,13 +377,11 @@
 
 /* Enhanced Flag Design - Larger and More Visible */
 .iti__flag {
-    width: 26px;
-    height: 20px;
+    /* Restore default flag dimensions to prevent distortion */
+    width: 20px;
+    height: 15px;
     flex-shrink: 0;
     margin-right: 6px;
-    border-radius: 3px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 /* Improved Arrow Design */
@@ -468,11 +466,10 @@
 
 /* Enhanced Flag in Dropdown */
 .iti__country .iti__flag {
-    width: 28px;
-    height: 21px;
+    /* Match dropdown flags with default sprite size */
+    width: 20px;
+    height: 15px;
     margin-right: 14px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.1);
-    border-radius: 3px;
 }
 
 .iti__country-name {
