@@ -41,6 +41,9 @@ function rbf_enqueue_frontend_assets() {
     // Frontend styles
     wp_enqueue_style('rbf-frontend-css', plugin_dir_url(dirname(__FILE__)) . 'assets/css/frontend.css', ['rbf-flatpickr-css'], '9.3.2');
 
+    // Frontend script (must be enqueued before wp_localize_script)
+    wp_enqueue_script('rbf-frontend-js', plugin_dir_url(dirname(__FILE__)) . 'assets/js/frontend.js', $deps, '9.3.2', true);
+
     // Giorni chiusi
     $closed_days_map = ['sun'=>0,'mon'=>1,'tue'=>2,'wed'=>3,'thu'=>4,'fri'=>5,'sat'=>6];
     $closed_days = [];
@@ -66,9 +69,6 @@ function rbf_enqueue_frontend_assets() {
             'privacyRequired' => rbf_translate_string('Devi accettare la Privacy Policy per procedere.'),
         ],
     ]);
-
-    // Frontend script
-    wp_enqueue_script('rbf-frontend-js', plugin_dir_url(dirname(__FILE__)) . 'assets/js/frontend.js', $deps, '9.3.2', true);
 }
 
 /**

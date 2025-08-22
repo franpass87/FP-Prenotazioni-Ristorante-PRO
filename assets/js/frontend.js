@@ -5,11 +5,27 @@
 jQuery(function($) {
   'use strict';
   
-  // Check if required dependencies are loaded
-  if (typeof rbfData === 'undefined' || typeof flatpickr === 'undefined' || typeof intlTelInput === 'undefined') return;
+  // Check if required dependencies are loaded with detailed logging
+  if (typeof rbfData === 'undefined') {
+    console.error('RBF: rbfData is not defined. Script localization may have failed.');
+    return;
+  }
+  if (typeof flatpickr === 'undefined') {
+    console.error('RBF: flatpickr is not defined. CDN resource may not have loaded.');
+    return;
+  }
+  if (typeof intlTelInput === 'undefined') {
+    console.error('RBF: intlTelInput is not defined. CDN resource may not have loaded.');
+    return;
+  }
 
   const form = $('#rbf-form');
-  if (!form.length) return;
+  if (!form.length) {
+    console.error('RBF: Form #rbf-form not found on page');
+    return;
+  }
+
+  console.log('RBF: Form found, initializing booking form...');
 
   // Cache DOM elements
   const el = {
@@ -31,6 +47,8 @@ jQuery(function($) {
     marketingCheckbox: form.find('#rbf-marketing'),
     submitButton: form.find('#rbf-submit')
   };
+
+  console.log('RBF: Found', el.mealRadios.length, 'meal radio buttons');
 
   let fp = null;
   let iti = null;
@@ -163,6 +181,7 @@ jQuery(function($) {
    * Handle meal selection change
    */
   el.mealRadios.on('change', function() {
+    console.log('RBF: Meal selection changed to:', this.value);
     resetSteps(1);
     el.mealNotice.hide();
     showStep(el.dateStep, 2);
@@ -185,6 +204,7 @@ jQuery(function($) {
       }],
       onChange: onDateChange
     });
+    console.log('RBF: Flatpickr initialized');
   });
 
   /**
