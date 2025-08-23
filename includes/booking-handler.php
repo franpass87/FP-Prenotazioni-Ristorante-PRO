@@ -216,7 +216,7 @@ function rbf_handle_booking_submission() {
         // Enhanced error handling
         if (is_wp_error($response)) {
             $error_message = $response->get_error_message();
-            error_log('RBF Meta CAPI Error - Booking ID: ' . $post_id . ', Error: ' . $error_message);
+            rbf_handle_error("Meta CAPI Error - Booking ID: {$post_id}, Error: {$error_message}", 'meta_api');
             
             // Notify admin of critical API failures
             if ($response->get_error_code() === 'http_request_timeout') {
