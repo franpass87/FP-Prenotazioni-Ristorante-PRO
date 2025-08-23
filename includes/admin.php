@@ -942,26 +942,8 @@ function rbf_filter_by_status($query) {
  * Get booking analytics for reports
  */
 function rbf_get_booking_analytics($start_date, $end_date) {
-    global $wpdb;
-    
-    // Get all bookings in date range
-    $bookings = $wpdb->get_results($wpdb->prepare(
-        "SELECT p.ID, pm_date.meta_value as booking_date, pm_people.meta_value as people, 
-                COALESCE(pm_meal.meta_value, pm_meal_legacy.meta_value) as meal, pm_status.meta_value as status,
-                pm_source.meta_value as source, pm_bucket.meta_value as bucket
-         FROM {$wpdb->posts} p
-         INNER JOIN {$wpdb->postmeta} pm_date ON p.ID = pm_date.post_id AND pm_date.meta_key = 'rbf_data'
-         LEFT JOIN {$wpdb->postmeta} pm_people ON p.ID = pm_people.post_id AND pm_people.meta_key = 'rbf_persone'
-         LEFT JOIN {$wpdb->postmeta} pm_meal ON p.ID = pm_meal.post_id AND pm_meal.meta_key = 'rbf_meal'
-         LEFT JOIN {$wpdb->postmeta} pm_meal_legacy ON p.ID = pm_meal_legacy.post_id AND pm_meal_legacy.meta_key = 'rbf_orario'
-         LEFT JOIN {$wpdb->postmeta} pm_status ON p.ID = pm_status.post_id AND pm_status.meta_key = 'rbf_booking_status'
-         LEFT JOIN {$wpdb->postmeta} pm_source ON p.ID = pm_source.post_id AND pm_source.meta_key = 'rbf_source'
-         LEFT JOIN {$wpdb->postmeta} pm_bucket ON p.ID = pm_bucket.post_id AND pm_bucket.meta_key = 'rbf_source_bucket'
-         WHERE p.post_type = 'rbf_booking' AND p.post_status = 'publish'
-         AND pm_date.meta_value >= %s AND pm_date.meta_value <= %s
-         ORDER BY pm_date.meta_value ASC",
-        $start_date, $end_date
-    ));
+    // Get all bookings in date range using database helper
+    $bookings = RBF_Database_Helper::get_calendar_events($start_date, $end_date);
     
     $options = rbf_get_settings();
     $statuses = rbf_get_booking_statuses();

@@ -100,15 +100,8 @@ function rbf_render_customer_booking_management() {
     
     $booking_hash = sanitize_text_field($_GET['booking']);
     
-    // Find booking by hash
-    global $wpdb;
-    $booking_id = $wpdb->get_var($wpdb->prepare(
-        "SELECT p.ID FROM {$wpdb->posts} p
-         INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id 
-         WHERE p.post_type = 'rbf_booking' AND p.post_status = 'publish'
-         AND pm.meta_key = 'rbf_booking_hash' AND pm.meta_value = %s",
-        $booking_hash
-    ));
+    // Use database helper to get booking
+    $booking_id = RBF_Database_Helper::get_booking_by_hash($booking_hash);
     
     if (!$booking_id) {
         ?>
@@ -446,18 +439,9 @@ function rbf_get_remaining_capacity($date, $slot) {
         return PHP_INT_MAX;
     }
 
-    global $wpdb;
-    $spots_taken = $wpdb->get_var($wpdb->prepare(
-        "SELECT SUM(pm_people.meta_value)
-         FROM {$wpdb->posts} p
-         INNER JOIN {$wpdb->postmeta} pm_people ON p.ID = pm_people.post_id AND pm_people.meta_key = 'rbf_persone'
-         INNER JOIN {$wpdb->postmeta} pm_date ON p.ID = pm_date.post_id AND pm_date.meta_key = 'rbf_data'
-         INNER JOIN {$wpdb->postmeta} pm_slot ON p.ID = pm_slot.post_id AND pm_slot.meta_key = 'rbf_orario'
-         WHERE p.post_type = 'rbf_booking' AND p.post_status = 'publish'
-         AND pm_date.meta_value = %s AND pm_slot.meta_value = %s",
-        $date, $slot
-    ));
-    $remaining = max(0, $total - (int) $spots_taken);
+    // Use database helper to get capacity usage
+    $spots_taken = RBF_Database_Helper::get_slot_capacity_used($date, $slot);
+    $remaining = max(0, $total - $spots_taken);
     set_transient($transient_key, $remaining, HOUR_IN_SECONDS);
     return $remaining;
 }

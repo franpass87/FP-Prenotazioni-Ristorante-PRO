@@ -14,3 +14,14 @@ fp-prenotazioni-ristorante-pro-original.php
 
 # macOS
 .DS_Store
+
+# Composer dependencies
+vendor/
+composer.lock
+
+# Build artifacts
+/build/
+/dist/
+
+# Validation scripts
+validate-code.php

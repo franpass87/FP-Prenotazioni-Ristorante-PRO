@@ -76,7 +76,9 @@ add_action('plugins_loaded', 'rbf_maybe_clear_transients_on_load', -1);
  */
 function rbf_load_modules() {
     $modules = [
+        'database.php',
         'utils.php',
+        'notifications.php',
         'admin.php',
         'frontend.php',
         'booking-handler.php',
