@@ -237,7 +237,7 @@ function rbf_enqueue_admin_styles($hook) {
         $hook !== 'prenotazioni_page_rbf_export' &&
         strpos($hook,'edit.php?post_type=rbf_booking') === false) return;
 
-    wp_enqueue_style('rbf-admin-css', plugin_dir_url(dirname(__FILE__)) . 'assets/css/admin.css', [], RBF_VERSION . '.' . time());
+    wp_enqueue_style('rbf-admin-css', plugin_dir_url(dirname(__FILE__)) . 'assets/css/admin.css', [], rbf_get_asset_version());
 }
 
 /**
@@ -330,7 +330,7 @@ function rbf_settings_page_html() {
 function rbf_calendar_page_html() {
     wp_enqueue_style('fullcalendar-css', 'https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css', [], '5.11.3');
     wp_enqueue_script('fullcalendar-js', 'https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js', ['jquery'], '5.11.3', true);
-    wp_enqueue_script('rbf-admin-js', plugin_dir_url(dirname(__FILE__)) . 'assets/js/admin.js', ['jquery', 'fullcalendar-js'], RBF_VERSION . '.' . time(), true);
+    wp_enqueue_script('rbf-admin-js', plugin_dir_url(dirname(__FILE__)) . 'assets/js/admin.js', ['jquery', 'fullcalendar-js'], rbf_get_asset_version(), true);
     
     wp_localize_script('rbf-admin-js', 'rbfAdminData', [
         'ajaxUrl' => admin_url('admin-ajax.php'),
