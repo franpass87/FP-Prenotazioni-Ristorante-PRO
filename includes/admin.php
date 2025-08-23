@@ -634,7 +634,7 @@ function rbf_add_booking_page_html() {
     ?>
     <div class="rbf-admin-wrap">
         <h1><?php echo esc_html(rbf_translate_string('Aggiungi Nuova Prenotazione')); ?></h1>
-        <?php echo $message; ?>
+        <?php echo wp_kses_post($message); ?>
         <form method="post">
             <?php wp_nonce_field('rbf_add_backend_booking'); ?>
             <table class="form-table">

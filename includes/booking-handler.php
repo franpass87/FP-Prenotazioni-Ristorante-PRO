@@ -105,12 +105,6 @@ function rbf_handle_booking_submission() {
       'referrer' => $referrer
     ]);
 
-    $email = rbf_validate_email($_POST['rbf_email']);
-    if (is_array($email) && isset($email['error'])) {
-        rbf_handle_error($email['message'], 'email_validation', $redirect_url . $anchor);
-        return;
-    }
-
     // Validate booking time using centralized function
     $time_validation = rbf_validate_booking_time($date, $time);
     if ($time_validation !== true) {
