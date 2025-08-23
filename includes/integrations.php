@@ -190,8 +190,8 @@ function rbf_trigger_brevo_automation($first_name, $last_name, $email, $date, $t
     $api_key = $options['brevo_api'] ?? '';
     $list_id = $lang === 'en' ? ($options['brevo_list_en'] ?? '') : ($options['brevo_list_it'] ?? '');
 
-    if (empty($api_key)) { error_log('Brevo: API key non configurata.'); return; }
-    if (empty($list_id)) { error_log('Brevo: ID lista non configurato per lingua ' . $lang); return; }
+    if (empty($api_key)) { rbf_handle_error('Brevo: API key non configurata.', 'brevo_config'); return; }
+    if (empty($list_id)) { rbf_handle_error("Brevo: ID lista non configurato per lingua {$lang}", 'brevo_config'); return; }
 
     $base_args = [
         'headers' => ['api-key' => $api_key, 'Content-Type' => 'application/json'],
@@ -223,7 +223,7 @@ function rbf_trigger_brevo_automation($first_name, $last_name, $email, $date, $t
     );
     
     if (is_wp_error($response)) {
-        error_log('Errore Brevo (upsert contatto): '.$response->get_error_message());
+        rbf_handle_error('Errore Brevo (upsert contatto): ' . $response->get_error_message(), 'brevo_api');
     }
 
     // 2) Custom Event via /v3/events: sempre
@@ -243,6 +243,6 @@ function rbf_trigger_brevo_automation($first_name, $last_name, $email, $date, $t
     );
     
     if (is_wp_error($response)) {
-        error_log('Errore Brevo (evento booking_bistrot): '.$response->get_error_message());
+        rbf_handle_error('Errore Brevo (evento booking_bistrot): ' . $response->get_error_message(), 'brevo_api');
     }
 }
