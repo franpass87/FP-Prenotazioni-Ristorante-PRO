@@ -756,9 +756,6 @@
     font-weight: 600;
 }
 
-/* Focus management for accessibility - REMOVED */
-/* .rbf-step:focus-within rule removed as requested */
-
 /* Screen reader only content */
 .sr-only {
     position: absolute;
