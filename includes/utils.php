@@ -11,6 +11,37 @@ if (!defined('ABSPATH')) {
 }
 
 /**
+ * Get default plugin settings
+ */
+function rbf_get_default_settings() {
+    return [
+        'capienza_pranzo' => 30,
+        'capienza_cena' => 40,
+        'capienza_aperitivo' => 25,
+        'orari_pranzo' => '12:00,12:30,13:00,13:30,14:00',
+        'orari_cena' => '19:00,19:30,20:00,20:30',
+        'orari_aperitivo' => '17:00,17:30,18:00',
+        'valore_pranzo' => 35.00,
+        'valore_cena' => 50.00,
+        'valore_aperitivo' => 15.00,
+        'open_mon' => 'yes','open_tue' => 'yes','open_wed' => 'yes','open_thu' => 'yes','open_fri' => 'yes','open_sat' => 'yes','open_sun' => 'yes',
+        'ga4_id' => '',
+        'ga4_api_secret' => '',
+        'meta_pixel_id' => '',
+        'meta_access_token' => '',
+        'notification_email' => 'info@villadianella.it',
+        'webmaster_email' => get_option('admin_email', ''),
+        'brevo_api' => '',
+        'brevo_list_it' => '',
+        'brevo_list_en' => '',
+        'closed_dates' => '',
+        // Note: Advance booking limits removed - using fixed 1-hour minimum rule
+        'min_advance_minutes' => 60, // Fixed at 1 hour for system compatibility
+        'max_advance_minutes' => 0, // No maximum limit
+    ];
+}
+
+/**
  * WordPress timezone compatibility function
  */
 if (!function_exists('rbf_wp_timezone')) {
@@ -49,11 +80,11 @@ function rbf_current_lang() {
     // Only use get_locale if WordPress is fully loaded
     if (function_exists('get_locale')) {
         $slug = substr(get_locale(), 0, 2);
-        return in_array($slug, ['it','en'], true) ? $slug : 'en';
+        return in_array($slug, ['it','en'], true) ? $slug : 'it'; // Default to Italian
     }
     
-    // Consistent fallback to 'en' (English) when WordPress functions are not yet available
-    return 'en';
+    // Default to Italian for Italian restaurant context
+    return 'it';
 }
 
 /**
@@ -358,8 +389,83 @@ function rbf_validate_booking_time($date, $time) {
 }
 
 /**
- * Update booking status with history tracking
+ * Centralized email validation
  */
+function rbf_validate_email($email) {
+    $email = sanitize_email($email);
+    if (!is_email($email)) {
+        return ['error' => true, 'message' => rbf_translate_string('Indirizzo email non valido.')];
+    }
+    return $email;
+}
+
+/**
+ * Centralized phone number validation
+ */
+function rbf_validate_phone($phone) {
+    $phone = sanitize_text_field($phone);
+    // Basic phone validation - at least 8 digits
+    if (strlen(preg_replace('/[^0-9]/', '', $phone)) < 8) {
+        return ['error' => true, 'message' => rbf_translate_string('Il numero di telefono inserito non è valido.')];
+    }
+    return $phone;
+}
+
+/**
+ * Centralized date validation
+ */
+function rbf_validate_date($date) {
+    $date = sanitize_text_field($date);
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || !DateTime::createFromFormat('Y-m-d', $date)) {
+        return ['error' => true, 'message' => rbf_translate_string('Data non valida.')];
+    }
+    return $date;
+}
+
+/**
+ * Standardized error response handler
+ */
+function rbf_handle_error($message, $context = 'general', $redirect_url = null) {
+    // Log error for debugging
+    if (WP_DEBUG) {
+        error_log("RBF Error [{$context}]: {$message}");
+    }
+    
+    // If AJAX request, send JSON response
+    if (wp_doing_ajax()) {
+        wp_send_json_error(['message' => $message, 'context' => $context]);
+        return;
+    }
+    
+    // If redirect URL provided, redirect with error message
+    if ($redirect_url) {
+        wp_safe_redirect(add_query_arg('rbf_error', urlencode($message), $redirect_url));
+        exit;
+    }
+    
+    // Fallback: return error array
+    return ['error' => true, 'message' => $message, 'context' => $context];
+}
+
+/**
+ * Standardized success response handler  
+ */
+function rbf_handle_success($message, $data = [], $redirect_url = null) {
+    // If AJAX request, send JSON response
+    if (wp_doing_ajax()) {
+        wp_send_json_success(array_merge(['message' => $message], $data));
+        return;
+    }
+    
+    // If redirect URL provided, redirect with success message
+    if ($redirect_url) {
+        wp_safe_redirect(add_query_arg('rbf_success', urlencode($message), $redirect_url));
+        exit;
+    }
+    
+    // Fallback: return success array
+    return array_merge(['success' => true, 'message' => $message], $data);
+}
 function rbf_update_booking_status($booking_id, $new_status, $note = '') {
     $old_status = get_post_meta($booking_id, 'rbf_booking_status', true);
     

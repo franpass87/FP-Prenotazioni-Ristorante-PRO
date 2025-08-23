@@ -20,13 +20,15 @@ function rbf_handle_booking_submission() {
     $anchor = '#rbf-message-anchor';
 
     if (!isset($_POST['rbf_nonce']) || !wp_verify_nonce($_POST['rbf_nonce'], 'rbf_booking')) {
-        wp_safe_redirect(add_query_arg('rbf_error', urlencode(rbf_translate_string('Errore di sicurezza.')), $redirect_url . $anchor)); exit;
+        rbf_handle_error(rbf_translate_string('Errore di sicurezza.'), 'security', $redirect_url . $anchor);
+        return;
     }
 
     $required = ['rbf_meal','rbf_data','rbf_orario','rbf_persone','rbf_nome','rbf_cognome','rbf_email','rbf_tel','rbf_privacy'];
     foreach ($required as $f) {
         if (empty($_POST[$f])) {
-            wp_safe_redirect(add_query_arg('rbf_error', urlencode(rbf_translate_string('Tutti i campi sono obbligatori, inclusa l\'accettazione della privacy policy.')), $redirect_url . $anchor)); exit;
+            rbf_handle_error(rbf_translate_string('Tutti i campi sono obbligatori, inclusa l\'accettazione della privacy policy.'), 'validation', $redirect_url . $anchor);
+            return;
         }
     }
 
@@ -34,14 +36,23 @@ function rbf_handle_booking_submission() {
     $date = sanitize_text_field($_POST['rbf_data']);
     $time_data = sanitize_text_field($_POST['rbf_orario']);
     if (strpos($time_data, '|') === false) {
-        wp_safe_redirect(add_query_arg('rbf_error', urlencode(rbf_translate_string('Orario non valido.')), $redirect_url . $anchor)); exit;
+        rbf_handle_error(rbf_translate_string('Orario non valido.'), 'time_validation', $redirect_url . $anchor);
+        return;
     }
     list($slot, $time) = explode('|', $time_data);
     $people = intval($_POST['rbf_persone']);
     $first_name = sanitize_text_field($_POST['rbf_nome']);
     $last_name = sanitize_text_field($_POST['rbf_cognome']);
-    $email = sanitize_email($_POST['rbf_email']);
-    $tel = sanitize_text_field($_POST['rbf_tel']);
+    $email = rbf_validate_email($_POST['rbf_email']);
+    if (is_array($email) && isset($email['error'])) {
+        rbf_handle_error($email['message'], 'email_validation', $redirect_url . $anchor);
+        return;
+    }
+    $tel = rbf_validate_phone($_POST['rbf_tel']);
+    if (is_array($tel) && isset($tel['error'])) {
+        rbf_handle_error($tel['message'], 'phone_validation', $redirect_url . $anchor);
+        return;
+    }
     $notes = sanitize_textarea_field($_POST['rbf_allergie'] ?? '');
     $lang = sanitize_text_field($_POST['rbf_lang'] ?? 'it');
     $country_code = strtolower(sanitize_text_field($_POST['rbf_country_code'] ?? ''));
@@ -75,15 +86,17 @@ function rbf_handle_booking_submission() {
       'referrer' => $referrer
     ]);
 
-    if (!$email) {
-        wp_safe_redirect(add_query_arg('rbf_error', urlencode(rbf_translate_string('Indirizzo email non valido.')), $redirect_url . $anchor)); exit;
+    $email = rbf_validate_email($_POST['rbf_email']);
+    if (is_array($email) && isset($email['error'])) {
+        rbf_handle_error($email['message'], 'email_validation', $redirect_url . $anchor);
+        return;
     }
 
     // Validate booking time using centralized function
     $time_validation = rbf_validate_booking_time($date, $time);
     if ($time_validation !== true) {
-        wp_safe_redirect(add_query_arg('rbf_error', urlencode($time_validation['message']), $redirect_url . $anchor));
-        exit;
+        rbf_handle_error($time_validation['message'], 'time_validation', $redirect_url . $anchor);
+        return;
     }
 
     $remaining_capacity = rbf_get_remaining_capacity($date, $slot);
@@ -94,8 +107,8 @@ function rbf_handle_booking_submission() {
             rbf_translate_string('Spiacenti, non ci sono abbastanza posti. Rimasti: %d. Scegli un altro orario.'), 
             $remaining_capacity
         );
-        wp_safe_redirect(add_query_arg('rbf_error', urlencode($error_msg), $redirect_url . $anchor)); 
-        exit;
+        rbf_handle_error($error_msg, 'capacity_validation', $redirect_url . $anchor);
+        return;
     }
     
     // All bookings are automatically confirmed
@@ -107,7 +120,8 @@ function rbf_handle_booking_submission() {
         'post_status' => 'publish',
         'meta_input' => [
             'rbf_data' => $date,
-            'rbf_orario' => $slot,
+            'rbf_meal' => $slot,
+            'rbf_orario' => $slot, // Keep for backward compatibility
             'rbf_time' => $time,
             'rbf_persone' => $people,
             'rbf_nome' => $first_name,
@@ -136,7 +150,8 @@ function rbf_handle_booking_submission() {
     ]);
 
     if (is_wp_error($post_id)) {
-        wp_safe_redirect(add_query_arg('rbf_error', urlencode(rbf_translate_string('Errore nel salvataggio.')), $redirect_url . $anchor)); exit;
+        rbf_handle_error(rbf_translate_string('Errore nel salvataggio.'), 'database_error', $redirect_url . $anchor);
+        return;
     }
 
     delete_transient('rbf_avail_' . $date . '_' . $slot);
@@ -214,10 +229,9 @@ function rbf_handle_booking_submission() {
         }
     }
 
-    // End performance monitoring removed
-
+    // Success - redirect with booking confirmation
     $success_args = ['rbf_success' => '1', 'booking_id' => $post_id];
-    wp_safe_redirect(add_query_arg($success_args, $redirect_url . $anchor)); exit;
+    rbf_handle_success('Booking created successfully', $success_args, add_query_arg($success_args, $redirect_url . $anchor));
 }
 
 /**
@@ -226,15 +240,33 @@ function rbf_handle_booking_submission() {
 add_action('wp_ajax_rbf_get_availability', 'rbf_ajax_get_availability_callback');
 add_action('wp_ajax_nopriv_rbf_get_availability', 'rbf_ajax_get_availability_callback');
 function rbf_ajax_get_availability_callback() {
-    check_ajax_referer('rbf_ajax_nonce');
-
-    if (empty($_POST['date']) || empty($_POST['meal'])) {
-        wp_send_json_error(['message' => 'Missing required parameters']);
+    // Verify nonce for security
+    if (!check_ajax_referer('rbf_ajax_nonce', 'nonce', false)) {
+        wp_send_json_error(['message' => 'Security check failed']);
         return;
     }
 
+    // Validate required parameters
+    if (empty($_POST['date']) || empty($_POST['meal'])) {
+        rbf_handle_error('Missing required parameters', 'ajax_validation');
+        return;
+    }
+
+    // Sanitize and validate inputs
     $date = sanitize_text_field($_POST['date']);
     $meal = sanitize_text_field($_POST['meal']);
+    
+    // Validate date format
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || !DateTime::createFromFormat('Y-m-d', $date)) {
+        rbf_handle_error('Invalid date format', 'date_validation');
+        return;
+    }
+    
+    // Validate meal type
+    if (!in_array($meal, ['pranzo', 'cena', 'aperitivo'], true)) {
+        rbf_handle_error('Invalid meal type', 'meal_validation');
+        return;
+    }
 
     // Get settings
     $options = rbf_get_settings();

@@ -10,36 +10,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-/**
- * Get default plugin settings
- */
-function rbf_get_default_settings() {
-    return [
-        'capienza_pranzo' => 30,
-        'capienza_cena' => 40,
-        'capienza_aperitivo' => 25,
-        'orari_pranzo' => '12:00,12:30,13:00,13:30,14:00',
-        'orari_cena' => '19:00,19:30,20:00,20:30',
-        'orari_aperitivo' => '17:00,17:30,18:00',
-        'valore_pranzo' => 35.00,
-        'valore_cena' => 50.00,
-        'valore_aperitivo' => 15.00,
-        'open_mon' => 'yes','open_tue' => 'yes','open_wed' => 'yes','open_thu' => 'yes','open_fri' => 'yes','open_sat' => 'yes','open_sun' => 'yes',
-        'ga4_id' => '',
-        'ga4_api_secret' => '',
-        'meta_pixel_id' => '',
-        'meta_access_token' => '',
-        'notification_email' => 'info@villadianella.it',
-        'webmaster_email' => get_option('admin_email', ''),
-        'brevo_api' => '',
-        'brevo_list_it' => '',
-        'brevo_list_en' => '',
-        'closed_dates' => '',
-        // Note: Advance booking limits removed - using fixed 1-hour minimum rule
-        'min_advance_minutes' => 60, // Fixed at 1 hour for system compatibility
-        'max_advance_minutes' => 0, // No maximum limit
-    ];
-}
+
 
 /**
  * Register booking custom post type
@@ -144,7 +115,7 @@ function rbf_custom_column_data($column, $post_id) {
             break;
             
         case 'rbf_meal':
-            $meal = get_post_meta($post_id, 'rbf_meal', true);
+            $meal = get_post_meta($post_id, 'rbf_meal', true) ?: get_post_meta($post_id, 'rbf_orario', true); // Fallback for backward compatibility
             $meals = [
                 'pranzo' => rbf_translate_string('Pranzo'),
                 'cena' => rbf_translate_string('Cena'), 
@@ -926,12 +897,13 @@ function rbf_get_booking_analytics($start_date, $end_date) {
     // Get all bookings in date range
     $bookings = $wpdb->get_results($wpdb->prepare(
         "SELECT p.ID, pm_date.meta_value as booking_date, pm_people.meta_value as people, 
-                pm_meal.meta_value as meal, pm_status.meta_value as status,
+                COALESCE(pm_meal.meta_value, pm_meal_legacy.meta_value) as meal, pm_status.meta_value as status,
                 pm_source.meta_value as source, pm_bucket.meta_value as bucket
          FROM {$wpdb->posts} p
          INNER JOIN {$wpdb->postmeta} pm_date ON p.ID = pm_date.post_id AND pm_date.meta_key = 'rbf_data'
          LEFT JOIN {$wpdb->postmeta} pm_people ON p.ID = pm_people.post_id AND pm_people.meta_key = 'rbf_persone'
-         LEFT JOIN {$wpdb->postmeta} pm_meal ON p.ID = pm_meal.post_id AND pm_meal.meta_key = 'rbf_orario'
+         LEFT JOIN {$wpdb->postmeta} pm_meal ON p.ID = pm_meal.post_id AND pm_meal.meta_key = 'rbf_meal'
+         LEFT JOIN {$wpdb->postmeta} pm_meal_legacy ON p.ID = pm_meal_legacy.post_id AND pm_meal_legacy.meta_key = 'rbf_orario'
          LEFT JOIN {$wpdb->postmeta} pm_status ON p.ID = pm_status.post_id AND pm_status.meta_key = 'rbf_booking_status'
          LEFT JOIN {$wpdb->postmeta} pm_source ON p.ID = pm_source.post_id AND pm_source.meta_key = 'rbf_source'
          LEFT JOIN {$wpdb->postmeta} pm_bucket ON p.ID = pm_bucket.post_id AND pm_bucket.meta_key = 'rbf_source_bucket'
