@@ -187,31 +187,54 @@ function rbf_sanitize_settings_callback($input) {
     $output = [];
     $input = (array) $input;
 
-    $int_keys = ['capienza_pranzo','capienza_cena','capienza_aperitivo','brevo_list_it','brevo_list_en'];
-    foreach ($int_keys as $key) $output[$key] = isset($input[$key]) ? absint($input[$key]) : ($defaults[$key] ?? '');
-
-    $text_keys = ['orari_pranzo','orari_cena','orari_aperitivo','brevo_api','ga4_api_secret','meta_access_token'];
-    foreach ($text_keys as $key) $output[$key] = isset($input[$key]) ? sanitize_text_field(trim($input[$key])) : ($defaults[$key] ?? '');
-
-    if (isset($input['ga4_id']) && !empty($input['ga4_id']) && !preg_match('/^G-[A-Z0-9]+$/', $input['ga4_id'])) {
-        $output['ga4_id'] = '';
-        add_settings_error('rbf_settings', 'invalid_ga4_id', rbf_translate_string('ID GA4 non valido. Deve essere nel formato G-XXXXXXXXXX.'));
-    } else {
-        $output['ga4_id'] = isset($input['ga4_id']) ? sanitize_text_field(trim($input['ga4_id'])) : ($defaults['ga4_id'] ?? '');
+    // Define field types for bulk sanitization
+    $field_types = [
+        // Integer fields
+        'capienza_pranzo' => 'int', 'capienza_cena' => 'int', 'capienza_aperitivo' => 'int',
+        'brevo_list_it' => 'int', 'brevo_list_en' => 'int',
+        
+        // Text fields
+        'orari_pranzo' => 'text', 'orari_cena' => 'text', 'orari_aperitivo' => 'text',
+        'brevo_api' => 'text', 'ga4_api_secret' => 'text', 'meta_access_token' => 'text',
+        
+        // Email fields  
+        'notification_email' => 'email', 'webmaster_email' => 'email',
+        
+        // Float fields
+        'valore_pranzo' => 'float', 'valore_cena' => 'float', 'valore_aperitivo' => 'float'
+    ];
+    
+    // Bulk sanitize using helper
+    $sanitized = rbf_sanitize_input_fields($input, $field_types);
+    
+    // Apply sanitized values with defaults
+    foreach ($field_types as $key => $type) {
+        $output[$key] = $sanitized[$key] ?? ($defaults[$key] ?? ($type === 'float' ? 0 : ''));
     }
 
-    if (isset($input['meta_pixel_id']) && !empty($input['meta_pixel_id']) && !ctype_digit($input['meta_pixel_id'])) {
-        $output['meta_pixel_id'] = '';
-        add_settings_error('rbf_settings', 'invalid_meta_pixel_id', rbf_translate_string('ID Meta Pixel non valido. Deve essere un numero.'));
+    // Special validation for GA4 ID
+    if (isset($input['ga4_id']) && !empty($input['ga4_id'])) {
+        if (preg_match('/^G-[A-Z0-9]+$/', $input['ga4_id'])) {
+            $output['ga4_id'] = sanitize_text_field(trim($input['ga4_id']));
+        } else {
+            $output['ga4_id'] = '';
+            add_settings_error('rbf_settings', 'invalid_ga4_id', rbf_translate_string('ID GA4 non valido. Deve essere nel formato G-XXXXXXXXXX.'));
+        }
     } else {
-        $output['meta_pixel_id'] = isset($input['meta_pixel_id']) ? sanitize_text_field(trim($input['meta_pixel_id'])) : ($defaults['meta_pixel_id'] ?? '');
+        $output['ga4_id'] = $defaults['ga4_id'] ?? '';
     }
 
-    if (isset($input['notification_email'])) $output['notification_email'] = sanitize_email($input['notification_email']);
-    if (isset($input['webmaster_email'])) $output['webmaster_email'] = sanitize_email($input['webmaster_email']);
-
-    $float_keys = ['valore_pranzo','valore_cena','valore_aperitivo'];
-    foreach ($float_keys as $key) $output[$key] = isset($input[$key]) ? floatval($input[$key]) : ($defaults[$key] ?? 0);
+    // Special validation for Meta Pixel ID  
+    if (isset($input['meta_pixel_id']) && !empty($input['meta_pixel_id'])) {
+        if (ctype_digit($input['meta_pixel_id'])) {
+            $output['meta_pixel_id'] = sanitize_text_field(trim($input['meta_pixel_id']));
+        } else {
+            $output['meta_pixel_id'] = '';
+            add_settings_error('rbf_settings', 'invalid_meta_pixel_id', rbf_translate_string('ID Meta Pixel non valido. Deve essere un numero.'));
+        }
+    } else {
+        $output['meta_pixel_id'] = $defaults['meta_pixel_id'] ?? '';
+    }
 
     $days = ['mon','tue','wed','thu','fri','sat','sun'];
     foreach ($days as $day) $output["open_{$day}"] = (isset($input["open_{$day}"]) && $input["open_{$day}"]==='yes') ? 'yes' : 'no';
@@ -352,8 +375,14 @@ function rbf_calendar_page_html() {
 add_action('wp_ajax_rbf_get_bookings_for_calendar', 'rbf_get_bookings_for_calendar_callback');
 function rbf_get_bookings_for_calendar_callback() {
     check_ajax_referer('rbf_calendar_nonce', '_ajax_nonce');
-    $start = sanitize_text_field($_POST['start']);
-    $end = sanitize_text_field($_POST['end']);
+    
+    $sanitized = rbf_sanitize_input_fields($_POST, [
+        'start' => 'text',
+        'end' => 'text'
+    ]);
+    
+    $start = $sanitized['start'];
+    $end = $sanitized['end'];
 
     $args = [
         'post_type' => 'rbf_booking',
@@ -419,8 +448,13 @@ add_action('wp_ajax_rbf_update_booking_status', 'rbf_update_booking_status_callb
 function rbf_update_booking_status_callback() {
     check_ajax_referer('rbf_calendar_nonce', '_ajax_nonce');
     
-    $booking_id = intval($_POST['booking_id']);
-    $status = sanitize_text_field($_POST['status']);
+    $sanitized = rbf_sanitize_input_fields($_POST, [
+        'booking_id' => 'int',
+        'status' => 'text'
+    ]);
+    
+    $booking_id = $sanitized['booking_id'];
+    $status = $sanitized['status'];
     
     if (!$booking_id || !in_array($status, ['confirmed', 'cancelled', 'completed'])) {
         wp_send_json_error('Parametri non validi');
@@ -511,16 +545,29 @@ function rbf_add_booking_page_html() {
     $message = '';
 
     if (!empty($_POST) && check_admin_referer('rbf_add_backend_booking')) {
-        $meal = sanitize_text_field($_POST['rbf_meal'] ?? '');
-        $date = sanitize_text_field($_POST['rbf_data'] ?? '');
-        $time = sanitize_text_field($_POST['rbf_time'] ?? '');
-        $people = intval($_POST['rbf_persone'] ?? 0);
-        $first_name = sanitize_text_field($_POST['rbf_nome'] ?? '');
-        $last_name = sanitize_text_field($_POST['rbf_cognome'] ?? '');
-        $email = sanitize_email($_POST['rbf_email'] ?? '');
-        $tel = sanitize_text_field($_POST['rbf_tel'] ?? '');
-        $notes = sanitize_textarea_field($_POST['rbf_allergie'] ?? '');
-        $lang = sanitize_text_field($_POST['rbf_lang'] ?? 'it');
+        $sanitized = rbf_sanitize_input_fields($_POST, [
+            'rbf_meal' => 'text',
+            'rbf_data' => 'text',
+            'rbf_time' => 'text',
+            'rbf_persone' => 'int',
+            'rbf_nome' => 'text',
+            'rbf_cognome' => 'text',
+            'rbf_email' => 'email',
+            'rbf_tel' => 'text',
+            'rbf_allergie' => 'textarea',
+            'rbf_lang' => 'text'
+        ]);
+        
+        $meal = $sanitized['rbf_meal'] ?? '';
+        $date = $sanitized['rbf_data'] ?? '';
+        $time = $sanitized['rbf_time'] ?? '';
+        $people = $sanitized['rbf_persone'] ?? 0;
+        $first_name = $sanitized['rbf_nome'] ?? '';
+        $last_name = $sanitized['rbf_cognome'] ?? '';
+        $email = $sanitized['rbf_email'] ?? '';
+        $tel = $sanitized['rbf_tel'] ?? '';
+        $notes = $sanitized['rbf_allergie'] ?? '';
+        $lang = $sanitized['rbf_lang'] ?? 'it';
         $privacy = isset($_POST['rbf_privacy']) ? 'yes' : 'no';
         $marketing = isset($_POST['rbf_marketing']) ? 'yes' : 'no';
 
@@ -1026,10 +1073,17 @@ function rbf_get_booking_analytics($start_date, $end_date) {
 function rbf_export_page_html() {
     // Handle export request
     if (isset($_POST['export_bookings']) && wp_verify_nonce($_POST['_wpnonce'], 'rbf_export')) {
-        $start_date = sanitize_text_field($_POST['start_date']);
-        $end_date = sanitize_text_field($_POST['end_date']);
-        $format = sanitize_text_field($_POST['format']);
-        $status_filter = sanitize_text_field($_POST['status_filter']);
+        $sanitized = rbf_sanitize_input_fields($_POST, [
+            'start_date' => 'text',
+            'end_date' => 'text',
+            'format' => 'text',
+            'status_filter' => 'text'
+        ]);
+        
+        $start_date = $sanitized['start_date'];
+        $end_date = $sanitized['end_date'];
+        $format = $sanitized['format'];
+        $status_filter = $sanitized['status_filter'];
         
         rbf_handle_export_request($start_date, $end_date, $format, $status_filter);
         return; // Exit after sending file
