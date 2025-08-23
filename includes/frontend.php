@@ -38,10 +38,10 @@ function rbf_enqueue_frontend_assets() {
     $deps[] = 'rbf-intl-tel-input';
 
     // Frontend styles
-    wp_enqueue_style('rbf-frontend-css', plugin_dir_url(dirname(__FILE__)) . 'assets/css/frontend.css', ['rbf-flatpickr-css'], RBF_VERSION . '.' . time());
+    wp_enqueue_style('rbf-frontend-css', plugin_dir_url(dirname(__FILE__)) . 'assets/css/frontend.css', ['rbf-flatpickr-css'], rbf_get_asset_version());
 
     // Frontend script (must be enqueued before wp_localize_script)
-    wp_enqueue_script('rbf-frontend-js', plugin_dir_url(dirname(__FILE__)) . 'assets/js/frontend.js', $deps, RBF_VERSION . '.' . time(), true);
+    wp_enqueue_script('rbf-frontend-js', plugin_dir_url(dirname(__FILE__)) . 'assets/js/frontend.js', $deps, rbf_get_asset_version(), true);
 
     // Giorni chiusi
     $closed_days_map = ['sun'=>0,'mon'=>1,'tue'=>2,'wed'=>3,'thu'=>4,'fri'=>5,'sat'=>6];
@@ -427,75 +427,6 @@ function rbf_detect_source($data = []) {
     }
 
     return ['bucket'=>'direct','source'=>'direct','medium'=>'none','campaign'=>''];
-}
-
-/**
- * Helper function to sanitize and limit UTM parameter length
- */
-function rbf_sanitize_utm_param($value, $max_length = 100) {
-    $sanitized = sanitize_text_field($value);
-    return substr(preg_replace('/[<>"\'\\/\\\\]/', '', $sanitized), 0, $max_length);
-}
-
-/**
- * Enhanced UTM parameter validation with security improvements
- */
-function rbf_validate_utm_parameters($utm_data) {
-    $validated = [];
-    
-    // Source validation - alphanumeric, dots, hyphens, underscores only
-    if (!empty($utm_data['utm_source'])) {
-        $source = strtolower(trim($utm_data['utm_source']));
-        $validated['utm_source'] = substr(preg_replace('/[^a-zA-Z0-9._-]/', '', $source), 0, 100);
-    }
-    
-    // Medium validation with predefined valid values
-    if (!empty($utm_data['utm_medium'])) {
-        $medium = strtolower(trim($utm_data['utm_medium']));
-        $valid_mediums = [
-            'cpc', 'banner', 'email', 'social', 'organic', 
-            'referral', 'direct', 'paid', 'ppc', 'sem', 
-            'display', 'affiliate', 'newsletter', 'sms'
-        ];
-        
-        // Check if it's a recognized medium
-        $validated['utm_medium'] = in_array($medium, $valid_mediums, true) ? $medium : 'other';
-    }
-    
-    // Campaign validation using helper function
-    if (!empty($utm_data['utm_campaign'])) {
-        $validated['utm_campaign'] = rbf_sanitize_utm_param($utm_data['utm_campaign'], 150);
-    }
-    
-    // UTM Term validation using helper function
-    if (!empty($utm_data['utm_term'])) {
-        $validated['utm_term'] = rbf_sanitize_utm_param($utm_data['utm_term'], 100);
-    }
-    
-    // UTM Content validation using helper function
-    if (!empty($utm_data['utm_content'])) {
-        $validated['utm_content'] = rbf_sanitize_utm_param($utm_data['utm_content'], 100);
-    }
-    
-    // Google Ads Click ID validation
-    if (!empty($utm_data['gclid'])) {
-        $gclid = trim($utm_data['gclid']);
-        // GCLID should be alphanumeric with some allowed special chars
-        if (preg_match('/^[a-zA-Z0-9._-]+$/', $gclid) && strlen($gclid) <= 200) {
-            $validated['gclid'] = $gclid;
-        }
-    }
-    
-    // Facebook Click ID validation
-    if (!empty($utm_data['fbclid'])) {
-        $fbclid = trim($utm_data['fbclid']);
-        // FBCLID should be alphanumeric with some allowed special chars
-        if (preg_match('/^[a-zA-Z0-9._-]+$/', $fbclid) && strlen($fbclid) <= 200) {
-            $validated['fbclid'] = $fbclid;
-        }
-    }
-    
-    return $validated;
 }
 
 /**

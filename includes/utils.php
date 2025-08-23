@@ -466,6 +466,191 @@ function rbf_handle_success($message, $data = [], $redirect_url = null) {
     // Fallback: return success array
     return array_merge(['success' => true, 'message' => $message], $data);
 }
+
+/**
+ * Centralized asset version helper for cache-busting
+ * Consolidates the RBF_VERSION . '.' . time() pattern used across files
+ */
+function rbf_get_asset_version() {
+    return RBF_VERSION . '.' . time();
+}
+
+/**
+ * Centralized UTM parameter sanitization
+ * Consolidates sanitization logic used across multiple files
+ */
+function rbf_sanitize_utm_param($value, $max_length = 100) {
+    $sanitized = sanitize_text_field($value);
+    return substr(preg_replace('/[<>"\'\\/\\\\]/', '', $sanitized), 0, $max_length);
+}
+
+/**
+ * Enhanced UTM parameter validation with security improvements
+ * Moved from frontend.php to consolidate validation logic
+ */
+function rbf_validate_utm_parameters($utm_data) {
+    $validated = [];
+    
+    // Source validation - alphanumeric, dots, hyphens, underscores only
+    if (!empty($utm_data['utm_source'])) {
+        $source = strtolower(trim($utm_data['utm_source']));
+        $validated['utm_source'] = substr(preg_replace('/[^a-zA-Z0-9._-]/', '', $source), 0, 100);
+    }
+    
+    // Medium validation with predefined valid values
+    if (!empty($utm_data['utm_medium'])) {
+        $medium = strtolower(trim($utm_data['utm_medium']));
+        $valid_mediums = [
+            'cpc', 'banner', 'email', 'social', 'organic', 
+            'referral', 'direct', 'paid', 'ppc', 'sem', 
+            'display', 'affiliate', 'newsletter', 'sms'
+        ];
+        
+        // Check if it's a recognized medium
+        $validated['utm_medium'] = in_array($medium, $valid_mediums, true) ? $medium : 'other';
+    }
+    
+    // Campaign validation using helper function
+    if (!empty($utm_data['utm_campaign'])) {
+        $validated['utm_campaign'] = rbf_sanitize_utm_param($utm_data['utm_campaign'], 150);
+    }
+    
+    // UTM Term validation using helper function
+    if (!empty($utm_data['utm_term'])) {
+        $validated['utm_term'] = rbf_sanitize_utm_param($utm_data['utm_term'], 100);
+    }
+    
+    // UTM Content validation using helper function
+    if (!empty($utm_data['utm_content'])) {
+        $validated['utm_content'] = rbf_sanitize_utm_param($utm_data['utm_content'], 100);
+    }
+    
+    // Google Ads Click ID validation
+    if (!empty($utm_data['gclid'])) {
+        $gclid = trim($utm_data['gclid']);
+        // GCLID should be alphanumeric with some allowed special chars
+        if (preg_match('/^[a-zA-Z0-9._-]+$/', $gclid) && strlen($gclid) <= 200) {
+            $validated['gclid'] = $gclid;
+        }
+    }
+    
+    // Facebook Click ID validation
+    if (!empty($utm_data['fbclid'])) {
+        $fbclid = trim($utm_data['fbclid']);
+        // FBCLID should be alphanumeric with some allowed special chars
+        if (preg_match('/^[a-zA-Z0-9._-]+$/', $fbclid) && strlen($fbclid) <= 200) {
+            $validated['fbclid'] = $fbclid;
+        }
+    }
+    
+    return $validated;
+}
+
+/**
+ * Get UTM analytics for dashboard
+ * Moved from utm-validator.php to consolidate analytics functionality
+ */
+function rbf_get_utm_analytics($days = 30) {
+    if (!current_user_can('manage_options')) {
+        return [];
+    }
+    
+    global $wpdb;
+    
+    $since_date = date('Y-m-d H:i:s', strtotime("-{$days} days"));
+    
+    // Get source bucket distribution
+    $bucket_stats = $wpdb->get_results($wpdb->prepare("
+        SELECT 
+            pm_bucket.meta_value as bucket,
+            COUNT(*) as count,
+            AVG(pm_people.meta_value) as avg_people,
+            SUM(CASE 
+                WHEN pm_meal.meta_value = 'pranzo' THEN pm_people.meta_value * 35
+                WHEN pm_meal.meta_value = 'cena' THEN pm_people.meta_value * 50
+                WHEN pm_meal.meta_value = 'aperitivo' THEN pm_people.meta_value * 15
+                ELSE 0
+            END) as estimated_revenue
+        FROM {$wpdb->posts} p
+        LEFT JOIN {$wpdb->postmeta} pm_bucket ON (p.ID = pm_bucket.post_id AND pm_bucket.meta_key = 'rbf_source_bucket')
+        LEFT JOIN {$wpdb->postmeta} pm_people ON (p.ID = pm_people.post_id AND pm_people.meta_key = 'rbf_persone')
+        LEFT JOIN {$wpdb->postmeta} pm_meal ON (p.ID = pm_meal.post_id AND pm_meal.meta_key = 'rbf_orario')
+        WHERE p.post_type = 'rbf_booking' 
+        AND p.post_status = 'publish'
+        AND p.post_date >= %s
+        GROUP BY pm_bucket.meta_value
+        ORDER BY count DESC
+    ", $since_date));
+    
+    // Get campaign performance
+    $campaign_stats = $wpdb->get_results($wpdb->prepare("
+        SELECT 
+            COALESCE(pm_campaign.meta_value, 'No Campaign') as campaign,
+            pm_source.meta_value as utm_source,
+            pm_medium.meta_value as utm_medium,
+            COUNT(*) as bookings,
+            SUM(pm_people.meta_value) as total_people
+        FROM {$wpdb->posts} p
+        LEFT JOIN {$wpdb->postmeta} pm_campaign ON (p.ID = pm_campaign.post_id AND pm_campaign.meta_key = 'rbf_utm_campaign')
+        LEFT JOIN {$wpdb->postmeta} pm_source ON (p.ID = pm_source.post_id AND pm_source.meta_key = 'rbf_utm_source')
+        LEFT JOIN {$wpdb->postmeta} pm_medium ON (p.ID = pm_medium.post_id AND pm_medium.meta_key = 'rbf_utm_medium')
+        LEFT JOIN {$wpdb->postmeta} pm_people ON (p.ID = pm_people.post_id AND pm_people.meta_key = 'rbf_persone')
+        WHERE p.post_type = 'rbf_booking' 
+        AND p.post_status = 'publish'
+        AND p.post_date >= %s
+        AND pm_source.meta_value IS NOT NULL
+        GROUP BY pm_campaign.meta_value, pm_source.meta_value, pm_medium.meta_value
+        ORDER BY bookings DESC
+        LIMIT 10
+    ", $since_date));
+    
+    return [
+        'bucket_distribution' => $bucket_stats,
+        'campaign_performance' => $campaign_stats,
+        'period_days' => $days
+    ];
+}
+
+/**
+ * Centralized input sanitization helper
+ * Reduces repetitive sanitize_text_field calls across the codebase
+ */
+function rbf_sanitize_input_fields(array $input_data, array $field_map) {
+    $sanitized = [];
+    
+    foreach ($field_map as $key => $type) {
+        if (!isset($input_data[$key])) {
+            continue;
+        }
+        
+        $value = $input_data[$key];
+        
+        switch ($type) {
+            case 'text':
+                $sanitized[$key] = sanitize_text_field($value);
+                break;
+            case 'email':
+                $sanitized[$key] = sanitize_email($value);
+                break;
+            case 'textarea':
+                $sanitized[$key] = sanitize_textarea_field($value);
+                break;
+            case 'int':
+                $sanitized[$key] = intval($value);
+                break;
+            case 'float':
+                $sanitized[$key] = floatval($value);
+                break;
+            case 'url':
+                $sanitized[$key] = esc_url_raw($value);
+                break;
+            default:
+                $sanitized[$key] = sanitize_text_field($value);
+        }
+    }
+    
+    return $sanitized;
+}
 function rbf_update_booking_status($booking_id, $new_status, $note = '') {
     $old_status = get_post_meta($booking_id, 'rbf_booking_status', true);
     

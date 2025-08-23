@@ -32,17 +32,36 @@ function rbf_handle_booking_submission() {
         }
     }
 
-    $meal = sanitize_text_field($_POST['rbf_meal']);
-    $date = sanitize_text_field($_POST['rbf_data']);
-    $time_data = sanitize_text_field($_POST['rbf_orario']);
+    // Sanitize form input using centralized helper
+    $sanitized_fields = rbf_sanitize_input_fields($_POST, [
+        'rbf_meal' => 'text',
+        'rbf_data' => 'text', 
+        'rbf_orario' => 'text',
+        'rbf_persone' => 'int',
+        'rbf_nome' => 'text',
+        'rbf_cognome' => 'text',
+        'rbf_allergie' => 'textarea',
+        'rbf_lang' => 'text',
+        'rbf_country_code' => 'text',
+        'rbf_utm_source' => 'text',
+        'rbf_utm_medium' => 'text', 
+        'rbf_utm_campaign' => 'text',
+        'rbf_gclid' => 'text',
+        'rbf_fbclid' => 'text',
+        'rbf_referrer' => 'text'
+    ]);
+    
+    $meal = $sanitized_fields['rbf_meal'];
+    $date = $sanitized_fields['rbf_data'];
+    $time_data = $sanitized_fields['rbf_orario'];
     if (strpos($time_data, '|') === false) {
         rbf_handle_error(rbf_translate_string('Orario non valido.'), 'time_validation', $redirect_url . $anchor);
         return;
     }
     list($slot, $time) = explode('|', $time_data);
-    $people = intval($_POST['rbf_persone']);
-    $first_name = sanitize_text_field($_POST['rbf_nome']);
-    $last_name = sanitize_text_field($_POST['rbf_cognome']);
+    $people = $sanitized_fields['rbf_persone'];
+    $first_name = $sanitized_fields['rbf_nome'];
+    $last_name = $sanitized_fields['rbf_cognome'];
     $email = rbf_validate_email($_POST['rbf_email']);
     if (is_array($email) && isset($email['error'])) {
         rbf_handle_error($email['message'], 'email_validation', $redirect_url . $anchor);
@@ -53,9 +72,9 @@ function rbf_handle_booking_submission() {
         rbf_handle_error($tel['message'], 'phone_validation', $redirect_url . $anchor);
         return;
     }
-    $notes = sanitize_textarea_field($_POST['rbf_allergie'] ?? '');
-    $lang = sanitize_text_field($_POST['rbf_lang'] ?? 'it');
-    $country_code = strtolower(sanitize_text_field($_POST['rbf_country_code'] ?? ''));
+    $notes = $sanitized_fields['rbf_allergie'] ?? '';
+    $lang = $sanitized_fields['rbf_lang'] ?? 'it';
+    $country_code = strtolower($sanitized_fields['rbf_country_code'] ?? '');
     
     // Fallback: if no country code is provided, default to Italy
     if (empty($country_code)) {
@@ -70,12 +89,12 @@ function rbf_handle_booking_submission() {
     $marketing = (isset($_POST['rbf_marketing']) && $_POST['rbf_marketing']==='yes') ? 'yes' : 'no';
 
     // Sorgente & UTM dal form
-    $utm_source   = sanitize_text_field($_POST['rbf_utm_source']   ?? '');
-    $utm_medium   = sanitize_text_field($_POST['rbf_utm_medium']   ?? '');
-    $utm_campaign = sanitize_text_field($_POST['rbf_utm_campaign'] ?? '');
-    $gclid        = sanitize_text_field($_POST['rbf_gclid']        ?? '');
-    $fbclid       = sanitize_text_field($_POST['rbf_fbclid']       ?? '');
-    $referrer     = sanitize_text_field($_POST['rbf_referrer']     ?? '');
+    $utm_source   = $sanitized_fields['rbf_utm_source'] ?? '';
+    $utm_medium   = $sanitized_fields['rbf_utm_medium'] ?? '';
+    $utm_campaign = $sanitized_fields['rbf_utm_campaign'] ?? '';
+    $gclid        = $sanitized_fields['rbf_gclid'] ?? '';
+    $fbclid       = $sanitized_fields['rbf_fbclid'] ?? '';
+    $referrer     = $sanitized_fields['rbf_referrer'] ?? '';
 
     $src = rbf_detect_source([
       'utm_source' => $utm_source,
@@ -253,8 +272,13 @@ function rbf_ajax_get_availability_callback() {
     }
 
     // Sanitize and validate inputs
-    $date = sanitize_text_field($_POST['date']);
-    $meal = sanitize_text_field($_POST['meal']);
+    $sanitized_fields = rbf_sanitize_input_fields($_POST, [
+        'date' => 'text',
+        'meal' => 'text'
+    ]);
+    
+    $date = $sanitized_fields['date'];
+    $meal = $sanitized_fields['meal'];
     
     // Validate date format
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || !DateTime::createFromFormat('Y-m-d', $date)) {
