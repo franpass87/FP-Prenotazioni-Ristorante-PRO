@@ -159,13 +159,11 @@ jQuery(function($) {
     function attemptInit() {
       // Check if intlTelInput is available
       if (typeof intlTelInput === 'undefined') {
-        console.warn('intlTelInput not loaded, retrying...');
         if (retryCount < maxRetries) {
           retryCount++;
           setTimeout(attemptInit, 1000 * retryCount); // Exponential backoff
           return;
         } else {
-          console.error('intlTelInput failed to load after retries, using fallback');
           el.telInput.addClass('rbf-tel-fallback');
           $('#rbf_country_code').val('it'); // Default to Italy
           return;
@@ -176,8 +174,6 @@ jQuery(function($) {
       setTimeout(() => {
         if (el.telInput.length && !iti) {
           try {
-            console.log('Initializing enhanced intlTelInput...');
-            
             // Enhanced initialization with better flag support
             iti = intlTelInput(el.telInput[0], {
               utilsScript: rbfData.utilsScript,
@@ -199,12 +195,9 @@ jQuery(function($) {
             });
 
             if (iti) {
-              console.log('Enhanced intlTelInput initialized successfully');
-              
               // Enhanced event handling
               el.telInput[0].addEventListener('countrychange', function() {
                 const countryData = iti.getSelectedCountryData();
-                console.log('Country changed to:', countryData.iso2, '-', countryData.name);
                 $('#rbf_country_code').val(countryData.iso2);
                 
                 // Announce to screen readers
@@ -213,7 +206,6 @@ jQuery(function($) {
               
               // Enhanced dropdown handling
               el.telInput[0].addEventListener('open:countrydropdown', function() {
-                console.log('Country dropdown opened');
                 // Ensure proper z-index
                 const dropdown = document.querySelector('.iti__country-list');
                 if (dropdown) {
@@ -222,7 +214,7 @@ jQuery(function($) {
               });
               
               el.telInput[0].addEventListener('close:countrydropdown', function() {
-                console.log('Country dropdown closed');
+                // Dropdown closed
               });
               
               // Improved validation feedback
@@ -230,7 +222,6 @@ jQuery(function($) {
                 if (iti && el.telInput.val().trim()) {
                   const isValid = iti.isValidNumber();
                   if (!isValid) {
-                    console.log('Invalid phone number detected');
                     el.telInput.addClass('rbf-tel-invalid');
                   } else {
                     el.telInput.removeClass('rbf-tel-invalid');
@@ -266,19 +257,17 @@ jQuery(function($) {
               }
 
             } else {
-              console.error('Failed to initialize intlTelInput - returned null');
               el.telInput.addClass('rbf-tel-fallback');
               $('#rbf_country_code').val('it');
             }
           } catch (error) {
-            console.error('Failed to initialize intlTelInput:', error);
             el.telInput.addClass('rbf-tel-fallback');
             $('#rbf_country_code').val('it');
           }
         } else if (!el.telInput.length) {
-          console.warn('Tel input element not found');
+          // Tel input element not found
         } else if (iti) {
-          console.log('intlTelInput already initialized');
+          // intlTelInput already initialized
         }
       }, 500); // Increased delay for better element rendering
     }
@@ -330,8 +319,6 @@ jQuery(function($) {
         maxDate = new Date(now.getTime() + rbfData.maxAdvanceMinutes * 60 * 1000);
       }
       
-      console.log('RBF: Flatpickr date limits - Min:', minDate, 'Max:', maxDate, 'Min minutes:', rbfData.minAdvanceMinutes, 'Max minutes:', rbfData.maxAdvanceMinutes);
-      
       const flatpickrConfig = {
         altInput: true,
         altFormat: 'd-m-Y',
@@ -358,7 +345,7 @@ jQuery(function($) {
       
       fp = flatpickr(el.dateInput[0], flatpickrConfig);
     } else {
-      console.warn('flatpickr not available - date picker functionality disabled');
+      // flatpickr not available - date picker functionality disabled
     }
   });
 
@@ -388,9 +375,6 @@ jQuery(function($) {
     el.timeSelect.html(`<option value="">${rbfData.labels.loading}</option>`).prop('disabled', true);
     el.timeSelect.addClass('rbf-loading');
 
-    // Debug logging for availability request
-    console.log('RBF: Requesting availability for date:', dateString, 'meal:', selectedMeal);
-
     // Get available times via AJAX
     $.post(rbfData.ajaxUrl, {
       action: 'rbf_get_availability',
@@ -398,7 +382,6 @@ jQuery(function($) {
       date: dateString,
       meal: selectedMeal
     }, function(response) {
-      console.log('RBF: Availability response:', response);
       el.timeSelect.removeClass('rbf-loading');
       el.timeSelect.html('');
       if (response.success && response.data.length > 0) {
@@ -410,8 +393,6 @@ jQuery(function($) {
         const todayString = formatLocalISO(today);
         const isToday = (currentDate === todayString);
         const isFuture = (currentDate > todayString);
-        
-        console.log(`RBF Client: Received ${response.data.length} available slots for ${currentDate} (${isToday ? 'TODAY' : (isFuture ? 'FUTURE' : 'PAST')})`);
         
         // Filter out past time slots only for today's date
         let availableCount = 0;
@@ -441,7 +422,6 @@ jQuery(function($) {
       }
     }).fail(function(xhr, status, error) {
       // Handle AJAX errors
-      console.error('RBF AJAX Error:', {status, error, xhr});
       el.timeSelect.removeClass('rbf-loading');
       el.timeSelect.html('');
       el.timeSelect.append(new Option(rbfData.labels.noTime, ''));
@@ -543,12 +523,9 @@ jQuery(function($) {
     }
     
     if (iti) {
-      console.log('intlTelInput is initialized, validating phone...');
-      
       // Validate phone number if intlTelInput is initialized
       if (!iti.isValidNumber()) {
         e.preventDefault();
-        console.warn('Invalid phone number entered');
         alert(rbfData.labels.invalidPhone);
         el.submitButton.prop('disabled', false);
         return;
@@ -558,17 +535,10 @@ jQuery(function($) {
       const fullNumber = iti.getNumber();
       const countryData = iti.getSelectedCountryData();
       
-      console.log('Phone validation passed:', {
-        number: fullNumber,
-        country: countryData.iso2,
-        name: countryData.name
-      });
-      
       el.telInput.val(fullNumber);
       $('#rbf_country_code').val(countryData.iso2);
       
     } else {
-      console.warn('intlTelInput not initialized, using fallback');
       // Fallback: if intlTelInput is not initialized, default to Italy
       $('#rbf_country_code').val('it');
       
@@ -582,7 +552,7 @@ jQuery(function($) {
       }
     }
     
-    console.log('Form submission proceeding with country code:', $('#rbf_country_code').val());
+    // Form validation complete, proceeding with submission
   });
 
   /**
@@ -593,12 +563,6 @@ jQuery(function($) {
     if (window.innerWidth <= 768) {
       // Add smooth scrolling behavior
       document.documentElement.style.scrollBehavior = 'smooth';
-      
-      // Prevent zoom on iOS when focusing inputs
-      const inputs = form.find('input[type="text"], input[type="email"], input[type="tel"], input[type="number"], select, textarea');
-      inputs.on('touchstart', function() {
-        // Already handled in CSS with font-size: 16px
-      });
       
       // Improve people selector on mobile
       el.peopleMinus.add(el.peoplePlus).on('touchstart', function() {

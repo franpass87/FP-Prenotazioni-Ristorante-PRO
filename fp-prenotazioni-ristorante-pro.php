@@ -48,7 +48,10 @@ function rbf_clear_transients() {
 
     // Also clear specific availability transients
     $wpdb->query(
-        "DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_rbf_avail_%'"
+        $wpdb->prepare(
+            "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",
+            '_transient_rbf_avail_%'
+        )
     );
 
     if (function_exists('wp_cache_flush')) {
