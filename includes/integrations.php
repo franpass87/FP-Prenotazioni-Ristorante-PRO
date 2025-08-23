@@ -48,10 +48,12 @@ function rbf_add_tracking_scripts_to_footer() {
 
         // Fallback se manca il transient: ricostruisci dai meta
         if (!$tracking_data || !is_array($tracking_data)) {
-            $value = get_post_meta($booking_id, 'rbf_valore_tot', true) ?: 0;
-            $meal = get_post_meta($booking_id, 'rbf_orario', true) ?: 'pranzo';
-            $people = get_post_meta($booking_id, 'rbf_persone', true) ?: 1;
-            $bucket = get_post_meta($booking_id, 'rbf_source_bucket', true) ?: 'organic';
+            // Get all meta in single call for performance
+            $meta = get_post_meta($booking_id);
+            $value = $meta['rbf_valore_tot'][0] ?? 0;
+            $meal = $meta['rbf_orario'][0] ?? 'pranzo';
+            $people = $meta['rbf_persone'][0] ?? 1;
+            $bucket = $meta['rbf_source_bucket'][0] ?? 'organic';
             $tracking_data = [
                 'id' => $booking_id,
                 'value' => $value,

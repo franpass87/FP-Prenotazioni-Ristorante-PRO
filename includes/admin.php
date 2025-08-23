@@ -399,16 +399,19 @@ function rbf_get_bookings_for_calendar_callback() {
     $bookings = get_posts($args);
     $events = [];
     foreach ($bookings as $booking) {
-        $date = get_post_meta($booking->ID, 'rbf_data', true);
-        $time = get_post_meta($booking->ID, 'rbf_time', true);
-        $people = get_post_meta($booking->ID, 'rbf_persone', true);
-        $first_name = get_post_meta($booking->ID, 'rbf_nome', true);
-        $last_name = get_post_meta($booking->ID, 'rbf_cognome', true);
-        $email = get_post_meta($booking->ID, 'rbf_email', true);
-        $phone = get_post_meta($booking->ID, 'rbf_tel', true);
-        $notes = get_post_meta($booking->ID, 'rbf_allergie', true);
-        $status = get_post_meta($booking->ID, 'rbf_booking_status', true) ?: 'confirmed';
-        $meal = get_post_meta($booking->ID, 'rbf_orario', true);
+        // Get all meta data in a single call for performance
+        $meta = get_post_meta($booking->ID);
+        
+        $date = $meta['rbf_data'][0] ?? '';
+        $time = $meta['rbf_time'][0] ?? '';
+        $people = $meta['rbf_persone'][0] ?? '';
+        $first_name = $meta['rbf_nome'][0] ?? '';
+        $last_name = $meta['rbf_cognome'][0] ?? '';
+        $email = $meta['rbf_email'][0] ?? '';
+        $phone = $meta['rbf_tel'][0] ?? '';
+        $notes = $meta['rbf_allergie'][0] ?? '';
+        $status = $meta['rbf_booking_status'][0] ?? 'confirmed';
+        $meal = $meta['rbf_orario'][0] ?? '';
         
         $title = $booking->post_title . ' (' . $people . ' persone)';
         
