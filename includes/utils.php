@@ -46,7 +46,10 @@ function rbf_get_default_settings() {
  */
 if (!function_exists('rbf_wp_timezone')) {
     function rbf_wp_timezone() {
-        if (function_exists('wp_timezone')) return wp_timezone();
+        // Use WordPress native timezone function if available (WP 5.3+)
+        if (function_exists('wp_timezone')) {
+            return wp_timezone();
+        }
         
         // Only access WordPress options if WordPress is fully loaded
         if (!function_exists('get_option')) {
@@ -54,13 +57,28 @@ if (!function_exists('rbf_wp_timezone')) {
             return new DateTimeZone('UTC');
         }
         
-        $tz_string = get_option('timezone_string');
-        if ($tz_string) return new DateTimeZone($tz_string);
-        $offset = (float) get_option('gmt_offset', 0);
-        $hours = (int) $offset;
-        $minutes = abs($offset - $hours) * 60;
-        $sign = $offset < 0 ? '-' : '+';
-        return new DateTimeZone(sprintf('%s%02d:%02d', $sign, abs($hours), $minutes));
+        try {
+            // Try to get timezone string first (preferred method)
+            $tz_string = get_option('timezone_string');
+            if ($tz_string && !empty(trim($tz_string))) {
+                return new DateTimeZone($tz_string);
+            }
+            
+            // Fall back to GMT offset calculation
+            $offset = (float) get_option('gmt_offset', 0);
+            $hours = (int) $offset;
+            $minutes = abs($offset - $hours) * 60;
+            $sign = $offset < 0 ? '-' : '+';
+            $timezone_name = sprintf('%s%02d:%02d', $sign, abs($hours), (int) $minutes);
+            
+            return new DateTimeZone($timezone_name);
+        } catch (Exception $e) {
+            // Log error in debug mode and fall back to UTC
+            if (WP_DEBUG) {
+                error_log("RBF Timezone Error: " . $e->getMessage());
+            }
+            return new DateTimeZone('UTC');
+        }
     }
 }
 
@@ -68,23 +86,36 @@ if (!function_exists('rbf_wp_timezone')) {
  * Get current language (limited to it/en with Polylang/WPML support; fallback en)
  */
 function rbf_current_lang() {
+    // Cache the result to avoid repeated function_exists() calls
+    static $cached_lang = null;
+    if ($cached_lang !== null) {
+        return $cached_lang;
+    }
+    
+    // Check for Polylang plugin
     if (function_exists('pll_current_language')) {
         $slug = pll_current_language('slug');
-        return in_array($slug, ['it','en'], true) ? $slug : 'en';
+        $cached_lang = in_array($slug, ['it','en'], true) ? $slug : 'it'; // Default to Italian for consistency
+        return $cached_lang;
     }
+    
+    // Check for WPML plugin
     if (defined('ICL_LANGUAGE_CODE')) {
         $slug = ICL_LANGUAGE_CODE;
-        return in_array($slug, ['it','en'], true) ? $slug : 'en';
+        $cached_lang = in_array($slug, ['it','en'], true) ? $slug : 'it'; // Default to Italian for consistency
+        return $cached_lang;
     }
     
     // Only use get_locale if WordPress is fully loaded
     if (function_exists('get_locale')) {
         $slug = substr(get_locale(), 0, 2);
-        return in_array($slug, ['it','en'], true) ? $slug : 'it'; // Default to Italian
+        $cached_lang = in_array($slug, ['it','en'], true) ? $slug : 'it'; // Default to Italian
+        return $cached_lang;
     }
     
     // Default to Italian for Italian restaurant context
-    return 'it';
+    $cached_lang = 'it';
+    return $cached_lang;
 }
 
 /**
@@ -96,6 +127,12 @@ function rbf_current_lang() {
  * @return array
  */
 function rbf_get_settings() {
+    // Static cache to avoid repeated database calls
+    static $cached_settings = null;
+    if ($cached_settings !== null) {
+        return $cached_settings;
+    }
+    
     $saved = get_option('rbf_settings', []);
     $defaults = rbf_get_default_settings();
     $settings = wp_parse_args($saved, $defaults);
@@ -109,7 +146,9 @@ function rbf_get_settings() {
         update_option('rbf_settings', $settings);
     }
     
-    return $settings;
+    // Cache the result
+    $cached_settings = $settings;
+    return $cached_settings;
 }
 
 /**
@@ -559,50 +598,11 @@ function rbf_get_utm_analytics($days = 30) {
     
     $since_date = date('Y-m-d H:i:s', strtotime("-{$days} days"));
     
-    // Get source bucket distribution
-    $bucket_stats = $wpdb->get_results($wpdb->prepare("
-        SELECT 
-            pm_bucket.meta_value as bucket,
-            COUNT(*) as count,
-            AVG(pm_people.meta_value) as avg_people,
-            SUM(CASE 
-                WHEN pm_meal.meta_value = 'pranzo' THEN pm_people.meta_value * 35
-                WHEN pm_meal.meta_value = 'cena' THEN pm_people.meta_value * 50
-                WHEN pm_meal.meta_value = 'aperitivo' THEN pm_people.meta_value * 15
-                ELSE 0
-            END) as estimated_revenue
-        FROM {$wpdb->posts} p
-        LEFT JOIN {$wpdb->postmeta} pm_bucket ON (p.ID = pm_bucket.post_id AND pm_bucket.meta_key = 'rbf_source_bucket')
-        LEFT JOIN {$wpdb->postmeta} pm_people ON (p.ID = pm_people.post_id AND pm_people.meta_key = 'rbf_persone')
-        LEFT JOIN {$wpdb->postmeta} pm_meal ON (p.ID = pm_meal.post_id AND pm_meal.meta_key = 'rbf_orario')
-        WHERE p.post_type = 'rbf_booking' 
-        AND p.post_status = 'publish'
-        AND p.post_date >= %s
-        GROUP BY pm_bucket.meta_value
-        ORDER BY count DESC
-    ", $since_date));
+    // Get source bucket distribution using database helper
+    $bucket_stats = RBF_Database_Helper::get_traffic_source_stats($since_date);
     
-    // Get campaign performance
-    $campaign_stats = $wpdb->get_results($wpdb->prepare("
-        SELECT 
-            COALESCE(pm_campaign.meta_value, 'No Campaign') as campaign,
-            pm_source.meta_value as utm_source,
-            pm_medium.meta_value as utm_medium,
-            COUNT(*) as bookings,
-            SUM(pm_people.meta_value) as total_people
-        FROM {$wpdb->posts} p
-        LEFT JOIN {$wpdb->postmeta} pm_campaign ON (p.ID = pm_campaign.post_id AND pm_campaign.meta_key = 'rbf_utm_campaign')
-        LEFT JOIN {$wpdb->postmeta} pm_source ON (p.ID = pm_source.post_id AND pm_source.meta_key = 'rbf_utm_source')
-        LEFT JOIN {$wpdb->postmeta} pm_medium ON (p.ID = pm_medium.post_id AND pm_medium.meta_key = 'rbf_utm_medium')
-        LEFT JOIN {$wpdb->postmeta} pm_people ON (p.ID = pm_people.post_id AND pm_people.meta_key = 'rbf_persone')
-        WHERE p.post_type = 'rbf_booking' 
-        AND p.post_status = 'publish'
-        AND p.post_date >= %s
-        AND pm_source.meta_value IS NOT NULL
-        GROUP BY pm_campaign.meta_value, pm_source.meta_value, pm_medium.meta_value
-        ORDER BY bookings DESC
-        LIMIT 10
-    ", $since_date));
+    // Get campaign performance using database helper  
+    $campaign_stats = RBF_Database_Helper::get_campaign_stats($since_date);
     
     return [
         'bucket_distribution' => $bucket_stats,
