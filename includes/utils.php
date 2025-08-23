@@ -651,6 +651,7 @@ function rbf_sanitize_input_fields(array $input_data, array $field_map) {
     
     return $sanitized;
 }
+
 function rbf_update_booking_status($booking_id, $new_status, $note = '') {
     $old_status = get_post_meta($booking_id, 'rbf_booking_status', true);
     
