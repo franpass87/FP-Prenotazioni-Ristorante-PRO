@@ -203,6 +203,8 @@ function rbf_translate_string($text) {
         'Pranzo' => 'Lunch',
         'Aperitivo' => 'Aperitif',
         'Cena' => 'Dinner',
+        'Brunch' => 'Brunch',
+        'Il brunch è disponibile solo la domenica.' => 'Brunch is only available on Sundays.',
         
         // New accessibility and UX strings
         'Progresso prenotazione' => 'Booking progress',

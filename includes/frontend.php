@@ -146,7 +146,8 @@ function rbf_render_customer_booking_management() {
     $meals = [
         'pranzo' => rbf_translate_string('Pranzo'),
         'cena' => rbf_translate_string('Cena'),
-        'aperitivo' => rbf_translate_string('Aperitivo')
+        'aperitivo' => rbf_translate_string('Aperitivo'),
+        'brunch' => rbf_translate_string('Brunch')
     ];
     $meal_label = $meals[$meal] ?? ucfirst($meal);
     
@@ -302,6 +303,8 @@ function rbf_render_booking_form() {
                         <label for="rbf_meal_aperitivo"><?php echo esc_html(rbf_translate_string('Aperitivo')); ?></label>
                         <input type="radio" name="rbf_meal" value="cena" id="rbf_meal_cena" required aria-describedby="rbf-meal-notice">
                         <label for="rbf_meal_cena"><?php echo esc_html(rbf_translate_string('Cena')); ?></label>
+                        <input type="radio" name="rbf_meal" value="brunch" id="rbf_meal_brunch" required aria-describedby="rbf-meal-notice">
+                        <label for="rbf_meal_brunch"><?php echo esc_html(rbf_translate_string('Brunch')); ?></label>
                     </div>
                     <p id="rbf-meal-notice" style="display:none;" role="status" aria-live="polite"></p>
                 </div>

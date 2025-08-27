@@ -119,7 +119,8 @@ function rbf_custom_column_data($column, $post_id) {
             $meals = [
                 'pranzo' => rbf_translate_string('Pranzo'),
                 'cena' => rbf_translate_string('Cena'), 
-                'aperitivo' => rbf_translate_string('Aperitivo')
+                'aperitivo' => rbf_translate_string('Aperitivo'),
+                'brunch' => rbf_translate_string('Brunch')
             ];
             echo esc_html($meals[$meal] ?? $meal);
             break;
@@ -132,7 +133,9 @@ function rbf_custom_column_data($column, $post_id) {
             $people = intval(get_post_meta($post_id, 'rbf_persone', true));
             $meal = get_post_meta($post_id, 'rbf_meal', true);
             $options = rbf_get_settings();
-            $valore_pp = (float) ($options['valore_' . $meal] ?? 0);
+            // For brunch, use lunch value for tracking
+            $meal_for_value = ($meal === 'brunch') ? 'pranzo' : $meal;
+            $valore_pp = (float) ($options['valore_' . $meal_for_value] ?? 0);
             $valore_tot = $valore_pp * $people;
             if ($valore_tot > 0) {
                 echo '<strong>€' . number_format($valore_tot, 2) . '</strong>';
@@ -605,7 +608,9 @@ function rbf_add_booking_page_html() {
         ]);
 
         if (!is_wp_error($post_id)) {
-            $valore_pp = (float) ($options['valore_' . $meal] ?? 0);
+            // For brunch, use lunch value for tracking
+            $meal_for_value = ($meal === 'brunch') ? 'pranzo' : $meal;
+            $valore_pp = (float) ($options['valore_' . $meal_for_value] ?? 0);
             $valore_tot = $valore_pp * $people;
             $event_id   = 'rbf_' . $post_id;
 
@@ -647,6 +652,7 @@ function rbf_add_booking_page_html() {
                         <option value="pranzo"><?php echo esc_html(rbf_translate_string('Pranzo')); ?></option>
                         <option value="aperitivo"><?php echo esc_html(rbf_translate_string('Aperitivo')); ?></option>
                         <option value="cena"><?php echo esc_html(rbf_translate_string('Cena')); ?></option>
+                        <option value="brunch"><?php echo esc_html(rbf_translate_string('Brunch')); ?></option>
                     </select></td></tr>
                 <tr><th><label for="rbf_data"><?php echo esc_html(rbf_translate_string('Data')); ?></label></th>
                     <td><input type="date" id="rbf_data" name="rbf_data"></td></tr>
@@ -968,7 +974,8 @@ function rbf_get_booking_analytics($start_date, $end_date) {
     $meals = [
         'pranzo' => rbf_translate_string('Pranzo'),
         'cena' => rbf_translate_string('Cena'),
-        'aperitivo' => rbf_translate_string('Aperitivo')
+        'aperitivo' => rbf_translate_string('Aperitivo'),
+        'brunch' => rbf_translate_string('Brunch')
     ];
     
     // Initialize analytics data
@@ -1018,7 +1025,9 @@ function rbf_get_booking_analytics($start_date, $end_date) {
         $analytics['total_people'] += $people;
         
         // Revenue calculation
-        $meal_value = (float) ($options['valore_' . $meal] ?? 0);
+        // For brunch, use lunch value for tracking
+        $meal_for_value = ($meal === 'brunch') ? 'pranzo' : $meal;
+        $meal_value = (float) ($options['valore_' . $meal_for_value] ?? 0);
         $booking_revenue = $meal_value * $people;
         $analytics['total_revenue'] += $booking_revenue;
         
