@@ -226,7 +226,8 @@ function rbf_handle_booking_submission() {
                 'custom_data' => [
                     'value'    => $valore_tot,
                     'currency' => 'EUR',
-                    'bucket'   => $bucket_std
+                    'bucket'   => $bucket_std,
+                    'vertical' => 'restaurant'
                 ]
             ]]
         ];
