@@ -117,14 +117,17 @@ gtag('event', 'purchase', {
     category: meal,
     quantity: people,
     price: value
-  }]
+  }],
+  bucket: bucket_std,  // gads/fbads/organic
+  vertical: 'restaurant'  // distingue conversioni ristorante da hotel
 });
 
 // Eventi personalizzati con attribution
 gtag('event', 'restaurant_booking', {
   meal: meal,
   people: people, 
-  bucket: bucket_std  // gads/fbads/organic
+  bucket: bucket_std,  // gads/fbads/organic
+  vertical: 'restaurant'  // coerenza analitica
 });
 ```
 
@@ -136,7 +139,9 @@ fbq('track', 'Purchase', {
   currency: 'EUR',
   content_name: 'Restaurant Booking',
   content_category: meal,
-  num_items: people
+  num_items: people,
+  bucket: bucket_std,  // gads/fbads/organic
+  vertical: 'restaurant'  // distingue conversioni ristorante da hotel
 }, {eventID: eventId});  // Event ID per deduplicazione
 ```
 
@@ -151,7 +156,9 @@ $payload = [
         'custom_data' => [
             'value' => floatval($valore_tot),
             'currency' => 'EUR',
-            'content_name' => 'Restaurant Booking'
+            'content_name' => 'Restaurant Booking',
+            'bucket' => $bucket_std,  // gads/fbads/organic
+            'vertical' => 'restaurant'  // distingue conversioni ristorante da hotel
         ],
         'user_data' => [
             'client_ip_address' => $_SERVER['REMOTE_ADDR'],
@@ -181,6 +188,13 @@ function rbf_detect_source($data = []) {
 // Business logic: unifica attribution cross-platform
 var bucketStd = (bucket === 'gads' || bucket === 'fbads') ? bucket : 'organic';
 ```
+
+**Vertical Parameter:**
+Il parametro `vertical: 'restaurant'` consente la distinzione tra conversioni ristorante e hotel:
+- **GA4**: Filtra eventi purchase per vertical = restaurant
+- **Google Ads**: Importa evento derivato `purchase_restaurant` come conversione separata  
+- **Meta**: Distingue audience e conversioni ristorante da altre categorie
+- **Analytics**: Segmentazione precisa per ROI e performance analysis
 
 ### Punti di Forza Tracciamento
 

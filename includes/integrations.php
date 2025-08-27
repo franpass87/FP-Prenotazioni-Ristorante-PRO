@@ -100,7 +100,8 @@ function rbf_add_tracking_scripts_to_footer() {
                     quantity: Number(people || 0),
                     price: Number(value || 0) / Number(people || 1)
                   }],
-                  bucket: bucketStd
+                  bucket: bucketStd,
+                  vertical: 'restaurant'
                 });
                 // Evento custom con dettaglio ristorante
                 gtag('event', 'restaurant_booking', {
@@ -110,7 +111,8 @@ function rbf_add_tracking_scripts_to_footer() {
                   bucket: bucketStd,          // standard (gads/fbads/organic)
                   traffic_bucket: bucket,     // dettaglio (fborg/direct/other...)
                   meal: meal,
-                  people: Number(people || 0)
+                  people: Number(people || 0),
+                  vertical: 'restaurant'
                 });
               }
               <?php endif; ?>
@@ -119,7 +121,7 @@ function rbf_add_tracking_scripts_to_footer() {
               if (typeof fbq === 'function') {
                 // Dedup con CAPI: stesso eventID + bucket standard lato browser
                 fbq('track', 'Purchase',
-                    { value: Number(value || 0), currency: currency, bucket: bucketStd },
+                    { value: Number(value || 0), currency: currency, bucket: bucketStd, vertical: 'restaurant' },
                     { eventID: eventId }
                 );
               }
