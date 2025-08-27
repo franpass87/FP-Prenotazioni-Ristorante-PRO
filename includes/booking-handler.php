@@ -54,10 +54,6 @@ function rbf_handle_booking_submission() {
     $meal = $sanitized_fields['rbf_meal'];
     $date = $sanitized_fields['rbf_data'];
     $time_data = $sanitized_fields['rbf_orario'];
-    if (strpos($time_data, '|') === false) {
-        rbf_handle_error(rbf_translate_string('Orario non valido.'), 'time_validation', $redirect_url . $anchor);
-        return;
-    }
     
     // Validate time data format
     if (strpos($time_data, '|') === false) {
