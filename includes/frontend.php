@@ -146,7 +146,8 @@ function rbf_render_customer_booking_management() {
     $meals = [
         'pranzo' => rbf_translate_string('Pranzo'),
         'cena' => rbf_translate_string('Cena'),
-        'aperitivo' => rbf_translate_string('Aperitivo')
+        'aperitivo' => rbf_translate_string('Aperitivo'),
+        'brunch' => rbf_translate_string('Brunch')
     ];
     $meal_label = $meals[$meal] ?? ucfirst($meal);
     

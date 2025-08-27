@@ -176,7 +176,8 @@ function rbf_handle_booking_submission() {
 
     delete_transient('rbf_avail_' . $date . '_' . $slot);
     $options = rbf_get_settings();
-    // For brunch, use lunch value for tracking
+    // For brunch, use lunch value for tracking and analytics
+    // This maps brunch bookings to lunch resources (pricing, capacity, time slots)
     $meal_for_value = ($meal === 'brunch') ? 'pranzo' : $meal;
     $valore_pp  = (float) ($options['valore_' . $meal_for_value] ?? 0);
     $valore_tot = $valore_pp * $people;
@@ -330,7 +331,7 @@ function rbf_ajax_get_availability_callback() {
     }
 
     // Step 3: Get configured time slots for this meal
-    // For brunch, use lunch time slots
+    // For brunch, use lunch time slots (resource mapping)
     $meal_for_slots = ($meal === 'brunch') ? 'pranzo' : $meal;
     $times_csv = $options['orari_'.$meal_for_slots] ?? '';
     if (empty($times_csv)) {
@@ -346,7 +347,7 @@ function rbf_ajax_get_availability_callback() {
 
 
     // Step 4: Check remaining capacity
-    // For brunch, use lunch capacity
+    // For brunch, use lunch capacity (resource mapping)
     $meal_for_capacity = ($meal === 'brunch') ? 'pranzo' : $meal;
     $remaining_capacity = rbf_get_remaining_capacity($date, $meal_for_capacity);
     if ($remaining_capacity <= 0) {

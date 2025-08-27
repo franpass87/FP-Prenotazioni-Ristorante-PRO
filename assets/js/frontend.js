@@ -309,34 +309,39 @@ jQuery(function($) {
     // Special handling for brunch meal
     const selectedMeal = $(this).val();
     if (selectedMeal === 'brunch') {
+      // Show date step for brunch selection
+      showStep(el.dateStep, 2);
+      
       // Add special disable logic for brunch - only Sundays allowed
-      const flatpickrConfig = {
-        altInput: true,
-        altFormat: 'd-m-Y',
-        dateFormat: 'Y-m-d',
-        minDate: new Date(new Date().getTime() + rbfData.minAdvanceMinutes * 60 * 1000),
-        locale: (rbfData.locale === 'it') ? 'it' : 'default',
-        disable: [function(date) {
-          const day = date.getDay();
-          // For brunch, disable all days except Sunday (0)
-          if (day !== 0) return true;
-          // Also apply regular closed day/date logic
-          if (rbfData.closedDays.includes(day)) return true;
-          const dateStr = formatLocalISO(date);
-          if (rbfData.closedSingles.includes(dateStr)) return true;
-          for (let range of rbfData.closedRanges) {
-            if (dateStr >= range.from && dateStr <= range.to) return true;
-          }
-          return false;
-        }],
-        onChange: onDateChange
-      };
-      
-      if (rbfData.maxAdvanceMinutes > 0) {
-        flatpickrConfig.maxDate = new Date(new Date().getTime() + rbfData.maxAdvanceMinutes * 60 * 1000);
+      if (typeof flatpickr !== 'undefined') {
+        const flatpickrConfig = {
+          altInput: true,
+          altFormat: 'd-m-Y',
+          dateFormat: 'Y-m-d',
+          minDate: new Date(new Date().getTime() + rbfData.minAdvanceMinutes * 60 * 1000),
+          locale: (rbfData.locale === 'it') ? 'it' : 'default',
+          disable: [function(date) {
+            const day = date.getDay();
+            // For brunch, disable all days except Sunday (0)
+            if (day !== 0) return true;
+            // Also apply regular closed day/date logic
+            if (rbfData.closedDays.includes(day)) return true;
+            const dateStr = formatLocalISO(date);
+            if (rbfData.closedSingles.includes(dateStr)) return true;
+            for (let range of rbfData.closedRanges) {
+              if (dateStr >= range.from && dateStr <= range.to) return true;
+            }
+            return false;
+          }],
+          onChange: onDateChange
+        };
+        
+        if (rbfData.maxAdvanceMinutes > 0) {
+          flatpickrConfig.maxDate = new Date(new Date().getTime() + rbfData.maxAdvanceMinutes * 60 * 1000);
+        }
+        
+        fp = flatpickr(el.dateInput[0], flatpickrConfig);
       }
-      
-      fp = flatpickr(el.dateInput[0], flatpickrConfig);
     } else {
       // Regular meal selection logic
       showStep(el.dateStep, 2);
@@ -382,9 +387,6 @@ jQuery(function($) {
         // flatpickr not available - date picker functionality disabled
       }
     }
-    
-    // Show date step for both regular meals and brunch
-    showStep(el.dateStep, 2);
   });
 
   /**
