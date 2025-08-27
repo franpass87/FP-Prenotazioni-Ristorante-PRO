@@ -113,7 +113,7 @@ function rbf_handle_booking_submission() {
     }
 
     // Special check: brunch is only available on Sundays
-    $day_of_week = date('w', strtotime($date));
+    $day_of_week = (int) date('w', strtotime($date));
     if ($meal === 'brunch' && $day_of_week !== 0) {
         rbf_handle_error(rbf_translate_string('Il brunch è disponibile solo la domenica.'), 'brunch_validation', $redirect_url . $anchor);
         return;
@@ -296,7 +296,7 @@ function rbf_ajax_get_availability_callback() {
     }
 
     // Special check: brunch is only available on Sundays
-    $day_of_week = date('w', strtotime($date));
+    $day_of_week = (int) date('w', strtotime($date));
     if ($meal === 'brunch' && $day_of_week !== 0) {
         wp_send_json_success([]);
         return;
