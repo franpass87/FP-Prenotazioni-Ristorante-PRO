@@ -38,21 +38,30 @@ function rbf_clear_transients() {
     
     foreach ($transient_patterns as $pattern) {
         $escaped_pattern = $wpdb->esc_like($pattern);
-        $wpdb->query(
+        $deleted = $wpdb->query(
             $wpdb->prepare(
                 "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",
                 $escaped_pattern
             )
         );
+        
+        // Log cleanup for debugging if WP_DEBUG is enabled
+        if (WP_DEBUG && $deleted > 0) {
+            error_log("RBF Plugin: Cleared {$deleted} transients matching pattern: {$pattern}");
+        }
     }
 
     // Also clear specific availability transients
-    $wpdb->query(
+    $deleted_avail = $wpdb->query(
         $wpdb->prepare(
             "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",
-            '_transient_rbf_avail_%'
+            $wpdb->esc_like('_transient_rbf_avail_%')
         )
     );
+    
+    if (WP_DEBUG && $deleted_avail > 0) {
+        error_log("RBF Plugin: Cleared {$deleted_avail} availability transients");
+    }
 
     if (function_exists('wp_cache_flush')) {
         wp_cache_flush();
@@ -102,15 +111,11 @@ register_activation_hook(__FILE__, 'rbf_activate_plugin');
 function rbf_activate_plugin() {
     rbf_clear_transients();
 
-    // Load modules to ensure custom post types are registered before flushing rules
+    // Load modules to ensure custom post types are available
     rbf_load_modules();
     
-    // Register custom post type before flushing rewrite rules
-    if (function_exists('rbf_register_post_type')) {
-        rbf_register_post_type();
-    }
-    
     // Flush rewrite rules to ensure custom post types work
+    // The post type registration happens via 'init' hook in admin.php
     flush_rewrite_rules();
 }
 

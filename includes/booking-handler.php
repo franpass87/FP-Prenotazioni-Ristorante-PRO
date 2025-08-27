@@ -54,11 +54,13 @@ function rbf_handle_booking_submission() {
     $meal = $sanitized_fields['rbf_meal'];
     $date = $sanitized_fields['rbf_data'];
     $time_data = $sanitized_fields['rbf_orario'];
+    
+    // Validate time data format
     if (strpos($time_data, '|') === false) {
-        rbf_handle_error(rbf_translate_string('Orario non valido.'), 'time_validation', $redirect_url . $anchor);
+        rbf_handle_error(rbf_translate_string('Formato orario non valido.'), 'time_format', $redirect_url . $anchor);
         return;
     }
-    list($slot, $time) = explode('|', $time_data);
+    list($slot, $time) = explode('|', $time_data, 2);
     $people = $sanitized_fields['rbf_persone'];
     $first_name = $sanitized_fields['rbf_nome'];
     $last_name = $sanitized_fields['rbf_cognome'];
@@ -218,8 +220,8 @@ function rbf_handle_booking_submission() {
                 'event_time' => time(),
                 'event_id' => (string) $event_id,
                 'user_data' => [
-                    'client_ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
-                    'client_user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
+                    'client_ip_address' => filter_var($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1', FILTER_VALIDATE_IP) ?: '127.0.0.1',
+                    'client_user_agent' => substr(sanitize_text_field($_SERVER['HTTP_USER_AGENT'] ?? 'unknown'), 0, 250),
                 ],
                 'custom_data' => [
                     'value'    => $valore_tot,

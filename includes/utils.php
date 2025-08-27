@@ -54,13 +54,23 @@ if (!function_exists('rbf_wp_timezone')) {
             return new DateTimeZone('UTC');
         }
         
-        $tz_string = get_option('timezone_string');
-        if ($tz_string) return new DateTimeZone($tz_string);
-        $offset = (float) get_option('gmt_offset', 0);
-        $hours = (int) $offset;
-        $minutes = abs($offset - $hours) * 60;
-        $sign = $offset < 0 ? '-' : '+';
-        return new DateTimeZone(sprintf('%s%02d:%02d', $sign, abs($hours), $minutes));
+        try {
+            $tz_string = get_option('timezone_string');
+            if ($tz_string) return new DateTimeZone($tz_string);
+            
+            $offset = (float) get_option('gmt_offset', 0);
+            $hours = (int) $offset;
+            $minutes = abs($offset - $hours) * 60;
+            $sign = $offset < 0 ? '-' : '+';
+            return new DateTimeZone(sprintf('%s%02d:%02d', $sign, abs($hours), $minutes));
+        } catch (Exception $e) {
+            // Log the error if debugging is enabled
+            if (WP_DEBUG) {
+                error_log('RBF Plugin: Timezone creation failed: ' . $e->getMessage());
+            }
+            // Fallback to UTC on any error
+            return new DateTimeZone('UTC');
+        }
     }
 }
 
@@ -188,6 +198,7 @@ function rbf_translate_string($text) {
         'Errore di sicurezza.' => 'Security error.',
         'Indirizzo email non valido.' => 'Invalid email address.',
         'Orario non valido.' => 'Invalid time.',
+        'Formato orario non valido.' => 'Invalid time format.',
         'Spiacenti, non ci sono abbastanza posti. Rimasti: %d' => 'Sorry, there are not enough seats available. Remaining: %d',
         'Errore nel salvataggio.' => 'Error while saving.',
         'Caricamento...' => 'Loading...',
