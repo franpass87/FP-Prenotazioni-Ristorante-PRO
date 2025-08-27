@@ -119,7 +119,8 @@ function rbf_custom_column_data($column, $post_id) {
             $meals = [
                 'pranzo' => rbf_translate_string('Pranzo'),
                 'cena' => rbf_translate_string('Cena'), 
-                'aperitivo' => rbf_translate_string('Aperitivo')
+                'aperitivo' => rbf_translate_string('Aperitivo'),
+                'brunch' => rbf_translate_string('Brunch')
             ];
             echo esc_html($meals[$meal] ?? $meal);
             break;
@@ -651,6 +652,7 @@ function rbf_add_booking_page_html() {
                         <option value="pranzo"><?php echo esc_html(rbf_translate_string('Pranzo')); ?></option>
                         <option value="aperitivo"><?php echo esc_html(rbf_translate_string('Aperitivo')); ?></option>
                         <option value="cena"><?php echo esc_html(rbf_translate_string('Cena')); ?></option>
+                        <option value="brunch"><?php echo esc_html(rbf_translate_string('Brunch')); ?></option>
                     </select></td></tr>
                 <tr><th><label for="rbf_data"><?php echo esc_html(rbf_translate_string('Data')); ?></label></th>
                     <td><input type="date" id="rbf_data" name="rbf_data"></td></tr>
@@ -972,7 +974,8 @@ function rbf_get_booking_analytics($start_date, $end_date) {
     $meals = [
         'pranzo' => rbf_translate_string('Pranzo'),
         'cena' => rbf_translate_string('Cena'),
-        'aperitivo' => rbf_translate_string('Aperitivo')
+        'aperitivo' => rbf_translate_string('Aperitivo'),
+        'brunch' => rbf_translate_string('Brunch')
     ];
     
     // Initialize analytics data
