@@ -132,7 +132,9 @@ function rbf_custom_column_data($column, $post_id) {
             $people = intval(get_post_meta($post_id, 'rbf_persone', true));
             $meal = get_post_meta($post_id, 'rbf_meal', true);
             $options = rbf_get_settings();
-            $valore_pp = (float) ($options['valore_' . $meal] ?? 0);
+            // For brunch, use lunch value for tracking
+            $meal_for_value = ($meal === 'brunch') ? 'pranzo' : $meal;
+            $valore_pp = (float) ($options['valore_' . $meal_for_value] ?? 0);
             $valore_tot = $valore_pp * $people;
             if ($valore_tot > 0) {
                 echo '<strong>€' . number_format($valore_tot, 2) . '</strong>';
@@ -605,7 +607,9 @@ function rbf_add_booking_page_html() {
         ]);
 
         if (!is_wp_error($post_id)) {
-            $valore_pp = (float) ($options['valore_' . $meal] ?? 0);
+            // For brunch, use lunch value for tracking
+            $meal_for_value = ($meal === 'brunch') ? 'pranzo' : $meal;
+            $valore_pp = (float) ($options['valore_' . $meal_for_value] ?? 0);
             $valore_tot = $valore_pp * $people;
             $event_id   = 'rbf_' . $post_id;
 
@@ -1018,7 +1022,9 @@ function rbf_get_booking_analytics($start_date, $end_date) {
         $analytics['total_people'] += $people;
         
         // Revenue calculation
-        $meal_value = (float) ($options['valore_' . $meal] ?? 0);
+        // For brunch, use lunch value for tracking
+        $meal_for_value = ($meal === 'brunch') ? 'pranzo' : $meal;
+        $meal_value = (float) ($options['valore_' . $meal_for_value] ?? 0);
         $booking_revenue = $meal_value * $people;
         $analytics['total_revenue'] += $booking_revenue;
         

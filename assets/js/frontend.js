@@ -305,28 +305,22 @@ jQuery(function($) {
   el.mealRadios.on('change', function() {
     resetSteps(1);
     el.mealNotice.hide();
-    showStep(el.dateStep, 2);
-
-    // Initialize flatpickr only if available
-    if (typeof flatpickr !== 'undefined') {
-      // Calculate min and max dates based on settings
-      const now = new Date();
-      let minDate = new Date(now.getTime() + rbfData.minAdvanceMinutes * 60 * 1000);
-      // Round to start of day so current date remains selectable
-      minDate.setHours(0, 0, 0, 0);
-      let maxDate = null;
-      if (rbfData.maxAdvanceMinutes > 0) {
-        maxDate = new Date(now.getTime() + rbfData.maxAdvanceMinutes * 60 * 1000);
-      }
-      
+    
+    // Special handling for brunch meal
+    const selectedMeal = $(this).val();
+    if (selectedMeal === 'brunch') {
+      // Add special disable logic for brunch - only Sundays allowed
       const flatpickrConfig = {
         altInput: true,
         altFormat: 'd-m-Y',
         dateFormat: 'Y-m-d',
-        minDate: minDate,
+        minDate: new Date(new Date().getTime() + rbfData.minAdvanceMinutes * 60 * 1000),
         locale: (rbfData.locale === 'it') ? 'it' : 'default',
         disable: [function(date) {
           const day = date.getDay();
+          // For brunch, disable all days except Sunday (0)
+          if (day !== 0) return true;
+          // Also apply regular closed day/date logic
           if (rbfData.closedDays.includes(day)) return true;
           const dateStr = formatLocalISO(date);
           if (rbfData.closedSingles.includes(dateStr)) return true;
@@ -338,15 +332,59 @@ jQuery(function($) {
         onChange: onDateChange
       };
       
-      // Add maxDate if it exists
-      if (maxDate) {
-        flatpickrConfig.maxDate = maxDate;
+      if (rbfData.maxAdvanceMinutes > 0) {
+        flatpickrConfig.maxDate = new Date(new Date().getTime() + rbfData.maxAdvanceMinutes * 60 * 1000);
       }
       
       fp = flatpickr(el.dateInput[0], flatpickrConfig);
     } else {
-      // flatpickr not available - date picker functionality disabled
+      // Regular meal selection logic
+      showStep(el.dateStep, 2);
+
+      // Initialize flatpickr only if available
+      if (typeof flatpickr !== 'undefined') {
+        // Calculate min and max dates based on settings
+        const now = new Date();
+        let minDate = new Date(now.getTime() + rbfData.minAdvanceMinutes * 60 * 1000);
+        // Round to start of day so current date remains selectable
+        minDate.setHours(0, 0, 0, 0);
+        let maxDate = null;
+        if (rbfData.maxAdvanceMinutes > 0) {
+          maxDate = new Date(now.getTime() + rbfData.maxAdvanceMinutes * 60 * 1000);
+        }
+        
+        const flatpickrConfig = {
+          altInput: true,
+          altFormat: 'd-m-Y',
+          dateFormat: 'Y-m-d',
+          minDate: minDate,
+          locale: (rbfData.locale === 'it') ? 'it' : 'default',
+          disable: [function(date) {
+            const day = date.getDay();
+            if (rbfData.closedDays.includes(day)) return true;
+            const dateStr = formatLocalISO(date);
+            if (rbfData.closedSingles.includes(dateStr)) return true;
+            for (let range of rbfData.closedRanges) {
+              if (dateStr >= range.from && dateStr <= range.to) return true;
+            }
+            return false;
+          }],
+          onChange: onDateChange
+        };
+        
+        // Add maxDate if it exists
+        if (maxDate) {
+          flatpickrConfig.maxDate = maxDate;
+        }
+        
+        fp = flatpickr(el.dateInput[0], flatpickrConfig);
+      } else {
+        // flatpickr not available - date picker functionality disabled
+      }
     }
+    
+    // Show date step for both regular meals and brunch
+    showStep(el.dateStep, 2);
   });
 
   /**
@@ -363,8 +401,10 @@ jQuery(function($) {
     const dow = date.getDay();
     const selectedMeal = el.mealRadios.filter(':checked').val();
     
-    // Show brunch notice for Sunday lunch
+    // Show brunch notice for Sunday lunch or brunch
     if (selectedMeal === 'pranzo' && dow === 0) {
+      el.mealNotice.text(rbfData.labels.sundayBrunchNotice).show();
+    } else if (selectedMeal === 'brunch' && dow === 0) {
       el.mealNotice.text(rbfData.labels.sundayBrunchNotice).show();
     } else {
       el.mealNotice.hide();

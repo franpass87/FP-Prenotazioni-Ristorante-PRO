@@ -112,6 +112,13 @@ function rbf_handle_booking_submission() {
         return;
     }
 
+    // Special check: brunch is only available on Sundays
+    $day_of_week = date('w', strtotime($date));
+    if ($meal === 'brunch' && $day_of_week !== 0) {
+        rbf_handle_error(rbf_translate_string('Il brunch è disponibile solo la domenica.'), 'brunch_validation', $redirect_url . $anchor);
+        return;
+    }
+
     $remaining_capacity = rbf_get_remaining_capacity($date, $slot);
     
     // Check capacity - if not enough, show error (no waitlist)
@@ -169,7 +176,9 @@ function rbf_handle_booking_submission() {
 
     delete_transient('rbf_avail_' . $date . '_' . $slot);
     $options = rbf_get_settings();
-    $valore_pp  = (float) ($options['valore_' . $meal] ?? 0);
+    // For brunch, use lunch value for tracking
+    $meal_for_value = ($meal === 'brunch') ? 'pranzo' : $meal;
+    $valore_pp  = (float) ($options['valore_' . $meal_for_value] ?? 0);
     $valore_tot = $valore_pp * $people;
     $event_id   = 'rbf_' . $post_id; // usato per Pixel (browser) e CAPI (server)
 
@@ -281,8 +290,15 @@ function rbf_ajax_get_availability_callback() {
     }
     
     // Validate meal type
-    if (!in_array($meal, ['pranzo', 'cena', 'aperitivo'], true)) {
+    if (!in_array($meal, ['pranzo', 'cena', 'aperitivo', 'brunch'], true)) {
         rbf_handle_error('Invalid meal type', 'meal_validation');
+        return;
+    }
+
+    // Special check: brunch is only available on Sundays
+    $day_of_week = date('w', strtotime($date));
+    if ($meal === 'brunch' && $day_of_week !== 0) {
+        wp_send_json_success([]);
         return;
     }
 
@@ -314,7 +330,9 @@ function rbf_ajax_get_availability_callback() {
     }
 
     // Step 3: Get configured time slots for this meal
-    $times_csv = $options['orari_'.$meal] ?? '';
+    // For brunch, use lunch time slots
+    $meal_for_slots = ($meal === 'brunch') ? 'pranzo' : $meal;
+    $times_csv = $options['orari_'.$meal_for_slots] ?? '';
     if (empty($times_csv)) {
         wp_send_json_success([]);
         return;
@@ -328,7 +346,9 @@ function rbf_ajax_get_availability_callback() {
 
 
     // Step 4: Check remaining capacity
-    $remaining_capacity = rbf_get_remaining_capacity($date, $meal);
+    // For brunch, use lunch capacity
+    $meal_for_capacity = ($meal === 'brunch') ? 'pranzo' : $meal;
+    $remaining_capacity = rbf_get_remaining_capacity($date, $meal_for_capacity);
     if ($remaining_capacity <= 0) {
         wp_send_json_success([]);
         return;
@@ -371,7 +391,7 @@ function rbf_ajax_get_availability_callback() {
     $response = [];
     foreach ($available_times as $time) {
         $response[] = [
-            'slot' => $meal,
+            'slot' => $meal_for_capacity, // Use the actual slot for capacity (pranzo for brunch)
             'time' => $time
         ];
     }
