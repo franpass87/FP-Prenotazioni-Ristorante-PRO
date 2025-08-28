@@ -1,6 +1,10 @@
 # Backup files
 fp-prenotazioni-ristorante-pro-original.php
 
+# Test files
+test-bucket-normalization.php
+test-booking-scenarios.php
+
 # Temporary files
 *.tmp
 *.temp

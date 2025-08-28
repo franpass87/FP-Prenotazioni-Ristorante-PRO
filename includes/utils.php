@@ -754,6 +754,35 @@ function rbf_validate_utm_parameters($utm_data) {
 }
 
 /**
+ * Normalize bucket attribution for unified cross-platform tracking
+ * 
+ * This function implements the priority-based bucket classification:
+ * Priority: gclid > fbclid > organic
+ * 
+ * @param string $gclid Google Click ID parameter
+ * @param string $fbclid Facebook Click ID parameter
+ * @return string Normalized bucket value: 'gads', 'fbads', or 'organic'
+ */
+function fp_normalize_bucket($gclid = '', $fbclid = '') {
+    // Clean and validate input parameters
+    $gclid = trim($gclid);
+    $fbclid = trim($fbclid);
+    
+    // Priority 1: Google Ads - if gclid is present
+    if (!empty($gclid) && preg_match('/^[a-zA-Z0-9._-]+$/', $gclid)) {
+        return 'gads';
+    }
+    
+    // Priority 2: Facebook/Meta Ads - if fbclid is present
+    if (!empty($fbclid) && preg_match('/^[a-zA-Z0-9._-]+$/', $fbclid)) {
+        return 'fbads';
+    }
+    
+    // Priority 3: Everything else becomes organic
+    return 'organic';
+}
+
+/**
  * Get UTM analytics for dashboard
  * Moved from utm-validator.php to consolidate analytics functionality
  */

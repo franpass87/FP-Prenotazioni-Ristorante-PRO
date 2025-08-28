@@ -208,6 +208,8 @@ function rbf_handle_booking_submission() {
         'meal'     => $meal,
         'people'   => $people,
         'bucket'   => $src['bucket'],
+        'gclid'    => $gclid,
+        'fbclid'   => $fbclid,
         'event_id' => $event_id
     ], 60 * 15);
 
@@ -225,8 +227,8 @@ function rbf_handle_booking_submission() {
     // Meta CAPI server-side (dedup con event_id) + bucket standard
     if (!empty($options['meta_pixel_id']) && !empty($options['meta_access_token'])) {
         $meta_url = "https://graph.facebook.com/v20.0/{$options['meta_pixel_id']}/events?access_token={$options['meta_access_token']}";
-        // standardizza: tutto ciò che NON è gads/fbads => organic
-        $bucket_std = ($src['bucket'] === 'gads' || $src['bucket'] === 'fbads') ? $src['bucket'] : 'organic';
+        // Use centralized normalization function with priority gclid > fbclid > organic
+        $bucket_std = fp_normalize_bucket($gclid, $fbclid);
 
         $meta_payload = [
             'data' => [[
