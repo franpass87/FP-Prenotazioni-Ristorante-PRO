@@ -4,6 +4,7 @@ fp-prenotazioni-ristorante-pro-original.php
 # Test files
 test-bucket-normalization.php
 test-booking-scenarios.php
+validate-booking-flow.php
 
 # Temporary files
 *.tmp
