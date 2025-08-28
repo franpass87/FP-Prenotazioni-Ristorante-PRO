@@ -30,7 +30,7 @@ function rbf_get_default_settings() {
         'meta_pixel_id' => '',
         'meta_access_token' => '',
         'notification_email' => 'info@villadianella.it',
-        'webmaster_email' => get_option('admin_email', ''),
+        'webmaster_email' => '',
         'brevo_api' => '',
         'brevo_list_it' => '',
         'brevo_list_en' => '',
@@ -162,6 +162,48 @@ function rbf_get_legacy_available_days($options) {
 }
 
 /**
+ * Get meal configuration by ID
+ */
+function rbf_get_meal_config($meal_id) {
+    $active_meals = rbf_get_active_meals();
+    
+    foreach ($active_meals as $meal) {
+        if ($meal['id'] === $meal_id) {
+            return $meal;
+        }
+    }
+    
+    return null;
+}
+
+/**
+ * Validate if a meal is available on a specific day
+ */
+function rbf_is_meal_available_on_day($meal_id, $date) {
+    $meal_config = rbf_get_meal_config($meal_id);
+    if (!$meal_config) {
+        return false;
+    }
+    
+    $day_of_week = (int) date('w', strtotime($date));
+    $day_mapping = [
+        0 => 'sun', 1 => 'mon', 2 => 'tue', 3 => 'wed',
+        4 => 'thu', 5 => 'fri', 6 => 'sat'
+    ];
+    
+    $day_key = $day_mapping[$day_of_week];
+    return in_array($day_key, $meal_config['available_days']);
+}
+
+/**
+ * Get valid meal IDs for validation
+ */
+function rbf_get_valid_meal_ids() {
+    $active_meals = rbf_get_active_meals();
+    return array_column($active_meals, 'id');
+}
+
+/**
  * WordPress timezone compatibility function
  */
 if (!function_exists('rbf_wp_timezone')) {
@@ -285,6 +327,8 @@ function rbf_translate_string($text) {
         'Rimuovi Pasto' => 'Remove Meal',
         'Aggiungi Pasto' => 'Add Meal',
         'Capienza e Orari (Classico)' => 'Capacity and Timetable (Classic)',
+        'Tipo di pasto non valido.' => 'Invalid meal type.',
+        '%s non è disponibile in questo giorno.' => '%s is not available on this day.',
         
         'Capienza e Orari' => 'Capacity and Timetable',
         'Capienza Pranzo' => 'Lunch Capacity',

@@ -444,7 +444,15 @@ function rbf_get_remaining_capacity($date, $slot) {
     if ($cached !== false) return (int) $cached;
 
     $options = rbf_get_settings();
-    $total = (int) ($options['capienza_'.$slot] ?? 0);
+    
+    // Try to get capacity from configurable meals first
+    $meal_config = rbf_get_meal_config($slot);
+    if ($meal_config) {
+        $total = (int) $meal_config['capacity'];
+    } else {
+        // Fallback to legacy capacity settings
+        $total = (int) ($options['capienza_'.$slot] ?? 0);
+    }
 
     // Treat zero capacity as unlimited to avoid blocking services like aperitivo
     if ($total === 0) {
