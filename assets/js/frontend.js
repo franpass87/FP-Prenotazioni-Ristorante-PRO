@@ -40,6 +40,27 @@ jQuery(function($) {
   let currentStep = 1;
   let stepTimeouts = new Map(); // Track timeouts for each step element
 
+  /**
+   * Add optimal layout class based on number of meals
+   */
+  function addMealCountClass() {
+    const mealCount = el.mealRadios.length;
+    const radioGroup = el.mealRadios.closest('.rbf-radio-group');
+    
+    // Remove existing meal count classes
+    radioGroup.removeClass(function(index, className) {
+      return (className.match(/\bmeals-\d+/g) || []).join(' ');
+    });
+    
+    // Add appropriate class for optimal layout
+    if (mealCount >= 2 && mealCount <= 6) {
+      radioGroup.addClass('meals-' + mealCount);
+    }
+  }
+  
+  // Initialize optimal meal layout
+  addMealCountClass();
+
   function formatLocalISO(date) {
     return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
       .toISOString()
