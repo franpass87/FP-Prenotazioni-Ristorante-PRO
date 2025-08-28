@@ -42,7 +42,7 @@ function rbf_add_tracking_scripts_to_footer() {
         </script>
     <?php }
 
-    if (isset($_GET['rbf_success'], $_GET['booking_id'])) {
+    if (isset($_GET['rbf_success'], $_GET['booking_id']) && is_numeric($_GET['booking_id'])) {
         $booking_id = intval($_GET['booking_id']);
         $tracking_data = get_transient('rbf_booking_data_' . $booking_id);
 

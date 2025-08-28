@@ -503,6 +503,7 @@ function rbf_translate_string($text) {
         'Note e preferenze alimentari' => 'Notes and dietary preferences',
         'Consensi privacy e marketing' => 'Privacy and marketing consents',
         'Gestione Automatica' => 'Automatic Management',
+        'Elimina definitivamente questa prenotazione?' => 'Permanently delete this booking?',
         'Tooltip informativo' => 'Information Tooltip',
         'Testo informativo che apparirà quando questo pasto viene selezionato (opzionale)' => 'Information text that will appear when this meal is selected (optional)',
         'Di Domenica il servizio è Brunch con menù alla carta.' => 'On Sundays the service is Brunch with à la carte menu.',
