@@ -448,62 +448,61 @@ function rbf_settings_page_html() {
                             });
                             
                             function createMealItem(index) {
+                                var dayCheckboxes = '';
+                                <?php foreach ($day_labels as $day_key => $day_label) { ?>
+                                dayCheckboxes += '<label style="display: inline-block; margin-right: 15px;">';
+                                dayCheckboxes += '<input type="checkbox" name="rbf_settings[custom_meals][' + index + '][available_days][]" value="<?php echo $day_key; ?>">';
+                                dayCheckboxes += '<?php echo esc_js($day_label); ?>';
+                                dayCheckboxes += '</label>';
+                                <?php } ?>
+                                
                                 return `
                                 <div class="custom-meal-item" style="border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; background: #f9f9f9;">
-                                    <h4><?php echo sprintf(esc_html(rbf_translate_string('Pasto %d')), '` + (index + 1) + `'); ?></h4>
+                                    <h4><?php echo esc_js(rbf_translate_string('Pasto')); ?> ` + (index + 1) + `</h4>
                                     <table class="form-table">
                                         <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('Attivo')); ?></label></th>
+                                            <th><label><?php echo esc_js(rbf_translate_string('Attivo')); ?></label></th>
                                             <td><input type="checkbox" name="rbf_settings[custom_meals][` + index + `][enabled]" value="1" checked></td>
                                         </tr>
                                         <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('ID')); ?></label></th>
+                                            <th><label><?php echo esc_js(rbf_translate_string('ID')); ?></label></th>
                                             <td>
                                                 <input type="text" name="rbf_settings[custom_meals][` + index + `][id]" value="" class="regular-text" placeholder="es: pranzo">
-                                                <p class="description"><?php echo esc_html(rbf_translate_string('ID univoco del pasto (senza spazi, solo lettere e numeri)')); ?></p>
+                                                <p class="description"><?php echo esc_js(rbf_translate_string('ID univoco del pasto (senza spazi, solo lettere e numeri)')); ?></p>
                                             </td>
                                         </tr>
                                         <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('Nome')); ?></label></th>
+                                            <th><label><?php echo esc_js(rbf_translate_string('Nome')); ?></label></th>
                                             <td><input type="text" name="rbf_settings[custom_meals][` + index + `][name]" value="" class="regular-text" placeholder="es: Pranzo"></td>
                                         </tr>
                                         <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('Capienza')); ?></label></th>
+                                            <th><label><?php echo esc_js(rbf_translate_string('Capienza')); ?></label></th>
                                             <td><input type="number" name="rbf_settings[custom_meals][` + index + `][capacity]" value="30" min="1"></td>
                                         </tr>
                                         <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('Orari')); ?></label></th>
+                                            <th><label><?php echo esc_js(rbf_translate_string('Orari')); ?></label></th>
                                             <td>
                                                 <input type="text" name="rbf_settings[custom_meals][` + index + `][time_slots]" value="" class="regular-text" placeholder="es: 12:00,12:30,13:00">
-                                                <p class="description"><?php echo esc_html(rbf_translate_string('Orari separati da virgola')); ?></p>
+                                                <p class="description"><?php echo esc_js(rbf_translate_string('Orari separati da virgola')); ?></p>
                                             </td>
                                         </tr>
                                         <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('Prezzo (€)')); ?></label></th>
+                                            <th><label><?php echo esc_js(rbf_translate_string('Prezzo (€)')); ?></label></th>
                                             <td><input type="number" step="0.01" name="rbf_settings[custom_meals][` + index + `][price]" value="0" min="0"></td>
                                         </tr>
                                         <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('Giorni disponibili')); ?></label></th>
-                                            <td>
-                                                <?php
-                                                foreach ($day_labels as $day_key => $day_label) {
-                                                    echo '<label style="display: inline-block; margin-right: 15px;">';
-                                                    echo '<input type="checkbox" name="rbf_settings[custom_meals][' . "` + index + `" . '][available_days][]" value="' . $day_key . '">';
-                                                    echo esc_html($day_label);
-                                                    echo '</label>';
-                                                }
-                                                ?>
-                                            </td>
+                                            <th><label><?php echo esc_js(rbf_translate_string('Giorni disponibili')); ?></label></th>
+                                            <td>` + dayCheckboxes + `</td>
                                         </tr>
                                         <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('Tooltip informativo')); ?></label></th>
+                                            <th><label><?php echo esc_js(rbf_translate_string('Tooltip informativo')); ?></label></th>
                                             <td>
                                                 <textarea name="rbf_settings[custom_meals][` + index + `][tooltip]" class="regular-text" rows="2" placeholder="es: Di Domenica il servizio è Brunch con menù alla carta."></textarea>
-                                                <p class="description"><?php echo esc_html(rbf_translate_string('Testo informativo che apparirà quando questo pasto viene selezionato (opzionale)')); ?></p>
+                                                <p class="description"><?php echo esc_js(rbf_translate_string('Testo informativo che apparirà quando questo pasto viene selezionato (opzionale)')); ?></p>
                                             </td>
                                         </tr>
                                     </table>
-                                    <button type="button" class="button button-secondary remove-meal" style="margin-top: 10px;"><?php echo esc_html(rbf_translate_string('Rimuovi Pasto')); ?></button>
+                                    <button type="button" class="button button-secondary remove-meal" style="margin-top: 10px;"><?php echo esc_js(rbf_translate_string('Rimuovi Pasto')); ?></button>
                                 </div>`;
                             }
                         });

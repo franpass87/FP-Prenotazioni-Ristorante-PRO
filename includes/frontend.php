@@ -51,13 +51,15 @@ function rbf_enqueue_frontend_assets() {
     }
     $closed_specific = rbf_get_closed_specific($options);
 
-    // Get meal tooltips for JavaScript
+    // Get meal tooltips and availability for JavaScript with proper translation
     $active_meals = rbf_get_active_meals();
     $meal_tooltips = [];
+    $meal_availability = [];
     foreach ($active_meals as $meal) {
         if (!empty($meal['tooltip'])) {
-            $meal_tooltips[$meal['id']] = $meal['tooltip'];
+            $meal_tooltips[$meal['id']] = rbf_translate_string($meal['tooltip']);
         }
+        $meal_availability[$meal['id']] = $meal['available_days'] ?? [];
     }
 
     wp_localize_script('rbf-frontend-js', 'rbfData', [
@@ -71,6 +73,7 @@ function rbf_enqueue_frontend_assets() {
         'maxAdvanceMinutes' => absint($options['max_advance_minutes'] ?? 10080),
         'utilsScript' => 'https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/19.2.16/js/utils.js',
         'mealTooltips' => $meal_tooltips,
+        'mealAvailability' => $meal_availability,
         'labels' => [
             'loading' => rbf_translate_string('Caricamento...'),
             'chooseTime' => rbf_translate_string('Scegli un orario...'),

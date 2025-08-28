@@ -57,7 +57,7 @@ function rbf_get_default_custom_meals() {
             'time_slots' => '12:00,12:30,13:00,13:30,14:00',
             'price' => 35.00,
             'enabled' => true,
-            'tooltip' => rbf_translate_string('Di Domenica il servizio è Brunch con menù alla carta.'),
+            'tooltip' => 'Di Domenica il servizio è Brunch con menù alla carta.',
             'available_days' => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
         ],
         [
@@ -87,7 +87,7 @@ function rbf_get_default_custom_meals() {
             'time_slots' => '12:00,12:30,13:00,13:30',
             'price' => 35.00,
             'enabled' => true,
-            'tooltip' => rbf_translate_string('Disponibile solo la domenica con menù speciale.'),
+            'tooltip' => 'Disponibile solo la domenica con menù speciale.',
             'available_days' => ['sun']
         ]
     ];
