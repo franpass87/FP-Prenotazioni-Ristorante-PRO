@@ -386,6 +386,7 @@ function rbf_translate_string($text) {
         'Grazie! La tua prenotazione è stata inviata con successo.' => 'Thank you! Your booking has been sent successfully.',
         'Tutti i campi sono obbligatori.' => 'All fields are required.',
         'Errore di sicurezza.' => 'Security error.',
+        'Data non valida.' => 'Invalid date.',
         'Indirizzo email non valido.' => 'Invalid email address.',
         'Orario non valido.' => 'Invalid time.',
         'Formato orario non valido.' => 'Invalid time format.',
