@@ -248,6 +248,45 @@ function rbf_sanitize_settings_callback($input) {
     $output['min_advance_minutes'] = 60; // Fixed at 1 hour
     $output['max_advance_minutes'] = 0;  // No maximum limit
 
+    // Handle use_custom_meals setting
+    $output['use_custom_meals'] = (isset($input['use_custom_meals']) && $input['use_custom_meals'] === 'yes') ? 'yes' : 'no';
+
+    // Handle custom_meals array
+    if (isset($input['custom_meals']) && is_array($input['custom_meals'])) {
+        $output['custom_meals'] = [];
+        foreach ($input['custom_meals'] as $index => $meal) {
+            if (is_array($meal)) {
+                $sanitized_meal = [
+                    'id' => sanitize_key($meal['id'] ?? ''),
+                    'name' => sanitize_text_field($meal['name'] ?? ''),
+                    'capacity' => max(1, intval($meal['capacity'] ?? 30)),
+                    'time_slots' => sanitize_text_field($meal['time_slots'] ?? ''),
+                    'price' => max(0, floatval($meal['price'] ?? 0)),
+                    'enabled' => isset($meal['enabled']) && $meal['enabled'] == '1',
+                    'tooltip' => sanitize_textarea_field($meal['tooltip'] ?? ''),
+                    'available_days' => []
+                ];
+                
+                // Sanitize available days
+                if (isset($meal['available_days']) && is_array($meal['available_days'])) {
+                    $valid_days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+                    foreach ($meal['available_days'] as $day) {
+                        if (in_array($day, $valid_days)) {
+                            $sanitized_meal['available_days'][] = $day;
+                        }
+                    }
+                }
+                
+                // Only add meal if it has required fields
+                if (!empty($sanitized_meal['id']) && !empty($sanitized_meal['name'])) {
+                    $output['custom_meals'][] = $sanitized_meal;
+                }
+            }
+        }
+    } else {
+        $output['custom_meals'] = $defaults['custom_meals'] ?? rbf_get_default_custom_meals();
+    }
+
     return $output;
 }
 
@@ -277,7 +316,201 @@ function rbf_settings_page_html() {
         <form method="post" action="options.php">
             <?php settings_fields('rbf_opts_group'); ?>
             <table class="form-table" role="presentation">
-                <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Capienza e Orari')); ?></h2></th></tr>
+                <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Configurazione Pasti')); ?></h2></th></tr>
+                <tr>
+                    <th><label for="rbf_use_custom_meals"><?php echo esc_html(rbf_translate_string('Usa configurazione personalizzata')); ?></label></th>
+                    <td>
+                        <select id="rbf_use_custom_meals" name="rbf_settings[use_custom_meals]">
+                            <option value="no" <?php selected($options['use_custom_meals'], 'no'); ?>><?php echo esc_html(rbf_translate_string('No - Usa impostazioni classiche')); ?></option>
+                            <option value="yes" <?php selected($options['use_custom_meals'], 'yes'); ?>><?php echo esc_html(rbf_translate_string('Sì - Configura pasti personalizzati')); ?></option>
+                        </select>
+                        <p class="description"><?php echo esc_html(rbf_translate_string('Scegli se utilizzare la configurazione classica o quella personalizzata per i pasti.')); ?></p>
+                    </td>
+                </tr>
+                
+                <tr id="custom_meals_section" style="display: <?php echo ($options['use_custom_meals'] === 'yes') ? 'table-row' : 'none'; ?>;">
+                    <th><?php echo esc_html(rbf_translate_string('Pasti Personalizzati')); ?></th>
+                    <td>
+                        <div id="custom-meals-container">
+                            <?php
+                            $custom_meals = $options['custom_meals'] ?? rbf_get_default_custom_meals();
+                            $day_labels = [
+                                'mon' => rbf_translate_string('Lunedì'),
+                                'tue' => rbf_translate_string('Martedì'),
+                                'wed' => rbf_translate_string('Mercoledì'),
+                                'thu' => rbf_translate_string('Giovedì'),
+                                'fri' => rbf_translate_string('Venerdì'),
+                                'sat' => rbf_translate_string('Sabato'),
+                                'sun' => rbf_translate_string('Domenica')
+                            ];
+                            
+                            foreach ($custom_meals as $index => $meal) {
+                                ?>
+                                <div class="custom-meal-item" style="border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; background: #f9f9f9;">
+                                    <h4><?php echo sprintf(esc_html(rbf_translate_string('Pasto %d')), $index + 1); ?></h4>
+                                    
+                                    <table class="form-table">
+                                        <tr>
+                                            <th><label><?php echo esc_html(rbf_translate_string('Attivo')); ?></label></th>
+                                            <td>
+                                                <input type="checkbox" name="rbf_settings[custom_meals][<?php echo $index; ?>][enabled]" value="1" <?php checked($meal['enabled'] ?? false); ?>>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th><label><?php echo esc_html(rbf_translate_string('ID')); ?></label></th>
+                                            <td>
+                                                <input type="text" name="rbf_settings[custom_meals][<?php echo $index; ?>][id]" value="<?php echo esc_attr($meal['id'] ?? ''); ?>" class="regular-text" placeholder="es: pranzo">
+                                                <p class="description"><?php echo esc_html(rbf_translate_string('ID univoco del pasto (senza spazi, solo lettere e numeri)')); ?></p>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th><label><?php echo esc_html(rbf_translate_string('Nome')); ?></label></th>
+                                            <td>
+                                                <input type="text" name="rbf_settings[custom_meals][<?php echo $index; ?>][name]" value="<?php echo esc_attr($meal['name'] ?? ''); ?>" class="regular-text" placeholder="es: Pranzo">
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th><label><?php echo esc_html(rbf_translate_string('Capienza')); ?></label></th>
+                                            <td>
+                                                <input type="number" name="rbf_settings[custom_meals][<?php echo $index; ?>][capacity]" value="<?php echo esc_attr($meal['capacity'] ?? 30); ?>" min="1">
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th><label><?php echo esc_html(rbf_translate_string('Orari')); ?></label></th>
+                                            <td>
+                                                <input type="text" name="rbf_settings[custom_meals][<?php echo $index; ?>][time_slots]" value="<?php echo esc_attr($meal['time_slots'] ?? ''); ?>" class="regular-text" placeholder="es: 12:00,12:30,13:00">
+                                                <p class="description"><?php echo esc_html(rbf_translate_string('Orari separati da virgola')); ?></p>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th><label><?php echo esc_html(rbf_translate_string('Prezzo (€)')); ?></label></th>
+                                            <td>
+                                                <input type="number" step="0.01" name="rbf_settings[custom_meals][<?php echo $index; ?>][price]" value="<?php echo esc_attr($meal['price'] ?? 0); ?>" min="0">
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th><label><?php echo esc_html(rbf_translate_string('Giorni disponibili')); ?></label></th>
+                                            <td>
+                                                <?php
+                                                $available_days = $meal['available_days'] ?? [];
+                                                foreach ($day_labels as $day_key => $day_label) {
+                                                    $checked = in_array($day_key, $available_days) ? 'checked' : '';
+                                                    ?>
+                                                    <label style="display: inline-block; margin-right: 15px;">
+                                                        <input type="checkbox" name="rbf_settings[custom_meals][<?php echo $index; ?>][available_days][]" value="<?php echo $day_key; ?>" <?php echo $checked; ?>>
+                                                        <?php echo esc_html($day_label); ?>
+                                                    </label>
+                                                    <?php
+                                                }
+                                                ?>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th><label><?php echo esc_html(rbf_translate_string('Tooltip informativo')); ?></label></th>
+                                            <td>
+                                                <textarea name="rbf_settings[custom_meals][<?php echo $index; ?>][tooltip]" class="regular-text" rows="2" placeholder="es: Di Domenica il servizio è Brunch con menù alla carta."><?php echo esc_textarea($meal['tooltip'] ?? ''); ?></textarea>
+                                                <p class="description"><?php echo esc_html(rbf_translate_string('Testo informativo che apparirà quando questo pasto viene selezionato (opzionale)')); ?></p>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                    
+                                    <button type="button" class="button button-secondary remove-meal" style="margin-top: 10px;"><?php echo esc_html(rbf_translate_string('Rimuovi Pasto')); ?></button>
+                                </div>
+                                <?php
+                            }
+                            ?>
+                        </div>
+                        
+                        <button type="button" id="add-meal" class="button button-primary"><?php echo esc_html(rbf_translate_string('Aggiungi Pasto')); ?></button>
+                        
+                        <script>
+                        jQuery(document).ready(function($) {
+                            // Toggle custom meals section
+                            $('#rbf_use_custom_meals').change(function() {
+                                if ($(this).val() === 'yes') {
+                                    $('#custom_meals_section').show();
+                                } else {
+                                    $('#custom_meals_section').hide();
+                                }
+                            });
+                            
+                            // Add new meal
+                            $('#add-meal').click(function() {
+                                var container = $('#custom-meals-container');
+                                var index = container.find('.custom-meal-item').length;
+                                var newMeal = createMealItem(index);
+                                container.append(newMeal);
+                            });
+                            
+                            // Remove meal
+                            $(document).on('click', '.remove-meal', function() {
+                                $(this).closest('.custom-meal-item').remove();
+                            });
+                            
+                            function createMealItem(index) {
+                                var dayCheckboxes = '';
+                                <?php foreach ($day_labels as $day_key => $day_label) { ?>
+                                dayCheckboxes += '<label style="display: inline-block; margin-right: 15px;">';
+                                dayCheckboxes += '<input type="checkbox" name="rbf_settings[custom_meals][' + index + '][available_days][]" value="<?php echo $day_key; ?>">';
+                                dayCheckboxes += '<?php echo esc_js($day_label); ?>';
+                                dayCheckboxes += '</label>';
+                                <?php } ?>
+                                
+                                return `
+                                <div class="custom-meal-item" style="border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; background: #f9f9f9;">
+                                    <h4><?php echo esc_js(rbf_translate_string('Pasto')); ?> ` + (index + 1) + `</h4>
+                                    <table class="form-table">
+                                        <tr>
+                                            <th><label><?php echo esc_js(rbf_translate_string('Attivo')); ?></label></th>
+                                            <td><input type="checkbox" name="rbf_settings[custom_meals][` + index + `][enabled]" value="1" checked></td>
+                                        </tr>
+                                        <tr>
+                                            <th><label><?php echo esc_js(rbf_translate_string('ID')); ?></label></th>
+                                            <td>
+                                                <input type="text" name="rbf_settings[custom_meals][` + index + `][id]" value="" class="regular-text" placeholder="es: pranzo">
+                                                <p class="description"><?php echo esc_js(rbf_translate_string('ID univoco del pasto (senza spazi, solo lettere e numeri)')); ?></p>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th><label><?php echo esc_js(rbf_translate_string('Nome')); ?></label></th>
+                                            <td><input type="text" name="rbf_settings[custom_meals][` + index + `][name]" value="" class="regular-text" placeholder="es: Pranzo"></td>
+                                        </tr>
+                                        <tr>
+                                            <th><label><?php echo esc_js(rbf_translate_string('Capienza')); ?></label></th>
+                                            <td><input type="number" name="rbf_settings[custom_meals][` + index + `][capacity]" value="30" min="1"></td>
+                                        </tr>
+                                        <tr>
+                                            <th><label><?php echo esc_js(rbf_translate_string('Orari')); ?></label></th>
+                                            <td>
+                                                <input type="text" name="rbf_settings[custom_meals][` + index + `][time_slots]" value="" class="regular-text" placeholder="es: 12:00,12:30,13:00">
+                                                <p class="description"><?php echo esc_js(rbf_translate_string('Orari separati da virgola')); ?></p>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th><label><?php echo esc_js(rbf_translate_string('Prezzo (€)')); ?></label></th>
+                                            <td><input type="number" step="0.01" name="rbf_settings[custom_meals][` + index + `][price]" value="0" min="0"></td>
+                                        </tr>
+                                        <tr>
+                                            <th><label><?php echo esc_js(rbf_translate_string('Giorni disponibili')); ?></label></th>
+                                            <td>` + dayCheckboxes + `</td>
+                                        </tr>
+                                        <tr>
+                                            <th><label><?php echo esc_js(rbf_translate_string('Tooltip informativo')); ?></label></th>
+                                            <td>
+                                                <textarea name="rbf_settings[custom_meals][` + index + `][tooltip]" class="regular-text" rows="2" placeholder="es: Di Domenica il servizio è Brunch con menù alla carta."></textarea>
+                                                <p class="description"><?php echo esc_js(rbf_translate_string('Testo informativo che apparirà quando questo pasto viene selezionato (opzionale)')); ?></p>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                    <button type="button" class="button button-secondary remove-meal" style="margin-top: 10px;"><?php echo esc_js(rbf_translate_string('Rimuovi Pasto')); ?></button>
+                                </div>`;
+                            }
+                        });
+                        </script>
+                    </td>
+                </tr>
+                
+                <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Capienza e Orari (Classico)')); ?></h2></th></tr>
                 <tr><th><label for="rbf_capienza_pranzo"><?php echo esc_html(rbf_translate_string('Capienza Pranzo')); ?></label></th>
                     <td><input type="number" id="rbf_capienza_pranzo" name="rbf_settings[capienza_pranzo]" value="<?php echo esc_attr($options['capienza_pranzo']); ?>"></td></tr>
                 <tr><th><label for="rbf_orari_pranzo"><?php echo esc_html(rbf_translate_string('Orari Pranzo (inclusa Domenica)')); ?></label></th>

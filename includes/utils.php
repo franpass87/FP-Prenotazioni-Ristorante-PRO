@@ -30,7 +30,7 @@ function rbf_get_default_settings() {
         'meta_pixel_id' => '',
         'meta_access_token' => '',
         'notification_email' => 'info@villadianella.it',
-        'webmaster_email' => get_option('admin_email', ''),
+        'webmaster_email' => '',
         'brevo_api' => '',
         'brevo_list_it' => '',
         'brevo_list_en' => '',
@@ -38,7 +38,173 @@ function rbf_get_default_settings() {
         // Note: Advance booking limits removed - using fixed 1-hour minimum rule
         'min_advance_minutes' => 60, // Fixed at 1 hour for system compatibility
         'max_advance_minutes' => 0, // No maximum limit
+        
+        // New configurable meals system
+        'use_custom_meals' => 'no',
+        'custom_meals' => rbf_get_default_custom_meals(),
     ];
+}
+
+/**
+ * Get default custom meals configuration
+ */
+function rbf_get_default_custom_meals() {
+    return [
+        [
+            'id' => 'pranzo',
+            'name' => 'Pranzo',
+            'capacity' => 30,
+            'time_slots' => '12:00,12:30,13:00,13:30,14:00',
+            'price' => 35.00,
+            'enabled' => true,
+            'tooltip' => 'Di Domenica il servizio è Brunch con menù alla carta.',
+            'available_days' => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+        ],
+        [
+            'id' => 'aperitivo',
+            'name' => 'Aperitivo',
+            'capacity' => 25,
+            'time_slots' => '17:00,17:30,18:00',
+            'price' => 15.00,
+            'enabled' => true,
+            'tooltip' => '',
+            'available_days' => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+        ],
+        [
+            'id' => 'cena',
+            'name' => 'Cena',
+            'capacity' => 40,
+            'time_slots' => '19:00,19:30,20:00,20:30',
+            'price' => 50.00,
+            'enabled' => true,
+            'tooltip' => '',
+            'available_days' => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+        ],
+        [
+            'id' => 'brunch',
+            'name' => 'Brunch',
+            'capacity' => 30,
+            'time_slots' => '12:00,12:30,13:00,13:30',
+            'price' => 35.00,
+            'enabled' => true,
+            'tooltip' => 'Disponibile solo la domenica con menù speciale.',
+            'available_days' => ['sun']
+        ]
+    ];
+}
+
+/**
+ * Get active meals configuration
+ * Returns either custom meals or legacy meal configuration
+ */
+function rbf_get_active_meals() {
+    $options = wp_parse_args(get_option('rbf_settings', []), rbf_get_default_settings());
+    
+    // If custom meals are enabled, return them
+    if (($options['use_custom_meals'] ?? 'no') === 'yes') {
+        $custom_meals = $options['custom_meals'] ?? rbf_get_default_custom_meals();
+        // Filter only enabled meals
+        return array_filter($custom_meals, function($meal) {
+            return $meal['enabled'] ?? false;
+        });
+    }
+    
+    // Fallback to legacy meal configuration
+    $legacy_meals = [];
+    
+    // Check each legacy meal type
+    $legacy_types = [
+        'pranzo' => 'Pranzo',
+        'aperitivo' => 'Aperitivo', 
+        'cena' => 'Cena'
+    ];
+    
+    foreach ($legacy_types as $id => $name) {
+        if (!empty($options["capienza_{$id}"]) && !empty($options["orari_{$id}"])) {
+            $legacy_meals[] = [
+                'id' => $id,
+                'name' => $name,
+                'capacity' => (int) $options["capienza_{$id}"],
+                'time_slots' => $options["orari_{$id}"],
+                'price' => (float) ($options["valore_{$id}"] ?? 0),
+                'enabled' => true,
+                'available_days' => rbf_get_legacy_available_days($options)
+            ];
+        }
+    }
+    
+    // Add brunch for Sunday only if we have lunch settings
+    if (!empty($options['capienza_pranzo']) && !empty($options['orari_pranzo'])) {
+        $legacy_meals[] = [
+            'id' => 'brunch',
+            'name' => 'Brunch',
+            'capacity' => (int) $options['capienza_pranzo'],
+            'time_slots' => $options['orari_pranzo'],
+            'price' => (float) ($options['valore_pranzo'] ?? 0),
+            'enabled' => true,
+            'available_days' => ['sun']
+        ];
+    }
+    
+    return $legacy_meals;
+}
+
+/**
+ * Get legacy available days from global settings
+ */
+function rbf_get_legacy_available_days($options) {
+    $days = [];
+    $day_mapping = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+    
+    foreach ($day_mapping as $day) {
+        if (($options["open_{$day}"] ?? 'yes') === 'yes') {
+            $days[] = $day;
+        }
+    }
+    
+    return $days;
+}
+
+/**
+ * Get meal configuration by ID
+ */
+function rbf_get_meal_config($meal_id) {
+    $active_meals = rbf_get_active_meals();
+    
+    foreach ($active_meals as $meal) {
+        if ($meal['id'] === $meal_id) {
+            return $meal;
+        }
+    }
+    
+    return null;
+}
+
+/**
+ * Validate if a meal is available on a specific day
+ */
+function rbf_is_meal_available_on_day($meal_id, $date) {
+    $meal_config = rbf_get_meal_config($meal_id);
+    if (!$meal_config) {
+        return false;
+    }
+    
+    $day_of_week = (int) date('w', strtotime($date));
+    $day_mapping = [
+        0 => 'sun', 1 => 'mon', 2 => 'tue', 3 => 'wed',
+        4 => 'thu', 5 => 'fri', 6 => 'sat'
+    ];
+    
+    $day_key = $day_mapping[$day_of_week];
+    return in_array($day_key, $meal_config['available_days']);
+}
+
+/**
+ * Get valid meal IDs for validation
+ */
+function rbf_get_valid_meal_ids() {
+    $active_meals = rbf_get_active_meals();
+    return array_column($active_meals, 'id');
 }
 
 /**
@@ -144,6 +310,30 @@ function rbf_translate_string($text) {
         'Nessuna Prenotazione trovata nel cestino' => 'No bookings found in Trash',
         'Impostazioni' => 'Settings',
         'Impostazioni Prenotazioni Ristorante' => 'Restaurant Booking Settings',
+        
+        // New configurable meals system
+        'Configurazione Pasti' => 'Meal Configuration',
+        'Usa configurazione personalizzata' => 'Use custom configuration',
+        'No - Usa impostazioni classiche' => 'No - Use classic settings',
+        'Sì - Configura pasti personalizzati' => 'Yes - Configure custom meals',
+        'Scegli se utilizzare la configurazione classica o quella personalizzata per i pasti.' => 'Choose whether to use the classic or custom configuration for meals.',
+        'Pasti Personalizzati' => 'Custom Meals',
+        'Pasto %d' => 'Meal %d',
+        'Attivo' => 'Active',
+        'ID' => 'ID',
+        'ID univoco del pasto (senza spazi, solo lettere e numeri)' => 'Unique meal ID (no spaces, letters and numbers only)',
+        'Nome' => 'Name',
+        'Capienza' => 'Capacity',
+        'Orari' => 'Time Slots',
+        'Orari separati da virgola' => 'Time slots separated by comma',
+        'Prezzo (€)' => 'Price (€)',
+        'Giorni disponibili' => 'Available Days',
+        'Rimuovi Pasto' => 'Remove Meal',
+        'Aggiungi Pasto' => 'Add Meal',
+        'Capienza e Orari (Classico)' => 'Capacity and Timetable (Classic)',
+        'Tipo di pasto non valido.' => 'Invalid meal type.',
+        '%s non è disponibile in questo giorno.' => '%s is not available on this day.',
+        
         'Capienza e Orari' => 'Capacity and Timetable',
         'Capienza Pranzo' => 'Lunch Capacity',
         'Orari Pranzo (inclusa Domenica)' => 'Lunch Hours (including Sunday)',
@@ -312,6 +502,10 @@ function rbf_translate_string($text) {
         'Note e preferenze alimentari' => 'Notes and dietary preferences',
         'Consensi privacy e marketing' => 'Privacy and marketing consents',
         'Gestione Automatica' => 'Automatic Management',
+        'Tooltip informativo' => 'Information Tooltip',
+        'Testo informativo che apparirà quando questo pasto viene selezionato (opzionale)' => 'Information text that will appear when this meal is selected (optional)',
+        'Di Domenica il servizio è Brunch con menù alla carta.' => 'On Sundays the service is Brunch with à la carte menu.',
+        'Disponibile solo la domenica con menù speciale.' => 'Available only on Sundays with special menu.',
     ];
     return $translations[$text] ?? $text;
 }

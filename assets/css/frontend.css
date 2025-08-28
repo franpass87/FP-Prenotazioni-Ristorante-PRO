@@ -163,10 +163,11 @@
 }
 
 .rbf-radio-group {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     gap: 12px;
     margin-bottom: 1rem;
+    max-width: 100%;
 }
 
 .rbf-radio-group input[type='radio'] {
@@ -176,8 +177,10 @@
 }
 
 .rbf-radio-group label {
-    display: inline-block;
-    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 20px;
     border: 2px solid var(--rbf-border);
     border-radius: var(--rbf-radius);
     font-weight: 600;
@@ -186,8 +189,9 @@
     transition: var(--rbf-transition);
     background: white;
     color: var(--rbf-text);
-    flex: 1;
-    min-width: 120px;
+    min-height: 56px;
+    word-break: break-word;
+    hyphens: auto;
 }
 
 .rbf-radio-group label:hover {
@@ -792,9 +796,15 @@
         margin-bottom: 0.75rem;
     }
     
+    .rbf-radio-group {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+    
     .rbf-radio-group label {
-        padding: 10px 12px;
+        padding: 14px 16px;
         font-size: 14px;
+        min-height: 50px;
     }
     
     .rbf-people-selector button {
@@ -847,14 +857,14 @@
     }
     
     .rbf-radio-group {
-        flex-direction: column;
-        gap: 6px;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
     }
     
     .rbf-radio-group label {
-        min-width: auto;
-        padding: 12px 16px;
-        font-size: 15px;
+        padding: 14px 12px;
+        font-size: 14px;
+        min-height: 52px;
     }
     
     .rbf-people-selector button {
@@ -897,9 +907,15 @@
         font-size: 12px;
     }
     
+    .rbf-radio-group {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+    
     .rbf-radio-group label {
-        padding: 14px 18px;
+        padding: 16px 14px;
         font-size: 15px;
+        min-height: 54px;
     }
     
     .rbf-people-selector button {
@@ -938,13 +954,14 @@
     }
     
     .rbf-radio-group {
-        flex-direction: column;
-        gap: 10px;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 12px;
     }
     
     .rbf-radio-group label {
-        min-width: auto;
-        padding: 14px 20px;
+        padding: 16px 18px;
+        font-size: 15px;
+        min-height: 56px;
     }
     
     .rbf-people-selector button {
@@ -977,12 +994,14 @@
     }
     
     .rbf-radio-group {
-        flex-direction: column;
-        gap: 8px;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 10px;
     }
     
     .rbf-radio-group label {
-        min-width: auto;
+        padding: 16px 12px;
+        font-size: 15px;
+        min-height: 52px;
     }
     
     .rbf-people-selector {
@@ -1043,9 +1062,10 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 12px 16px;
+        padding: 14px 16px;
         -webkit-tap-highlight-color: transparent;
         touch-action: manipulation;
+        font-size: 15px;
     }
     
     /* Improve people selector touch targets */
@@ -1075,12 +1095,16 @@
     }
     
     .rbf-radio-group {
-        gap: 10px;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 14px;
+        max-width: 600px;
+        margin: 0 auto 1rem auto;
     }
     
     .rbf-radio-group label {
-        padding: 16px 28px;
-        min-width: 140px;
+        padding: 18px 24px;
+        font-size: 16px;
+        min-height: 58px;
     }
     
     .rbf-people-selector button {
@@ -1092,6 +1116,55 @@
     .rbf-people-selector input {
         height: 52px;
         font-size: 20px;
+    }
+}
+
+/* Desktop and Large Tablets (1025px+) */
+@media (min-width: 1025px) {
+    .rbf-radio-group {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 16px;
+        max-width: 700px;
+        margin: 0 auto 1rem auto;
+    }
+    
+    .rbf-radio-group label {
+        padding: 20px 28px;
+        font-size: 16px;
+        min-height: 60px;
+        font-weight: 600;
+    }
+    
+    .rbf-radio-group label:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    }
+    
+    .rbf-radio-group input[type='radio']:checked + label {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+    }
+    
+    /* Optimized layouts for specific number of meals */
+    .rbf-radio-group.meals-2 {
+        grid-template-columns: 1fr 1fr;
+        max-width: 400px;
+    }
+    
+    .rbf-radio-group.meals-3 {
+        grid-template-columns: 1fr 1fr 1fr;
+        max-width: 600px;
+    }
+    
+    .rbf-radio-group.meals-4 {
+        grid-template-columns: 1fr 1fr;
+        max-width: 450px;
+    }
+    
+    .rbf-radio-group.meals-5,
+    .rbf-radio-group.meals-6 {
+        grid-template-columns: 1fr 1fr 1fr;
+        max-width: 650px;
     }
 }
 

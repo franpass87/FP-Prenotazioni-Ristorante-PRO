@@ -55,6 +55,21 @@ function rbf_handle_booking_submission() {
     $date = $sanitized_fields['rbf_data'];
     $time_data = $sanitized_fields['rbf_orario'];
     
+    // Validate meal type
+    $valid_meal_ids = rbf_get_valid_meal_ids();
+    if (!in_array($meal, $valid_meal_ids, true)) {
+        rbf_handle_error(rbf_translate_string('Tipo di pasto non valido.'), 'meal_validation', $redirect_url . $anchor);
+        return;
+    }
+
+    // Check if meal is available on this day
+    if (!rbf_is_meal_available_on_day($meal, $date)) {
+        $meal_config = rbf_get_meal_config($meal);
+        $meal_name = $meal_config ? $meal_config['name'] : $meal;
+        rbf_handle_error(sprintf(rbf_translate_string('%s non è disponibile in questo giorno.'), $meal_name), 'meal_day_validation', $redirect_url . $anchor);
+        return;
+    }
+    
     // Validate time data format
     if (strpos($time_data, '|') === false) {
         rbf_handle_error(rbf_translate_string('Formato orario non valido.'), 'time_format', $redirect_url . $anchor);
@@ -111,13 +126,6 @@ function rbf_handle_booking_submission() {
     $time_validation = rbf_validate_booking_time($date, $time);
     if ($time_validation !== true) {
         rbf_handle_error($time_validation['message'], 'time_validation', $redirect_url . $anchor);
-        return;
-    }
-
-    // Special check: brunch is only available on Sundays
-    $day_of_week = (int) date('w', strtotime($date));
-    if ($meal === 'brunch' && $day_of_week !== 0) {
-        rbf_handle_error(rbf_translate_string('Il brunch è disponibile solo la domenica.'), 'brunch_validation', $redirect_url . $anchor);
         return;
     }
 
@@ -178,10 +186,17 @@ function rbf_handle_booking_submission() {
 
     delete_transient('rbf_avail_' . $date . '_' . $slot);
     $options = rbf_get_settings();
-    // For brunch, use lunch value for tracking and analytics
-    // This maps brunch bookings to lunch resources (pricing, capacity, time slots)
-    $meal_for_value = ($meal === 'brunch') ? 'pranzo' : $meal;
-    $valore_pp  = (float) ($options['valore_' . $meal_for_value] ?? 0);
+    
+    // Get price from configurable meal or fallback to legacy
+    $meal_config = rbf_get_meal_config($meal);
+    if ($meal_config) {
+        $valore_pp = (float) $meal_config['price'];
+    } else {
+        // Legacy fallback: For brunch, use lunch value for tracking
+        $meal_for_value = ($meal === 'brunch') ? 'pranzo' : $meal;
+        $valore_pp = (float) ($options['valore_' . $meal_for_value] ?? 0);
+    }
+    
     $valore_tot = $valore_pp * $people;
     $event_id   = 'rbf_' . $post_id; // usato per Pixel (browser) e CAPI (server)
 
@@ -294,15 +309,17 @@ function rbf_ajax_get_availability_callback() {
     }
     
     // Validate meal type
-    if (!in_array($meal, ['pranzo', 'cena', 'aperitivo', 'brunch'], true)) {
+    $valid_meal_ids = rbf_get_valid_meal_ids();
+    if (!in_array($meal, $valid_meal_ids, true)) {
         rbf_handle_error('Invalid meal type', 'meal_validation');
         return;
     }
 
-    // Special check: brunch is only available on Sundays
-    $day_of_week = (int) date('w', strtotime($date));
-    if ($meal === 'brunch' && $day_of_week !== 0) {
-        wp_send_json_success([]);
+    // Check if meal is available on this day
+    if (!rbf_is_meal_available_on_day($meal, $date)) {
+        $meal_config = rbf_get_meal_config($meal);
+        $meal_name = $meal_config ? $meal_config['name'] : $meal;
+        rbf_handle_error(sprintf(rbf_translate_string('%s non è disponibile in questo giorno.'), $meal_name), 'meal_day_validation');
         return;
     }
 
@@ -334,9 +351,13 @@ function rbf_ajax_get_availability_callback() {
     }
 
     // Step 3: Get configured time slots for this meal
-    // For brunch, use lunch time slots (resource mapping)
-    $meal_for_slots = ($meal === 'brunch') ? 'pranzo' : $meal;
-    $times_csv = $options['orari_'.$meal_for_slots] ?? '';
+    $meal_config = rbf_get_meal_config($meal);
+    if (!$meal_config) {
+        wp_send_json_success([]);
+        return;
+    }
+    
+    $times_csv = $meal_config['time_slots'] ?? '';
     if (empty($times_csv)) {
         wp_send_json_success([]);
         return;
@@ -348,11 +369,8 @@ function rbf_ajax_get_availability_callback() {
         return;
     }
 
-
     // Step 4: Check remaining capacity
-    // For brunch, use lunch capacity (resource mapping)
-    $meal_for_capacity = ($meal === 'brunch') ? 'pranzo' : $meal;
-    $remaining_capacity = rbf_get_remaining_capacity($date, $meal_for_capacity);
+    $remaining_capacity = rbf_get_remaining_capacity($date, $meal);
     if ($remaining_capacity <= 0) {
         wp_send_json_success([]);
         return;

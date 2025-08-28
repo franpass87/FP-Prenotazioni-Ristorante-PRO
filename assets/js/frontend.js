@@ -40,6 +40,27 @@ jQuery(function($) {
   let currentStep = 1;
   let stepTimeouts = new Map(); // Track timeouts for each step element
 
+  /**
+   * Add optimal layout class based on number of meals
+   */
+  function addMealCountClass() {
+    const mealCount = el.mealRadios.length;
+    const radioGroup = el.mealRadios.closest('.rbf-radio-group');
+    
+    // Remove existing meal count classes
+    radioGroup.removeClass(function(index, className) {
+      return (className.match(/\bmeals-\d+/g) || []).join(' ');
+    });
+    
+    // Add appropriate class for optimal layout
+    if (mealCount >= 2 && mealCount <= 6) {
+      radioGroup.addClass('meals-' + mealCount);
+    }
+  }
+  
+  // Initialize optimal meal layout
+  addMealCountClass();
+
   function formatLocalISO(date) {
     return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
       .toISOString()
@@ -306,86 +327,56 @@ jQuery(function($) {
     resetSteps(1);
     el.mealNotice.hide();
     
-    // Special handling for brunch meal
     const selectedMeal = $(this).val();
-    if (selectedMeal === 'brunch') {
-      // Show date step for brunch selection
-      showStep(el.dateStep, 2);
+    
+    // Show meal-specific tooltip if configured
+    if (rbfData.mealTooltips && rbfData.mealTooltips[selectedMeal]) {
+      el.mealNotice.text(rbfData.mealTooltips[selectedMeal]).show();
+    }
+    
+    // Show date step for any meal selection
+    showStep(el.dateStep, 2);
+    
+    // Initialize flatpickr with dynamic meal availability
+    if (typeof flatpickr !== 'undefined') {
+      const flatpickrConfig = {
+        altInput: true,
+        altFormat: 'd-m-Y',
+        dateFormat: 'Y-m-d',
+        minDate: new Date(new Date().getTime() + rbfData.minAdvanceMinutes * 60 * 1000),
+        locale: (rbfData.locale === 'it') ? 'it' : 'default',
+        disable: [function(date) {
+          const day = date.getDay();
+          
+          // Convert JavaScript day (0=Sunday, 1=Monday...) to our day key format
+          const dayMapping = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+          const dayKey = dayMapping[day];
+          
+          // Check if this meal is available on this day
+          if (rbfData.mealAvailability && rbfData.mealAvailability[selectedMeal]) {
+            const availableDays = rbfData.mealAvailability[selectedMeal];
+            if (!availableDays.includes(dayKey)) {
+              return true; // Disable this day for this meal
+            }
+          }
+          
+          // Also apply regular closed day/date logic
+          if (rbfData.closedDays.includes(day)) return true;
+          const dateStr = formatLocalISO(date);
+          if (rbfData.closedSingles.includes(dateStr)) return true;
+          for (let range of rbfData.closedRanges) {
+            if (dateStr >= range.from && dateStr <= range.to) return true;
+          }
+          return false;
+        }],
+        onChange: onDateChange
+      };
       
-      // Add special disable logic for brunch - only Sundays allowed
-      if (typeof flatpickr !== 'undefined') {
-        const flatpickrConfig = {
-          altInput: true,
-          altFormat: 'd-m-Y',
-          dateFormat: 'Y-m-d',
-          minDate: new Date(new Date().getTime() + rbfData.minAdvanceMinutes * 60 * 1000),
-          locale: (rbfData.locale === 'it') ? 'it' : 'default',
-          disable: [function(date) {
-            const day = date.getDay();
-            // For brunch, disable all days except Sunday (0)
-            if (day !== 0) return true;
-            // Also apply regular closed day/date logic
-            if (rbfData.closedDays.includes(day)) return true;
-            const dateStr = formatLocalISO(date);
-            if (rbfData.closedSingles.includes(dateStr)) return true;
-            for (let range of rbfData.closedRanges) {
-              if (dateStr >= range.from && dateStr <= range.to) return true;
-            }
-            return false;
-          }],
-          onChange: onDateChange
-        };
-        
-        if (rbfData.maxAdvanceMinutes > 0) {
-          flatpickrConfig.maxDate = new Date(new Date().getTime() + rbfData.maxAdvanceMinutes * 60 * 1000);
-        }
-        
-        fp = flatpickr(el.dateInput[0], flatpickrConfig);
+      if (rbfData.maxAdvanceMinutes > 0) {
+        flatpickrConfig.maxDate = new Date(new Date().getTime() + rbfData.maxAdvanceMinutes * 60 * 1000);
       }
-    } else {
-      // Regular meal selection logic
-      showStep(el.dateStep, 2);
-
-      // Initialize flatpickr only if available
-      if (typeof flatpickr !== 'undefined') {
-        // Calculate min and max dates based on settings
-        const now = new Date();
-        let minDate = new Date(now.getTime() + rbfData.minAdvanceMinutes * 60 * 1000);
-        // Round to start of day so current date remains selectable
-        minDate.setHours(0, 0, 0, 0);
-        let maxDate = null;
-        if (rbfData.maxAdvanceMinutes > 0) {
-          maxDate = new Date(now.getTime() + rbfData.maxAdvanceMinutes * 60 * 1000);
-        }
-        
-        const flatpickrConfig = {
-          altInput: true,
-          altFormat: 'd-m-Y',
-          dateFormat: 'Y-m-d',
-          minDate: minDate,
-          locale: (rbfData.locale === 'it') ? 'it' : 'default',
-          disable: [function(date) {
-            const day = date.getDay();
-            if (rbfData.closedDays.includes(day)) return true;
-            const dateStr = formatLocalISO(date);
-            if (rbfData.closedSingles.includes(dateStr)) return true;
-            for (let range of rbfData.closedRanges) {
-              if (dateStr >= range.from && dateStr <= range.to) return true;
-            }
-            return false;
-          }],
-          onChange: onDateChange
-        };
-        
-        // Add maxDate if it exists
-        if (maxDate) {
-          flatpickrConfig.maxDate = maxDate;
-        }
-        
-        fp = flatpickr(el.dateInput[0], flatpickrConfig);
-      } else {
-        // flatpickr not available - date picker functionality disabled
-      }
+      
+      fp = flatpickr(el.dateInput[0], flatpickrConfig);
     }
   });
 
@@ -400,17 +391,10 @@ jQuery(function($) {
     
     resetSteps(2);
     const date = selectedDates[0];
-    const dow = date.getDay();
     const selectedMeal = el.mealRadios.filter(':checked').val();
     
-    // Show brunch notice for Sunday lunch or brunch
-    if (selectedMeal === 'pranzo' && dow === 0) {
-      el.mealNotice.text(rbfData.labels.sundayBrunchNotice).show();
-    } else if (selectedMeal === 'brunch' && dow === 0) {
-      el.mealNotice.text(rbfData.labels.sundayBrunchNotice).show();
-    } else {
-      el.mealNotice.hide();
-    }
+    // Meal-specific tooltips are now shown when meal is selected, not on date change
+    // This allows for more flexible and configurable tooltip system
     
     const dateString = formatLocalISO(date);
     showStep(el.timeStep, 3);

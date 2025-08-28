@@ -51,6 +51,17 @@ function rbf_enqueue_frontend_assets() {
     }
     $closed_specific = rbf_get_closed_specific($options);
 
+    // Get meal tooltips and availability for JavaScript with proper translation
+    $active_meals = rbf_get_active_meals();
+    $meal_tooltips = [];
+    $meal_availability = [];
+    foreach ($active_meals as $meal) {
+        if (!empty($meal['tooltip'])) {
+            $meal_tooltips[$meal['id']] = rbf_translate_string($meal['tooltip']);
+        }
+        $meal_availability[$meal['id']] = $meal['available_days'] ?? [];
+    }
+
     wp_localize_script('rbf-frontend-js', 'rbfData', [
         'ajaxUrl' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('rbf_ajax_nonce'),
@@ -61,6 +72,8 @@ function rbf_enqueue_frontend_assets() {
         'minAdvanceMinutes' => absint($options['min_advance_minutes'] ?? 0),
         'maxAdvanceMinutes' => absint($options['max_advance_minutes'] ?? 10080),
         'utilsScript' => 'https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/19.2.16/js/utils.js',
+        'mealTooltips' => $meal_tooltips,
+        'mealAvailability' => $meal_availability,
         'labels' => [
             'loading' => rbf_translate_string('Caricamento...'),
             'chooseTime' => rbf_translate_string('Scegli un orario...'),
@@ -297,14 +310,17 @@ function rbf_render_booking_form() {
                 <div id="step-meal" class="rbf-step active" role="group" aria-labelledby="meal-label">
                     <label id="meal-label"><?php echo esc_html(rbf_translate_string('Scegli il pasto')); ?></label>
                     <div class="rbf-radio-group" role="radiogroup" aria-labelledby="meal-label">
-                        <input type="radio" name="rbf_meal" value="pranzo" id="rbf_meal_pranzo" required aria-describedby="rbf-meal-notice">
-                        <label for="rbf_meal_pranzo"><?php echo esc_html(rbf_translate_string('Pranzo')); ?></label>
-                        <input type="radio" name="rbf_meal" value="aperitivo" id="rbf_meal_aperitivo" required aria-describedby="rbf-meal-notice">
-                        <label for="rbf_meal_aperitivo"><?php echo esc_html(rbf_translate_string('Aperitivo')); ?></label>
-                        <input type="radio" name="rbf_meal" value="cena" id="rbf_meal_cena" required aria-describedby="rbf-meal-notice">
-                        <label for="rbf_meal_cena"><?php echo esc_html(rbf_translate_string('Cena')); ?></label>
-                        <input type="radio" name="rbf_meal" value="brunch" id="rbf_meal_brunch" required aria-describedby="rbf-meal-notice">
-                        <label for="rbf_meal_brunch"><?php echo esc_html(rbf_translate_string('Brunch')); ?></label>
+                        <?php
+                        $active_meals = rbf_get_active_meals();
+                        foreach ($active_meals as $meal) {
+                            $meal_id = esc_attr($meal['id']);
+                            $meal_name = esc_html($meal['name']);
+                            ?>
+                            <input type="radio" name="rbf_meal" value="<?php echo $meal_id; ?>" id="rbf_meal_<?php echo $meal_id; ?>" required aria-describedby="rbf-meal-notice">
+                            <label for="rbf_meal_<?php echo $meal_id; ?>"><?php echo $meal_name; ?></label>
+                            <?php
+                        }
+                        ?>
                     </div>
                     <p id="rbf-meal-notice" style="display:none;" role="status" aria-live="polite"></p>
                 </div>
@@ -441,7 +457,15 @@ function rbf_get_remaining_capacity($date, $slot) {
     if ($cached !== false) return (int) $cached;
 
     $options = rbf_get_settings();
-    $total = (int) ($options['capienza_'.$slot] ?? 0);
+    
+    // Try to get capacity from configurable meals first
+    $meal_config = rbf_get_meal_config($slot);
+    if ($meal_config) {
+        $total = (int) $meal_config['capacity'];
+    } else {
+        // Fallback to legacy capacity settings
+        $total = (int) ($options['capienza_'.$slot] ?? 0);
+    }
 
     // Treat zero capacity as unlimited to avoid blocking services like aperitivo
     if ($total === 0) {
