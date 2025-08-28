@@ -415,7 +415,7 @@ function rbf_ajax_get_availability_callback() {
     $response = [];
     foreach ($available_times as $time) {
         $response[] = [
-            'slot' => $meal_for_capacity, // Use the actual slot for capacity (pranzo for brunch)
+            'slot' => $meal, // Use the actual slot for capacity
             'time' => $time
         ];
     }
