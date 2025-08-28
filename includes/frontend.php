@@ -297,14 +297,17 @@ function rbf_render_booking_form() {
                 <div id="step-meal" class="rbf-step active" role="group" aria-labelledby="meal-label">
                     <label id="meal-label"><?php echo esc_html(rbf_translate_string('Scegli il pasto')); ?></label>
                     <div class="rbf-radio-group" role="radiogroup" aria-labelledby="meal-label">
-                        <input type="radio" name="rbf_meal" value="pranzo" id="rbf_meal_pranzo" required aria-describedby="rbf-meal-notice">
-                        <label for="rbf_meal_pranzo"><?php echo esc_html(rbf_translate_string('Pranzo')); ?></label>
-                        <input type="radio" name="rbf_meal" value="aperitivo" id="rbf_meal_aperitivo" required aria-describedby="rbf-meal-notice">
-                        <label for="rbf_meal_aperitivo"><?php echo esc_html(rbf_translate_string('Aperitivo')); ?></label>
-                        <input type="radio" name="rbf_meal" value="cena" id="rbf_meal_cena" required aria-describedby="rbf-meal-notice">
-                        <label for="rbf_meal_cena"><?php echo esc_html(rbf_translate_string('Cena')); ?></label>
-                        <input type="radio" name="rbf_meal" value="brunch" id="rbf_meal_brunch" required aria-describedby="rbf-meal-notice">
-                        <label for="rbf_meal_brunch"><?php echo esc_html(rbf_translate_string('Brunch')); ?></label>
+                        <?php
+                        $active_meals = rbf_get_active_meals();
+                        foreach ($active_meals as $meal) {
+                            $meal_id = esc_attr($meal['id']);
+                            $meal_name = esc_html($meal['name']);
+                            ?>
+                            <input type="radio" name="rbf_meal" value="<?php echo $meal_id; ?>" id="rbf_meal_<?php echo $meal_id; ?>" required aria-describedby="rbf-meal-notice">
+                            <label for="rbf_meal_<?php echo $meal_id; ?>"><?php echo $meal_name; ?></label>
+                            <?php
+                        }
+                        ?>
                     </div>
                     <p id="rbf-meal-notice" style="display:none;" role="status" aria-live="polite"></p>
                 </div>
