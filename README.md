@@ -26,7 +26,7 @@ Sistema completo di prenotazioni per ristoranti con calendario Flatpickr multili
 - **Meta Pixel + CAPI**: Tracciamento dual-side (browser + server) iOS 14.5+ ready
 - **Google Ads Ready**: Integrazione conversioni tramite GA4
 - **UTM Intelligence**: Sistema sofisticato di classificazione sorgenti
-- **Bucket Standardization**: Attribution unificata cross-platform (gads/fbads/organic)
+- **Bucket Standardization**: Attribution unificata cross-platform tramite `fp_normalize_bucket()` (gclid > fbclid > organic)
 
 ## 🏗️ Architettura Modulare
 
@@ -184,10 +184,31 @@ function rbf_detect_source($data = []) {
 ```
 
 **Bucket Standardization:**
-```javascript
-// Business logic: unifica attribution cross-platform
-var bucketStd = (bucket === 'gads' || bucket === 'fbads') ? bucket : 'organic';
+```php
+// Centralized normalization function with priority-based classification
+function fp_normalize_bucket($gclid = '', $fbclid = '') {
+    // Priority 1: Google Ads - if gclid is present
+    if (!empty($gclid) && preg_match('/^[a-zA-Z0-9._-]+$/', $gclid)) {
+        return 'gads';
+    }
+    
+    // Priority 2: Facebook/Meta Ads - if fbclid is present  
+    if (!empty($fbclid) && preg_match('/^[a-zA-Z0-9._-]+$/', $fbclid)) {
+        return 'fbads';
+    }
+    
+    // Priority 3: Everything else becomes organic
+    return 'organic';
+}
+
+// Usage across all marketing events
+$bucketStd = fp_normalize_bucket($gclid, $fbclid);
 ```
+
+**Normalization Rules:**
+1. **gclid** parameter has highest priority → `gads`
+2. **fbclid** parameter has second priority → `fbads` 
+3. All other traffic sources → `organic`
 
 **Vertical Parameter:**
 Il parametro `vertical: 'restaurant'` consente la distinzione tra conversioni ristorante e hotel:

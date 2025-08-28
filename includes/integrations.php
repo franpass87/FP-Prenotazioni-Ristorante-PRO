@@ -54,6 +54,8 @@ function rbf_add_tracking_scripts_to_footer() {
             $meal = $meta['rbf_orario'][0] ?? 'pranzo';
             $people = $meta['rbf_persone'][0] ?? 1;
             $bucket = $meta['rbf_source_bucket'][0] ?? 'organic';
+            $gclid = $meta['rbf_gclid'][0] ?? '';
+            $fbclid = $meta['rbf_fbclid'][0] ?? '';
             $tracking_data = [
                 'id' => $booking_id,
                 'value' => $value,
@@ -61,6 +63,8 @@ function rbf_add_tracking_scripts_to_footer() {
                 'meal' => $meal,
                 'people' => $people,
                 'bucket' => $bucket,
+                'gclid' => $gclid,
+                'fbclid' => $fbclid,
                 'event_id' => 'rbf_' . $booking_id
             ];
         }
@@ -73,8 +77,19 @@ function rbf_add_tracking_scripts_to_footer() {
         $bucket = $tracking_data['bucket'];
         $eventId = $tracking_data['event_id'];
 
-        // Bucket standard per dedup
-        $bucketStd = ($bucket === 'gads' || $bucket === 'fbads') ? $bucket : 'organic';
+        // Get gclid and fbclid for normalized bucket calculation
+        $gclid = $tracking_data['gclid'] ?? '';
+        $fbclid = $tracking_data['fbclid'] ?? '';
+        
+        // If not in transient data, fallback to meta
+        if (empty($gclid) && empty($fbclid)) {
+            $meta = get_post_meta($booking_id);
+            $gclid = $meta['rbf_gclid'][0] ?? '';
+            $fbclid = $meta['rbf_fbclid'][0] ?? '';
+        }
+        
+        // Use centralized normalization function with priority gclid > fbclid > organic
+        $bucketStd = fp_normalize_bucket($gclid, $fbclid);
         ?>
         <script>
             (function() {
