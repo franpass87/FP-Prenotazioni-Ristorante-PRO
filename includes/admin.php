@@ -263,6 +263,7 @@ function rbf_sanitize_settings_callback($input) {
                     'time_slots' => sanitize_text_field($meal['time_slots'] ?? ''),
                     'price' => max(0, floatval($meal['price'] ?? 0)),
                     'enabled' => isset($meal['enabled']) && $meal['enabled'] == '1',
+                    'tooltip' => sanitize_textarea_field($meal['tooltip'] ?? ''),
                     'available_days' => []
                 ];
                 
@@ -404,6 +405,13 @@ function rbf_settings_page_html() {
                                                 ?>
                                             </td>
                                         </tr>
+                                        <tr>
+                                            <th><label><?php echo esc_html(rbf_translate_string('Tooltip informativo')); ?></label></th>
+                                            <td>
+                                                <textarea name="rbf_settings[custom_meals][<?php echo $index; ?>][tooltip]" class="regular-text" rows="2" placeholder="es: Di Domenica il servizio è Brunch con menù alla carta."><?php echo esc_textarea($meal['tooltip'] ?? ''); ?></textarea>
+                                                <p class="description"><?php echo esc_html(rbf_translate_string('Testo informativo che apparirà quando questo pasto viene selezionato (opzionale)')); ?></p>
+                                            </td>
+                                        </tr>
                                     </table>
                                     
                                     <button type="button" class="button button-secondary remove-meal" style="margin-top: 10px;"><?php echo esc_html(rbf_translate_string('Rimuovi Pasto')); ?></button>
@@ -485,6 +493,13 @@ function rbf_settings_page_html() {
                                                     echo '</label>';
                                                 }
                                                 ?>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th><label><?php echo esc_html(rbf_translate_string('Tooltip informativo')); ?></label></th>
+                                            <td>
+                                                <textarea name="rbf_settings[custom_meals][` + index + `][tooltip]" class="regular-text" rows="2" placeholder="es: Di Domenica il servizio è Brunch con menù alla carta."></textarea>
+                                                <p class="description"><?php echo esc_html(rbf_translate_string('Testo informativo che apparirà quando questo pasto viene selezionato (opzionale)')); ?></p>
                                             </td>
                                         </tr>
                                     </table>

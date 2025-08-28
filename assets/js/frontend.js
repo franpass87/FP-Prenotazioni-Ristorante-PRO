@@ -306,8 +306,14 @@ jQuery(function($) {
     resetSteps(1);
     el.mealNotice.hide();
     
-    // Special handling for brunch meal
     const selectedMeal = $(this).val();
+    
+    // Show meal-specific tooltip if configured
+    if (rbfData.mealTooltips && rbfData.mealTooltips[selectedMeal]) {
+      el.mealNotice.text(rbfData.mealTooltips[selectedMeal]).show();
+    }
+    
+    // Special handling for brunch meal
     if (selectedMeal === 'brunch') {
       // Show date step for brunch selection
       showStep(el.dateStep, 2);

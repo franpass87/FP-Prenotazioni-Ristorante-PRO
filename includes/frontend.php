@@ -51,6 +51,15 @@ function rbf_enqueue_frontend_assets() {
     }
     $closed_specific = rbf_get_closed_specific($options);
 
+    // Get meal tooltips for JavaScript
+    $active_meals = rbf_get_active_meals();
+    $meal_tooltips = [];
+    foreach ($active_meals as $meal) {
+        if (!empty($meal['tooltip'])) {
+            $meal_tooltips[$meal['id']] = $meal['tooltip'];
+        }
+    }
+
     wp_localize_script('rbf-frontend-js', 'rbfData', [
         'ajaxUrl' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('rbf_ajax_nonce'),
@@ -61,6 +70,7 @@ function rbf_enqueue_frontend_assets() {
         'minAdvanceMinutes' => absint($options['min_advance_minutes'] ?? 0),
         'maxAdvanceMinutes' => absint($options['max_advance_minutes'] ?? 10080),
         'utilsScript' => 'https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/19.2.16/js/utils.js',
+        'mealTooltips' => $meal_tooltips,
         'labels' => [
             'loading' => rbf_translate_string('Caricamento...'),
             'chooseTime' => rbf_translate_string('Scegli un orario...'),

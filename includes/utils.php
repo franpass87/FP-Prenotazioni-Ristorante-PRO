@@ -57,6 +57,7 @@ function rbf_get_default_custom_meals() {
             'time_slots' => '12:00,12:30,13:00,13:30,14:00',
             'price' => 35.00,
             'enabled' => true,
+            'tooltip' => rbf_translate_string('Di Domenica il servizio è Brunch con menù alla carta.'),
             'available_days' => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
         ],
         [
@@ -66,6 +67,7 @@ function rbf_get_default_custom_meals() {
             'time_slots' => '17:00,17:30,18:00',
             'price' => 15.00,
             'enabled' => true,
+            'tooltip' => '',
             'available_days' => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat']
         ],
         [
@@ -75,6 +77,7 @@ function rbf_get_default_custom_meals() {
             'time_slots' => '19:00,19:30,20:00,20:30',
             'price' => 50.00,
             'enabled' => true,
+            'tooltip' => '',
             'available_days' => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat']
         ],
         [
@@ -84,6 +87,7 @@ function rbf_get_default_custom_meals() {
             'time_slots' => '12:00,12:30,13:00,13:30',
             'price' => 35.00,
             'enabled' => true,
+            'tooltip' => rbf_translate_string('Disponibile solo la domenica con menù speciale.'),
             'available_days' => ['sun']
         ]
     ];
@@ -498,6 +502,10 @@ function rbf_translate_string($text) {
         'Note e preferenze alimentari' => 'Notes and dietary preferences',
         'Consensi privacy e marketing' => 'Privacy and marketing consents',
         'Gestione Automatica' => 'Automatic Management',
+        'Tooltip informativo' => 'Information Tooltip',
+        'Testo informativo che apparirà quando questo pasto viene selezionato (opzionale)' => 'Information text that will appear when this meal is selected (optional)',
+        'Di Domenica il servizio è Brunch con menù alla carta.' => 'On Sundays the service is Brunch with à la carte menu.',
+        'Disponibile solo la domenica con menù speciale.' => 'Available only on Sundays with special menu.',
     ];
     return $translations[$text] ?? $text;
 }
