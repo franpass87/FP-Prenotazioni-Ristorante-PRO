@@ -306,14 +306,14 @@ function rbf_ajax_get_availability_callback() {
     
     // Validate date format
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || !DateTime::createFromFormat('Y-m-d', $date)) {
-        rbf_handle_error('Invalid date format', 'date_validation');
+        rbf_handle_error(rbf_translate_string('Data non valida.'), 'date_validation');
         return;
     }
     
     // Validate meal type
     $valid_meal_ids = rbf_get_valid_meal_ids();
     if (!in_array($meal, $valid_meal_ids, true)) {
-        rbf_handle_error('Invalid meal type', 'meal_validation');
+        rbf_handle_error(rbf_translate_string('Tipo di pasto non valido.'), 'meal_validation');
         return;
     }
 

@@ -95,7 +95,7 @@ function rbf_render_customer_booking_management() {
     ob_start();
     
     // Check if booking hash is provided
-    if (!isset($_GET['booking']) || !$_GET['booking']) {
+    if (!isset($_GET['booking']) || !sanitize_text_field($_GET['booking'])) {
         ?>
         <div class="rbf-customer-management">
             <h3><?php echo esc_html(rbf_translate_string('Gestisci la tua Prenotazione')); ?></h3>
