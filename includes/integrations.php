@@ -89,7 +89,7 @@ function rbf_add_tracking_scripts_to_footer() {
         }
         
         // Use centralized normalization function with priority gclid > fbclid > organic
-        $bucketStd = fp_normalize_bucket($gclid, $fbclid);
+        $bucketStd = rbf_normalize_bucket($gclid, $fbclid);
         ?>
         <script>
             (function() {

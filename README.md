@@ -26,7 +26,7 @@ Sistema completo di prenotazioni per ristoranti con calendario Flatpickr multili
 - **Meta Pixel + CAPI**: Tracciamento dual-side (browser + server) iOS 14.5+ ready
 - **Google Ads Ready**: Integrazione conversioni tramite GA4
 - **UTM Intelligence**: Sistema sofisticato di classificazione sorgenti
-- **Bucket Standardization**: Attribution unificata cross-platform tramite `fp_normalize_bucket()` (gclid > fbclid > organic)
+- **Bucket Standardization**: Attribution unificata cross-platform tramite `rbf_normalize_bucket()` (gclid > fbclid > organic)
 
 ## 🏗️ Architettura Modulare
 
@@ -186,7 +186,7 @@ function rbf_detect_source($data = []) {
 **Bucket Standardization:**
 ```php
 // Centralized normalization function with priority-based classification
-function fp_normalize_bucket($gclid = '', $fbclid = '') {
+function rbf_normalize_bucket($gclid = '', $fbclid = '') {
     // Priority 1: Google Ads - if gclid is present
     if (!empty($gclid) && preg_match('/^[a-zA-Z0-9._-]+$/', $gclid)) {
         return 'gads';
@@ -202,7 +202,7 @@ function fp_normalize_bucket($gclid = '', $fbclid = '') {
 }
 
 // Usage across all marketing events
-$bucketStd = fp_normalize_bucket($gclid, $fbclid);
+$bucketStd = rbf_normalize_bucket($gclid, $fbclid);
 ```
 
 **Normalization Rules:**

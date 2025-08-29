@@ -228,7 +228,7 @@ function rbf_handle_booking_submission() {
     if (!empty($options['meta_pixel_id']) && !empty($options['meta_access_token'])) {
         $meta_url = "https://graph.facebook.com/v20.0/{$options['meta_pixel_id']}/events?access_token={$options['meta_access_token']}";
         // Use centralized normalization function with priority gclid > fbclid > organic
-        $bucket_std = fp_normalize_bucket($gclid, $fbclid);
+        $bucket_std = rbf_normalize_bucket($gclid, $fbclid);
 
         $meta_payload = [
             'data' => [[

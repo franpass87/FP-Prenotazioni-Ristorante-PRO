@@ -765,7 +765,7 @@ function rbf_validate_utm_parameters($utm_data) {
  * @param string $fbclid Facebook Click ID parameter
  * @return string Normalized bucket value: 'gads', 'fbads', or 'organic'
  */
-function fp_normalize_bucket($gclid = '', $fbclid = '') {
+function rbf_normalize_bucket($gclid = '', $fbclid = '') {
     // Clean and validate input parameters
     $gclid = trim($gclid);
     $fbclid = trim($fbclid);
