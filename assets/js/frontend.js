@@ -39,6 +39,208 @@ jQuery(function($) {
   let iti = null;
   let currentStep = 1;
   let stepTimeouts = new Map(); // Track timeouts for each step element
+  let componentsLoading = new Set(); // Track which components are loading
+
+  /**
+   * Show loading state for component
+   */
+  function showComponentLoading(component, message = rbfData.labels.loading) {
+    componentsLoading.add(component);
+    const $component = $(component);
+    
+    if (!$component.hasClass('rbf-component-loading')) {
+      $component.addClass('rbf-component-loading');
+      
+      const overlay = $('<div class="rbf-loading-overlay"><div class="rbf-loading-spinner"></div><span>' + message + '</span></div>');
+      $component.append(overlay);
+    }
+  }
+
+  /**
+   * Hide loading state for component
+   */
+  function hideComponentLoading(component) {
+    componentsLoading.delete(component);
+    const $component = $(component);
+    
+    $component.removeClass('rbf-component-loading');
+    $component.find('.rbf-loading-overlay').remove();
+  }
+
+  /**
+   * Remove skeleton and show actual content with fade-in
+   */
+  function removeSkeleton($step) {
+    const $skeletonElements = $step.find('[aria-hidden="true"]');
+    const $contentElements = $step.find('.rbf-fade-in');
+    
+    $step.attr('data-skeleton', 'false');
+    
+    // Hide skeleton with fade out
+    $skeletonElements.fadeOut(200, function() {
+      // Show content with fade in
+      $contentElements.addClass('loaded');
+    });
+  }
+
+  /**
+   * Lazy load flatpickr when date step is shown
+   */
+  function lazyLoadDatePicker() {
+    return new Promise((resolve) => {
+      if (typeof flatpickr === 'undefined') {
+        // If flatpickr is not loaded, try to load it
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/flatpickr';
+        script.onload = () => {
+          initializeFlatpickr();
+          resolve();
+        };
+        script.onerror = () => {
+          console.warn('Could not load flatpickr, falling back to basic date input');
+          resolve();
+        };
+        document.head.appendChild(script);
+      } else {
+        initializeFlatpickr();
+        resolve();
+      }
+    });
+  }
+
+  /**
+   * Initialize flatpickr after lazy loading
+   */
+  function initializeFlatpickr() {
+    const selectedMeal = el.mealRadios.filter(':checked').val();
+    
+    const flatpickrConfig = {
+      altInput: true,
+      altFormat: 'd-m-Y',
+      dateFormat: 'Y-m-d',
+      minDate: new Date(new Date().getTime() + rbfData.minAdvanceMinutes * 60 * 1000),
+      locale: (rbfData.locale === 'it') ? 'it' : 'default',
+      disable: [function(date) {
+        const day = date.getDay();
+        
+        // Convert JavaScript day (0=Sunday, 1=Monday...) to our day key format
+        const dayMapping = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+        const dayKey = dayMapping[day];
+        const dateStr = formatLocalISO(date);
+        
+        // Check if this meal is available on this day
+        if (rbfData.mealAvailability && rbfData.mealAvailability[selectedMeal]) {
+          const availableDays = rbfData.mealAvailability[selectedMeal];
+          if (!availableDays.includes(dayKey)) {
+            return true; // Disable this day for this meal
+          }
+        }
+        
+        // Check for exceptions first
+        if (rbfData.exceptions) {
+          for (let exception of rbfData.exceptions) {
+            if (exception.date === dateStr) {
+              // Only disable if it's a closure or holiday
+              if (exception.type === 'closure' || exception.type === 'holiday') {
+                return true;
+              }
+              // Special events and extended hours are allowed
+              if (exception.type === 'special' || exception.type === 'extended') {
+                return false;
+              }
+            }
+          }
+        }
+        
+        // Apply regular closed day/date logic
+        if (rbfData.closedDays.includes(day)) return true;
+        if (rbfData.closedSingles.includes(dateStr)) return true;
+        for (let range of rbfData.closedRanges) {
+          if (dateStr >= range.from && dateStr <= range.to) return true;
+        }
+        return false;
+      }],
+      onChange: onDateChange,
+      onDayCreate: function(dObj, dStr, fp, dayElem) {
+        const dateStr = formatLocalISO(dayElem.dateObj);
+        
+        // Check for exceptions and add visual indicators
+        if (rbfData.exceptions) {
+          for (let exception of rbfData.exceptions) {
+            if (exception.date === dateStr) {
+              const indicator = document.createElement('div');
+              indicator.className = 'rbf-exception-indicator rbf-exception-' + exception.type;
+              indicator.title = exception.description || exception.type;
+              
+              // Style the indicator based on exception type
+              const styles = {
+                'special': { background: '#20c997', title: 'Evento Speciale' },
+                'extended': { background: '#0d6efd', title: 'Orari Estesi' },
+                'holiday': { background: '#fd7e14', title: 'Festività' },
+                'closure': { background: '#dc3545', title: 'Chiusura' }
+              };
+              
+              const style = styles[exception.type] || styles.closure;
+              indicator.style.cssText = `
+                position: absolute;
+                top: 2px;
+                right: 2px;
+                width: 6px;
+                height: 6px;
+                border-radius: 50%;
+                background: ${style.background};
+                z-index: 1;
+              `;
+              
+              if (!exception.description) {
+                indicator.title = rbfData.labels[style.title] || style.title;
+              }
+              
+              dayElem.style.position = 'relative';
+              dayElem.appendChild(indicator);
+              break;
+            }
+          }
+        }
+      }
+    };
+    
+    if (rbfData.maxAdvanceMinutes > 0) {
+      flatpickrConfig.maxDate = new Date(new Date().getTime() + rbfData.maxAdvanceMinutes * 60 * 1000);
+    }
+    
+    fp = flatpickr(el.dateInput[0], flatpickrConfig);
+    
+    // Show exception legend if there are exceptions
+    if (rbfData.exceptions && rbfData.exceptions.length > 0) {
+      $('.rbf-exception-legend').show();
+    }
+  }
+
+  /**
+   * Lazy load international telephone input
+   */
+  function lazyLoadTelInput() {
+    return new Promise((resolve) => {
+      if (typeof intlTelInput === 'undefined') {
+        // If intlTelInput is not loaded, try to load it
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/19.2.16/js/intlTelInput.min.js';
+        script.onload = () => {
+          initializeTelInput();
+          resolve();
+        };
+        script.onerror = () => {
+          console.warn('Could not load intl-tel-input, using fallback telephone input');
+          resolve();
+        };
+        document.head.appendChild(script);
+      } else {
+        initializeTelInput();
+        resolve();
+      }
+    });
+  }
 
   /**
    * Add optimal layout class based on number of meals
@@ -94,7 +296,7 @@ jQuery(function($) {
   }
 
   /**
-   * Show step with animation and accessibility
+   * Show step with animation, accessibility, and skeleton handling
    */
   function showStep($step, stepNumber) {
     // Cancel any pending hide timeout for this step
@@ -107,25 +309,60 @@ jQuery(function($) {
       $step.show().addClass('active');
       updateProgressIndicator(stepNumber);
       
-      // Focus management for screen readers
-      const firstInput = $step.find('input, select, textarea').first();
-      if (firstInput.length && !firstInput.prop('disabled')) {
-        firstInput.focus();
+      // Handle skeleton loading for specific steps
+      const stepId = $step.attr('id');
+      
+      if (stepId === 'step-date' && $step.attr('data-skeleton') === 'true') {
+        // Show skeleton initially, then lazy load date picker
+        setTimeout(() => {
+          lazyLoadDatePicker().then(() => {
+            removeSkeleton($step);
+          });
+        }, 100);
+      } else if (stepId === 'step-time' && $step.attr('data-skeleton') === 'true') {
+        // Remove skeleton immediately for time step as it's just a select
+        setTimeout(() => {
+          removeSkeleton($step);
+        }, 150);
+      } else if (stepId === 'step-people' && $step.attr('data-skeleton') === 'true') {
+        // Remove skeleton for people selector after short delay
+        setTimeout(() => {
+          removeSkeleton($step);
+        }, 100);
+      } else if (stepId === 'step-details' && $step.attr('data-skeleton') === 'true') {
+        // Show skeleton initially, then lazy load telephone input
+        setTimeout(() => {
+          lazyLoadTelInput().then(() => {
+            removeSkeleton($step);
+          });
+        }, 200);
       }
+      
+      // Focus management for screen readers (after skeleton is removed)
+      setTimeout(() => {
+        const firstInput = $step.find('input:not([type="hidden"]), select, textarea').not('[disabled]').first();
+        if (firstInput.length && !firstInput.prop('disabled')) {
+          firstInput.focus();
+        }
+      }, 300);
       
       // Auto-scroll to step on mobile
       if (window.innerWidth <= 768) {
-        $step[0].scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center' 
-        });
+        setTimeout(() => {
+          $step[0].scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center' 
+          });
+        }, 250);
       }
       
       // Announce step change to screen readers
       const stepLabel = $step.attr('aria-labelledby');
       if (stepLabel) {
         const labelText = $('#' + stepLabel).text();
-        announceToScreenReader(`Passaggio ${stepNumber}: ${labelText}`);
+        setTimeout(() => {
+          announceToScreenReader(`Passaggio ${stepNumber}: ${labelText}`);
+        }, 300);
       }
       
       stepTimeouts.delete($step[0]);
@@ -335,112 +572,8 @@ jQuery(function($) {
     }
     
     // Show date step for any meal selection
+    // The flatpickr will be lazy loaded when the step is shown
     showStep(el.dateStep, 2);
-    
-    // Initialize flatpickr with dynamic meal availability
-    if (typeof flatpickr !== 'undefined') {
-      const flatpickrConfig = {
-        altInput: true,
-        altFormat: 'd-m-Y',
-        dateFormat: 'Y-m-d',
-        minDate: new Date(new Date().getTime() + rbfData.minAdvanceMinutes * 60 * 1000),
-        locale: (rbfData.locale === 'it') ? 'it' : 'default',
-        disable: [function(date) {
-          const day = date.getDay();
-          
-          // Convert JavaScript day (0=Sunday, 1=Monday...) to our day key format
-          const dayMapping = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-          const dayKey = dayMapping[day];
-          const dateStr = formatLocalISO(date);
-          
-          // Check if this meal is available on this day
-          if (rbfData.mealAvailability && rbfData.mealAvailability[selectedMeal]) {
-            const availableDays = rbfData.mealAvailability[selectedMeal];
-            if (!availableDays.includes(dayKey)) {
-              return true; // Disable this day for this meal
-            }
-          }
-          
-          // Check for exceptions first
-          if (rbfData.exceptions) {
-            for (let exception of rbfData.exceptions) {
-              if (exception.date === dateStr) {
-                // Only disable if it's a closure or holiday
-                if (exception.type === 'closure' || exception.type === 'holiday') {
-                  return true;
-                }
-                // Special events and extended hours are allowed
-                if (exception.type === 'special' || exception.type === 'extended') {
-                  return false;
-                }
-              }
-            }
-          }
-          
-          // Apply regular closed day/date logic
-          if (rbfData.closedDays.includes(day)) return true;
-          if (rbfData.closedSingles.includes(dateStr)) return true;
-          for (let range of rbfData.closedRanges) {
-            if (dateStr >= range.from && dateStr <= range.to) return true;
-          }
-          return false;
-        }],
-        onChange: onDateChange,
-        onDayCreate: function(dObj, dStr, fp, dayElem) {
-          const dateStr = formatLocalISO(dayElem.dateObj);
-          
-          // Check for exceptions and add visual indicators
-          if (rbfData.exceptions) {
-            for (let exception of rbfData.exceptions) {
-              if (exception.date === dateStr) {
-                const indicator = document.createElement('div');
-                indicator.className = 'rbf-exception-indicator rbf-exception-' + exception.type;
-                indicator.title = exception.description || exception.type;
-                
-                // Style the indicator based on exception type
-                const styles = {
-                  'special': { background: '#20c997', title: 'Evento Speciale' },
-                  'extended': { background: '#0d6efd', title: 'Orari Estesi' },
-                  'holiday': { background: '#fd7e14', title: 'Festività' },
-                  'closure': { background: '#dc3545', title: 'Chiusura' }
-                };
-                
-                const style = styles[exception.type] || styles.closure;
-                indicator.style.cssText = `
-                  position: absolute;
-                  top: 2px;
-                  right: 2px;
-                  width: 6px;
-                  height: 6px;
-                  border-radius: 50%;
-                  background: ${style.background};
-                  z-index: 1;
-                `;
-                
-                if (!exception.description) {
-                  indicator.title = rbfData.labels[style.title] || style.title;
-                }
-                
-                dayElem.style.position = 'relative';
-                dayElem.appendChild(indicator);
-                break;
-              }
-            }
-          }
-        }
-      };
-      
-      if (rbfData.maxAdvanceMinutes > 0) {
-        flatpickrConfig.maxDate = new Date(new Date().getTime() + rbfData.maxAdvanceMinutes * 60 * 1000);
-      }
-      
-      fp = flatpickr(el.dateInput[0], flatpickrConfig);
-      
-      // Show exception legend if there are exceptions
-      if (rbfData.exceptions && rbfData.exceptions.length > 0) {
-        $('.rbf-exception-legend').show();
-      }
-    }
   });
 
   /**
@@ -456,11 +589,12 @@ jQuery(function($) {
     const date = selectedDates[0];
     const selectedMeal = el.mealRadios.filter(':checked').val();
     
-    // Meal-specific tooltips are now shown when meal is selected, not on date change
-    // This allows for more flexible and configurable tooltip system
-    
     const dateString = formatLocalISO(date);
     showStep(el.timeStep, 3);
+    
+    // Show loading state for time selection
+    showComponentLoading(el.timeStep[0], rbfData.labels.loading + ' orari...');
+    
     el.timeSelect.html(`<option value="">${rbfData.labels.loading}</option>`).prop('disabled', true);
     el.timeSelect.addClass('rbf-loading');
 
@@ -471,8 +605,12 @@ jQuery(function($) {
       date: dateString,
       meal: selectedMeal
     }, function(response) {
+      // Hide loading state
+      hideComponentLoading(el.timeStep[0]);
+      
       el.timeSelect.removeClass('rbf-loading');
       el.timeSelect.html('');
+      
       if (response.success && response.data.length > 0) {
         el.timeSelect.append(new Option(rbfData.labels.chooseTime, ''));
         
@@ -481,7 +619,6 @@ jQuery(function($) {
         const currentDate = dateString;
         const todayString = formatLocalISO(today);
         const isToday = (currentDate === todayString);
-        const isFuture = (currentDate > todayString);
         
         // Filter out past time slots only for today's date
         let availableCount = 0;
@@ -502,23 +639,27 @@ jQuery(function($) {
 
         if (availableCount > 0) {
           el.timeSelect.prop('disabled', false);
+          announceToScreenReader(`${availableCount} orari disponibili caricati`);
         } else {
           el.timeSelect.html('');
           el.timeSelect.append(new Option(rbfData.labels.noTime, ''));
+          announceToScreenReader('Nessun orario disponibile per questa data');
         }
       } else {
         el.timeSelect.append(new Option(rbfData.labels.noTime, ''));
+        announceToScreenReader('Nessun orario disponibile per questa data');
       }
     }).fail(function(xhr, status, error) {
+      // Hide loading state
+      hideComponentLoading(el.timeStep[0]);
+      
       // Handle AJAX errors
       el.timeSelect.removeClass('rbf-loading');
       el.timeSelect.html('');
       el.timeSelect.append(new Option(rbfData.labels.noTime, ''));
       
       // Show user-friendly error message
-      if (typeof announceToScreenReader === 'function') {
-        announceToScreenReader('Errore nel caricamento degli orari. Riprova.');
-      }
+      announceToScreenReader('Errore nel caricamento degli orari. Riprova.');
     });
   }
 
@@ -599,13 +740,16 @@ jQuery(function($) {
   });
 
   /**
-   * Form submission handler
+   * Form submission handler with loading states
    */
   form.on('submit', function(e) {
+    // Show loading state immediately
+    showComponentLoading(form[0], 'Invio prenotazione in corso...');
     el.submitButton.prop('disabled', true);
     
     if (!el.privacyCheckbox.is(':checked')) {
       e.preventDefault();
+      hideComponentLoading(form[0]);
       alert(rbfData.labels.privacyRequired);
       el.submitButton.prop('disabled', false);
       return;
@@ -615,6 +759,7 @@ jQuery(function($) {
       // Validate phone number if intlTelInput is initialized
       if (!iti.isValidNumber()) {
         e.preventDefault();
+        hideComponentLoading(form[0]);
         alert(rbfData.labels.invalidPhone);
         el.submitButton.prop('disabled', false);
         return;
@@ -635,6 +780,7 @@ jQuery(function($) {
       const phoneValue = el.telInput.val().trim();
       if (!phoneValue || phoneValue.length < 6) {
         e.preventDefault();
+        hideComponentLoading(form[0]);
         alert(rbfData.labels.invalidPhone);
         el.submitButton.prop('disabled', false);
         return;
@@ -642,6 +788,7 @@ jQuery(function($) {
     }
     
     // Form validation complete, proceeding with submission
+    // Loading state will be cleared by page navigation or success message
   });
 
   /**
