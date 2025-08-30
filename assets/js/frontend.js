@@ -41,6 +41,219 @@ jQuery(function($) {
   let stepTimeouts = new Map(); // Track timeouts for each step element
   let componentsLoading = new Set(); // Track which components are loading
 
+  // Autosave functionality variables
+  let autosaveTimeout = null;
+  const AUTOSAVE_DELAY = 1000; // 1 second debounce
+  const AUTOSAVE_KEY = 'rbf_booking_form_data';
+
+  /**
+   * localStorage utilities for autosave functionality
+   */
+  const AutoSave = {
+    /**
+     * Check if localStorage is supported and available
+     */
+    isSupported: function() {
+      try {
+        const test = '__rbf_test__';
+        localStorage.setItem(test, test);
+        localStorage.removeItem(test);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    },
+
+    /**
+     * Save form data to localStorage with timestamp
+     */
+    save: function(data) {
+      if (!this.isSupported()) return false;
+      
+      try {
+        const saveData = {
+          data: data,
+          timestamp: Date.now(),
+          url: window.location.href
+        };
+        localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(saveData));
+        return true;
+      } catch (e) {
+        console.warn('Autosave failed:', e);
+        return false;
+      }
+    },
+
+    /**
+     * Load form data from localStorage
+     */
+    load: function() {
+      if (!this.isSupported()) return null;
+      
+      try {
+        const saved = localStorage.getItem(AUTOSAVE_KEY);
+        if (!saved) return null;
+        
+        const saveData = JSON.parse(saved);
+        
+        // Check if data is from the same page and not too old (24 hours)
+        if (saveData.url !== window.location.href || 
+            Date.now() - saveData.timestamp > 24 * 60 * 60 * 1000) {
+          this.clear();
+          return null;
+        }
+        
+        return saveData.data;
+      } catch (e) {
+        console.warn('Autosave load failed:', e);
+        this.clear();
+        return null;
+      }
+    },
+
+    /**
+     * Clear saved form data
+     */
+    clear: function() {
+      if (!this.isSupported()) return;
+      
+      try {
+        localStorage.removeItem(AUTOSAVE_KEY);
+      } catch (e) {
+        console.warn('Autosave clear failed:', e);
+      }
+    }
+  };
+
+  /**
+   * Collect current form data for autosave
+   */
+  function collectFormData() {
+    const data = {};
+    
+    // Meal selection
+    const selectedMeal = el.mealRadios.filter(':checked').val();
+    if (selectedMeal) data.meal = selectedMeal;
+    
+    // Date
+    const dateValue = el.dateInput.val();
+    if (dateValue) data.date = dateValue;
+    
+    // Time
+    const timeValue = el.timeSelect.val();
+    if (timeValue) data.time = timeValue;
+    
+    // People count
+    const peopleValue = el.peopleInput.val();
+    if (peopleValue) data.people = peopleValue;
+    
+    // Personal details
+    const nameValue = form.find('#rbf-name').val();
+    if (nameValue) data.name = nameValue;
+    
+    const surnameValue = form.find('#rbf-surname').val();
+    if (surnameValue) data.surname = surnameValue;
+    
+    const emailValue = form.find('#rbf-email').val();
+    if (emailValue) data.email = emailValue;
+    
+    const telValue = form.find('#rbf-tel').val();
+    if (telValue) data.tel = telValue;
+    
+    const notesValue = form.find('#rbf-notes').val();
+    if (notesValue) data.notes = notesValue;
+    
+    // Checkboxes
+    data.privacy = el.privacyCheckbox.is(':checked');
+    data.marketing = el.marketingCheckbox.is(':checked');
+    
+    return data;
+  }
+
+  /**
+   * Restore form data from autosave
+   */
+  function restoreFormData(data) {
+    if (!data || typeof data !== 'object') return;
+    
+    // Restore meal selection
+    if (data.meal) {
+      el.mealRadios.filter(`[value="${data.meal}"]`).prop('checked', true).trigger('change');
+    }
+    
+    // Restore date
+    if (data.date) {
+      el.dateInput.val(data.date);
+    }
+    
+    // Restore time
+    if (data.time) {
+      el.timeSelect.val(data.time);
+    }
+    
+    // Restore people count
+    if (data.people) {
+      el.peopleInput.val(data.people).trigger('input');
+    }
+    
+    // Restore personal details
+    if (data.name) form.find('#rbf-name').val(data.name);
+    if (data.surname) form.find('#rbf-surname').val(data.surname);
+    if (data.email) form.find('#rbf-email').val(data.email);
+    if (data.tel) form.find('#rbf-tel').val(data.tel);
+    if (data.notes) form.find('#rbf-notes').val(data.notes);
+    
+    // Restore checkboxes
+    if (data.privacy) el.privacyCheckbox.prop('checked', true);
+    if (data.marketing) el.marketingCheckbox.prop('checked', true);
+    
+    console.log('Form data restored from autosave');
+  }
+
+  /**
+   * Debounced autosave function
+   */
+  function scheduleAutosave() {
+    if (autosaveTimeout) {
+      clearTimeout(autosaveTimeout);
+    }
+    
+    autosaveTimeout = setTimeout(function() {
+      const formData = collectFormData();
+      if (Object.keys(formData).length > 0) {
+        if (AutoSave.save(formData)) {
+          console.log('Form data auto-saved');
+        }
+      }
+    }, AUTOSAVE_DELAY);
+  }
+
+  /**
+   * Initialize autosave event listeners
+   */
+  function initializeAutosave() {
+    if (!AutoSave.isSupported()) {
+      console.warn('localStorage not supported - autosave disabled');
+      return;
+    }
+    
+    // Add change listeners to all form fields
+    el.mealRadios.on('change', scheduleAutosave);
+    el.dateInput.on('change', scheduleAutosave);
+    el.timeSelect.on('change', scheduleAutosave);
+    el.peopleInput.on('input', scheduleAutosave);
+    
+    // Personal details fields
+    form.find('#rbf-name, #rbf-surname, #rbf-email, #rbf-tel').on('input', scheduleAutosave);
+    form.find('#rbf-notes').on('input', scheduleAutosave);
+    
+    // Checkboxes
+    el.privacyCheckbox.on('change', scheduleAutosave);
+    el.marketingCheckbox.on('change', scheduleAutosave);
+    
+    console.log('Autosave initialized');
+  }
+
   /**
    * Show loading state for component
    */
@@ -788,6 +1001,10 @@ jQuery(function($) {
     }
     
     // Form validation complete, proceeding with submission
+    // Clear autosave data on successful submission
+    AutoSave.clear();
+    console.log('Autosave data cleared on form submission');
+    
     // Loading state will be cleared by page navigation or success message
   });
 
@@ -856,5 +1073,17 @@ jQuery(function($) {
       document.getElementById('rbf_referrer').value = document.referrer || '';
     }
   })();
+
+  // Initialize autosave functionality
+  initializeAutosave();
+  
+  // Restore autosave data on page load
+  const savedData = AutoSave.load();
+  if (savedData) {
+    // Small delay to ensure DOM is fully ready
+    setTimeout(function() {
+      restoreFormData(savedData);
+    }, 100);
+  }
 
 });
