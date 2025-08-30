@@ -6,6 +6,9 @@ test-bucket-normalization.php
 test-booking-scenarios.php
 validate-booking-flow.php
 
+# Demo files (testing only)
+skeleton-demo.html
+
 # Temporary files
 *.tmp
 *.temp
