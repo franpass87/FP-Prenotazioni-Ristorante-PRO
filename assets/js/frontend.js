@@ -435,6 +435,11 @@ jQuery(function($) {
       }
       
       fp = flatpickr(el.dateInput[0], flatpickrConfig);
+      
+      // Show exception legend if there are exceptions
+      if (rbfData.exceptions && rbfData.exceptions.length > 0) {
+        $('.rbf-exception-legend').show();
+      }
     }
   });
 

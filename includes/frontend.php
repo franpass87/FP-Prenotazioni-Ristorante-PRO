@@ -403,6 +403,20 @@ function rbf_render_booking_form($atts = []) {
                     <label id="date-label" for="rbf-date"><?php echo esc_html(rbf_translate_string('Data')); ?></label>
                     <input id="rbf-date" name="rbf_data" readonly="readonly" required aria-describedby="date-help">
                     <small id="date-help" class="rbf-help-text"><?php echo esc_html(rbf_translate_string('Seleziona una data dal calendario')); ?></small>
+                    <div class="rbf-exception-legend" style="display:none;">
+                        <div class="rbf-exception-legend-item">
+                            <span class="rbf-exception-legend-dot" style="background: #20c997;"></span>
+                            <span><?php echo esc_html(rbf_translate_string('Eventi Speciali')); ?></span>
+                        </div>
+                        <div class="rbf-exception-legend-item">
+                            <span class="rbf-exception-legend-dot" style="background: #0d6efd;"></span>
+                            <span><?php echo esc_html(rbf_translate_string('Orari Estesi')); ?></span>
+                        </div>
+                        <div class="rbf-exception-legend-item">
+                            <span class="rbf-exception-legend-dot" style="background: #fd7e14;"></span>
+                            <span><?php echo esc_html(rbf_translate_string('Festività')); ?></span>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="step-time" class="rbf-step" style="display:none;" role="group" aria-labelledby="time-label">
@@ -600,8 +614,8 @@ function rbf_get_closed_specific($options = null) {
             }
         } 
         // Handle legacy date ranges: 2024-12-24 - 2024-12-26
-        else if (strpos($item, '-') !== false && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $item)) {
-            list($start, $end) = array_map('trim', explode('-', $item, 2));
+        else if (strpos($item, ' - ') !== false) {
+            list($start, $end) = array_map('trim', explode(' - ', $item, 2));
             $start_ok = DateTime::createFromFormat('Y-m-d', $start) !== false;
             $end_ok = DateTime::createFromFormat('Y-m-d', $end) !== false;
             if ($start_ok && $end_ok) $ranges[] = ['from'=>$start, 'to'=>$end];

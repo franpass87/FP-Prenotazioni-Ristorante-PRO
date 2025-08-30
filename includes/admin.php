@@ -764,6 +764,12 @@ function rbf_settings_page_html() {
                                     return;
                                 }
                                 
+                                // Validate hours format if provided
+                                if (hours && !(/^(\d{1,2}:\d{2}(-\d{1,2}:\d{2})?|\d{1,2}:\d{2}(,\d{1,2}:\d{2})*)$/.test(hours))) {
+                                    alert('<?php echo esc_js(rbf_translate_string('Formato orari non valido. Usa: HH:MM-HH:MM o HH:MM,HH:MM,HH:MM')); ?>');
+                                    return;
+                                }
+                                
                                 const line = date + '|' + type + '|' + (hours || '') + '|' + (description || '');
                                 const textarea = $('#rbf_closed_dates');
                                 const currentValue = textarea.val().trim();
