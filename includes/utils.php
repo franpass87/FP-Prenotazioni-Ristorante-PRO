@@ -314,6 +314,8 @@ function rbf_translate_string($text) {
         'Giovedì' => 'Thursday',
         'Grazie! La tua prenotazione è stata confermata con successo.' => 'Thank you! Your booking has been confirmed successfully.',
         'ID GA4 non valido. Deve essere nel formato G-XXXXXXXXXX.' => 'Invalid GA4 ID. Must be in format G-XXXXXXXXXX.',
+        'Il numero di persone deve essere compreso tra 1 e 20.' => 'The number of people must be between 1 and 20.',
+        'Spiacenti, non ci sono abbastanza posti. Rimasti: %d. Scegli un altro orario.' => 'Sorry, there are not enough seats available. Remaining: %d. Please choose another time.',
 
         // Frontend
         'Scegli il pasto' => 'Choose your meal',
@@ -730,8 +732,8 @@ function rbf_validate_utm_parameters($utm_data) {
  */
 function rbf_normalize_bucket($gclid = '', $fbclid = '') {
     // Clean and validate input parameters
-    $gclid = trim($gclid);
-    $fbclid = trim($fbclid);
+    $gclid = sanitize_text_field(trim($gclid));
+    $fbclid = sanitize_text_field(trim($fbclid));
     
     // Priority 1: Google Ads - if gclid is present
     if (!empty($gclid) && preg_match('/^[a-zA-Z0-9._-]+$/', $gclid)) {
