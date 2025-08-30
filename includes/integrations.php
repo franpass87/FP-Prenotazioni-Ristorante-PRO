@@ -243,6 +243,12 @@ function rbf_trigger_brevo_automation($first_name, $last_name, $email, $date, $t
     
     if (is_wp_error($response)) {
         rbf_handle_error('Errore Brevo (upsert contatto): ' . $response->get_error_message(), 'brevo_api');
+    } else {
+        $response_code = wp_remote_retrieve_response_code($response);
+        if ($response_code < 200 || $response_code >= 300) {
+            $response_body = wp_remote_retrieve_body($response);
+            rbf_handle_error("Errore Brevo (upsert contatto) - HTTP {$response_code}: {$response_body}", 'brevo_api');
+        }
     }
 
     // 2) Custom Event via /v3/events: sempre
@@ -263,5 +269,11 @@ function rbf_trigger_brevo_automation($first_name, $last_name, $email, $date, $t
     
     if (is_wp_error($response)) {
         rbf_handle_error('Errore Brevo (evento booking_bistrot): ' . $response->get_error_message(), 'brevo_api');
+    } else {
+        $response_code = wp_remote_retrieve_response_code($response);
+        if ($response_code < 200 || $response_code >= 300) {
+            $response_body = wp_remote_retrieve_body($response);
+            rbf_handle_error("Errore Brevo (evento booking_bistrot) - HTTP {$response_code}: {$response_body}", 'brevo_api');
+        }
     }
 }

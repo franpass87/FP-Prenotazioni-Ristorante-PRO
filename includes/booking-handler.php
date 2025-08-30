@@ -296,6 +296,12 @@ function rbf_handle_booking_submission() {
                     "Timeout su chiamata Meta CAPI per prenotazione #{$post_id}. Valore: €{$valore_tot}"
                 );
             }
+        } else {
+            $response_code = wp_remote_retrieve_response_code($response);
+            if ($response_code < 200 || $response_code >= 300) {
+                $response_body = wp_remote_retrieve_body($response);
+                rbf_handle_error("Meta CAPI Error - Booking ID: {$post_id}, HTTP {$response_code}: {$response_body}", 'meta_api');
+            }
         }
     }
 

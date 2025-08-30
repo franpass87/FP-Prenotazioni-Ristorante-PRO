@@ -5,9 +5,28 @@
 jQuery(function($) {
   'use strict';
   
+  // Safe console logging wrapper for production
+  const rbfLog = {
+    error: function(message) {
+      if (window.console && window.console.error) {
+        console.error('RBF: ' + message);
+      }
+    },
+    warn: function(message) {
+      if (window.console && window.console.warn) {
+        console.warn('RBF: ' + message);
+      }
+    },
+    log: function(message) {
+      if (window.console && window.console.log && (window.rbfDebug || false)) {
+        console.log('RBF: ' + message);
+      }
+    }
+  };
+  
   // Check if essential data is loaded
   if (typeof rbfData === 'undefined') {
-    console.error('rbfData not loaded - booking form cannot function');
+    rbfLog.error('Essential data not loaded - booking form cannot function');
     return;
   }
 
@@ -79,7 +98,7 @@ jQuery(function($) {
         localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(saveData));
         return true;
       } catch (e) {
-        console.warn('Autosave failed:', e);
+        rbfLog.warn('Autosave failed: ' + e.message);
         return false;
       }
     },
@@ -105,7 +124,7 @@ jQuery(function($) {
         
         return saveData.data;
       } catch (e) {
-        console.warn('Autosave load failed:', e);
+        rbfLog.warn('Autosave load failed: ' + e.message);
         this.clear();
         return null;
       }
@@ -120,7 +139,7 @@ jQuery(function($) {
       try {
         localStorage.removeItem(AUTOSAVE_KEY);
       } catch (e) {
-        console.warn('Autosave clear failed:', e);
+        rbfLog.warn('Autosave clear failed: ' + e.message);
       }
     }
   };
@@ -207,7 +226,7 @@ jQuery(function($) {
     if (data.privacy) el.privacyCheckbox.prop('checked', true);
     if (data.marketing) el.marketingCheckbox.prop('checked', true);
     
-    console.log('Form data restored from autosave');
+    rbfLog.log('Form data restored from autosave');
   }
 
   /**
@@ -222,7 +241,7 @@ jQuery(function($) {
       const formData = collectFormData();
       if (Object.keys(formData).length > 0) {
         if (AutoSave.save(formData)) {
-          console.log('Form data auto-saved');
+          rbfLog.log('Form data auto-saved');
         }
       }
     }, AUTOSAVE_DELAY);
@@ -233,7 +252,7 @@ jQuery(function($) {
    */
   function initializeAutosave() {
     if (!AutoSave.isSupported()) {
-      console.warn('localStorage not supported - autosave disabled');
+      rbfLog.warn('localStorage not supported - autosave disabled');
       return;
     }
     
@@ -251,7 +270,7 @@ jQuery(function($) {
     el.privacyCheckbox.on('change', scheduleAutosave);
     el.marketingCheckbox.on('change', scheduleAutosave);
     
-    console.log('Autosave initialized');
+    rbfLog.log('Autosave initialized');
   }
 
   /**
@@ -310,7 +329,14 @@ jQuery(function($) {
           resolve();
         };
         script.onerror = () => {
-          console.warn('Could not load flatpickr, falling back to basic date input');
+          rbfLog.warn('Could not load flatpickr, falling back to basic date input');
+          // Ensure the date input still works with basic HTML5 date picker
+          if (el.dateInput.length) {
+            el.dateInput.attr('type', 'date');
+            const today = new Date();
+            const minDate = new Date(today.getTime() + rbfData.minAdvanceMinutes * 60 * 1000);
+            el.dateInput.attr('min', minDate.toISOString().split('T')[0]);
+          }
           resolve();
         };
         document.head.appendChild(script);
@@ -444,7 +470,15 @@ jQuery(function($) {
           resolve();
         };
         script.onerror = () => {
-          console.warn('Could not load intl-tel-input, using fallback telephone input');
+          rbfLog.warn('Could not load intl-tel-input, using fallback telephone input');
+          // Setup basic telephone input fallback
+          if (el.telInput.length) {
+            el.telInput.addClass('rbf-tel-fallback');
+            el.telInput.attr('placeholder', rbfData.labels.phonePlaceholder || 'Phone number');
+            el.telInput.attr('type', 'tel');
+            // Set default country code to IT
+            $('#rbf_country_code').val('it');
+          }
           resolve();
         };
         document.head.appendChild(script);
@@ -1003,7 +1037,7 @@ jQuery(function($) {
     // Form validation complete, proceeding with submission
     // Clear autosave data on successful submission
     AutoSave.clear();
-    console.log('Autosave data cleared on form submission');
+    rbfLog.log('Autosave data cleared on form submission');
     
     // Loading state will be cleared by page navigation or success message
   });
