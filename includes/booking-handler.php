@@ -104,6 +104,12 @@ function rbf_handle_booking_submission() {
     }
     list($slot, $time) = explode('|', $time_data, 2);
     $people = $sanitized_fields['rbf_persone'];
+    
+    // Validate people count
+    if ($people < 1 || $people > 20) {
+        rbf_handle_error(rbf_translate_string('Il numero di persone deve essere compreso tra 1 e 20.'), 'people_validation', $redirect_url . $anchor);
+        return;
+    }
     $first_name = $sanitized_fields['rbf_nome'];
     $last_name = $sanitized_fields['rbf_cognome'];
     $email = rbf_validate_email($_POST['rbf_email']);
@@ -295,6 +301,12 @@ function rbf_handle_booking_submission() {
                     'RBF: Meta CAPI Timeout Warning',
                     "Timeout su chiamata Meta CAPI per prenotazione #{$post_id}. Valore: €{$valore_tot}"
                 );
+            }
+        } else {
+            $response_code = wp_remote_retrieve_response_code($response);
+            if ($response_code < 200 || $response_code >= 300) {
+                $response_body = wp_remote_retrieve_body($response);
+                rbf_handle_error("Meta CAPI Error - Booking ID: {$post_id}, HTTP {$response_code}: {$response_body}", 'meta_api');
             }
         }
     }
