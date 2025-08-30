@@ -1232,3 +1232,97 @@
 .rbf-tel-fallback::placeholder {
     color: #856404 !important;
 }
+
+/* Calendar Exception Indicators */
+.rbf-exception-indicator {
+    position: absolute !important;
+    top: 2px !important;
+    right: 2px !important;
+    width: 6px !important;
+    height: 6px !important;
+    border-radius: 50% !important;
+    z-index: 1 !important;
+    pointer-events: none;
+}
+
+.rbf-exception-closure {
+    background: #dc3545 !important;
+}
+
+.rbf-exception-holiday {
+    background: #fd7e14 !important;
+}
+
+.rbf-exception-special {
+    background: #20c997 !important;
+}
+
+.rbf-exception-extended {
+    background: #0d6efd !important;
+}
+
+/* Exception legend for calendar */
+.rbf-exception-legend {
+    display: flex;
+    gap: 15px;
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--rbf-text-light);
+    flex-wrap: wrap;
+}
+
+.rbf-exception-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.rbf-exception-legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+/* Enhanced calendar day styling for exceptions */
+.flatpickr-day.has-exception-special {
+    background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%) !important;
+    color: white !important;
+    border-color: #20c997 !important;
+}
+
+.flatpickr-day.has-exception-extended {
+    background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%) !important;
+    color: white !important;
+    border-color: #0d6efd !important;
+}
+
+.flatpickr-day.has-exception-holiday {
+    background: linear-gradient(135deg, #fd7e14 0%, #e55a00 100%) !important;
+    color: white !important;
+    border-color: #fd7e14 !important;
+}
+
+/* Mobile responsive exception indicators */
+@media (max-width: 768px) {
+    .rbf-exception-indicator {
+        width: 8px !important;
+        height: 8px !important;
+        top: 1px !important;
+        right: 1px !important;
+    }
+    
+    .rbf-exception-legend {
+        justify-content: center;
+        gap: 10px;
+    }
+    
+    .rbf-exception-legend-item {
+        font-size: 11px;
+    }
+    
+    .rbf-exception-legend-dot {
+        width: 10px;
+        height: 10px;
+    }
+}

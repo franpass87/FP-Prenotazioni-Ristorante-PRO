@@ -379,20 +379,52 @@ function rbf_ajax_get_availability_callback() {
         }
     }
 
-    // Step 3: Get configured time slots for this meal
-    $meal_config = rbf_get_meal_config($meal);
-    if (!$meal_config) {
-        wp_send_json_success([]);
-        return;
+    // Step 3: Get configured time slots for this meal, considering special exceptions
+    $special_hours = rbf_get_special_hours_for_date($date, $meal, $options);
+    $times = [];
+    
+    if (!empty($special_hours)) {
+        // Parse special hours format (e.g., "18:00-02:00" or "19:00,20:00,21:00")
+        if (strpos($special_hours, '-') !== false) {
+            // Range format: generate hourly slots
+            list($start_time, $end_time) = array_map('trim', explode('-', $special_hours, 2));
+            $start_hour = (int) substr($start_time, 0, 2);
+            $end_hour = (int) substr($end_time, 0, 2);
+            
+            // Handle overnight ranges (e.g., 19:00-02:00)
+            if ($end_hour <= $start_hour) {
+                $end_hour += 24;
+            }
+            
+            for ($hour = $start_hour; $hour < $end_hour; $hour++) {
+                $display_hour = $hour >= 24 ? $hour - 24 : $hour;
+                $times[] = sprintf('%02d:00', $display_hour);
+                $times[] = sprintf('%02d:30', $display_hour);
+            }
+        } else if (strpos($special_hours, ',') !== false) {
+            // Comma-separated format
+            $times = array_map('trim', explode(',', $special_hours));
+        } else {
+            // Single time
+            $times = [$special_hours];
+        }
+    } else {
+        // Use regular meal configuration
+        $meal_config = rbf_get_meal_config($meal);
+        if (!$meal_config) {
+            wp_send_json_success([]);
+            return;
+        }
+        
+        $times_csv = $meal_config['time_slots'] ?? '';
+        if (empty($times_csv)) {
+            wp_send_json_success([]);
+            return;
+        }
+        
+        $times = array_values(array_filter(array_map('trim', explode(',', $times_csv))));
     }
     
-    $times_csv = $meal_config['time_slots'] ?? '';
-    if (empty($times_csv)) {
-        wp_send_json_success([]);
-        return;
-    }
-    
-    $times = array_values(array_filter(array_map('trim', explode(',', $times_csv))));
     if (empty($times)) {
         wp_send_json_success([]);
         return;

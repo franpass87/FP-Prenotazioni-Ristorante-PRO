@@ -72,6 +72,7 @@ function rbf_enqueue_frontend_assets() {
         'closedDays' => $closed_days,
         'closedSingles' => $closed_specific['singles'],
         'closedRanges' => $closed_specific['ranges'],
+        'exceptions' => $closed_specific['exceptions'],
         'minAdvanceMinutes' => absint($options['min_advance_minutes'] ?? 0),
         'maxAdvanceMinutes' => absint($options['max_advance_minutes'] ?? 10080),
         'utilsScript' => 'https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/19.2.16/js/utils.js',
@@ -402,6 +403,20 @@ function rbf_render_booking_form($atts = []) {
                     <label id="date-label" for="rbf-date"><?php echo esc_html(rbf_translate_string('Data')); ?></label>
                     <input id="rbf-date" name="rbf_data" readonly="readonly" required aria-describedby="date-help">
                     <small id="date-help" class="rbf-help-text"><?php echo esc_html(rbf_translate_string('Seleziona una data dal calendario')); ?></small>
+                    <div class="rbf-exception-legend" style="display:none;">
+                        <div class="rbf-exception-legend-item">
+                            <span class="rbf-exception-legend-dot" style="background: #20c997;"></span>
+                            <span><?php echo esc_html(rbf_translate_string('Eventi Speciali')); ?></span>
+                        </div>
+                        <div class="rbf-exception-legend-item">
+                            <span class="rbf-exception-legend-dot" style="background: #0d6efd;"></span>
+                            <span><?php echo esc_html(rbf_translate_string('Orari Estesi')); ?></span>
+                        </div>
+                        <div class="rbf-exception-legend-item">
+                            <span class="rbf-exception-legend-dot" style="background: #fd7e14;"></span>
+                            <span><?php echo esc_html(rbf_translate_string('Festività')); ?></span>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="step-time" class="rbf-step" style="display:none;" role="group" aria-labelledby="time-label">
@@ -563,22 +578,97 @@ function rbf_get_remaining_capacity($date, $slot) {
 }
 
 /**
- * Get closed specific dates
+ * Get closed specific dates and calendar exceptions
  */
 function rbf_get_closed_specific($options = null) {
     if (is_null($options)) $options = rbf_get_settings();
     $closed_dates_str = $options['closed_dates'] ?? '';
     $closed_items = array_filter(array_map('trim', explode("\n", $closed_dates_str)));
-    $singles = []; $ranges = [];
+    
+    $singles = []; 
+    $ranges = [];
+    $exceptions = [];
+    
     foreach ($closed_items as $item) {
-        if (strpos($item, '-') !== false) {
-            list($start, $end) = array_map('trim', explode('-', $item, 2));
+        // Handle new exception format: date|type|hours|description
+        if (strpos($item, '|') !== false) {
+            $parts = array_map('trim', explode('|', $item));
+            $date = $parts[0];
+            $type = $parts[1] ?? 'closure';
+            $hours = $parts[2] ?? '';
+            $description = $parts[3] ?? '';
+            
+            if (DateTime::createFromFormat('Y-m-d', $date) !== false) {
+                $exception = [
+                    'date' => $date,
+                    'type' => $type,
+                    'hours' => $hours,
+                    'description' => $description
+                ];
+                $exceptions[] = $exception;
+                
+                // For closure and holiday types, also add to singles for backward compatibility
+                if (in_array($type, ['closure', 'holiday'])) {
+                    $singles[] = $date;
+                }
+            }
+        } 
+        // Handle legacy date ranges: 2024-12-24 - 2024-12-26
+        else if (strpos($item, ' - ') !== false) {
+            list($start, $end) = array_map('trim', explode(' - ', $item, 2));
             $start_ok = DateTime::createFromFormat('Y-m-d', $start) !== false;
             $end_ok = DateTime::createFromFormat('Y-m-d', $end) !== false;
             if ($start_ok && $end_ok) $ranges[] = ['from'=>$start, 'to'=>$end];
-        } else {
-            if (DateTime::createFromFormat('Y-m-d', $item) !== false) $singles[] = $item;
+        } 
+        // Handle legacy single dates: 2024-12-25
+        else {
+            if (DateTime::createFromFormat('Y-m-d', $item) !== false) {
+                $singles[] = $item;
+                // Also add as closure exception for consistency
+                $exceptions[] = [
+                    'date' => $item,
+                    'type' => 'closure',
+                    'hours' => '',
+                    'description' => ''
+                ];
+            }
         }
     }
-    return ['singles'=>$singles, 'ranges'=>$ranges];
+    
+    return [
+        'singles' => $singles, 
+        'ranges' => $ranges,
+        'exceptions' => $exceptions
+    ];
+}
+
+/**
+ * Get calendar exceptions for a specific date
+ */
+function rbf_get_date_exceptions($date, $options = null) {
+    $closed_data = rbf_get_closed_specific($options);
+    $date_exceptions = [];
+    
+    foreach ($closed_data['exceptions'] as $exception) {
+        if ($exception['date'] === $date) {
+            $date_exceptions[] = $exception;
+        }
+    }
+    
+    return $date_exceptions;
+}
+
+/**
+ * Check if a date has special hours due to exceptions
+ */
+function rbf_get_special_hours_for_date($date, $meal = null, $options = null) {
+    $exceptions = rbf_get_date_exceptions($date, $options);
+    
+    foreach ($exceptions as $exception) {
+        if (in_array($exception['type'], ['special', 'extended']) && !empty($exception['hours'])) {
+            return $exception['hours'];
+        }
+    }
+    
+    return null;
 }
