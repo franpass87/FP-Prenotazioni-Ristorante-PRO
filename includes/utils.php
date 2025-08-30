@@ -420,6 +420,25 @@ function rbf_translate_string($text) {
         'Aumenta numero persone' => 'Increase number of people',
         'Inserisci eventuali allergie o note particolari...' => 'Enter any allergies or special notes...',
         
+        // Brand configuration strings
+        'Configurazione Brand e Colori' => 'Brand and Color Configuration',
+        'Colore Primario' => 'Primary Color',
+        'Colore Secondario' => 'Secondary Color',
+        'Raggio Angoli' => 'Border Radius',
+        'Anteprima' => 'Preview',
+        'Pulsante Principale' => 'Primary Button',
+        'Pulsante Secondario' => 'Secondary Button',
+        'Campo di esempio' => 'Example field',
+        'Questa anteprima mostra come appariranno i colori selezionati' => 'This preview shows how the selected colors will appear',
+        'Colore principale utilizzato per pulsanti, evidenziazioni e elementi attivi' => 'Primary color used for buttons, highlights, and active elements',
+        'Colore secondario per accenti e elementi complementari' => 'Secondary color for accents and complementary elements',
+        'Determina quanto arrotondati appaiono gli angoli di pulsanti e campi' => 'Determines how rounded buttons and field corners appear',
+        'Squadrato (0px)' => 'Square (0px)',
+        'Leggermente arrotondato (4px)' => 'Slightly rounded (4px)',
+        'Arrotondato (8px)' => 'Rounded (8px)',
+        'Molto arrotondato (12px)' => 'Very rounded (12px)',
+        'Estremamente arrotondato (16px)' => 'Extremely rounded (16px)',
+        
         // Enhanced booking status system
         'Stato Prenotazione' => 'Booking Status',
         'In Attesa' => 'Pending',
@@ -915,4 +934,189 @@ function rbf_update_booking_status($booking_id, $new_status, $note = '') {
     do_action('rbf_booking_status_changed', $booking_id, $old_status, $new_status, $note);
     
     return true;
+}
+
+/**
+ * Brand Configuration System
+ * Provides flexible accent color and brand parameter management
+ */
+
+/**
+ * Get brand configuration with priority: Admin Settings > JSON file > PHP constant > filter > default
+ */
+function rbf_get_brand_config() {
+    // Start with default configuration
+    $default_config = [
+        'accent_color' => '#000000',
+        'accent_color_light' => '#333333', 
+        'accent_color_dark' => '#000000',
+        'secondary_color' => '#f8b500',
+        'border_radius' => '8px',
+        // Future extensibility
+        'logo_url' => '',
+        'brand_name' => ''
+    ];
+    
+    // 1. Check admin settings first (highest priority for user interface)
+    $admin_settings = get_option('rbf_settings', []);
+    if (!empty($admin_settings['accent_color']) || !empty($admin_settings['secondary_color']) || !empty($admin_settings['border_radius'])) {
+        $config = $default_config;
+        
+        if (!empty($admin_settings['accent_color'])) {
+            $config['accent_color'] = sanitize_hex_color($admin_settings['accent_color']);
+            // Auto-generate light/dark variants
+            $config['accent_color_light'] = rbf_lighten_color($config['accent_color'], 20);
+            $config['accent_color_dark'] = rbf_darken_color($config['accent_color'], 10);
+        }
+        
+        if (!empty($admin_settings['secondary_color'])) {
+            $config['secondary_color'] = sanitize_hex_color($admin_settings['secondary_color']);
+        }
+        
+        if (!empty($admin_settings['border_radius'])) {
+            $config['border_radius'] = sanitize_text_field($admin_settings['border_radius']);
+        }
+    } else {
+        // 2. Try to load from JSON file
+        $json_config = rbf_load_brand_json();
+        if ($json_config) {
+            $config = array_merge($default_config, $json_config);
+        } else {
+            $config = $default_config;
+        }
+    }
+    
+    // 3. Check for PHP constant override (still allows override even with admin settings)
+    if (defined('FPPR_ACCENT_COLOR')) {
+        $config['accent_color'] = FPPR_ACCENT_COLOR;
+        // Auto-generate variants when overridden by constant
+        $config['accent_color_light'] = rbf_lighten_color($config['accent_color'], 20);
+        $config['accent_color_dark'] = rbf_darken_color($config['accent_color'], 10);
+    }
+    if (defined('FPPR_ACCENT_COLOR_LIGHT')) {
+        $config['accent_color_light'] = FPPR_ACCENT_COLOR_LIGHT;
+    }
+    if (defined('FPPR_ACCENT_COLOR_DARK')) {
+        $config['accent_color_dark'] = FPPR_ACCENT_COLOR_DARK;
+    }
+    if (defined('FPPR_BORDER_RADIUS')) {
+        $config['border_radius'] = FPPR_BORDER_RADIUS;
+    }
+    
+    // 4. Apply filter for programmatic override (highest priority)
+    $config = apply_filters('fppr_brand_config', $config);
+    
+    return $config;
+}
+
+/**
+ * Load brand configuration from JSON file
+ */
+function rbf_load_brand_json() {
+    // Look for fppr-brand.json in plugin directory first
+    $plugin_json = RBF_PLUGIN_DIR . 'fppr-brand.json';
+    
+    // Then check wp-content directory for global overrides
+    $global_json = WP_CONTENT_DIR . '/fppr-brand.json';
+    
+    $json_file = file_exists($global_json) ? $global_json : $plugin_json;
+    
+    if (!file_exists($json_file)) {
+        return false;
+    }
+    
+    $json_content = file_get_contents($json_file);
+    if ($json_content === false) {
+        return false;
+    }
+    
+    $config = json_decode($json_content, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log('FPPR Brand Config: Invalid JSON in ' . $json_file);
+        return false;
+    }
+    
+    return $config;
+}
+
+/**
+ * Get accent color for current context (with shortcode override support)
+ */
+function rbf_get_accent_color($override_color = '') {
+    if (!empty($override_color)) {
+        return sanitize_hex_color($override_color);
+    }
+    
+    $config = rbf_get_brand_config();
+    return $config['accent_color'];
+}
+
+/**
+ * Generate CSS variables for brand configuration
+ */
+function rbf_generate_brand_css_vars($accent_override = '') {
+    $config = rbf_get_brand_config();
+    
+    // Allow single-instance override
+    if (!empty($accent_override)) {
+        $config['accent_color'] = sanitize_hex_color($accent_override);
+        // Auto-generate light/dark variants if only accent is overridden
+        $config['accent_color_light'] = rbf_lighten_color($config['accent_color'], 20);
+        $config['accent_color_dark'] = rbf_darken_color($config['accent_color'], 10);
+    }
+    
+    $css_vars = [
+        '--fppr-accent' => $config['accent_color'],
+        '--fppr-accent-light' => $config['accent_color_light'],
+        '--fppr-accent-dark' => $config['accent_color_dark'],
+        '--fppr-secondary' => $config['secondary_color'],
+        '--fppr-radius' => $config['border_radius'],
+        // Maintain backward compatibility
+        '--rbf-primary' => $config['accent_color'],
+        '--rbf-primary-light' => $config['accent_color_light'],
+        '--rbf-primary-dark' => $config['accent_color_dark'],
+    ];
+    
+    return $css_vars;
+}
+
+/**
+ * Lighten a hex color by percentage
+ */
+function rbf_lighten_color($hex, $percent) {
+    $hex = ltrim($hex, '#');
+    if (strlen($hex) == 3) {
+        $hex = str_repeat($hex[0], 2) . str_repeat($hex[1], 2) . str_repeat($hex[2], 2);
+    }
+    
+    $r = hexdec(substr($hex, 0, 2));
+    $g = hexdec(substr($hex, 2, 2));
+    $b = hexdec(substr($hex, 4, 2));
+    
+    // Lighten by moving towards white (255)
+    $r = min(255, $r + ((255 - $r) * $percent / 100));
+    $g = min(255, $g + ((255 - $g) * $percent / 100));
+    $b = min(255, $b + ((255 - $b) * $percent / 100));
+    
+    return sprintf('#%02x%02x%02x', round($r), round($g), round($b));
+}
+
+/**
+ * Darken a hex color by percentage
+ */
+function rbf_darken_color($hex, $percent) {
+    $hex = ltrim($hex, '#');
+    if (strlen($hex) == 3) {
+        $hex = str_repeat($hex[0], 2) . str_repeat($hex[1], 2) . str_repeat($hex[2], 2);
+    }
+    
+    $r = hexdec(substr($hex, 0, 2));
+    $g = hexdec(substr($hex, 2, 2));
+    $b = hexdec(substr($hex, 4, 2));
+    
+    $r = max(0, $r - ($r * $percent / 100));
+    $g = max(0, $g - ($g * $percent / 100));
+    $b = max(0, $b - ($b * $percent / 100));
+    
+    return sprintf('#%02x%02x%02x', $r, $g, $b);
 }

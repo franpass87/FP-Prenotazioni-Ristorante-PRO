@@ -3,10 +3,11 @@
  */
 
 :root {
-    --rbf-primary: #000000;
-    --rbf-primary-light: #333333;
-    --rbf-primary-dark: #000000;
-    --rbf-secondary: #f8b500;
+    /* Legacy variables (will be overridden by brand system) */
+    --rbf-primary: var(--fppr-accent, #000000);
+    --rbf-primary-light: var(--fppr-accent-light, #333333);
+    --rbf-primary-dark: var(--fppr-accent-dark, #000000);
+    --rbf-secondary: var(--fppr-secondary, #f8b500);
     --rbf-success: #28a745;
     --rbf-error: #dc3545;
     --rbf-text: #333;
@@ -15,7 +16,7 @@
     --rbf-bg-light: #f8f9fa;
     --rbf-shadow: 0 2px 8px rgba(0,0,0,0.1);
     --rbf-shadow-hover: 0 4px 16px rgba(0,0,0,0.15);
-    --rbf-radius: 8px;
+    --rbf-radius: var(--fppr-radius, 8px);
     --rbf-transition: all 0.3s ease;
 }
 

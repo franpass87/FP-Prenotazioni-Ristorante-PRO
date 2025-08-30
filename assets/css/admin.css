@@ -3,15 +3,16 @@
  */
 
 :root {
-    --rbf-admin-primary: #000000;
-    --rbf-admin-primary-light: #333333;
-    --rbf-admin-primary-dark: #000000;
-    --rbf-admin-secondary: #f8b500;
+    /* Legacy admin variables (will be overridden by brand system) */
+    --rbf-admin-primary: var(--fppr-accent, #000000);
+    --rbf-admin-primary-light: var(--fppr-accent-light, #333333);
+    --rbf-admin-primary-dark: var(--fppr-accent-dark, #000000);
+    --rbf-admin-secondary: var(--fppr-secondary, #f8b500);
     --rbf-admin-text: #1d2327;
     --rbf-admin-border: #e1e5e9;
     --rbf-admin-bg: #f7f7f9;
     --rbf-admin-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    --rbf-admin-radius: 10px;
+    --rbf-admin-radius: var(--fppr-radius, 10px);
     --rbf-admin-transition: all 0.3s ease;
 }
 

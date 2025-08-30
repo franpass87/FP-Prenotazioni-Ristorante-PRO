@@ -199,6 +199,7 @@ function rbf_sanitize_settings_callback($input) {
         // Text fields
         'orari_pranzo' => 'text', 'orari_cena' => 'text', 'orari_aperitivo' => 'text',
         'brevo_api' => 'text', 'ga4_api_secret' => 'text', 'meta_access_token' => 'text',
+        'border_radius' => 'text',
         
         // Email fields  
         'notification_email' => 'email', 'webmaster_email' => 'email',
@@ -237,6 +238,21 @@ function rbf_sanitize_settings_callback($input) {
         }
     } else {
         $output['meta_pixel_id'] = $defaults['meta_pixel_id'] ?? '';
+    }
+
+    // Special validation for brand colors
+    if (isset($input['accent_color']) && !empty($input['accent_color'])) {
+        $color = sanitize_hex_color($input['accent_color']);
+        $output['accent_color'] = $color ? $color : '#000000';
+    } else {
+        $output['accent_color'] = '';
+    }
+    
+    if (isset($input['secondary_color']) && !empty($input['secondary_color'])) {
+        $color = sanitize_hex_color($input['secondary_color']);
+        $output['secondary_color'] = $color ? $color : '#f8b500';
+    } else {
+        $output['secondary_color'] = '';
     }
 
     $days = ['mon','tue','wed','thu','fri','sat','sun'];
@@ -303,6 +319,30 @@ function rbf_enqueue_admin_styles($hook) {
         strpos($hook,'edit.php?post_type=rbf_booking') === false) return;
 
     wp_enqueue_style('rbf-admin-css', plugin_dir_url(dirname(__FILE__)) . 'assets/css/admin.css', [], rbf_get_asset_version());
+    
+    // Enqueue WordPress color picker for settings page
+    if ($hook === 'prenotazioni_page_rbf_settings') {
+        wp_enqueue_style('wp-color-picker');
+        wp_enqueue_script('wp-color-picker');
+    }
+    
+    // Inject brand CSS variables for admin
+    rbf_inject_brand_css_vars_admin();
+}
+
+/**
+ * Inject brand CSS variables for admin interface
+ */
+function rbf_inject_brand_css_vars_admin() {
+    $css_vars = rbf_generate_brand_css_vars();
+    
+    $css = ":root {\n";
+    foreach ($css_vars as $var => $value) {
+        $css .= "    $var: $value;\n";
+    }
+    $css .= "}\n";
+    
+    wp_add_inline_style('rbf-admin-css', $css);
 }
 
 /**
@@ -316,6 +356,48 @@ function rbf_settings_page_html() {
         <form method="post" action="options.php">
             <?php settings_fields('rbf_opts_group'); ?>
             <table class="form-table" role="presentation">
+                <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Configurazione Brand e Colori')); ?></h2></th></tr>
+                <tr>
+                    <th><label for="rbf_accent_color"><?php echo esc_html(rbf_translate_string('Colore Primario')); ?></label></th>
+                    <td>
+                        <input type="color" id="rbf_accent_color" name="rbf_settings[accent_color]" value="<?php echo esc_attr($options['accent_color'] ?? '#000000'); ?>" class="rbf-color-picker">
+                        <p class="description"><?php echo esc_html(rbf_translate_string('Colore principale utilizzato per pulsanti, evidenziazioni e elementi attivi')); ?></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="rbf_secondary_color"><?php echo esc_html(rbf_translate_string('Colore Secondario')); ?></label></th>
+                    <td>
+                        <input type="color" id="rbf_secondary_color" name="rbf_settings[secondary_color]" value="<?php echo esc_attr($options['secondary_color'] ?? '#f8b500'); ?>" class="rbf-color-picker">
+                        <p class="description"><?php echo esc_html(rbf_translate_string('Colore secondario per accenti e elementi complementari')); ?></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="rbf_border_radius"><?php echo esc_html(rbf_translate_string('Raggio Angoli')); ?></label></th>
+                    <td>
+                        <select id="rbf_border_radius" name="rbf_settings[border_radius]">
+                            <option value="0px" <?php selected($options['border_radius'] ?? '8px', '0px'); ?>><?php echo esc_html(rbf_translate_string('Squadrato (0px)')); ?></option>
+                            <option value="4px" <?php selected($options['border_radius'] ?? '8px', '4px'); ?>><?php echo esc_html(rbf_translate_string('Leggermente arrotondato (4px)')); ?></option>
+                            <option value="8px" <?php selected($options['border_radius'] ?? '8px', '8px'); ?>><?php echo esc_html(rbf_translate_string('Arrotondato (8px)')); ?></option>
+                            <option value="12px" <?php selected($options['border_radius'] ?? '8px', '12px'); ?>><?php echo esc_html(rbf_translate_string('Molto arrotondato (12px)')); ?></option>
+                            <option value="16px" <?php selected($options['border_radius'] ?? '8px', '16px'); ?>><?php echo esc_html(rbf_translate_string('Estremamente arrotondato (16px)')); ?></option>
+                        </select>
+                        <p class="description"><?php echo esc_html(rbf_translate_string('Determina quanto arrotondati appaiono gli angoli di pulsanti e campi')); ?></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th><?php echo esc_html(rbf_translate_string('Anteprima')); ?></th>
+                    <td>
+                        <div id="rbf-brand-preview" style="padding: 20px; border: 1px solid #ddd; background: #f9f9f9; max-width: 400px;">
+                            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                                <button type="button" id="preview-primary-btn" style="padding: 10px 20px; background: var(--preview-accent, #000000); color: white; border: none; cursor: pointer; border-radius: var(--preview-radius, 8px);"><?php echo esc_html(rbf_translate_string('Pulsante Principale')); ?></button>
+                                <button type="button" id="preview-secondary-btn" style="padding: 10px 20px; background: var(--preview-secondary, #f8b500); color: white; border: none; cursor: pointer; border-radius: var(--preview-radius, 8px);"><?php echo esc_html(rbf_translate_string('Pulsante Secondario')); ?></button>
+                            </div>
+                            <input type="text" placeholder="<?php echo esc_attr(rbf_translate_string('Campo di esempio')); ?>" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: var(--preview-radius, 8px); margin-bottom: 10px;">
+                            <p style="margin: 0; font-size: 14px; color: #666;"><?php echo esc_html(rbf_translate_string('Questa anteprima mostra come appariranno i colori selezionati')); ?></p>
+                        </div>
+                    </td>
+                </tr>
+                
                 <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Configurazione Pasti')); ?></h2></th></tr>
                 <tr>
                     <th><label for="rbf_use_custom_meals"><?php echo esc_html(rbf_translate_string('Usa configurazione personalizzata')); ?></label></th>
@@ -425,6 +507,11 @@ function rbf_settings_page_html() {
                         
                         <script>
                         jQuery(document).ready(function($) {
+                            // Initialize WordPress color pickers
+                            $('.rbf-color-picker').wpColorPicker({
+                                change: updateBrandPreview
+                            });
+                            
                             // Toggle custom meals section
                             $('#rbf_use_custom_meals').change(function() {
                                 if ($(this).val() === 'yes') {
@@ -433,6 +520,34 @@ function rbf_settings_page_html() {
                                     $('#custom_meals_section').hide();
                                 }
                             });
+                            
+                            // Brand preview functionality
+                            function updateBrandPreview() {
+                                var accentColor = $('#rbf_accent_color').val();
+                                var secondaryColor = $('#rbf_secondary_color').val();
+                                var borderRadius = $('#rbf_border_radius').val();
+                                
+                                var preview = $('#rbf-brand-preview');
+                                preview.css('--preview-accent', accentColor);
+                                preview.css('--preview-secondary', secondaryColor);
+                                preview.css('--preview-radius', borderRadius);
+                                
+                                $('#preview-primary-btn').css({
+                                    'background': accentColor,
+                                    'border-radius': borderRadius
+                                });
+                                $('#preview-secondary-btn').css({
+                                    'background': secondaryColor,
+                                    'border-radius': borderRadius
+                                });
+                                preview.find('input').css('border-radius', borderRadius);
+                            }
+                            
+                            // Update preview when colors or radius change
+                            $('#rbf_accent_color, #rbf_secondary_color, #rbf_border_radius').change(updateBrandPreview);
+                            
+                            // Initialize preview
+                            updateBrandPreview();
                             
                             // Add new meal
                             $('#add-meal').click(function() {

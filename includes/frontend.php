@@ -39,6 +39,9 @@ function rbf_enqueue_frontend_assets() {
 
     // Frontend styles
     wp_enqueue_style('rbf-frontend-css', plugin_dir_url(dirname(__FILE__)) . 'assets/css/frontend.css', ['rbf-flatpickr-css'], rbf_get_asset_version());
+    
+    // Inject brand CSS variables globally
+    rbf_inject_brand_css_vars();
 
     // Frontend script (must be enqueued before wp_localize_script)
     wp_enqueue_script('rbf-frontend-js', plugin_dir_url(dirname(__FILE__)) . 'assets/js/frontend.js', $deps, rbf_get_asset_version(), true);
@@ -85,6 +88,65 @@ function rbf_enqueue_frontend_assets() {
             'privacyRequired' => rbf_translate_string('Devi accettare la Privacy Policy per procedere.'),
         ],
     ]);
+}
+
+/**
+ * Inject brand CSS variables globally
+ */
+function rbf_inject_brand_css_vars($accent_override = '') {
+    $css_vars = rbf_generate_brand_css_vars($accent_override);
+    
+    $css = ":root {\n";
+    foreach ($css_vars as $var => $value) {
+        $css .= "    $var: $value;\n";
+    }
+    $css .= "}\n";
+    
+    wp_add_inline_style('rbf-frontend-css', $css);
+}
+
+/**
+ * Inject CSS for a specific shortcode instance
+ */
+function rbf_inject_instance_css($atts) {
+    $accent_override = !empty($atts['accent_color']) ? sanitize_hex_color($atts['accent_color']) : '';
+    $radius_override = !empty($atts['border_radius']) ? sanitize_text_field($atts['border_radius']) : '';
+    
+    if (!$accent_override && !$radius_override) {
+        return;
+    }
+    
+    $css_vars = rbf_generate_brand_css_vars($accent_override);
+    
+    // Override radius if provided
+    if ($radius_override) {
+        $css_vars['--fppr-radius'] = $radius_override;
+        $css_vars['--rbf-radius'] = $radius_override;
+    }
+    
+    // Generate unique ID for this instance
+    static $instance_counter = 0;
+    $instance_counter++;
+    $instance_id = 'rbf-instance-' . $instance_counter;
+    
+    $css = "#{$instance_id} {\n";
+    foreach ($css_vars as $var => $value) {
+        $css .= "    $var: $value;\n";
+    }
+    $css .= "}\n";
+    
+    // Add CSS to the page
+    wp_add_inline_style('rbf-frontend-css', $css);
+    
+    // Add instance ID to the form container via JavaScript
+    wp_add_inline_script('rbf-frontend-js', "
+        document.addEventListener('DOMContentLoaded', function() {
+            var containers = document.querySelectorAll('.rbf-form-container');
+            if (containers.length >= {$instance_counter}) {
+                containers[{$instance_counter} - 1].id = '{$instance_id}';
+            }
+        });
+    ");
 }
 
 /**
@@ -280,7 +342,18 @@ function rbf_render_customer_booking_management() {
  * Booking form shortcode
  */
 add_shortcode('ristorante_booking_form', 'rbf_render_booking_form');
-function rbf_render_booking_form() {
+function rbf_render_booking_form($atts = []) {
+    // Parse shortcode attributes
+    $atts = shortcode_atts([
+        'accent_color' => '', // Allow accent color override
+        'border_radius' => '', // Allow border radius override
+    ], $atts);
+    
+    // Inject custom CSS if accent color is provided
+    if (!empty($atts['accent_color'])) {
+        rbf_inject_instance_css($atts);
+    }
+    
     ob_start(); ?>
     <div class="rbf-form-container">
         <div id="rbf-message-anchor"></div>
