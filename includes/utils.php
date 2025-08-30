@@ -15,15 +15,6 @@ if (!defined('ABSPATH')) {
  */
 function rbf_get_default_settings() {
     return [
-        'capienza_pranzo' => 30,
-        'capienza_cena' => 40,
-        'capienza_aperitivo' => 25,
-        'orari_pranzo' => '12:00,12:30,13:00,13:30,14:00',
-        'orari_cena' => '19:00,19:30,20:00,20:30',
-        'orari_aperitivo' => '17:00,17:30,18:00',
-        'valore_pranzo' => 35.00,
-        'valore_cena' => 50.00,
-        'valore_aperitivo' => 15.00,
         'open_mon' => 'yes','open_tue' => 'yes','open_wed' => 'yes','open_thu' => 'yes','open_fri' => 'yes','open_sat' => 'yes','open_sun' => 'yes',
         'ga4_id' => '',
         'ga4_api_secret' => '',
