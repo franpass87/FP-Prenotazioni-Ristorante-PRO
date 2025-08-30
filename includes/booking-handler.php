@@ -69,6 +69,33 @@ function rbf_handle_booking_submission() {
         rbf_handle_error(sprintf(rbf_translate_string('%s non è disponibile in questo giorno.'), $meal_name), 'meal_day_validation', $redirect_url . $anchor);
         return;
     }
+
+    // Validate that the date is not in the closed dates list
+    $options = rbf_get_settings();
+    
+    // Check if restaurant is open on this day of the week
+    $day_of_week = date('w', strtotime($date));
+    $day_keys = ['sun','mon','tue','wed','thu','fri','sat'];
+    $day_key = $day_keys[$day_of_week];
+
+    if (($options["open_{$day_key}"] ?? 'no') !== 'yes') {
+        rbf_handle_error(rbf_translate_string('Il ristorante è chiuso in questo giorno della settimana.'), 'closed_day_validation', $redirect_url . $anchor);
+        return;
+    }
+
+    // Check specific closed dates
+    $closed_specific = rbf_get_closed_specific($options);
+    if (in_array($date, $closed_specific['singles'], true)) {
+        rbf_handle_error(rbf_translate_string('Il ristorante è chiuso nella data selezionata.'), 'closed_date_validation', $redirect_url . $anchor);
+        return;
+    }
+    
+    foreach ($closed_specific['ranges'] as $range) {
+        if ($date >= $range['from'] && $date <= $range['to']) {
+            rbf_handle_error(rbf_translate_string('Il ristorante è chiuso nella data selezionata.'), 'closed_date_range_validation', $redirect_url . $anchor);
+            return;
+        }
+    }
     
     // Validate time data format
     if (strpos($time_data, '|') === false) {
