@@ -132,10 +132,10 @@ function rbf_custom_column_data($column, $post_id) {
         case 'rbf_value':
             $people = intval(get_post_meta($post_id, 'rbf_persone', true));
             $meal = get_post_meta($post_id, 'rbf_meal', true);
-            $options = rbf_get_settings();
-            // For brunch, use lunch value for tracking
-            $meal_for_value = ($meal === 'brunch') ? 'pranzo' : $meal;
-            $valore_pp = (float) ($options['valore_' . $meal_for_value] ?? 0);
+            
+            // Get meal price from custom meal configuration
+            $meal_config = rbf_get_meal_config($meal);
+            $valore_pp = $meal_config ? (float) $meal_config['price'] : 0;
             $valore_tot = $valore_pp * $people;
             if ($valore_tot > 0) {
                 echo '<strong>€' . number_format($valore_tot, 2) . '</strong>';
@@ -202,10 +202,7 @@ function rbf_sanitize_settings_callback($input) {
         'border_radius' => 'text',
         
         // Email fields  
-        'notification_email' => 'email', 'webmaster_email' => 'email',
-        
-        // Float fields
-        'valore_pranzo' => 'float', 'valore_cena' => 'float', 'valore_aperitivo' => 'float'
+        'notification_email' => 'email', 'webmaster_email' => 'email'
     ];
     
     // Bulk sanitize using helper
@@ -264,8 +261,8 @@ function rbf_sanitize_settings_callback($input) {
     $output['min_advance_minutes'] = 60; // Fixed at 1 hour
     $output['max_advance_minutes'] = 0;  // No maximum limit
 
-    // Handle use_custom_meals setting
-    $output['use_custom_meals'] = (isset($input['use_custom_meals']) && $input['use_custom_meals'] === 'yes') ? 'yes' : 'no';
+    // Ensure custom meals are always enabled
+    $output['use_custom_meals'] = 'yes';
 
     // Handle custom_meals array
     if (isset($input['custom_meals']) && is_array($input['custom_meals'])) {
@@ -399,18 +396,8 @@ function rbf_settings_page_html() {
                 </tr>
                 
                 <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Configurazione Pasti')); ?></h2></th></tr>
-                <tr>
-                    <th><label for="rbf_use_custom_meals"><?php echo esc_html(rbf_translate_string('Usa configurazione personalizzata')); ?></label></th>
-                    <td>
-                        <select id="rbf_use_custom_meals" name="rbf_settings[use_custom_meals]">
-                            <option value="no" <?php selected($options['use_custom_meals'], 'no'); ?>><?php echo esc_html(rbf_translate_string('No - Usa impostazioni classiche')); ?></option>
-                            <option value="yes" <?php selected($options['use_custom_meals'], 'yes'); ?>><?php echo esc_html(rbf_translate_string('Sì - Configura pasti personalizzati')); ?></option>
-                        </select>
-                        <p class="description"><?php echo esc_html(rbf_translate_string('Scegli se utilizzare la configurazione classica o quella personalizzata per i pasti.')); ?></p>
-                    </td>
-                </tr>
                 
-                <tr id="custom_meals_section" style="display: <?php echo esc_attr(($options['use_custom_meals'] === 'yes') ? 'table-row' : 'none'); ?>;">
+                <tr>
                     <th><?php echo esc_html(rbf_translate_string('Pasti Personalizzati')); ?></th>
                     <td>
                         <div id="custom-meals-container">
@@ -510,15 +497,6 @@ function rbf_settings_page_html() {
                             // Initialize WordPress color pickers
                             $('.rbf-color-picker').wpColorPicker({
                                 change: updateBrandPreview
-                            });
-                            
-                            // Toggle custom meals section
-                            $('#rbf_use_custom_meals').change(function() {
-                                if ($(this).val() === 'yes') {
-                                    $('#custom_meals_section').show();
-                                } else {
-                                    $('#custom_meals_section').hide();
-                                }
                             });
                             
                             // Brand preview functionality
@@ -625,33 +603,6 @@ function rbf_settings_page_html() {
                     </td>
                 </tr>
                 
-                <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Capienza e Orari (Classico)')); ?></h2></th></tr>
-                <tr><th><label for="rbf_capienza_pranzo"><?php echo esc_html(rbf_translate_string('Capienza Pranzo')); ?></label></th>
-                    <td><input type="number" id="rbf_capienza_pranzo" name="rbf_settings[capienza_pranzo]" value="<?php echo esc_attr($options['capienza_pranzo']); ?>"></td></tr>
-                <tr><th><label for="rbf_orari_pranzo"><?php echo esc_html(rbf_translate_string('Orari Pranzo (inclusa Domenica)')); ?></label></th>
-                    <td><input type="text" id="rbf_orari_pranzo" name="rbf_settings[orari_pranzo]" value="<?php echo esc_attr($options['orari_pranzo']); ?>" class="regular-text" placeholder="Es: 12:00,12:30,13:00"></td></tr>
-                <tr><th><label for="rbf_capienza_cena"><?php echo esc_html(rbf_translate_string('Capienza Cena')); ?></label></th>
-                    <td><input type="number" id="rbf_capienza_cena" name="rbf_settings[capienza_cena]" value="<?php echo esc_attr($options['capienza_cena']); ?>"></td></tr>
-                <tr><th><label for="rbf_orari_cena"><?php echo esc_html(rbf_translate_string('Orari Cena')); ?></label></th>
-                    <td><input type="text" id="rbf_orari_cena" name="rbf_settings[orari_cena]" value="<?php echo esc_attr($options['orari_cena']); ?>" class="regular-text" placeholder="Es: 19:00,19:30,20:00"></td></tr>
-                <tr><th><label for="rbf_capienza_aperitivo"><?php echo esc_html(rbf_translate_string('Capienza Aperitivo')); ?></label></th>
-                    <td><input type="number" id="rbf_capienza_aperitivo" name="rbf_settings[capienza_aperitivo]" value="<?php echo esc_attr($options['capienza_aperitivo']); ?>"></td></tr>
-                <tr><th><label for="rbf_orari_aperitivo"><?php echo esc_html(rbf_translate_string('Orari Aperitivo')); ?></label></th>
-                    <td><input type="text" id="rbf_orari_aperitivo" name="rbf_settings[orari_aperitivo]" value="<?php echo esc_attr($options['orari_aperitivo']); ?>" class="regular-text" placeholder="Es: 17:00,17:30,18:00"></td></tr>
-
-                <tr>
-                    <th><?php echo esc_html(rbf_translate_string('Giorni aperti')); ?></th>
-                    <td>
-                        <?php
-                        $days = ['mon'=>'Lunedì','tue'=>'Martedì','wed'=>'Mercoledì','thu'=>'Giovedì','fri'=>'Venerdì','sat'=>'Sabato','sun'=>'Domenica'];
-                        foreach ($days as $key=>$label) {
-                            $checked = ($options["open_{$key}"] ?? 'yes') === 'yes' ? 'checked' : '';
-                            echo "<label><input type='checkbox' name='rbf_settings[open_{$key}]' value='yes' {$checked}> " . esc_html(rbf_translate_string($label)) . "</label><br>";
-                        }
-                        ?>
-                    </td>
-                </tr>
-
                 <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Chiusure Straordinarie')); ?></h2></th></tr>
                 <tr>
                     <th><label for="rbf_closed_dates"><?php echo esc_html(rbf_translate_string('Date Chiuse (una per riga, formato Y-m-d o Y-m-d - Y-m-d)')); ?></label></th>
@@ -660,14 +611,6 @@ function rbf_settings_page_html() {
 
                 <!-- Advance booking time limits removed as per user request - now using fixed 1-hour minimum -->
                 <!-- <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Limiti Temporali Prenotazioni')); ?></h2></th></tr> -->
-
-                <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Valore Economico Pasti (per Tracking)')); ?></h2></th></tr>
-                <tr><th><label for="rbf_valore_pranzo"><?php echo esc_html(rbf_translate_string('Valore medio Pranzo (€)')); ?></label></th>
-                    <td><input type="number" step="0.01" id="rbf_valore_pranzo" name="rbf_settings[valore_pranzo]" value="<?php echo esc_attr($options['valore_pranzo']); ?>"></td></tr>
-                <tr><th><label for="rbf_valore_cena"><?php echo esc_html(rbf_translate_string('Valore medio Cena (€)')); ?></label></th>
-                    <td><input type="number" step="0.01" id="rbf_valore_cena" name="rbf_settings[valore_cena]" value="<?php echo esc_attr($options['valore_cena']); ?>"></td></tr>
-                <tr><th><label for="rbf_valore_aperitivo"><?php echo esc_html(rbf_translate_string('Valore medio Aperitivo (€)')); ?></label></th>
-                    <td><input type="number" step="0.01" id="rbf_valore_aperitivo" name="rbf_settings[valore_aperitivo]" value="<?php echo esc_attr($options['valore_aperitivo']); ?>"></td></tr>
 
                 <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Integrazioni e Marketing')); ?></h2></th></tr>
                 <tr><th><label for="rbf_notification_email"><?php echo esc_html(rbf_translate_string('Email per Notifiche Ristorante')); ?></label></th>
@@ -956,9 +899,9 @@ function rbf_add_booking_page_html() {
         ]);
 
         if (!is_wp_error($post_id)) {
-            // For brunch, use lunch value for tracking
-            $meal_for_value = ($meal === 'brunch') ? 'pranzo' : $meal;
-            $valore_pp = (float) ($options['valore_' . $meal_for_value] ?? 0);
+            // Get meal price from custom meal configuration
+            $meal_config = rbf_get_meal_config($meal);
+            $valore_pp = $meal_config ? (float) $meal_config['price'] : 0;
             $valore_tot = $valore_pp * $people;
             $event_id   = 'rbf_' . $post_id;
 
@@ -1372,10 +1315,9 @@ function rbf_get_booking_analytics($start_date, $end_date) {
         $analytics['total_bookings']++;
         $analytics['total_people'] += $people;
         
-        // Revenue calculation
-        // For brunch, use lunch value for tracking
-        $meal_for_value = ($meal === 'brunch') ? 'pranzo' : $meal;
-        $meal_value = (float) ($options['valore_' . $meal_for_value] ?? 0);
+        // Revenue calculation using custom meal configuration
+        $meal_config = rbf_get_meal_config($meal);
+        $meal_value = $meal_config ? (float) $meal_config['price'] : 0;
         $booking_revenue = $meal_value * $people;
         $analytics['total_revenue'] += $booking_revenue;
         

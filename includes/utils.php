@@ -15,15 +15,6 @@ if (!defined('ABSPATH')) {
  */
 function rbf_get_default_settings() {
     return [
-        'capienza_pranzo' => 30,
-        'capienza_cena' => 40,
-        'capienza_aperitivo' => 25,
-        'orari_pranzo' => '12:00,12:30,13:00,13:30,14:00',
-        'orari_cena' => '19:00,19:30,20:00,20:30',
-        'orari_aperitivo' => '17:00,17:30,18:00',
-        'valore_pranzo' => 35.00,
-        'valore_cena' => 50.00,
-        'valore_aperitivo' => 15.00,
         'open_mon' => 'yes','open_tue' => 'yes','open_wed' => 'yes','open_thu' => 'yes','open_fri' => 'yes','open_sat' => 'yes','open_sun' => 'yes',
         'ga4_id' => '',
         'ga4_api_secret' => '',
@@ -39,8 +30,8 @@ function rbf_get_default_settings() {
         'min_advance_minutes' => 60, // Fixed at 1 hour for system compatibility
         'max_advance_minutes' => 0, // No maximum limit
         
-        // New configurable meals system
-        'use_custom_meals' => 'no',
+        // Custom meals system (always enabled)
+        'use_custom_meals' => 'yes',
         'custom_meals' => rbf_get_default_custom_meals(),
     ];
 }
@@ -95,74 +86,16 @@ function rbf_get_default_custom_meals() {
 
 /**
  * Get active meals configuration
- * Returns either custom meals or legacy meal configuration
+ * Returns custom meals configuration only
  */
 function rbf_get_active_meals() {
     $options = wp_parse_args(get_option('rbf_settings', []), rbf_get_default_settings());
     
-    // If custom meals are enabled, return them
-    if (($options['use_custom_meals'] ?? 'no') === 'yes') {
-        $custom_meals = $options['custom_meals'] ?? rbf_get_default_custom_meals();
-        // Filter only enabled meals
-        return array_filter($custom_meals, function($meal) {
-            return $meal['enabled'] ?? false;
-        });
-    }
-    
-    // Fallback to legacy meal configuration
-    $legacy_meals = [];
-    
-    // Check each legacy meal type
-    $legacy_types = [
-        'pranzo' => 'Pranzo',
-        'aperitivo' => 'Aperitivo', 
-        'cena' => 'Cena'
-    ];
-    
-    foreach ($legacy_types as $id => $name) {
-        if (!empty($options["capienza_{$id}"]) && !empty($options["orari_{$id}"])) {
-            $legacy_meals[] = [
-                'id' => $id,
-                'name' => $name,
-                'capacity' => (int) $options["capienza_{$id}"],
-                'time_slots' => $options["orari_{$id}"],
-                'price' => (float) ($options["valore_{$id}"] ?? 0),
-                'enabled' => true,
-                'available_days' => rbf_get_legacy_available_days($options)
-            ];
-        }
-    }
-    
-    // Add brunch for Sunday only if we have lunch settings
-    if (!empty($options['capienza_pranzo']) && !empty($options['orari_pranzo'])) {
-        $legacy_meals[] = [
-            'id' => 'brunch',
-            'name' => 'Brunch',
-            'capacity' => (int) $options['capienza_pranzo'],
-            'time_slots' => $options['orari_pranzo'],
-            'price' => (float) ($options['valore_pranzo'] ?? 0),
-            'enabled' => true,
-            'available_days' => ['sun']
-        ];
-    }
-    
-    return $legacy_meals;
-}
-
-/**
- * Get legacy available days from global settings
- */
-function rbf_get_legacy_available_days($options) {
-    $days = [];
-    $day_mapping = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-    
-    foreach ($day_mapping as $day) {
-        if (($options["open_{$day}"] ?? 'yes') === 'yes') {
-            $days[] = $day;
-        }
-    }
-    
-    return $days;
+    $custom_meals = $options['custom_meals'] ?? rbf_get_default_custom_meals();
+    // Filter only enabled meals
+    return array_filter($custom_meals, function($meal) {
+        return $meal['enabled'] ?? false;
+    });
 }
 
 /**
@@ -313,10 +246,6 @@ function rbf_translate_string($text) {
         
         // New configurable meals system
         'Configurazione Pasti' => 'Meal Configuration',
-        'Usa configurazione personalizzata' => 'Use custom configuration',
-        'No - Usa impostazioni classiche' => 'No - Use classic settings',
-        'Sì - Configura pasti personalizzati' => 'Yes - Configure custom meals',
-        'Scegli se utilizzare la configurazione classica o quella personalizzata per i pasti.' => 'Choose whether to use the classic or custom configuration for meals.',
         'Pasti Personalizzati' => 'Custom Meals',
         'Pasto %d' => 'Meal %d',
         'Attivo' => 'Active',
@@ -330,7 +259,6 @@ function rbf_translate_string($text) {
         'Giorni disponibili' => 'Available Days',
         'Rimuovi Pasto' => 'Remove Meal',
         'Aggiungi Pasto' => 'Add Meal',
-        'Capienza e Orari (Classico)' => 'Capacity and Timetable (Classic)',
         'Tipo di pasto non valido.' => 'Invalid meal type.',
         '%s non è disponibile in questo giorno.' => '%s is not available on this day.',
         
@@ -350,10 +278,6 @@ function rbf_translate_string($text) {
         'Numero minimo di minuti richiesti in anticipo per le prenotazioni. Valore minimo 0, massimo 525600 (1 anno). Esempi: 60 = 1 ora, 1440 = 1 giorno. Nota: le prenotazioni per il pranzo dello stesso giorno sono consentite se effettuate prima delle 6:00.' => 'Minimum number of minutes required in advance for bookings. Minimum value 0, maximum 525600 (1 year). Examples: 60 = 1 hour, 1440 = 1 day. Note: same-day lunch bookings are allowed if made before 6:00 AM.',
         'Minuti massimi in anticipo per prenotare' => 'Maximum minutes in advance to book',
         'Numero massimo di minuti entro cui è possibile prenotare. Valore minimo 0, massimo 525600 (1 anno). Esempi: 10080 = 7 giorni, 43200 = 30 giorni.' => 'Maximum number of minutes within which it is possible to book. Minimum value 0, maximum 525600 (1 year). Examples: 10080 = 7 days, 43200 = 30 days.',
-        'Valore Economico Pasti (per Tracking)' => 'Meal Economic Value (for Tracking)',
-        'Valore medio Pranzo (€)' => 'Average Lunch Value (€)',
-        'Valore medio Cena (€)' => 'Average Dinner Value (€)',
-        'Valore medio Aperitivo (€)' => 'Average Aperitif Value (€)',
         'Integrazioni e Marketing' => 'Integrations & Marketing',
         'Email per Notifiche Ristorante' => 'Restaurant Notification Email',
         'ID misurazione GA4' => 'GA4 Measurement ID',

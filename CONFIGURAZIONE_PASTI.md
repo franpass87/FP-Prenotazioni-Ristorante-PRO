@@ -2,7 +2,7 @@
 
 ## Panoramica
 
-Questo sistema permette di configurare in modo flessibile i pasti disponibili per le prenotazioni, sostituendo la configurazione hardcoded precedente con un sistema completamente personalizzabile.
+Questo sistema permette di configurare in modo completamente flessibile i pasti disponibili per le prenotazioni. La configurazione personalizzata è l'unico metodo supportato, permettendo la massima flessibilità per ogni tipo di ristorante.
 
 ## Caratteristiche
 
@@ -25,23 +25,18 @@ Per ogni pasto puoi configurare:
 - **Orari**: Slot temporali disponibili (formato: `12:00,12:30,13:00`)
 - **Prezzo**: Valore economico per tracking e analytics
 - **Stato**: Attivo/Disattivo
-
-### 🔄 Retrocompatibilità
-- **Modalità Legacy**: Il sistema continua a funzionare con le impostazioni classiche
-- **Migrazione graduale**: Puoi passare alla nuova configurazione quando sei pronto
-- **Fallback automatico**: Se mancano configurazioni personalizzate, usa quelle classiche
+- **Tooltip**: Testo informativo opzionale per ogni pasto
 
 ## Come Usare
 
-### 1. Abilitare la Configurazione Personalizzata
+### 1. Accedere alla Configurazione
 1. Vai in **Prenotazioni > Impostazioni**
-2. Nella sezione "Configurazione Pasti"
-3. Cambia da "No - Usa impostazioni classiche" a "Sì - Configura pasti personalizzati"
+2. Naviga alla sezione "Configurazione Pasti"
+3. Il sistema di configurazione personalizzata è sempre attivo
 
 ### 2. Configurare i Pasti
-1. La sezione "Pasti Personalizzati" diventerà visibile
-2. Modifica i pasti esistenti o usa "Aggiungi Pasto" per crearne di nuovi
-3. Per ogni pasto configura:
+1. Modifica i pasti esistenti o usa "Aggiungi Pasto" per crearne di nuovi
+2. Per ogni pasto configura:
    - **Attivo**: Spunta per attivare il pasto
    - **ID**: Identificatore univoco (es: `pranzo`, `cena_speciale`)
    - **Nome**: Testo che appare nel frontend (es: "Pranzo", "Cena Gourmet")
@@ -49,6 +44,7 @@ Per ogni pasto puoi configurare:
    - **Orari**: Orari separati da virgola (es: `19:00,19:30,20:00`)
    - **Prezzo**: Valore in euro per tracking
    - **Giorni disponibili**: Seleziona i giorni della settimana
+   - **Tooltip**: Testo informativo opzionale che appare nel frontend
 
 ### 3. Salvare le Impostazioni
 Clicca "Salva le modifiche" per applicare la nuova configurazione.
@@ -115,7 +111,9 @@ Pasto 3: Cena Degustazione
 ## Note Tecniche
 
 - Il sistema mantiene piena compatibilità con le prenotazioni esistenti
-- I nuovi pasti appaiono automaticamente nel frontend di prenotazione
+- I nuovi pasti appaiono automaticamente nel frontend di prenotazione  
 - La validazione impedisce prenotazioni per pasti non disponibili nel giorno selezionato
 - Il sistema di capacità e analytics è completamente integrato
 - Tutte le traduzioni italiano/inglese sono supportate
+- La configurazione personalizzata è l'unico metodo supportato per la massima flessibilità
+- Il sistema è predisposto per future estensioni (nuovi campi, regole, automazioni)
