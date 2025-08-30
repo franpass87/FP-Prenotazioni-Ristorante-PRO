@@ -420,6 +420,25 @@ function rbf_translate_string($text) {
         'Aumenta numero persone' => 'Increase number of people',
         'Inserisci eventuali allergie o note particolari...' => 'Enter any allergies or special notes...',
         
+        // Brand configuration strings
+        'Configurazione Brand e Colori' => 'Brand and Color Configuration',
+        'Colore Primario' => 'Primary Color',
+        'Colore Secondario' => 'Secondary Color',
+        'Raggio Angoli' => 'Border Radius',
+        'Anteprima' => 'Preview',
+        'Pulsante Principale' => 'Primary Button',
+        'Pulsante Secondario' => 'Secondary Button',
+        'Campo di esempio' => 'Example field',
+        'Questa anteprima mostra come appariranno i colori selezionati' => 'This preview shows how the selected colors will appear',
+        'Colore principale utilizzato per pulsanti, evidenziazioni e elementi attivi' => 'Primary color used for buttons, highlights, and active elements',
+        'Colore secondario per accenti e elementi complementari' => 'Secondary color for accents and complementary elements',
+        'Determina quanto arrotondati appaiono gli angoli di pulsanti e campi' => 'Determines how rounded buttons and field corners appear',
+        'Squadrato (0px)' => 'Square (0px)',
+        'Leggermente arrotondato (4px)' => 'Slightly rounded (4px)',
+        'Arrotondato (8px)' => 'Rounded (8px)',
+        'Molto arrotondato (12px)' => 'Very rounded (12px)',
+        'Estremamente arrotondato (16px)' => 'Extremely rounded (16px)',
+        
         // Enhanced booking status system
         'Stato Prenotazione' => 'Booking Status',
         'In Attesa' => 'Pending',
@@ -923,7 +942,7 @@ function rbf_update_booking_status($booking_id, $new_status, $note = '') {
  */
 
 /**
- * Get brand configuration with priority: JSON file > PHP constant > filter > default
+ * Get brand configuration with priority: Admin Settings > JSON file > PHP constant > filter > default
  */
 function rbf_get_brand_config() {
     // Start with default configuration
@@ -938,17 +957,41 @@ function rbf_get_brand_config() {
         'brand_name' => ''
     ];
     
-    // 1. Try to load from JSON file (highest priority for file-based config)
-    $json_config = rbf_load_brand_json();
-    if ($json_config) {
-        $config = array_merge($default_config, $json_config);
-    } else {
+    // 1. Check admin settings first (highest priority for user interface)
+    $admin_settings = get_option('rbf_settings', []);
+    if (!empty($admin_settings['accent_color']) || !empty($admin_settings['secondary_color']) || !empty($admin_settings['border_radius'])) {
         $config = $default_config;
+        
+        if (!empty($admin_settings['accent_color'])) {
+            $config['accent_color'] = sanitize_hex_color($admin_settings['accent_color']);
+            // Auto-generate light/dark variants
+            $config['accent_color_light'] = rbf_lighten_color($config['accent_color'], 20);
+            $config['accent_color_dark'] = rbf_darken_color($config['accent_color'], 10);
+        }
+        
+        if (!empty($admin_settings['secondary_color'])) {
+            $config['secondary_color'] = sanitize_hex_color($admin_settings['secondary_color']);
+        }
+        
+        if (!empty($admin_settings['border_radius'])) {
+            $config['border_radius'] = sanitize_text_field($admin_settings['border_radius']);
+        }
+    } else {
+        // 2. Try to load from JSON file
+        $json_config = rbf_load_brand_json();
+        if ($json_config) {
+            $config = array_merge($default_config, $json_config);
+        } else {
+            $config = $default_config;
+        }
     }
     
-    // 2. Check for PHP constant override
+    // 3. Check for PHP constant override (still allows override even with admin settings)
     if (defined('FPPR_ACCENT_COLOR')) {
         $config['accent_color'] = FPPR_ACCENT_COLOR;
+        // Auto-generate variants when overridden by constant
+        $config['accent_color_light'] = rbf_lighten_color($config['accent_color'], 20);
+        $config['accent_color_dark'] = rbf_darken_color($config['accent_color'], 10);
     }
     if (defined('FPPR_ACCENT_COLOR_LIGHT')) {
         $config['accent_color_light'] = FPPR_ACCENT_COLOR_LIGHT;
@@ -960,7 +1003,7 @@ function rbf_get_brand_config() {
         $config['border_radius'] = FPPR_BORDER_RADIUS;
     }
     
-    // 3. Apply filter for programmatic override (highest priority)
+    // 4. Apply filter for programmatic override (highest priority)
     $config = apply_filters('fppr_brand_config', $config);
     
     return $config;
