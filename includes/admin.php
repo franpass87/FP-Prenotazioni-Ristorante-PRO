@@ -603,10 +603,189 @@ function rbf_settings_page_html() {
                     </td>
                 </tr>
                 
-                <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Chiusure Straordinarie')); ?></h2></th></tr>
+                <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Eccezioni Calendario')); ?></h2></th></tr>
                 <tr>
-                    <th><label for="rbf_closed_dates"><?php echo esc_html(rbf_translate_string('Date Chiuse (una per riga, formato Y-m-d o Y-m-d - Y-m-d)')); ?></label></th>
-                    <td><textarea id="rbf_closed_dates" name="rbf_settings[closed_dates]" rows="5" class="large-text"><?php echo esc_textarea($options['closed_dates']); ?></textarea></td>
+                    <th><label for="rbf_closed_dates"><?php echo esc_html(rbf_translate_string('Gestione Eccezioni')); ?></label></th>
+                    <td>
+                        <div id="rbf_exceptions_manager">
+                            <p class="description" style="margin-bottom: 15px;">
+                                <?php echo esc_html(rbf_translate_string('Gestisci chiusure straordinarie, festività, eventi speciali e orari estesi.')); ?>
+                            </p>
+                            
+                            <div class="rbf-exception-add" style="background: #f9f9f9; padding: 15px; border: 1px solid #ddd; margin-bottom: 15px;">
+                                <h4 style="margin: 0 0 10px 0;"><?php echo esc_html(rbf_translate_string('Aggiungi Nuova Eccezione')); ?></h4>
+                                <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: end;">
+                                    <div>
+                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;"><?php echo esc_html(rbf_translate_string('Data')); ?></label>
+                                        <input type="date" id="exception_date" style="padding: 5px;">
+                                    </div>
+                                    <div>
+                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;"><?php echo esc_html(rbf_translate_string('Tipo')); ?></label>
+                                        <select id="exception_type" style="padding: 5px;">
+                                            <option value="closure"><?php echo esc_html(rbf_translate_string('Chiusura')); ?></option>
+                                            <option value="holiday"><?php echo esc_html(rbf_translate_string('Festività')); ?></option>
+                                            <option value="special"><?php echo esc_html(rbf_translate_string('Evento Speciale')); ?></option>
+                                            <option value="extended"><?php echo esc_html(rbf_translate_string('Orari Estesi')); ?></option>
+                                        </select>
+                                    </div>
+                                    <div id="special_hours_container" style="display: none;">
+                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;"><?php echo esc_html(rbf_translate_string('Orari Speciali')); ?></label>
+                                        <input type="text" id="special_hours" placeholder="es. 18:00-02:00" style="padding: 5px;">
+                                    </div>
+                                    <div style="flex-grow: 1;">
+                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;"><?php echo esc_html(rbf_translate_string('Descrizione')); ?></label>
+                                        <input type="text" id="exception_description" placeholder="<?php echo esc_attr(rbf_translate_string('es. Chiusura per ferie')); ?>" style="padding: 5px; width: 100%;">
+                                    </div>
+                                    <button type="button" id="add_exception_btn" style="padding: 8px 15px; background: var(--rbf-accent-color, #000); color: white; border: none; cursor: pointer;"><?php echo esc_html(rbf_translate_string('Aggiungi')); ?></button>
+                                </div>
+                            </div>
+                            
+                            <div class="rbf-exceptions-list" style="margin-bottom: 15px;">
+                                <h4><?php echo esc_html(rbf_translate_string('Eccezioni Attive')); ?></h4>
+                                <div id="exceptions_list_display"></div>
+                            </div>
+                            
+                            <textarea id="rbf_closed_dates" name="rbf_settings[closed_dates]" rows="8" class="large-text" style="font-family: monospace; font-size: 12px;"><?php echo esc_textarea($options['closed_dates']); ?></textarea>
+                            <p class="description">
+                                <?php echo esc_html(rbf_translate_string('Formato manuale: Data|Tipo|Orari|Descrizione (es. 2024-12-25|closure||Natale) oppure formato semplice (es. 2024-12-25)')); ?>
+                            </p>
+                        </div>
+                        
+                        <script>
+                        jQuery(document).ready(function($) {
+                            function updateExceptionDisplay() {
+                                const textarea = $('#rbf_closed_dates');
+                                const lines = textarea.val().split('\n').filter(line => line.trim());
+                                const display = $('#exceptions_list_display');
+                                
+                                display.empty();
+                                
+                                if (lines.length === 0) {
+                                    display.html('<p style="color: #666; font-style: italic;"><?php echo esc_js(rbf_translate_string('Nessuna eccezione configurata.')); ?></p>');
+                                    return;
+                                }
+                                
+                                lines.forEach(line => {
+                                    line = line.trim();
+                                    if (!line) return;
+                                    
+                                    let date, type, hours, description;
+                                    
+                                    if (line.includes('|')) {
+                                        const parts = line.split('|');
+                                        date = parts[0];
+                                        type = parts[1] || 'closure';
+                                        hours = parts[2] || '';
+                                        description = parts[3] || '';
+                                    } else {
+                                        date = line;
+                                        type = 'closure';
+                                        hours = '';
+                                        description = '<?php echo esc_js(rbf_translate_string('Chiusura')); ?>';
+                                    }
+                                    
+                                    const typeLabels = {
+                                        'closure': '<?php echo esc_js(rbf_translate_string('Chiusura')); ?>',
+                                        'holiday': '<?php echo esc_js(rbf_translate_string('Festività')); ?>',
+                                        'special': '<?php echo esc_js(rbf_translate_string('Evento Speciale')); ?>',
+                                        'extended': '<?php echo esc_js(rbf_translate_string('Orari Estesi')); ?>'
+                                    };
+                                    
+                                    const typeColors = {
+                                        'closure': '#dc3545',
+                                        'holiday': '#fd7e14',
+                                        'special': '#20c997',
+                                        'extended': '#0d6efd'
+                                    };
+                                    
+                                    const item = $('<div>').css({
+                                        'display': 'flex',
+                                        'justify-content': 'space-between',
+                                        'align-items': 'center',
+                                        'padding': '10px',
+                                        'margin': '5px 0',
+                                        'background': '#fff',
+                                        'border': '1px solid #ddd',
+                                        'border-left': '4px solid ' + (typeColors[type] || '#666')
+                                    });
+                                    
+                                    const info = $('<div>');
+                                    info.append($('<strong>').text(date + ' - ' + (typeLabels[type] || type)));
+                                    if (hours) info.append($('<br>')).append($('<span>').css('color', '#666').text('<?php echo esc_js(rbf_translate_string('Orari:')); ?> ' + hours));
+                                    if (description) info.append($('<br>')).append($('<span>').css('color', '#666').text(description));
+                                    
+                                    const deleteBtn = $('<button>').attr('type', 'button').css({
+                                        'background': '#dc3545',
+                                        'color': 'white',
+                                        'border': 'none',
+                                        'padding': '5px 10px',
+                                        'cursor': 'pointer',
+                                        'border-radius': '3px'
+                                    }).text('<?php echo esc_js(rbf_translate_string('Rimuovi')); ?>').click(function() {
+                                        if (confirm('<?php echo esc_js(rbf_translate_string('Sei sicuro di voler rimuovere questa eccezione?')); ?>')) {
+                                            const currentValue = textarea.val();
+                                            const newValue = currentValue.split('\n').filter(l => l.trim() !== line).join('\n');
+                                            textarea.val(newValue);
+                                            updateExceptionDisplay();
+                                        }
+                                    });
+                                    
+                                    item.append(info).append(deleteBtn);
+                                    display.append(item);
+                                });
+                            }
+                            
+                            // Show/hide special hours based on exception type
+                            $('#exception_type').change(function() {
+                                const type = $(this).val();
+                                const hoursContainer = $('#special_hours_container');
+                                if (type === 'special' || type === 'extended') {
+                                    hoursContainer.show();
+                                } else {
+                                    hoursContainer.hide();
+                                    $('#special_hours').val('');
+                                }
+                            });
+                            
+                            // Add exception
+                            $('#add_exception_btn').click(function() {
+                                const date = $('#exception_date').val();
+                                const type = $('#exception_type').val();
+                                const hours = $('#special_hours').val();
+                                const description = $('#exception_description').val();
+                                
+                                if (!date) {
+                                    alert('<?php echo esc_js(rbf_translate_string('Seleziona una data.')); ?>');
+                                    return;
+                                }
+                                
+                                if ((type === 'special' || type === 'extended') && !hours) {
+                                    alert('<?php echo esc_js(rbf_translate_string('Specifica gli orari per questo tipo di eccezione.')); ?>');
+                                    return;
+                                }
+                                
+                                const line = date + '|' + type + '|' + (hours || '') + '|' + (description || '');
+                                const textarea = $('#rbf_closed_dates');
+                                const currentValue = textarea.val().trim();
+                                const newValue = currentValue ? currentValue + '\n' + line : line;
+                                textarea.val(newValue);
+                                
+                                // Clear form
+                                $('#exception_date').val('');
+                                $('#exception_type').val('closure');
+                                $('#special_hours').val('');
+                                $('#exception_description').val('');
+                                $('#special_hours_container').hide();
+                                
+                                updateExceptionDisplay();
+                            });
+                            
+                            // Update display on page load and textarea change
+                            updateExceptionDisplay();
+                            $('#rbf_closed_dates').on('input', updateExceptionDisplay);
+                        });
+                        </script>
+                    </td>
                 </tr>
 
                 <!-- Advance booking time limits removed as per user request - now using fixed 1-hour minimum -->

@@ -351,6 +351,7 @@ jQuery(function($) {
           // Convert JavaScript day (0=Sunday, 1=Monday...) to our day key format
           const dayMapping = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
           const dayKey = dayMapping[day];
+          const dateStr = formatLocalISO(date);
           
           // Check if this meal is available on this day
           if (rbfData.mealAvailability && rbfData.mealAvailability[selectedMeal]) {
@@ -360,16 +361,73 @@ jQuery(function($) {
             }
           }
           
-          // Also apply regular closed day/date logic
+          // Check for exceptions first
+          if (rbfData.exceptions) {
+            for (let exception of rbfData.exceptions) {
+              if (exception.date === dateStr) {
+                // Only disable if it's a closure or holiday
+                if (exception.type === 'closure' || exception.type === 'holiday') {
+                  return true;
+                }
+                // Special events and extended hours are allowed
+                if (exception.type === 'special' || exception.type === 'extended') {
+                  return false;
+                }
+              }
+            }
+          }
+          
+          // Apply regular closed day/date logic
           if (rbfData.closedDays.includes(day)) return true;
-          const dateStr = formatLocalISO(date);
           if (rbfData.closedSingles.includes(dateStr)) return true;
           for (let range of rbfData.closedRanges) {
             if (dateStr >= range.from && dateStr <= range.to) return true;
           }
           return false;
         }],
-        onChange: onDateChange
+        onChange: onDateChange,
+        onDayCreate: function(dObj, dStr, fp, dayElem) {
+          const dateStr = formatLocalISO(dayElem.dateObj);
+          
+          // Check for exceptions and add visual indicators
+          if (rbfData.exceptions) {
+            for (let exception of rbfData.exceptions) {
+              if (exception.date === dateStr) {
+                const indicator = document.createElement('div');
+                indicator.className = 'rbf-exception-indicator rbf-exception-' + exception.type;
+                indicator.title = exception.description || exception.type;
+                
+                // Style the indicator based on exception type
+                const styles = {
+                  'special': { background: '#20c997', title: 'Evento Speciale' },
+                  'extended': { background: '#0d6efd', title: 'Orari Estesi' },
+                  'holiday': { background: '#fd7e14', title: 'Festività' },
+                  'closure': { background: '#dc3545', title: 'Chiusura' }
+                };
+                
+                const style = styles[exception.type] || styles.closure;
+                indicator.style.cssText = `
+                  position: absolute;
+                  top: 2px;
+                  right: 2px;
+                  width: 6px;
+                  height: 6px;
+                  border-radius: 50%;
+                  background: ${style.background};
+                  z-index: 1;
+                `;
+                
+                if (!exception.description) {
+                  indicator.title = rbfData.labels[style.title] || style.title;
+                }
+                
+                dayElem.style.position = 'relative';
+                dayElem.appendChild(indicator);
+                break;
+              }
+            }
+          }
+        }
       };
       
       if (rbfData.maxAdvanceMinutes > 0) {
