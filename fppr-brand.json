@@ -1,0 +1,28 @@
+{
+  "comment": "FPPR Brand Configuration - Customize colors and styling for multi-restaurant usage",
+  "accent_color": "#000000",
+  "accent_color_light": "#333333",
+  "accent_color_dark": "#000000", 
+  "secondary_color": "#f8b500",
+  "border_radius": "8px",
+  "logo_url": "",
+  "brand_name": "",
+  "version": "1.0",
+  "_documentation": {
+    "accent_color": "Primary brand color used for buttons, highlights, and focus states",
+    "accent_color_light": "Lighter variant of accent color for hover states",
+    "accent_color_dark": "Darker variant of accent color for active states",
+    "secondary_color": "Secondary color for accents and complementary elements",
+    "border_radius": "CSS border-radius value for rounded corners",
+    "logo_url": "Future: URL to brand logo image",
+    "brand_name": "Future: Brand name for customization",
+    "priority": "JSON file > PHP constants > apply_filters('fppr_brand_config') > defaults",
+    "php_constants": [
+      "FPPR_ACCENT_COLOR",
+      "FPPR_ACCENT_COLOR_LIGHT", 
+      "FPPR_ACCENT_COLOR_DARK",
+      "FPPR_BORDER_RADIUS"
+    ],
+    "global_override": "Place this file in wp-content/fppr-brand.json for site-wide overrides"
+  }
+}

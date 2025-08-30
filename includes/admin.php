@@ -303,6 +303,24 @@ function rbf_enqueue_admin_styles($hook) {
         strpos($hook,'edit.php?post_type=rbf_booking') === false) return;
 
     wp_enqueue_style('rbf-admin-css', plugin_dir_url(dirname(__FILE__)) . 'assets/css/admin.css', [], rbf_get_asset_version());
+    
+    // Inject brand CSS variables for admin
+    rbf_inject_brand_css_vars_admin();
+}
+
+/**
+ * Inject brand CSS variables for admin interface
+ */
+function rbf_inject_brand_css_vars_admin() {
+    $css_vars = rbf_generate_brand_css_vars();
+    
+    $css = ":root {\n";
+    foreach ($css_vars as $var => $value) {
+        $css .= "    $var: $value;\n";
+    }
+    $css .= "}\n";
+    
+    wp_add_inline_style('rbf-admin-css', $css);
 }
 
 /**
