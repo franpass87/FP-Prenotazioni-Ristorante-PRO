@@ -167,7 +167,8 @@ function rbf_send_admin_notification_email($first_name, $last_name, $email, $dat
     
     if (empty($recipients)) return;
 
-    $site_name = get_bloginfo('name');
+    $site_name = wp_strip_all_tags(get_bloginfo('name'), true);
+    $site_name_for_body = esc_html($site_name);
     $subject = "Nuova Prenotazione dal Sito Web - {$first_name} {$last_name}";
     $date_obj = date_create($date);
     $formatted_date = date_format($date_obj, 'd/m/Y');
@@ -177,7 +178,7 @@ function rbf_send_admin_notification_email($first_name, $last_name, $email, $dat
 <!DOCTYPE html><html><head><meta charset="UTF-8">
 <style>body{font-family:Arial,sans-serif;color:#333}.container{padding:20px;border:1px solid #ddd;max-width:600px;margin:auto}h2{color:#000}strong{color:#555}</style>
 </head><body><div class="container">
-<h2>Nuova Prenotazione da {$site_name}</h2>
+<h2>Nuova Prenotazione da {$site_name_for_body}</h2>
 <ul>
   <li><strong>Cliente:</strong> {$first_name} {$last_name}</li>
   <li><strong>Email:</strong> {$email}</li>
@@ -192,7 +193,9 @@ function rbf_send_admin_notification_email($first_name, $last_name, $email, $dat
 HTML;
 
     $headers = ['Content-Type: text/html; charset=UTF-8'];
-    $from_email = 'noreply@' . preg_replace('/^www\./', '', $_SERVER['SERVER_NAME']);
+    $from_domain = wp_parse_url(home_url(), PHP_URL_HOST);
+    $from_domain = preg_replace('/^www\./', '', (string) $from_domain);
+    $from_email = sanitize_email('noreply@' . $from_domain);
     $headers[] = 'From: ' . $site_name . ' <' . $from_email . '>';
     
     // Send to all recipients

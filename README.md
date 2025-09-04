@@ -1,6 +1,6 @@
 # FP-Prenotazioni-Ristorante-PRO
 
-**Version:** 11.0.0
+**Version:** 1.5
 **Author:** Francesco Passeri  
 **License:** GPLv2 or later
 
@@ -310,7 +310,7 @@ update_post_meta($post_id, 'rbf_source_bucket', $src['bucket']);
 
 ## 📋 Changelog
 
-### Version 11.0.0 (Current - Final Release)
+### Version 1.5
 - 🎉 **Release Finale**: Versione stabile e completa con tutte le funzionalità implementate
 - ✅ **Production Ready**: Sistema completamente testato e ottimizzato per ambienti di produzione
 - 🏆 **Feature Complete**: Architettura modulare avanzata con tracking marketing completo
