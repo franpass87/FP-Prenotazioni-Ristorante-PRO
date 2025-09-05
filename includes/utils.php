@@ -49,7 +49,10 @@ function rbf_get_default_custom_meals() {
             'price' => 35.00,
             'enabled' => true,
             'tooltip' => 'Di Domenica il servizio è Brunch con menù alla carta.',
-            'available_days' => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+            'available_days' => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
+            'buffer_time_minutes' => 15,
+            'buffer_time_per_person' => 5,
+            'overbooking_limit' => 10
         ],
         [
             'id' => 'aperitivo',
@@ -59,7 +62,10 @@ function rbf_get_default_custom_meals() {
             'price' => 15.00,
             'enabled' => true,
             'tooltip' => '',
-            'available_days' => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+            'available_days' => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'],
+            'buffer_time_minutes' => 10,
+            'buffer_time_per_person' => 3,
+            'overbooking_limit' => 15
         ],
         [
             'id' => 'cena',
@@ -69,7 +75,10 @@ function rbf_get_default_custom_meals() {
             'price' => 50.00,
             'enabled' => true,
             'tooltip' => '',
-            'available_days' => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+            'available_days' => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'],
+            'buffer_time_minutes' => 20,
+            'buffer_time_per_person' => 5,
+            'overbooking_limit' => 5
         ],
         [
             'id' => 'brunch',
@@ -79,7 +88,10 @@ function rbf_get_default_custom_meals() {
             'price' => 35.00,
             'enabled' => true,
             'tooltip' => 'Disponibile solo la domenica con menù speciale.',
-            'available_days' => ['sun']
+            'available_days' => ['sun'],
+            'buffer_time_minutes' => 15,
+            'buffer_time_per_person' => 5,
+            'overbooking_limit' => 10
         ]
     ];
 }
@@ -257,6 +269,14 @@ function rbf_translate_string($text) {
         'Orari separati da virgola' => 'Time slots separated by comma',
         'Prezzo (€)' => 'Price (€)',
         'Giorni disponibili' => 'Available Days',
+        'Buffer Base (minuti)' => 'Base Buffer (minutes)',
+        'Tempo minimo di buffer tra prenotazioni (minuti)' => 'Minimum buffer time between bookings (minutes)',
+        'Buffer per Persona (minuti)' => 'Buffer per Person (minutes)',
+        'Tempo aggiuntivo di buffer per ogni persona (minuti)' => 'Additional buffer time for each person (minutes)',
+        'Limite Overbooking (%)' => 'Overbooking Limit (%)',
+        'Percentuale di overbooking consentita oltre la capienza normale' => 'Percentage of overbooking allowed beyond normal capacity',
+        'Tooltip informativo' => 'Informative Tooltip',
+        'Questo orario non rispetta il buffer di %d minuti richiesto. Scegli un altro orario.' => 'This time slot does not respect the required %d minute buffer. Choose another time.',
         'Rimuovi Pasto' => 'Remove Meal',
         'Aggiungi Pasto' => 'Add Meal',
         'Tipo di pasto non valido.' => 'Invalid meal type.',
@@ -1065,4 +1085,104 @@ function rbf_darken_color($hex, $percent) {
     $b = max(0, $b - ($b * $percent / 100));
     
     return sprintf('#%02x%02x%02x', $r, $g, $b);
+}
+
+/**
+ * Calculate required buffer time for a booking
+ * 
+ * @param string $meal_id Meal ID
+ * @param int $people_count Number of people
+ * @return int Buffer time in minutes
+ */
+function rbf_calculate_buffer_time($meal_id, $people_count) {
+    $meal_config = rbf_get_meal_config($meal_id);
+    if (!$meal_config) {
+        return 15; // Default buffer if meal not found
+    }
+    
+    $base_buffer = intval($meal_config['buffer_time_minutes'] ?? 15);
+    $per_person_buffer = intval($meal_config['buffer_time_per_person'] ?? 5);
+    
+    return $base_buffer + ($per_person_buffer * $people_count);
+}
+
+/**
+ * Check if a time slot conflicts with buffer requirements
+ * 
+ * @param string $date Date in Y-m-d format
+ * @param string $time Time in H:i format
+ * @param string $meal_id Meal ID
+ * @param int $people_count Number of people
+ * @return array|true Returns array with error info if conflict, true if valid
+ */
+function rbf_validate_buffer_time($date, $time, $meal_id, $people_count) {
+    global $wpdb;
+    
+    $required_buffer = rbf_calculate_buffer_time($meal_id, $people_count);
+    $tz = rbf_wp_timezone();
+    $booking_datetime = DateTime::createFromFormat('Y-m-d H:i', $date . ' ' . $time, $tz);
+    
+    if (!$booking_datetime) {
+        return [
+            'error' => true,
+            'message' => rbf_translate_string('Orario non valido.')
+        ];
+    }
+    
+    // Get existing bookings for the same date and meal
+    $existing_bookings = $wpdb->get_results($wpdb->prepare(
+        "SELECT pm_time.meta_value as time, pm_people.meta_value as people
+         FROM {$wpdb->posts} p
+         INNER JOIN {$wpdb->postmeta} pm_date ON p.ID = pm_date.post_id AND pm_date.meta_key = 'rbf_data'
+         INNER JOIN {$wpdb->postmeta} pm_meal ON p.ID = pm_meal.post_id AND pm_meal.meta_key = 'rbf_meal'
+         INNER JOIN {$wpdb->postmeta} pm_time ON p.ID = pm_time.post_id AND pm_time.meta_key = 'rbf_time'
+         INNER JOIN {$wpdb->postmeta} pm_people ON p.ID = pm_people.post_id AND pm_people.meta_key = 'rbf_persone'
+         WHERE p.post_type = 'rbf_booking' AND p.post_status = 'publish'
+         AND pm_date.meta_value = %s AND pm_meal.meta_value = %s",
+        $date, $meal_id
+    ));
+    
+    foreach ($existing_bookings as $existing) {
+        $existing_datetime = DateTime::createFromFormat('Y-m-d H:i', $date . ' ' . $existing->time, $tz);
+        if (!$existing_datetime) continue;
+        
+        $existing_people = intval($existing->people);
+        $existing_buffer = rbf_calculate_buffer_time($meal_id, $existing_people);
+        
+        $time_diff_minutes = abs(($booking_datetime->getTimestamp() - $existing_datetime->getTimestamp()) / 60);
+        $needed_buffer = max($required_buffer, $existing_buffer);
+        
+        if ($time_diff_minutes < $needed_buffer) {
+            return [
+                'error' => true,
+                'message' => sprintf(
+                    rbf_translate_string('Questo orario non rispetta il buffer di %d minuti richiesto. Scegli un altro orario.'),
+                    $needed_buffer
+                )
+            ];
+        }
+    }
+    
+    return true;
+}
+
+/**
+ * Get effective capacity with overbooking limit
+ * 
+ * @param string $meal_id Meal ID
+ * @return int Effective capacity including overbooking
+ */
+function rbf_get_effective_capacity($meal_id) {
+    $meal_config = rbf_get_meal_config($meal_id);
+    if (!$meal_config) {
+        return 0;
+    }
+    
+    $base_capacity = intval($meal_config['capacity'] ?? 30);
+    $overbooking_limit = intval($meal_config['overbooking_limit'] ?? 10);
+    
+    // Calculate overbooking allowance
+    $overbooking_spots = round($base_capacity * ($overbooking_limit / 100));
+    
+    return $base_capacity + $overbooking_spots;
 }

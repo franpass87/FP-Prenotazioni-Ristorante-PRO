@@ -162,6 +162,13 @@ function rbf_handle_booking_submission() {
         return;
     }
 
+    // Validate buffer time requirements
+    $buffer_validation = rbf_validate_buffer_time($date, $time, $slot, $people);
+    if ($buffer_validation !== true) {
+        rbf_handle_error($buffer_validation['message'], 'buffer_validation', $redirect_url . $anchor);
+        return;
+    }
+
     $remaining_capacity = rbf_get_remaining_capacity($date, $slot);
     
     // Check capacity - if not enough, show error (no waitlist)
@@ -464,7 +471,7 @@ function rbf_ajax_get_availability_callback() {
     }
 
 
-    // Step 5: Filter times based on simple 1-hour minimum advance requirement
+    // Step 5: Filter times based on advance requirement and buffer conflicts
     $tz = rbf_wp_timezone();
     $now = new DateTime('now', $tz);
     $min_datetime = clone $now;
@@ -488,6 +495,14 @@ function rbf_ajax_get_availability_callback() {
             // Simple 1-hour minimum advance check
             if ($slot_datetime < $min_datetime) {
                 continue;
+            }
+
+            // Check if time slot has potential buffer conflicts
+            // For availability check, we use a conservative approach with average party size
+            $average_party_size = 2; // Conservative estimate
+            $buffer_check = rbf_validate_buffer_time($date, $normalized_time, $meal, $average_party_size);
+            if ($buffer_check !== true) {
+                continue; // Skip this time if it has buffer conflicts
             }
 
             $available_times[] = $normalized_time;
