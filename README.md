@@ -13,6 +13,8 @@ Sistema completo di prenotazioni per ristoranti con calendario Flatpickr multili
 - **Gestione Semplificata**: Prenotazioni con limite minimo di 1 ora
 - **Sistema Intuitivo**: Se sono le 12:00, puoi prenotare dalle 13:00 in poi
 - **Capienza per Servizio**: Controllo automatico disponibilità per pranzo/cena/aperitivo
+- **Buffer Temporali Intelligenti**: Tempi di pulizia/preparazione configurabili per numero di coperti
+- **Overbooking Controllato**: Limite configurabile per massimizzare la capienza mantenendo controllo
 - **Slot Temporali Personalizzabili**: Configurazione flessibile degli orari
 
 ### 📧 Notifiche Email Avanzate
@@ -96,6 +98,29 @@ Prenotazione per: Ore 11:30 (stesso giorno)
 - **Orari Servizio**: Configura slot pranzo, cena, aperitivo
 - **Capienza**: Imposta numero massimo coperti per servizio
 - **Valori Economici**: Definisci importi per tracking ROI
+
+### Buffer Temporali e Overbooking
+
+**Configurazione Buffer:**
+- **Buffer Base**: Tempo minimo di pulizia/preparazione tra prenotazioni (0-120 minuti)
+- **Buffer per Persona**: Tempo aggiuntivo per ogni copertura (0-30 minuti)
+- **Calcolo Dinamico**: Buffer Totale = Base + (Per Persona × Numero Coperti)
+
+**Configurazione Overbooking:**
+- **Limite Overbooking**: Percentuale di posti aggiuntivi oltre la capienza normale (0-50%)
+- **Capienza Effettiva**: Capienza Base + (Base × Limite / 100)
+
+**Esempi di Configurazione:**
+```
+Pranzo: Buffer 15min + 5min/persona, Overbooking 10%
+→ 2 persone: 25min buffer, Capienza 30 → 33
+
+Cena: Buffer 20min + 5min/persona, Overbooking 5%  
+→ 4 persone: 40min buffer, Capienza 40 → 42
+
+Aperitivo: Buffer 10min + 3min/persona, Overbooking 15%
+→ 3 persone: 19min buffer, Capienza 25 → 29
+```
 
 ### Integrazioni Marketing
 - **Google Analytics 4**: Inserisci GA4 Measurement ID

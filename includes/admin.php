@@ -295,6 +295,9 @@ function rbf_sanitize_settings_callback($input) {
                     'price' => max(0, floatval($meal['price'] ?? 0)),
                     'enabled' => isset($meal['enabled']) && $meal['enabled'] == '1',
                     'tooltip' => sanitize_textarea_field($meal['tooltip'] ?? ''),
+                    'buffer_time_minutes' => max(0, min(120, intval($meal['buffer_time_minutes'] ?? 15))),
+                    'buffer_time_per_person' => max(0, min(30, intval($meal['buffer_time_per_person'] ?? 5))),
+                    'overbooking_limit' => max(0, min(50, intval($meal['overbooking_limit'] ?? 10))),
                     'available_days' => []
                 ];
                 
@@ -499,6 +502,27 @@ function rbf_settings_page_html() {
                                                 <p class="description"><?php echo esc_html(rbf_translate_string('Testo informativo che apparirà quando questo pasto viene selezionato (opzionale)')); ?></p>
                                             </td>
                                         </tr>
+                                        <tr>
+                                            <th><label><?php echo esc_html(rbf_translate_string('Buffer Base (minuti)')); ?></label></th>
+                                            <td>
+                                                <input type="number" name="rbf_settings[custom_meals][<?php echo esc_attr($index); ?>][buffer_time_minutes]" value="<?php echo esc_attr($meal['buffer_time_minutes'] ?? 15); ?>" min="0" max="120">
+                                                <p class="description"><?php echo esc_html(rbf_translate_string('Tempo minimo di buffer tra prenotazioni (minuti)')); ?></p>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th><label><?php echo esc_html(rbf_translate_string('Buffer per Persona (minuti)')); ?></label></th>
+                                            <td>
+                                                <input type="number" name="rbf_settings[custom_meals][<?php echo esc_attr($index); ?>][buffer_time_per_person]" value="<?php echo esc_attr($meal['buffer_time_per_person'] ?? 5); ?>" min="0" max="30">
+                                                <p class="description"><?php echo esc_html(rbf_translate_string('Tempo aggiuntivo di buffer per ogni persona (minuti)')); ?></p>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th><label><?php echo esc_html(rbf_translate_string('Limite Overbooking (%)')); ?></label></th>
+                                            <td>
+                                                <input type="number" name="rbf_settings[custom_meals][<?php echo esc_attr($index); ?>][overbooking_limit]" value="<?php echo esc_attr($meal['overbooking_limit'] ?? 10); ?>" min="0" max="50">
+                                                <p class="description"><?php echo esc_html(rbf_translate_string('Percentuale di overbooking consentita oltre la capienza normale')); ?></p>
+                                            </td>
+                                        </tr>
                                     </table>
                                     
                                     <button type="button" class="button button-secondary remove-meal" style="margin-top: 10px;"><?php echo esc_html(rbf_translate_string('Rimuovi Pasto')); ?></button>
@@ -610,6 +634,27 @@ function rbf_settings_page_html() {
                                             <td>
                                                 <textarea name="rbf_settings[custom_meals][` + index + `][tooltip]" class="regular-text" rows="2" placeholder="es: Di Domenica il servizio è Brunch con menù alla carta."></textarea>
                                                 <p class="description"><?php echo esc_html(rbf_translate_string('Testo informativo che apparirà quando questo pasto viene selezionato (opzionale)')); ?></p>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th><label><?php echo esc_html(rbf_translate_string('Buffer Base (minuti)')); ?></label></th>
+                                            <td>
+                                                <input type="number" name="rbf_settings[custom_meals][` + index + `][buffer_time_minutes]" value="15" min="0" max="120">
+                                                <p class="description"><?php echo esc_html(rbf_translate_string('Tempo minimo di buffer tra prenotazioni (minuti)')); ?></p>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th><label><?php echo esc_html(rbf_translate_string('Buffer per Persona (minuti)')); ?></label></th>
+                                            <td>
+                                                <input type="number" name="rbf_settings[custom_meals][` + index + `][buffer_time_per_person]" value="5" min="0" max="30">
+                                                <p class="description"><?php echo esc_html(rbf_translate_string('Tempo aggiuntivo di buffer per ogni persona (minuti)')); ?></p>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th><label><?php echo esc_html(rbf_translate_string('Limite Overbooking (%)')); ?></label></th>
+                                            <td>
+                                                <input type="number" name="rbf_settings[custom_meals][` + index + `][overbooking_limit]" value="10" min="0" max="50">
+                                                <p class="description"><?php echo esc_html(rbf_translate_string('Percentuale di overbooking consentita oltre la capienza normale')); ?></p>
                                             </td>
                                         </tr>
                                     </table>

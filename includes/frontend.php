@@ -593,7 +593,8 @@ function rbf_get_remaining_capacity($date, $slot) {
     // Try to get capacity from configurable meals first
     $meal_config = rbf_get_meal_config($slot);
     if ($meal_config) {
-        $total = (int) $meal_config['capacity'];
+        // Use effective capacity with overbooking
+        $total = rbf_get_effective_capacity($slot);
     } else {
         // Fallback to legacy capacity settings
         $total = (int) ($options['capienza_'.$slot] ?? 0);
