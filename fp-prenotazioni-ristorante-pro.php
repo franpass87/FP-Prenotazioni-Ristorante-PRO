@@ -86,6 +86,7 @@ add_action('plugins_loaded', 'rbf_maybe_clear_transients_on_load', -1);
 function rbf_load_modules() {
     $modules = [
         'utils.php',
+        'table-management.php',
         'admin.php',
         'frontend.php',
         'booking-handler.php',
@@ -113,6 +114,9 @@ function rbf_activate_plugin() {
 
     // Load modules to ensure custom post types are available
     rbf_load_modules();
+    
+    // Create table management database tables
+    rbf_create_table_management_tables();
     
     // Flush rewrite rules to ensure custom post types work
     // The post type registration happens via 'init' hook in admin.php

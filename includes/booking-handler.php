@@ -217,6 +217,20 @@ function rbf_handle_booking_submission() {
         return;
     }
 
+    // Automatic table assignment
+    $table_assignment = rbf_assign_tables_first_fit($people, $date, $time, $meal);
+    if ($table_assignment) {
+        rbf_save_table_assignment($post_id, $table_assignment);
+        
+        // Store table assignment info as meta for easy access
+        update_post_meta($post_id, 'rbf_table_assignment_type', $table_assignment['type']);
+        update_post_meta($post_id, 'rbf_assigned_tables', $table_assignment['total_capacity']);
+        
+        if ($table_assignment['type'] === 'joined' && isset($table_assignment['group_id'])) {
+            update_post_meta($post_id, 'rbf_table_group_id', $table_assignment['group_id']);
+        }
+    }
+
     delete_transient('rbf_avail_' . $date . '_' . $slot);
     $options = rbf_get_settings();
     

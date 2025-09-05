@@ -47,6 +47,7 @@ function rbf_create_bookings_menu() {
     add_menu_page(rbf_translate_string('Prenotazioni'), rbf_translate_string('Prenotazioni'), 'manage_options', 'rbf_calendar', 'rbf_calendar_page_html', 'dashicons-calendar-alt', 20);
     add_submenu_page('rbf_calendar', rbf_translate_string('Prenotazioni'), rbf_translate_string('Tutte le Prenotazioni'), 'manage_options', 'rbf_calendar', 'rbf_calendar_page_html');
     add_submenu_page('rbf_calendar', rbf_translate_string('Aggiungi Prenotazione'), rbf_translate_string('Aggiungi Nuova'), 'manage_options', 'rbf_add_booking', 'rbf_add_booking_page_html');
+    add_submenu_page('rbf_calendar', rbf_translate_string('Gestione Tavoli'), rbf_translate_string('Gestione Tavoli'), 'manage_options', 'rbf_tables', 'rbf_tables_page_html');
     add_submenu_page('rbf_calendar', rbf_translate_string('Report & Analytics'), rbf_translate_string('Report & Analytics'), 'manage_options', 'rbf_reports', 'rbf_reports_page_html');
     add_submenu_page('rbf_calendar', rbf_translate_string('Esporta Dati'), rbf_translate_string('Esporta Dati'), 'manage_options', 'rbf_export', 'rbf_export_page_html');
     add_submenu_page('rbf_calendar', rbf_translate_string('Impostazioni'), rbf_translate_string('Impostazioni'), 'manage_options', 'rbf_settings', 'rbf_settings_page_html');
@@ -68,6 +69,7 @@ function rbf_set_custom_columns($columns) {
     $new_columns['rbf_time'] = rbf_translate_string('Orario');
     $new_columns['rbf_meal'] = rbf_translate_string('Pasto');
     $new_columns['rbf_people'] = rbf_translate_string('Persone');
+    $new_columns['rbf_tables'] = rbf_translate_string('Tavoli');
     $new_columns['rbf_value'] = rbf_translate_string('Valore');
     $new_columns['rbf_actions'] = rbf_translate_string('Azioni');
     
@@ -127,6 +129,22 @@ function rbf_custom_column_data($column, $post_id) {
             
         case 'rbf_people':
             echo '<strong>' . esc_html(get_post_meta($post_id, 'rbf_persone', true)) . '</strong>';
+            break;
+            
+        case 'rbf_tables':
+            $assignment = rbf_get_booking_table_assignment($post_id);
+            if ($assignment && !empty($assignment['tables'])) {
+                $table_names = array_map(function($table) {
+                    return $table->table_name . ' (' . $table->area_name . ')';
+                }, $assignment['tables']);
+                
+                $type_label = ($assignment['type'] === 'joined') ? 'Uniti' : 'Singolo';
+                echo '<strong>' . implode(', ', $table_names) . '</strong>';
+                echo '<br><small><span style="color: #666;">Tipo: ' . esc_html($type_label) . '</span></small>';
+                echo '<br><small><span style="color: #666;">Capacità: ' . intval($assignment['total_capacity']) . '</span></small>';
+            } else {
+                echo '<em style="color: #999;">Non assegnato</em>';
+            }
             break;
             
         case 'rbf_value':
@@ -1879,4 +1897,505 @@ function rbf_auto_complete_past_bookings() {
 register_deactivation_hook(RBF_PLUGIN_FILE, 'rbf_clear_automatic_status_events');
 function rbf_clear_automatic_status_events() {
     wp_clear_scheduled_hook('rbf_update_booking_statuses');
+}
+
+/**
+ * Table Management admin page
+ */
+function rbf_tables_page_html() {
+    // Handle form submissions
+    if (isset($_POST['action'])) {
+        if (!wp_verify_nonce($_POST['rbf_nonce'], 'rbf_table_management')) {
+            wp_die('Nonce verification failed');
+        }
+        
+        global $wpdb;
+        
+        switch ($_POST['action']) {
+            case 'add_area':
+                $name = sanitize_text_field($_POST['area_name']);
+                $description = sanitize_textarea_field($_POST['area_description']);
+                
+                if (!empty($name)) {
+                    $areas_table = $wpdb->prefix . 'rbf_areas';
+                    $result = $wpdb->insert($areas_table, [
+                        'name' => $name,
+                        'description' => $description
+                    ]);
+                    
+                    if ($result) {
+                        echo '<div class="notice notice-success"><p>Area aggiunta con successo!</p></div>';
+                    } else {
+                        echo '<div class="notice notice-error"><p>Errore nell\'aggiunta dell\'area.</p></div>';
+                    }
+                }
+                break;
+                
+            case 'add_table':
+                $area_id = intval($_POST['table_area_id']);
+                $name = sanitize_text_field($_POST['table_name']);
+                $capacity = intval($_POST['table_capacity']);
+                $min_capacity = intval($_POST['table_min_capacity']);
+                $max_capacity = intval($_POST['table_max_capacity']);
+                
+                if (!empty($name) && $capacity > 0 && $area_id > 0) {
+                    $tables_table = $wpdb->prefix . 'rbf_tables';
+                    $result = $wpdb->insert($tables_table, [
+                        'area_id' => $area_id,
+                        'name' => $name,
+                        'capacity' => $capacity,
+                        'min_capacity' => $min_capacity ?: max(1, $capacity - 2),
+                        'max_capacity' => $max_capacity ?: $capacity + 2
+                    ]);
+                    
+                    if ($result) {
+                        echo '<div class="notice notice-success"><p>Tavolo aggiunto con successo!</p></div>';
+                    } else {
+                        echo '<div class="notice notice-error"><p>Errore nell\'aggiunta del tavolo.</p></div>';
+                    }
+                }
+                break;
+                
+            case 'add_group':
+                $area_id = intval($_POST['group_area_id']);
+                $name = sanitize_text_field($_POST['group_name']);
+                $max_capacity = intval($_POST['group_max_capacity']);
+                $table_ids = array_map('intval', $_POST['group_tables'] ?? []);
+                
+                if (!empty($name) && $area_id > 0 && !empty($table_ids)) {
+                    $groups_table = $wpdb->prefix . 'rbf_table_groups';
+                    $result = $wpdb->insert($groups_table, [
+                        'area_id' => $area_id,
+                        'name' => $name,
+                        'max_combined_capacity' => $max_capacity ?: 16
+                    ]);
+                    
+                    if ($result) {
+                        $group_id = $wpdb->insert_id;
+                        $group_members_table = $wpdb->prefix . 'rbf_table_group_members';
+                        
+                        foreach ($table_ids as $index => $table_id) {
+                            $wpdb->insert($group_members_table, [
+                                'group_id' => $group_id,
+                                'table_id' => $table_id,
+                                'join_order' => $index + 1
+                            ]);
+                        }
+                        
+                        echo '<div class="notice notice-success"><p>Gruppo tavoli aggiunto con successo!</p></div>';
+                    } else {
+                        echo '<div class="notice notice-error"><p>Errore nell\'aggiunta del gruppo.</p></div>';
+                    }
+                }
+                break;
+        }
+    }
+    
+    $areas = rbf_get_areas();
+    $all_tables = rbf_get_all_tables();
+    ?>
+    
+    <div class="wrap">
+        <h1><?php echo esc_html(rbf_translate_string('Gestione Tavoli')); ?></h1>
+        
+        <div class="nav-tab-wrapper">
+            <a href="#areas" class="nav-tab nav-tab-active" onclick="switchTab(event, 'areas')"><?php echo esc_html(rbf_translate_string('Aree')); ?></a>
+            <a href="#tables" class="nav-tab" onclick="switchTab(event, 'tables')"><?php echo esc_html(rbf_translate_string('Tavoli')); ?></a>
+            <a href="#groups" class="nav-tab" onclick="switchTab(event, 'groups')"><?php echo esc_html(rbf_translate_string('Gruppi Unibili')); ?></a>
+            <a href="#overview" class="nav-tab" onclick="switchTab(event, 'overview')"><?php echo esc_html(rbf_translate_string('Panoramica')); ?></a>
+        </div>
+        
+        <!-- Areas Tab -->
+        <div id="areas" class="tab-content">
+            <h2><?php echo esc_html(rbf_translate_string('Gestione Aree')); ?></h2>
+            
+            <div class="postbox" style="margin-top: 20px;">
+                <div class="postbox-header">
+                    <h3><?php echo esc_html(rbf_translate_string('Aggiungi Nuova Area')); ?></h3>
+                </div>
+                <div class="inside">
+                    <form method="post">
+                        <?php wp_nonce_field('rbf_table_management', 'rbf_nonce'); ?>
+                        <input type="hidden" name="action" value="add_area">
+                        
+                        <table class="form-table">
+                            <tr>
+                                <th><label for="area_name"><?php echo esc_html(rbf_translate_string('Nome Area')); ?></label></th>
+                                <td><input type="text" id="area_name" name="area_name" class="regular-text" required></td>
+                            </tr>
+                            <tr>
+                                <th><label for="area_description"><?php echo esc_html(rbf_translate_string('Descrizione')); ?></label></th>
+                                <td><textarea id="area_description" name="area_description" class="large-text" rows="3"></textarea></td>
+                            </tr>
+                        </table>
+                        
+                        <p class="submit">
+                            <input type="submit" class="button button-primary" value="<?php echo esc_attr(rbf_translate_string('Aggiungi Area')); ?>">
+                        </p>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="postbox">
+                <div class="postbox-header">
+                    <h3><?php echo esc_html(rbf_translate_string('Aree Esistenti')); ?></h3>
+                </div>
+                <div class="inside">
+                    <?php if (!empty($areas)): ?>
+                        <table class="wp-list-table widefat fixed striped">
+                            <thead>
+                                <tr>
+                                    <th><?php echo esc_html(rbf_translate_string('Nome')); ?></th>
+                                    <th><?php echo esc_html(rbf_translate_string('Descrizione')); ?></th>
+                                    <th><?php echo esc_html(rbf_translate_string('Tavoli')); ?></th>
+                                    <th><?php echo esc_html(rbf_translate_string('Creata')); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($areas as $area): ?>
+                                    <?php $area_tables = rbf_get_tables_by_area($area->id); ?>
+                                    <tr>
+                                        <td><strong><?php echo esc_html($area->name); ?></strong></td>
+                                        <td><?php echo esc_html($area->description ?: '-'); ?></td>
+                                        <td><?php echo count($area_tables); ?> tavoli</td>
+                                        <td><?php echo esc_html(date('d/m/Y', strtotime($area->created_at))); ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php else: ?>
+                        <p><?php echo esc_html(rbf_translate_string('Nessuna area configurata.')); ?></p>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tables Tab -->
+        <div id="tables" class="tab-content" style="display: none;">
+            <h2><?php echo esc_html(rbf_translate_string('Gestione Tavoli')); ?></h2>
+            
+            <div class="postbox" style="margin-top: 20px;">
+                <div class="postbox-header">
+                    <h3><?php echo esc_html(rbf_translate_string('Aggiungi Nuovo Tavolo')); ?></h3>
+                </div>
+                <div class="inside">
+                    <form method="post">
+                        <?php wp_nonce_field('rbf_table_management', 'rbf_nonce'); ?>
+                        <input type="hidden" name="action" value="add_table">
+                        
+                        <table class="form-table">
+                            <tr>
+                                <th><label for="table_area_id"><?php echo esc_html(rbf_translate_string('Area')); ?></label></th>
+                                <td>
+                                    <select id="table_area_id" name="table_area_id" required>
+                                        <option value=""><?php echo esc_html(rbf_translate_string('Seleziona Area')); ?></option>
+                                        <?php foreach ($areas as $area): ?>
+                                            <option value="<?php echo esc_attr($area->id); ?>"><?php echo esc_html($area->name); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th><label for="table_name"><?php echo esc_html(rbf_translate_string('Nome Tavolo')); ?></label></th>
+                                <td><input type="text" id="table_name" name="table_name" class="regular-text" required placeholder="es: T1, Tavolo 1"></td>
+                            </tr>
+                            <tr>
+                                <th><label for="table_capacity"><?php echo esc_html(rbf_translate_string('Capacità Standard')); ?></label></th>
+                                <td><input type="number" id="table_capacity" name="table_capacity" min="1" max="20" required value="4"></td>
+                            </tr>
+                            <tr>
+                                <th><label for="table_min_capacity"><?php echo esc_html(rbf_translate_string('Capacità Minima')); ?></label></th>
+                                <td><input type="number" id="table_min_capacity" name="table_min_capacity" min="1" placeholder="Auto"></td>
+                            </tr>
+                            <tr>
+                                <th><label for="table_max_capacity"><?php echo esc_html(rbf_translate_string('Capacità Massima')); ?></label></th>
+                                <td><input type="number" id="table_max_capacity" name="table_max_capacity" min="1" placeholder="Auto"></td>
+                            </tr>
+                        </table>
+                        
+                        <p class="submit">
+                            <input type="submit" class="button button-primary" value="<?php echo esc_attr(rbf_translate_string('Aggiungi Tavolo')); ?>">
+                        </p>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="postbox">
+                <div class="postbox-header">
+                    <h3><?php echo esc_html(rbf_translate_string('Tavoli Esistenti')); ?></h3>
+                </div>
+                <div class="inside">
+                    <?php if (!empty($all_tables)): ?>
+                        <table class="wp-list-table widefat fixed striped">
+                            <thead>
+                                <tr>
+                                    <th><?php echo esc_html(rbf_translate_string('Nome')); ?></th>
+                                    <th><?php echo esc_html(rbf_translate_string('Area')); ?></th>
+                                    <th><?php echo esc_html(rbf_translate_string('Capacità')); ?></th>
+                                    <th><?php echo esc_html(rbf_translate_string('Range')); ?></th>
+                                    <th><?php echo esc_html(rbf_translate_string('Stato')); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($all_tables as $table): ?>
+                                    <tr>
+                                        <td><strong><?php echo esc_html($table->name); ?></strong></td>
+                                        <td><?php echo esc_html($table->area_name); ?></td>
+                                        <td><?php echo esc_html($table->capacity); ?> persone</td>
+                                        <td><?php echo esc_html($table->min_capacity . '-' . $table->max_capacity); ?> persone</td>
+                                        <td>
+                                            <?php if ($table->is_active): ?>
+                                                <span style="color: green;">●</span> Attivo
+                                            <?php else: ?>
+                                                <span style="color: red;">●</span> Inattivo
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php else: ?>
+                        <p><?php echo esc_html(rbf_translate_string('Nessun tavolo configurato.')); ?></p>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Groups Tab -->
+        <div id="groups" class="tab-content" style="display: none;">
+            <h2><?php echo esc_html(rbf_translate_string('Gestione Gruppi Tavoli Unibili')); ?></h2>
+            
+            <div class="postbox" style="margin-top: 20px;">
+                <div class="postbox-header">
+                    <h3><?php echo esc_html(rbf_translate_string('Aggiungi Gruppo di Tavoli')); ?></h3>
+                </div>
+                <div class="inside">
+                    <form method="post">
+                        <?php wp_nonce_field('rbf_table_management', 'rbf_nonce'); ?>
+                        <input type="hidden" name="action" value="add_group">
+                        
+                        <table class="form-table">
+                            <tr>
+                                <th><label for="group_area_id"><?php echo esc_html(rbf_translate_string('Area')); ?></label></th>
+                                <td>
+                                    <select id="group_area_id" name="group_area_id" required onchange="updateGroupTables()">
+                                        <option value=""><?php echo esc_html(rbf_translate_string('Seleziona Area')); ?></option>
+                                        <?php foreach ($areas as $area): ?>
+                                            <option value="<?php echo esc_attr($area->id); ?>"><?php echo esc_html($area->name); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th><label for="group_name"><?php echo esc_html(rbf_translate_string('Nome Gruppo')); ?></label></th>
+                                <td><input type="text" id="group_name" name="group_name" class="regular-text" required placeholder="es: Tavoli Piccoli Sala"></td>
+                            </tr>
+                            <tr>
+                                <th><label for="group_max_capacity"><?php echo esc_html(rbf_translate_string('Capacità Massima Combinata')); ?></label></th>
+                                <td><input type="number" id="group_max_capacity" name="group_max_capacity" min="1" value="16"></td>
+                            </tr>
+                            <tr>
+                                <th><label><?php echo esc_html(rbf_translate_string('Tavoli nel Gruppo')); ?></label></th>
+                                <td>
+                                    <div id="group_tables_selection">
+                                        <p><em><?php echo esc_html(rbf_translate_string('Seleziona prima un\'area per visualizzare i tavoli disponibili.')); ?></em></p>
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+                        
+                        <p class="submit">
+                            <input type="submit" class="button button-primary" value="<?php echo esc_attr(rbf_translate_string('Aggiungi Gruppo')); ?>">
+                        </p>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="postbox">
+                <div class="postbox-header">
+                    <h3><?php echo esc_html(rbf_translate_string('Gruppi Esistenti')); ?></h3>
+                </div>
+                <div class="inside">
+                    <?php 
+                    $all_groups = [];
+                    foreach ($areas as $area) {
+                        $area_groups = rbf_get_table_groups_by_area($area->id);
+                        foreach ($area_groups as $group) {
+                            $group->area_name = $area->name;
+                            $group->tables = rbf_get_group_tables($group->id);
+                            $all_groups[] = $group;
+                        }
+                    }
+                    ?>
+                    
+                    <?php if (!empty($all_groups)): ?>
+                        <table class="wp-list-table widefat fixed striped">
+                            <thead>
+                                <tr>
+                                    <th><?php echo esc_html(rbf_translate_string('Nome Gruppo')); ?></th>
+                                    <th><?php echo esc_html(rbf_translate_string('Area')); ?></th>
+                                    <th><?php echo esc_html(rbf_translate_string('Tavoli')); ?></th>
+                                    <th><?php echo esc_html(rbf_translate_string('Capacità Max')); ?></th>
+                                    <th><?php echo esc_html(rbf_translate_string('Stato')); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($all_groups as $group): ?>
+                                    <tr>
+                                        <td><strong><?php echo esc_html($group->name); ?></strong></td>
+                                        <td><?php echo esc_html($group->area_name); ?></td>
+                                        <td>
+                                            <?php 
+                                            $table_names = array_map(function($t) { return $t->name; }, $group->tables);
+                                            echo esc_html(implode(', ', $table_names));
+                                            ?>
+                                        </td>
+                                        <td><?php echo esc_html($group->max_combined_capacity); ?> persone</td>
+                                        <td>
+                                            <?php if ($group->is_active): ?>
+                                                <span style="color: green;">●</span> Attivo
+                                            <?php else: ?>
+                                                <span style="color: red;">●</span> Inattivo
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php else: ?>
+                        <p><?php echo esc_html(rbf_translate_string('Nessun gruppo configurato.')); ?></p>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Overview Tab -->
+        <div id="overview" class="tab-content" style="display: none;">
+            <h2><?php echo esc_html(rbf_translate_string('Panoramica Sistema Tavoli')); ?></h2>
+            
+            <div class="postbox" style="margin-top: 20px;">
+                <div class="postbox-header">
+                    <h3><?php echo esc_html(rbf_translate_string('Statistiche Generali')); ?></h3>
+                </div>
+                <div class="inside">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                        <div style="background: #f0f8ff; padding: 20px; border-radius: 8px; text-align: center;">
+                            <h3 style="margin: 0; color: #2271b1;"><?php echo count($areas); ?></h3>
+                            <p style="margin: 5px 0 0 0;"><?php echo esc_html(rbf_translate_string('Aree Totali')); ?></p>
+                        </div>
+                        <div style="background: #f0fff0; padding: 20px; border-radius: 8px; text-align: center;">
+                            <h3 style="margin: 0; color: #00a32a;"><?php echo count($all_tables); ?></h3>
+                            <p style="margin: 5px 0 0 0;"><?php echo esc_html(rbf_translate_string('Tavoli Totali')); ?></p>
+                        </div>
+                        <div style="background: #fff8f0; padding: 20px; border-radius: 8px; text-align: center;">
+                            <h3 style="margin: 0; color: #dba617;"><?php echo count($all_groups); ?></h3>
+                            <p style="margin: 5px 0 0 0;"><?php echo esc_html(rbf_translate_string('Gruppi Unibili')); ?></p>
+                        </div>
+                        <div style="background: #f8f0ff; padding: 20px; border-radius: 8px; text-align: center;">
+                            <h3 style="margin: 0; color: #8c44ad;"><?php echo array_sum(array_column($all_tables, 'capacity')); ?></h3>
+                            <p style="margin: 5px 0 0 0;"><?php echo esc_html(rbf_translate_string('Capacità Totale')); ?></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="postbox">
+                <div class="postbox-header">
+                    <h3><?php echo esc_html(rbf_translate_string('Algoritmo di Assegnazione')); ?></h3>
+                </div>
+                <div class="inside">
+                    <p><strong><?php echo esc_html(rbf_translate_string('Strategia First-Fit Implementata:')); ?></strong></p>
+                    <ol>
+                        <li><?php echo esc_html(rbf_translate_string('Ricerca tavolo singolo ottimale (capacità minima sufficiente)')); ?></li>
+                        <li><?php echo esc_html(rbf_translate_string('Se non disponibile, ricerca combinazioni di tavoli unibili')); ?></li>
+                        <li><?php echo esc_html(rbf_translate_string('Ordinamento per area e capacità per ottimizzazione')); ?></li>
+                        <li><?php echo esc_html(rbf_translate_string('Supporto per tavoli joined con limite capacità gruppo')); ?></li>
+                    </ol>
+                    <p><em><?php echo esc_html(rbf_translate_string('L\'assegnazione automatica avviene al momento della prenotazione e può gestire split/merge intelligente.')); ?></em></p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+    function switchTab(evt, tabName) {
+        var i, tabcontent, tablinks;
+        tabcontent = document.getElementsByClassName("tab-content");
+        for (i = 0; i < tabcontent.length; i++) {
+            tabcontent[i].style.display = "none";
+        }
+        tablinks = document.getElementsByClassName("nav-tab");
+        for (i = 0; i < tablinks.length; i++) {
+            tablinks[i].classList.remove("nav-tab-active");
+        }
+        document.getElementById(tabName).style.display = "block";
+        evt.currentTarget.classList.add("nav-tab-active");
+        
+        // Update URL hash without triggering scroll
+        history.replaceState(null, null, '#' + tabName);
+    }
+    
+    // Load tab from URL hash on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        var hash = window.location.hash.substring(1);
+        if (hash && document.getElementById(hash)) {
+            var tabLink = document.querySelector('a[href="#' + hash + '"]');
+            if (tabLink) {
+                tabLink.click();
+            }
+        }
+    });
+    
+    function updateGroupTables() {
+        var areaId = document.getElementById('group_area_id').value;
+        var selectionDiv = document.getElementById('group_tables_selection');
+        
+        if (!areaId) {
+            selectionDiv.innerHTML = '<p><em><?php echo esc_js(rbf_translate_string('Seleziona prima un\'area per visualizzare i tavoli disponibili.')); ?></em></p>';
+            return;
+        }
+        
+        // Get tables for selected area
+        var tables = <?php echo wp_json_encode($all_tables); ?>;
+        var areaTables = tables.filter(function(table) {
+            return table.area_id == areaId;
+        });
+        
+        if (areaTables.length === 0) {
+            selectionDiv.innerHTML = '<p><em><?php echo esc_js(rbf_translate_string('Nessun tavolo disponibile in quest\'area.')); ?></em></p>';
+            return;
+        }
+        
+        var html = '<div style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px;">';
+        areaTables.forEach(function(table) {
+            html += '<label style="display: block; margin-bottom: 8px;">';
+            html += '<input type="checkbox" name="group_tables[]" value="' + table.id + '"> ';
+            html += table.name + ' (' + table.capacity + ' persone)';
+            html += '</label>';
+        });
+        html += '</div>';
+        html += '<p class="description"><?php echo esc_js(rbf_translate_string('Seleziona i tavoli che possono essere uniti in questo gruppo.')); ?></p>';
+        
+        selectionDiv.innerHTML = html;
+    }
+    </script>
+    
+    <style>
+    .tab-content {
+        margin-top: 20px;
+    }
+    .nav-tab-wrapper {
+        margin-bottom: 0;
+    }
+    .postbox .inside {
+        margin: 0;
+        padding: 20px;
+    }
+    .wp-list-table th,
+    .wp-list-table td {
+        padding: 12px;
+    }
+    </style>
+    
+    <?php
 }
