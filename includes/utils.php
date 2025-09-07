@@ -352,6 +352,8 @@ function rbf_translate_string($text) {
         'Grazie! La tua prenotazione è stata inviata con successo.' => 'Thank you! Your booking has been sent successfully.',
         'Tutti i campi sono obbligatori.' => 'All fields are required.',
         'Errore di sicurezza.' => 'Security error.',
+        'Controllo di sicurezza fallito.' => 'Security check failed.',
+        'Parametri obbligatori mancanti.' => 'Missing required parameters.',
         'Data non valida.' => 'Invalid date.',
         'Indirizzo email non valido.' => 'Invalid email address.',
         'Orario non valido.' => 'Invalid time.',
