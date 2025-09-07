@@ -345,13 +345,13 @@ add_action('wp_ajax_nopriv_rbf_get_availability', 'rbf_ajax_get_availability_cal
 function rbf_ajax_get_availability_callback() {
     // Verify nonce for security
     if (!check_ajax_referer('rbf_ajax_nonce', 'nonce', false)) {
-        wp_send_json_error(['message' => 'Security check failed']);
+        wp_send_json_error(['message' => rbf_translate_string('Controllo di sicurezza fallito.')]);
         return;
     }
 
     // Validate required parameters
     if (empty($_POST['date']) || empty($_POST['meal'])) {
-        rbf_handle_error('Missing required parameters', 'ajax_validation');
+        rbf_handle_error(rbf_translate_string('Parametri obbligatori mancanti.'), 'ajax_validation');
         return;
     }
 
