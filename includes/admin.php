@@ -523,6 +523,13 @@ function rbf_settings_page_html() {
                                                 <p class="description"><?php echo esc_html(rbf_translate_string('Percentuale di overbooking consentita oltre la capienza normale')); ?></p>
                                             </td>
                                         </tr>
+                                        <tr>
+                                            <th><label><?php echo esc_html(rbf_translate_string('Durata Slot (minuti)')); ?></label></th>
+                                            <td>
+                                                <input type="number" name="rbf_settings[custom_meals][<?php echo esc_attr($index); ?>][slot_duration_minutes]" value="<?php echo esc_attr($meal['slot_duration_minutes'] ?? 90); ?>" min="30" max="240">
+                                                <p class="description"><?php echo esc_html(rbf_translate_string('Durata di occupazione del tavolo per questo servizio (minuti)')); ?></p>
+                                            </td>
+                                        </tr>
                                     </table>
                                     
                                     <button type="button" class="button button-secondary remove-meal" style="margin-top: 10px;"><?php echo esc_html(rbf_translate_string('Rimuovi Pasto')); ?></button>
@@ -655,6 +662,13 @@ function rbf_settings_page_html() {
                                             <td>
                                                 <input type="number" name="rbf_settings[custom_meals][` + index + `][overbooking_limit]" value="10" min="0" max="50">
                                                 <p class="description"><?php echo esc_html(rbf_translate_string('Percentuale di overbooking consentita oltre la capienza normale')); ?></p>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th><label><?php echo esc_html(rbf_translate_string('Durata Slot (minuti)')); ?></label></th>
+                                            <td>
+                                                <input type="number" name="rbf_settings[custom_meals][` + index + `][slot_duration_minutes]" value="90" min="30" max="240">
+                                                <p class="description"><?php echo esc_html(rbf_translate_string('Durata di occupazione del tavolo per questo servizio (minuti)')); ?></p>
                                             </td>
                                         </tr>
                                     </table>
