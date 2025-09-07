@@ -8,16 +8,22 @@
     --rbf-primary-light: var(--fppr-accent-light, #333333);
     --rbf-primary-dark: var(--fppr-accent-dark, #000000);
     --rbf-secondary: var(--fppr-secondary, #f8b500);
-    --rbf-success: #28a745;
+    --rbf-secondary-accessible: #996f0b; /* Even darker yellow for better contrast */
+    --rbf-success: #155724; /* Darker green for better contrast */
+    --rbf-success-light: #28a745; /* Original for background use */
+    --rbf-warning: #856404; /* Accessible yellow/brown */
+    --rbf-warning-light: #ffc107; /* Original for background use */
     --rbf-error: #dc3545;
     --rbf-text: #333;
     --rbf-text-light: #666;
-    --rbf-border: #e1e5e9;
+    --rbf-border: #adb5bd; /* Darker border for better visibility */
     --rbf-bg-light: #f8f9fa;
     --rbf-shadow: 0 2px 8px rgba(0,0,0,0.1);
     --rbf-shadow-hover: 0 4px 16px rgba(0,0,0,0.15);
     --rbf-radius: var(--fppr-radius, 8px);
     --rbf-transition: all 0.3s ease;
+    --rbf-focus-color: #0056b3; /* Darker blue for better focus contrast */
+    --rbf-focus-outline: 2px solid var(--rbf-focus-color);
 }
 
 .rbf-form-container {
@@ -1593,5 +1599,250 @@
         font-size: 11px;
         max-width: 180px;
         white-space: normal;
+    }
+}
+
+/* ================================================================
+   ACCESSIBILITY ENHANCEMENTS
+   ================================================================ */
+
+/* Enhanced Focus Indicators */
+*:focus {
+    outline: var(--rbf-focus-outline);
+    outline-offset: 2px;
+}
+
+/* Skip to content link for screen readers */
+.rbf-skip-link {
+    position: absolute;
+    top: -40px;
+    left: 6px;
+    background: var(--rbf-primary);
+    color: white;
+    padding: 8px;
+    text-decoration: none;
+    border-radius: 4px;
+    z-index: 9999;
+    transition: top 0.2s;
+}
+
+.rbf-skip-link:focus {
+    top: 6px;
+}
+
+/* Screen reader only text */
+.sr-only {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+/* Improved focus indicators for interactive elements */
+.rbf-radio-group label:focus,
+.rbf-radio-group input[type="radio"]:focus + label {
+    outline: var(--rbf-focus-outline);
+    outline-offset: 2px;
+}
+
+.rbf-people-selector button:focus {
+    outline: var(--rbf-focus-outline);
+    outline-offset: 2px;
+    background: var(--rbf-primary-light);
+    color: white;
+}
+
+/* Enhanced calendar accessibility */
+.flatpickr-day:focus {
+    outline: var(--rbf-focus-outline) !important;
+    outline-offset: 2px !important;
+    z-index: 1 !important;
+}
+
+.flatpickr-day[tabindex="0"] {
+    cursor: pointer;
+}
+
+/* Progress indicator accessibility */
+.rbf-progress-step:focus {
+    outline: var(--rbf-focus-outline);
+    outline-offset: 2px;
+}
+
+/* Form field accessibility improvements */
+.rbf-form input:invalid,
+.rbf-form select:invalid,
+.rbf-form textarea:invalid {
+    border-color: var(--rbf-error);
+    box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.25);
+}
+
+.rbf-form input:valid,
+.rbf-form select:valid,
+.rbf-form textarea:valid {
+    border-color: var(--rbf-success);
+}
+
+/* Error message styling */
+.rbf-error-message {
+    color: var(--rbf-error);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.rbf-error-message::before {
+    content: '⚠️';
+    font-size: 1rem;
+}
+
+/* Success message styling */
+.rbf-success-message {
+    color: var(--rbf-success);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.rbf-success-message::before {
+    content: '✅';
+    font-size: 1rem;
+}
+
+/* Accessible button styling */
+.rbf-form button,
+.rbf-form input[type="submit"] {
+    min-height: 44px;
+    padding: 12px 24px;
+    border: 2px solid transparent;
+    border-radius: var(--rbf-radius);
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--rbf-transition);
+    background: var(--rbf-primary);
+    color: white;
+}
+
+.rbf-form button:hover,
+.rbf-form input[type="submit"]:hover {
+    background: var(--rbf-primary-light);
+    transform: translateY(-1px);
+    box-shadow: var(--rbf-shadow-hover);
+}
+
+.rbf-form button:disabled,
+.rbf-form input[type="submit"]:disabled {
+    background: var(--rbf-border);
+    color: var(--rbf-text-light);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Checkbox and radio accessibility */
+.rbf-form input[type="checkbox"],
+.rbf-form input[type="radio"] {
+    min-width: 20px;
+    min-height: 20px;
+    margin-right: 8px;
+}
+
+/* International telephone input accessibility */
+.iti__selected-flag:focus {
+    outline: var(--rbf-focus-outline);
+    outline-offset: 2px;
+}
+
+.iti__country-list {
+    max-height: 200px;
+    border: 2px solid var(--rbf-border);
+    border-radius: var(--rbf-radius);
+}
+
+.iti__country:focus,
+.iti__country:hover {
+    background: var(--rbf-bg-light);
+    outline: none;
+}
+
+/* Calendar exception indicators with better contrast */
+.flatpickr-day.has-exception-special {
+    background: linear-gradient(135deg, #004085 0%, #003366 100%) !important;
+    color: white !important;
+    border-color: #004085 !important;
+}
+
+.flatpickr-day.has-exception-extended {
+    background: linear-gradient(135deg, #0056b3 0%, #004085 100%) !important;
+    color: white !important;
+    border-color: #0056b3 !important;
+}
+
+.flatpickr-day.has-exception-holiday {
+    background: linear-gradient(135deg, #b8860b 0%, #996f0b 100%) !important;
+    color: white !important;
+    border-color: #b8860b !important;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    :root {
+        --rbf-border: #000000;
+        --rbf-text-light: #000000;
+        --rbf-focus-color: #ff0000;
+    }
+    
+    .rbf-form input,
+    .rbf-form select,
+    .rbf-form textarea {
+        border-width: 3px;
+    }
+    
+    .rbf-availability-tooltip {
+        background: #000000;
+        border: 2px solid #ffffff;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+    
+    .rbf-step {
+        transition: none;
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* Print accessibility */
+@media print {
+    .rbf-availability-tooltip,
+    .rbf-form-tooltip .rbf-tooltip-content {
+        display: none;
+    }
+    
+    .rbf-form {
+        box-shadow: none;
+        border: 2px solid #000000;
+    }
+    
+    .rbf-radio-group label {
+        border: 1px solid #000000;
     }
 }

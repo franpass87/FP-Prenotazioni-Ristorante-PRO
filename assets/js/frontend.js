@@ -1329,6 +1329,318 @@ jQuery(function($) {
       addFormTooltip(nameInput[0], rbfData.labels.nameTooltip || 'Il nome del titolare della prenotazione');
     }
   }
+  
+  /**
+   * Enhanced keyboard navigation system
+   */
+  function initializeKeyboardNavigation() {
+    // Global keyboard handlers
+    $(document).on('keydown', function(e) {
+      // Escape key - universal close action
+      if (e.key === 'Escape') {
+        // Close any open tooltips
+        $('.rbf-availability-tooltip').remove();
+        // Remove focus from date picker if focused
+        if (document.activeElement && document.activeElement.closest('.flatpickr-calendar')) {
+          document.activeElement.blur();
+        }
+        // Close country dropdown if open
+        if ($('.iti__country-list:visible').length) {
+          if (iti) {
+            iti.close();
+          }
+        }
+      }
+    });
+
+    // Enhanced radio group navigation
+    el.mealRadios.on('keydown', function(e) {
+      const radios = el.mealRadios.get();
+      const currentIndex = radios.indexOf(this);
+      let newIndex = currentIndex;
+
+      switch (e.key) {
+        case 'ArrowRight':
+        case 'ArrowDown':
+          e.preventDefault();
+          newIndex = (currentIndex + 1) % radios.length;
+          break;
+        case 'ArrowLeft':
+        case 'ArrowUp':
+          e.preventDefault();
+          newIndex = (currentIndex - 1 + radios.length) % radios.length;
+          break;
+        case 'Home':
+          e.preventDefault();
+          newIndex = 0;
+          break;
+        case 'End':
+          e.preventDefault();
+          newIndex = radios.length - 1;
+          break;
+        case ' ':
+        case 'Enter':
+          e.preventDefault();
+          $(this).prop('checked', true).trigger('change');
+          announceToScreenReader(`Pasto selezionato: ${$(this).next('label').text()}`);
+          return;
+      }
+
+      if (newIndex !== currentIndex) {
+        $(radios[newIndex]).focus();
+      }
+    });
+
+    // Enhanced people selector keyboard navigation
+    el.peopleInput.on('keydown', function(e) {
+      const currentVal = parseInt($(this).val());
+      const maxVal = parseInt($(this).attr('max'));
+
+      switch (e.key) {
+        case 'ArrowUp':
+        case '+':
+          e.preventDefault();
+          if (currentVal < maxVal) {
+            el.peoplePlus.trigger('click');
+          }
+          break;
+        case 'ArrowDown':
+        case '-':
+          e.preventDefault();
+          if (currentVal > 1) {
+            el.peopleMinus.trigger('click');
+          }
+          break;
+        case 'Home':
+          e.preventDefault();
+          $(this).val(1).trigger('input');
+          updatePeopleButtons();
+          break;
+        case 'End':
+          e.preventDefault();
+          $(this).val(maxVal).trigger('input');
+          updatePeopleButtons();
+          break;
+      }
+    });
+
+    // Enhanced button keyboard navigation
+    el.peopleMinus.add(el.peoplePlus).on('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        $(this).trigger('click');
+      }
+    });
+
+    // Enhanced form field navigation
+    const formFields = el.detailsInputs.add(el.timeSelect).add(el.privacyCheckbox).add(el.marketingCheckbox);
+    
+    formFields.on('keydown', function(e) {
+      if (e.key === 'Tab') {
+        // Let default tab behavior work, but announce field entry
+        setTimeout(() => {
+          const fieldLabel = $('label[for="' + this.id + '"]').text() || 
+                          this.getAttribute('aria-label') || 
+                          this.getAttribute('placeholder') || 
+                          'Campo modulo';
+          announceToScreenReader(`Campo: ${fieldLabel}`);
+        }, 50);
+      }
+    });
+
+    // Enhanced time selector keyboard navigation
+    el.timeSelect.on('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        if (this.value) {
+          e.preventDefault();
+          announceToScreenReader(`Orario selezionato: ${this.options[this.selectedIndex].text}`);
+        }
+      }
+    });
+
+    // Calendar keyboard enhancements
+    $(document).on('keydown', '.flatpickr-day[tabindex="0"]', function(e) {
+      const day = $(this);
+      const calendar = day.closest('.flatpickr-calendar');
+      const days = calendar.find('.flatpickr-day[tabindex="0"]');
+      const currentIndex = days.index(this);
+      let newIndex = currentIndex;
+
+      switch (e.key) {
+        case 'ArrowRight':
+          e.preventDefault();
+          newIndex = Math.min(currentIndex + 1, days.length - 1);
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          newIndex = Math.max(currentIndex - 1, 0);
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          newIndex = Math.min(currentIndex + 7, days.length - 1);
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          newIndex = Math.max(currentIndex - 7, 0);
+          break;
+        case 'Home':
+          e.preventDefault();
+          newIndex = 0;
+          break;
+        case 'End':
+          e.preventDefault();
+          newIndex = days.length - 1;
+          break;
+        case 'Enter':
+        case ' ':
+          e.preventDefault();
+          day.trigger('click');
+          const dayText = day.text();
+          announceToScreenReader(`Data selezionata: ${dayText}`);
+          return;
+        case 'PageUp':
+          e.preventDefault();
+          // Previous month
+          if (fp) {
+            fp.changeMonth(-1);
+          }
+          return;
+        case 'PageDown':
+          e.preventDefault();
+          // Next month
+          if (fp) {
+            fp.changeMonth(1);
+          }
+          return;
+      }
+
+      if (newIndex !== currentIndex && days[newIndex]) {
+        days[newIndex].focus();
+        // Announce the new date
+        const dayElement = days[newIndex];
+        const dayText = $(dayElement).text();
+        announceToScreenReader(`Giorno ${dayText}`);
+      }
+    });
+
+    // Form submission keyboard shortcuts
+    form.on('keydown', function(e) {
+      // Ctrl+Enter to submit (if privacy is checked)
+      if (e.ctrlKey && e.key === 'Enter') {
+        if (el.privacyCheckbox.is(':checked') && !el.submitButton.is(':disabled')) {
+          e.preventDefault();
+          el.submitButton.trigger('click');
+        }
+      }
+    });
+  }
+
+  /**
+   * Enhanced focus management for dynamic content
+   */
+  function enhanceFocusManagement() {
+    // Focus management when steps change
+    const originalShowStep = showStep;
+    window.showStep = function($step, stepNumber) {
+      const result = originalShowStep.call(this, $step, stepNumber);
+      
+      // Set focus to first interactive element in new step
+      setTimeout(() => {
+        const firstFocusable = $step.find('input, select, button, [tabindex="0"]').first();
+        if (firstFocusable.length) {
+          firstFocusable.focus();
+        }
+      }, 350); // After step animation
+      
+      return result;
+    };
+
+    // Focus restoration for modals/dropdowns
+    let lastFocusedElement = null;
+
+    $(document).on('focus', 'input, select, button, [tabindex]', function() {
+      if (!$(this).closest('.iti__country-list, .flatpickr-calendar').length) {
+        lastFocusedElement = this;
+      }
+    });
+
+    // Restore focus when closing dropdowns
+    $(document).on('click', function(e) {
+      if (!$(e.target).closest('.iti').length && lastFocusedElement) {
+        // Country dropdown closed
+        if ($('.iti__country-list:visible').length === 0) {
+          setTimeout(() => {
+            if (lastFocusedElement && $(lastFocusedElement).is(':visible')) {
+              lastFocusedElement.focus();
+            }
+          }, 100);
+        }
+      }
+    });
+  }
+
+  /**
+   * Enhanced ARIA live region announcements
+   */
+  function enhanceARIAAnnouncements() {
+    // Create dedicated live region for status updates
+    if (!$('#rbf-aria-status').length) {
+      $('<div>')
+        .attr({
+          'id': 'rbf-aria-status',
+          'aria-live': 'polite',
+          'aria-atomic': 'true',
+          'class': 'sr-only'
+        })
+        .appendTo('body');
+    }
+
+    // Create dedicated live region for alerts
+    if (!$('#rbf-aria-alert').length) {
+      $('<div>')
+        .attr({
+          'id': 'rbf-aria-alert',
+          'aria-live': 'assertive',
+          'aria-atomic': 'true',
+          'class': 'sr-only'
+        })
+        .appendTo('body');
+    }
+
+    // Enhanced announcement function
+    window.announceToScreenReader = function(message, isAlert = false) {
+      const regionId = isAlert ? '#rbf-aria-alert' : '#rbf-aria-status';
+      const $region = $(regionId);
+      
+      $region.text(message);
+      
+      // Clear after announcement to allow repeated messages
+      setTimeout(() => {
+        $region.empty();
+      }, 1000);
+    };
+
+    // Announce form validation errors
+    form.on('invalid', 'input, select, textarea', function(e) {
+      e.preventDefault();
+      const field = $(this);
+      const label = $('label[for="' + this.id + '"]').text() || this.getAttribute('aria-label') || 'Campo';
+      const validationMessage = this.validationMessage || 'Campo non valido';
+      
+      announceToScreenReader(`Errore in ${label}: ${validationMessage}`, true);
+      
+      // Focus the invalid field
+      setTimeout(() => {
+        this.focus();
+      }, 100);
+    });
+  }
+
+  // Initialize all keyboard navigation enhancements
+  initializeKeyboardNavigation();
+  enhanceFocusManagement();
+  enhanceARIAAnnouncements();
+
   function enhanceMobileExperience() {
     // Improve form scrolling on mobile
     if (window.innerWidth <= 768) {
