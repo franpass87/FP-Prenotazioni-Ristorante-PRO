@@ -378,8 +378,14 @@ jQuery(function($) {
    */
   function addAvailabilityTooltip(dayElem, status) {
     let tooltip = null;
+    const tooltipId = 'rbf-tooltip-' + Math.random().toString(36).substr(2, 9);
     
-    dayElem.addEventListener('mouseenter', function(e) {
+    // Add aria-describedby for accessibility
+    dayElem.setAttribute('aria-describedby', tooltipId);
+    dayElem.setAttribute('role', 'button');
+    dayElem.setAttribute('tabindex', '0');
+    
+    function showTooltip() {
       // Remove any existing tooltip
       if (tooltip) {
         tooltip.remove();
@@ -387,37 +393,87 @@ jQuery(function($) {
       
       tooltip = document.createElement('div');
       tooltip.className = 'rbf-availability-tooltip';
+      tooltip.id = tooltipId;
+      tooltip.setAttribute('role', 'tooltip');
       
       let statusText;
+      let contextualMessage = '';
+      
+      // Generate dynamic contextual messages based on availability
       if (status.level === 'available') {
         statusText = rbfData.labels.available || 'Disponibile';
+        if (status.remaining > 20) {
+          contextualMessage = rbfData.labels.manySpots || 'Molti posti disponibili';
+        } else if (status.remaining > 10) {
+          contextualMessage = rbfData.labels.someSpots || 'Buona disponibilità';
+        }
       } else if (status.level === 'limited') {
         statusText = rbfData.labels.limited || 'Limitato';
+        if (status.remaining <= 2) {
+          contextualMessage = rbfData.labels.lastSpots || 'Ultimi 2 posti rimasti';
+        } else if (status.remaining <= 5) {
+          contextualMessage = rbfData.labels.fewSpots || 'Pochi posti rimasti';
+        }
       } else {
         statusText = rbfData.labels.nearlyFull || 'Quasi pieno';
+        contextualMessage = rbfData.labels.actFast || 'Prenota subito!';
       }
       
       const spotsLabel = rbfData.labels.spotsRemaining || 'Posti rimasti:';
       const occupancyLabel = rbfData.labels.occupancy || 'Occupazione:';
       
       tooltip.innerHTML = `
-        <div>${statusText}</div>
-        <div>${spotsLabel} ${status.remaining}/${status.total}</div>
-        <div>${occupancyLabel} ${status.occupancy}%</div>
+        <div class="rbf-tooltip-status">${statusText}</div>
+        ${contextualMessage ? `<div class="rbf-tooltip-context">${contextualMessage}</div>` : ''}
+        <div class="rbf-tooltip-spots">${spotsLabel} ${status.remaining}/${status.total}</div>
+        <div class="rbf-tooltip-occupancy">${occupancyLabel} ${status.occupancy}%</div>
       `;
       
       document.body.appendChild(tooltip);
       
-      // Position tooltip above the day element
+      // Position tooltip above the day element with responsive positioning
       const rect = dayElem.getBoundingClientRect();
-      tooltip.style.left = (rect.left + rect.width / 2 - tooltip.offsetWidth / 2) + 'px';
-      tooltip.style.top = (rect.top - tooltip.offsetHeight - 10) + 'px';
-    });
+      const tooltipRect = tooltip.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      
+      let left = rect.left + rect.width / 2 - tooltipRect.width / 2;
+      let top = rect.top - tooltipRect.height - 10;
+      
+      // Adjust horizontal position if tooltip would overflow viewport
+      if (left < 10) {
+        left = 10;
+      } else if (left + tooltipRect.width > viewportWidth - 10) {
+        left = viewportWidth - tooltipRect.width - 10;
+      }
+      
+      // Adjust vertical position if tooltip would overflow top of viewport
+      if (top < 10) {
+        top = rect.bottom + 10;
+        tooltip.classList.add('rbf-tooltip-below');
+      }
+      
+      tooltip.style.left = left + 'px';
+      tooltip.style.top = top + 'px';
+    }
     
-    dayElem.addEventListener('mouseleave', function() {
+    function hideTooltip() {
       if (tooltip) {
         tooltip.remove();
         tooltip = null;
+      }
+    }
+    
+    dayElem.addEventListener('mouseenter', showTooltip);
+    dayElem.addEventListener('mouseleave', hideTooltip);
+    dayElem.addEventListener('focus', showTooltip);
+    dayElem.addEventListener('blur', hideTooltip);
+    
+    // Handle keyboard navigation
+    dayElem.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        hideTooltip();
+        dayElem.blur();
       }
     });
   }
@@ -1057,6 +1113,9 @@ jQuery(function($) {
       el.peopleInput.val(1).attr('max', maxPeople);
       updatePeopleButtons(); // Update buttons without triggering input event
       // Don't trigger input event here - let user interact with people selector first
+      
+      // Initialize form tooltips when people step is shown
+      setTimeout(initializeFormTooltips, 100);
     }
   });
 
@@ -1179,8 +1238,97 @@ jQuery(function($) {
   });
 
   /**
-   * Mobile enhancement functions
+   * Add contextual tooltip to form elements
    */
+  function addFormTooltip(element, tooltipText, options = {}) {
+    if (!element || !tooltipText) return;
+    
+    const wrapper = document.createElement('div');
+    wrapper.className = 'rbf-form-tooltip';
+    
+    // Replace element with wrapper containing element + tooltip
+    element.parentNode.insertBefore(wrapper, element);
+    wrapper.appendChild(element);
+    
+    const tooltip = document.createElement('div');
+    tooltip.className = 'rbf-tooltip-content';
+    tooltip.textContent = tooltipText;
+    tooltip.setAttribute('role', 'tooltip');
+    
+    const tooltipId = 'rbf-form-tooltip-' + Math.random().toString(36).substr(2, 9);
+    tooltip.id = tooltipId;
+    element.setAttribute('aria-describedby', tooltipId);
+    
+    wrapper.appendChild(tooltip);
+    
+    // Add dynamic content updates if specified
+    if (options.dynamicContent) {
+      const updateTooltip = () => {
+        const newText = options.dynamicContent(element);
+        if (newText) tooltip.textContent = newText;
+      };
+      
+      element.addEventListener('input', updateTooltip);
+      element.addEventListener('change', updateTooltip);
+    }
+  }
+
+  /**
+   * Initialize form tooltips after elements are ready
+   */
+  function initializeFormTooltips() {
+    // Time selection tooltip
+    if (el.timeSelect.length) {
+      addFormTooltip(el.timeSelect[0], rbfData.labels.timeTooltip || 'Seleziona il tuo orario preferito', {
+        dynamicContent: (element) => {
+          const selectedOption = element.options[element.selectedIndex];
+          if (selectedOption && selectedOption.value) {
+            return rbfData.labels.timeSelected?.replace('{time}', selectedOption.text) || 
+                   `Orario selezionato: ${selectedOption.text}`;
+          }
+          return rbfData.labels.timeTooltip || 'Seleziona il tuo orario preferito';
+        }
+      });
+    }
+    
+    // People count tooltip  
+    if (el.peopleInput.length) {
+      addFormTooltip(el.peopleInput[0], rbfData.labels.peopleTooltip || 'Numero di persone per la prenotazione', {
+        dynamicContent: (element) => {
+          const count = parseInt(element.value) || 1;
+          const max = parseInt(element.getAttribute('max')) || 8;
+          
+          if (count === 1) {
+            return rbfData.labels.singlePerson || 'Prenotazione per 1 persona';
+          } else if (count >= max - 1) {
+            return rbfData.labels.nearMaxPeople || `Prenotazione per ${count} persone (quasi al massimo)`;
+          } else if (count >= 6) {
+            return rbfData.labels.largePeople || `Prenotazione per ${count} persone (gruppo numeroso)`;
+          } else {
+            return rbfData.labels.multiplePeople?.replace('{count}', count) || 
+                   `Prenotazione per ${count} persone`;
+          }
+        }
+      });
+    }
+    
+    // Phone number tooltip
+    if (el.telInput.length) {
+      addFormTooltip(el.telInput[0], rbfData.labels.phoneTooltip || 'Inserisci il tuo numero di telefono per confermare la prenotazione');
+    }
+    
+    // Email tooltip
+    const emailInput = el.detailsStep.find('input[type="email"]');
+    if (emailInput.length) {
+      addFormTooltip(emailInput[0], rbfData.labels.emailTooltip || 'Riceverai una email di conferma della prenotazione');
+    }
+    
+    // Name tooltip
+    const nameInput = el.detailsStep.find('input[name="rbf_name"]');
+    if (nameInput.length) {
+      addFormTooltip(nameInput[0], rbfData.labels.nameTooltip || 'Il nome del titolare della prenotazione');
+    }
+  }
   function enhanceMobileExperience() {
     // Improve form scrolling on mobile
     if (window.innerWidth <= 768) {

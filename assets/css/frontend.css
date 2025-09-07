@@ -1492,14 +1492,16 @@
     position: absolute;
     background: rgba(0, 0, 0, 0.9);
     color: white;
-    padding: 8px 12px;
-    border-radius: 4px;
+    padding: 10px 14px;
+    border-radius: 6px;
     font-size: 12px;
     line-height: 1.4;
     z-index: 1000;
     pointer-events: none;
     white-space: nowrap;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    max-width: 250px;
+    transition: opacity 0.2s ease-in-out;
 }
 
 .rbf-availability-tooltip::after {
@@ -1510,4 +1512,86 @@
     margin-left: -5px;
     border: 5px solid transparent;
     border-top-color: rgba(0, 0, 0, 0.9);
+}
+
+.rbf-availability-tooltip.rbf-tooltip-below::after {
+    top: -10px;
+    border-top-color: transparent;
+    border-bottom-color: rgba(0, 0, 0, 0.9);
+}
+
+.rbf-tooltip-status {
+    font-weight: bold;
+    margin-bottom: 4px;
+    color: #fff;
+}
+
+.rbf-tooltip-context {
+    font-style: italic;
+    color: #ffd700;
+    margin-bottom: 4px;
+    font-size: 11px;
+}
+
+.rbf-tooltip-spots,
+.rbf-tooltip-occupancy {
+    margin-bottom: 2px;
+    font-size: 11px;
+    opacity: 0.9;
+}
+
+/* Form element tooltips */
+.rbf-form-tooltip {
+    position: relative;
+    display: inline-block;
+}
+
+.rbf-form-tooltip .rbf-tooltip-content {
+    visibility: hidden;
+    position: absolute;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.2s, visibility 0.2s;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.rbf-form-tooltip .rbf-tooltip-content::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border: 5px solid transparent;
+    border-top-color: rgba(0, 0, 0, 0.9);
+}
+
+.rbf-form-tooltip:hover .rbf-tooltip-content,
+.rbf-form-tooltip:focus-within .rbf-tooltip-content {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Mobile responsive tooltips */
+@media (max-width: 768px) {
+    .rbf-availability-tooltip {
+        font-size: 11px;
+        padding: 8px 10px;
+        max-width: 200px;
+        white-space: normal;
+    }
+    
+    .rbf-form-tooltip .rbf-tooltip-content {
+        font-size: 11px;
+        max-width: 180px;
+        white-space: normal;
+    }
 }
