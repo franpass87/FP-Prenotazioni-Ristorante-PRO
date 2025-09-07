@@ -665,10 +665,13 @@ function rbf_handle_success($message, $data = [], $redirect_url = null) {
 
 /**
  * Centralized asset version helper for cache-busting
- * Consolidates the RBF_VERSION . '.' . time() pattern used across files
+ * Returns base version with optional timestamp when debugging
  */
 function rbf_get_asset_version() {
-    return RBF_VERSION . '.' . time();
+    if (defined('SCRIPT_DEBUG') && SCRIPT_DEBUG) {
+        return RBF_VERSION . '.' . time();
+    }
+    return RBF_VERSION;
 }
 
 /**
