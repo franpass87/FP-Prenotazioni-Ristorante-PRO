@@ -90,7 +90,8 @@ function rbf_load_modules() {
         'admin.php',
         'frontend.php',
         'booking-handler.php',
-        'integrations.php'
+        'integrations.php',
+        'ga4-funnel-tracking.php'
     ];
 
     foreach ($modules as $module) {
@@ -104,6 +105,16 @@ function rbf_load_modules() {
 // Load modules immediately after WordPress functions are available
 // Use 'plugins_loaded' hook instead of 'init' to load earlier
 add_action('plugins_loaded', 'rbf_load_modules', 0);
+
+// Load test files in admin context
+if (is_admin()) {
+    add_action('plugins_loaded', function() {
+        $test_file = RBF_PLUGIN_DIR . 'tests/ga4-funnel-tests.php';
+        if (file_exists($test_file)) {
+            require_once $test_file;
+        }
+    });
+}
 
 /**
  * Plugin activation hook

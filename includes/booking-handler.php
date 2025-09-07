@@ -332,6 +332,19 @@ function rbf_handle_booking_submission() {
         }
     }
 
+    // Track booking completion for GA4 funnel
+    if (function_exists('rbf_track_booking_completion')) {
+        $tracking_completion_data = [
+            'id' => $post_id,
+            'value' => $valore_tot,
+            'currency' => 'EUR',
+            'meal' => $meal,
+            'people' => $people,
+            'bucket' => $src['bucket']
+        ];
+        rbf_track_booking_completion($post_id, $tracking_completion_data);
+    }
+
     // Success - redirect with booking confirmation
     $success_args = ['rbf_success' => '1', 'booking_id' => $post_id];
     rbf_handle_success('Booking created successfully', $success_args, add_query_arg($success_args, $redirect_url . $anchor));
