@@ -501,6 +501,13 @@ function rbf_translate_string($text) {
         'Testo informativo che apparirà quando questo pasto viene selezionato (opzionale)' => 'Information text that will appear when this meal is selected (optional)',
         'Di Domenica il servizio è Brunch con menù alla carta.' => 'On Sundays the service is Brunch with à la carte menu.',
         'Disponibile solo la domenica con menù speciale.' => 'Available only on Sundays with special menu.',
+        
+        // Calendar availability status
+        'Disponibile' => 'Available',
+        'Limitato' => 'Limited',
+        'Quasi pieno' => 'Nearly full',
+        'Posti rimasti:' => 'Spots remaining:',
+        'Occupazione:' => 'Occupancy:',
     ];
     return $translations[$text] ?? $text;
 }
@@ -1220,4 +1227,61 @@ function rbf_get_effective_capacity($meal_id) {
     $overbooking_spots = round($base_capacity * ($overbooking_limit / 100));
     
     return $base_capacity + $overbooking_spots;
+}
+
+/**
+ * Calculate occupancy percentage for a date and meal
+ * 
+ * @param string $date Date in Y-m-d format
+ * @param string $meal_id Meal ID
+ * @return float Occupancy percentage (0-100)
+ */
+function rbf_calculate_occupancy_percentage($date, $meal_id) {
+    $total_capacity = rbf_get_effective_capacity($meal_id);
+    if ($total_capacity <= 0) {
+        return 0; // No capacity configured
+    }
+    
+    global $wpdb;
+    $spots_taken = $wpdb->get_var($wpdb->prepare(
+        "SELECT SUM(pm_people.meta_value)
+         FROM {$wpdb->posts} p
+         INNER JOIN {$wpdb->postmeta} pm_people ON p.ID = pm_people.post_id AND pm_people.meta_key = 'rbf_persone'
+         INNER JOIN {$wpdb->postmeta} pm_date ON p.ID = pm_date.post_id AND pm_date.meta_key = 'rbf_data'
+         INNER JOIN {$wpdb->postmeta} pm_slot ON p.ID = pm_slot.post_id AND pm_slot.meta_key = 'rbf_orario'
+         WHERE p.post_type = 'rbf_booking' AND p.post_status = 'publish'
+         AND pm_date.meta_value = %s AND pm_slot.meta_value = %s",
+        $date, $meal_id
+    ));
+    
+    $spots_taken = intval($spots_taken);
+    return ($spots_taken / $total_capacity) * 100;
+}
+
+/**
+ * Get availability status for a date and meal
+ * 
+ * @param string $date Date in Y-m-d format
+ * @param string $meal_id Meal ID
+ * @return array Status information with level, percentage, remaining spots
+ */
+function rbf_get_availability_status($date, $meal_id) {
+    $occupancy = rbf_calculate_occupancy_percentage($date, $meal_id);
+    $total_capacity = rbf_get_effective_capacity($meal_id);
+    $remaining = rbf_get_remaining_capacity($date, $meal_id);
+    
+    // Define thresholds
+    $level = 'available';  // green
+    if ($occupancy >= 100) {
+        $level = 'full';     // red
+    } elseif ($occupancy >= 70) {
+        $level = 'limited';  // yellow
+    }
+    
+    return [
+        'level' => $level,
+        'occupancy' => round($occupancy, 1),
+        'remaining' => $remaining,
+        'total' => $total_capacity
+    ];
 }

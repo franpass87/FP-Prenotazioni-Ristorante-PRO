@@ -522,3 +522,69 @@ function rbf_ajax_get_availability_callback() {
 
     wp_send_json_success($response);
 }
+
+/**
+ * AJAX handler for calendar availability data
+ */
+add_action('wp_ajax_rbf_get_calendar_availability', 'rbf_ajax_get_calendar_availability_callback');
+add_action('wp_ajax_nopriv_rbf_get_calendar_availability', 'rbf_ajax_get_calendar_availability_callback');
+function rbf_ajax_get_calendar_availability_callback() {
+    // Verify nonce for security
+    if (!check_ajax_referer('rbf_ajax_nonce', 'nonce', false)) {
+        wp_send_json_error(['message' => rbf_translate_string('Controllo di sicurezza fallito.')]);
+        return;
+    }
+
+    // Validate required parameters
+    if (empty($_POST['start_date']) || empty($_POST['end_date']) || empty($_POST['meal'])) {
+        wp_send_json_error(['message' => rbf_translate_string('Parametri obbligatori mancanti.')]);
+        return;
+    }
+
+    // Sanitize inputs
+    $sanitized_fields = rbf_sanitize_input_fields($_POST, [
+        'start_date' => 'text',
+        'end_date' => 'text',
+        'meal' => 'text'
+    ]);
+    
+    $start_date = $sanitized_fields['start_date'];
+    $end_date = $sanitized_fields['end_date'];
+    $meal = $sanitized_fields['meal'];
+    
+    // Validate dates
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $start_date) || !DateTime::createFromFormat('Y-m-d', $start_date)) {
+        wp_send_json_error(['message' => rbf_translate_string('Data inizio non valida.')]);
+        return;
+    }
+    
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $end_date) || !DateTime::createFromFormat('Y-m-d', $end_date)) {
+        wp_send_json_error(['message' => rbf_translate_string('Data fine non valida.')]);
+        return;
+    }
+    
+    // Validate meal type
+    $valid_meal_ids = rbf_get_valid_meal_ids();
+    if (!in_array($meal, $valid_meal_ids, true)) {
+        wp_send_json_error(['message' => rbf_translate_string('Tipo di pasto non valido.')]);
+        return;
+    }
+
+    $availability_data = [];
+    $current_date = new DateTime($start_date);
+    $end_date_obj = new DateTime($end_date);
+    
+    while ($current_date <= $end_date_obj) {
+        $date_str = $current_date->format('Y-m-d');
+        
+        // Check if meal is available on this day
+        if (rbf_is_meal_available_on_day($meal, $date_str)) {
+            $status = rbf_get_availability_status($date_str, $meal);
+            $availability_data[$date_str] = $status;
+        }
+        
+        $current_date->modify('+1 day');
+    }
+
+    wp_send_json_success($availability_data);
+}

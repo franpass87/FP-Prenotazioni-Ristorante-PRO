@@ -87,6 +87,12 @@ function rbf_enqueue_frontend_assets() {
             'selectPrefix' => rbf_translate_string('Seleziona prefisso internazionale'),
             'sundayBrunchNotice' => rbf_translate_string('Di Domenica il servizio è Brunch con menù alla carta.'),
             'privacyRequired' => rbf_translate_string('Devi accettare la Privacy Policy per procedere.'),
+            // Calendar availability labels
+            'available' => rbf_translate_string('Disponibile'),
+            'limited' => rbf_translate_string('Limitato'),
+            'nearlyFull' => rbf_translate_string('Quasi pieno'),
+            'spotsRemaining' => rbf_translate_string('Posti rimasti:'),
+            'occupancy' => rbf_translate_string('Occupazione:'),
         ],
     ]);
 }
