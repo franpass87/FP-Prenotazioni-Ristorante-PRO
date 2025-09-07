@@ -33,7 +33,8 @@
          */
         generateEventId: function(eventType) {
             const now = Date.now();
-            const microseconds = String(performance.now()).replace('.', '').padEnd(16, '0').substr(0, 6);
+            const performanceNow = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Math.random() * 1000;
+            const microseconds = String(performanceNow).replace('.', '').padEnd(16, '0').substr(0, 6);
             return `rbf_${eventType}_${this.sessionId}_${Math.floor(now / 1000)}_${microseconds}`;
         },
         
@@ -80,6 +81,12 @@
          * Send event to server for Measurement Protocol tracking
          */
         sendToServer: function(eventName, params, eventId) {
+            // Check if jQuery and AJAX are available
+            if (typeof $ === 'undefined' || typeof $.ajax !== 'function') {
+                this.log(`Server tracking skipped - jQuery AJAX not available for: ${eventName}`);
+                return;
+            }
+            
             $.ajax({
                 url: rbfGA4Funnel.ajaxUrl,
                 type: 'POST',
@@ -271,14 +278,16 @@
                 this.trackFormSubmission(formData);
             });
             
-            // Track AJAX errors
-            $(document).ajaxError((event, xhr, settings, error) => {
-                if (settings.url && settings.url.includes('rbf_get_availability')) {
-                    this.trackBookingError('Availability check failed', 'ajax_error', 3);
-                } else if (settings.data && settings.data.includes('rbf_form')) {
-                    this.trackBookingError('Form submission failed', 'submission_error', 6);
-                }
-            });
+            // Track AJAX errors (if jQuery AJAX is available)
+            if (typeof $(document).ajaxError === 'function') {
+                $(document).ajaxError((event, xhr, settings, error) => {
+                    if (settings.url && settings.url.includes('rbf_get_availability')) {
+                        this.trackBookingError('Availability check failed', 'ajax_error', 3);
+                    } else if (settings.data && settings.data.includes('rbf_form')) {
+                        this.trackBookingError('Form submission failed', 'submission_error', 6);
+                    }
+                });
+            }
             
             // Track validation errors
             $form.on('invalid', 'input, select, textarea', (e) => {
@@ -331,8 +340,8 @@
         const urlParams = new URLSearchParams(window.location.search);
         const bookingId = urlParams.get('booking_id');
         
-        if (bookingId) {
-            // Check if we have booking data from server
+        // Check if we have booking data from server (if AJAX is available)
+        if (bookingId && typeof $.ajax === 'function') {
             $.ajax({
                 url: rbfGA4Funnel.ajaxUrl,
                 type: 'POST',
