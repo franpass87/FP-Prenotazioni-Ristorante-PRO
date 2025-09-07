@@ -87,6 +87,25 @@ function rbf_enqueue_frontend_assets() {
             'selectPrefix' => rbf_translate_string('Seleziona prefisso internazionale'),
             'sundayBrunchNotice' => rbf_translate_string('Di Domenica il servizio è Brunch con menù alla carta.'),
             'privacyRequired' => rbf_translate_string('Devi accettare la Privacy Policy per procedere.'),
+            
+            // Inline validation messages
+            'mealRequired' => rbf_translate_string('Seleziona un pasto per continuare.'),
+            'dateRequired' => rbf_translate_string('Seleziona una data per continuare.'),
+            'dateInPast' => rbf_translate_string('La data selezionata non può essere nel passato.'),
+            'timeRequired' => rbf_translate_string('Seleziona un orario per continuare.'),
+            'peopleMinimum' => rbf_translate_string('Il numero di persone deve essere almeno 1.'),
+            'peopleMaximum' => rbf_translate_string('Il numero di persone non può superare 20.'),
+            'nameRequired' => rbf_translate_string('Il nome deve contenere almeno 2 caratteri.'),
+            'nameInvalid' => rbf_translate_string('Il nome può contenere solo lettere, spazi, apostrofi e trattini.'),
+            'surnameRequired' => rbf_translate_string('Il cognome deve contenere almeno 2 caratteri.'),
+            'surnameInvalid' => rbf_translate_string('Il cognome può contenere solo lettere, spazi, apostrofi e trattini.'),
+            'emailRequired' => rbf_translate_string('L\'indirizzo email è obbligatorio.'),
+            'emailInvalid' => rbf_translate_string('Inserisci un indirizzo email valido.'),
+            'emailTest' => rbf_translate_string('Utilizza un indirizzo email reale per la prenotazione.'),
+            'phoneRequired' => rbf_translate_string('Il numero di telefono è obbligatorio.'),
+            'phoneMinLength' => rbf_translate_string('Il numero di telefono deve contenere almeno 8 cifre.'),
+            'phoneMaxLength' => rbf_translate_string('Il numero di telefono non può superare 15 cifre.'),
+            
             // Calendar availability labels
             'available' => rbf_translate_string('Disponibile'),
             'limited' => rbf_translate_string('Limitato'),
@@ -427,85 +446,97 @@ function rbf_render_booking_form($atts = []) {
                 <div id="progress-description" class="sr-only"><?php echo esc_html(rbf_translate_string('Indicatore di progresso a 5 passaggi per completare la prenotazione')); ?></div>
 
                 <div id="step-meal" class="rbf-step active" role="group" aria-labelledby="meal-label">
-                    <label id="meal-label"><?php echo esc_html(rbf_translate_string('Scegli il pasto')); ?></label>
-                    <div class="rbf-radio-group" role="radiogroup" aria-labelledby="meal-label" aria-required="true">
-                        <?php
-                        $active_meals = rbf_get_active_meals();
-                        foreach ($active_meals as $meal) {
-                            $meal_id = esc_attr($meal['id']);
-                            $meal_name = esc_html($meal['name']);
-                            ?>
-                            <input type="radio" name="rbf_meal" value="<?php echo $meal_id; ?>" id="rbf_meal_<?php echo $meal_id; ?>" required aria-describedby="rbf-meal-notice">
-                            <label for="rbf_meal_<?php echo $meal_id; ?>"><?php echo $meal_name; ?></label>
+                    <div class="rbf-field-wrapper">
+                        <label id="meal-label"><?php echo esc_html(rbf_translate_string('Scegli il pasto')); ?><span class="rbf-required-indicator">*</span></label>
+                        <div class="rbf-radio-group" role="radiogroup" aria-labelledby="meal-label" aria-required="true">
                             <?php
-                        }
-                        ?>
+                            $active_meals = rbf_get_active_meals();
+                            foreach ($active_meals as $meal) {
+                                $meal_id = esc_attr($meal['id']);
+                                $meal_name = esc_html($meal['name']);
+                                ?>
+                                <input type="radio" name="rbf_meal" value="<?php echo $meal_id; ?>" id="rbf_meal_<?php echo $meal_id; ?>" required aria-describedby="rbf-meal-notice">
+                                <label for="rbf_meal_<?php echo $meal_id; ?>"><?php echo $meal_name; ?></label>
+                                <?php
+                            }
+                            ?>
+                        </div>
+                        <div id="rbf-meal-error" class="rbf-field-error"></div>
+                        <p id="rbf-meal-notice" style="display:none;" role="status" aria-live="polite"></p>
                     </div>
-                    <p id="rbf-meal-notice" style="display:none;" role="status" aria-live="polite"></p>
                 </div>
 
                 <div id="step-date" class="rbf-step" style="display:none;" role="group" aria-labelledby="date-label" data-skeleton="true">
-                    <label id="date-label" for="rbf-date"><?php echo esc_html(rbf_translate_string('Data')); ?></label>
-                    
-                    <!-- Skeleton for calendar loading -->
-                    <div class="rbf-skeleton rbf-skeleton-calendar" aria-hidden="true"></div>
-                    
-                    <!-- Actual calendar input (initially hidden) -->
-                    <div class="rbf-fade-in">
-                        <input id="rbf-date" name="rbf_data" readonly="readonly" required aria-describedby="date-help" role="combobox" aria-expanded="false" aria-haspopup="grid" aria-label="<?php echo esc_attr(rbf_translate_string('Seleziona data prenotazione')); ?>">
-                        <small id="date-help" class="rbf-help-text"><?php echo esc_html(rbf_translate_string('Seleziona una data dal calendario. Usa i tasti freccia per navigare, Invio per selezionare')); ?></small>
-                        <div class="rbf-exception-legend" style="display:none;" role="group" aria-labelledby="legend-label">
-                            <div id="legend-label" class="sr-only"><?php echo esc_html(rbf_translate_string('Legenda calendario')); ?></div>
-                            <div class="rbf-exception-legend-item">
-                                <span class="rbf-exception-legend-dot" style="background: #20c997;" role="img" aria-label="<?php echo esc_attr(rbf_translate_string('Indicatore evento speciale')); ?>"></span>
-                                <span><?php echo esc_html(rbf_translate_string('Eventi Speciali')); ?></span>
-                            </div>
-                            <div class="rbf-exception-legend-item">
-                                <span class="rbf-exception-legend-dot" style="background: #0d6efd;" role="img" aria-label="<?php echo esc_attr(rbf_translate_string('Indicatore orari estesi')); ?>"></span>
-                                <span><?php echo esc_html(rbf_translate_string('Orari Estesi')); ?></span>
-                            </div>
-                            <div class="rbf-exception-legend-item">
-                                <span class="rbf-exception-legend-dot" style="background: #fd7e14;" role="img" aria-label="<?php echo esc_attr(rbf_translate_string('Indicatore festività')); ?>"></span>
-                                <span><?php echo esc_html(rbf_translate_string('Festività')); ?></span>
+                    <div class="rbf-field-wrapper">
+                        <label id="date-label" for="rbf-date"><?php echo esc_html(rbf_translate_string('Data')); ?><span class="rbf-required-indicator">*</span></label>
+                        
+                        <!-- Skeleton for calendar loading -->
+                        <div class="rbf-skeleton rbf-skeleton-calendar" aria-hidden="true"></div>
+                        
+                        <!-- Actual calendar input (initially hidden) -->
+                        <div class="rbf-fade-in">
+                            <input id="rbf-date" name="rbf_data" readonly="readonly" required aria-describedby="date-help" role="combobox" aria-expanded="false" aria-haspopup="grid" aria-label="<?php echo esc_attr(rbf_translate_string('Seleziona data prenotazione')); ?>">
+                            <div id="rbf-date-error" class="rbf-field-error"></div>
+                            <small id="date-help" class="rbf-help-text"><?php echo esc_html(rbf_translate_string('Seleziona una data dal calendario. Usa i tasti freccia per navigare, Invio per selezionare')); ?></small>
+                            <div class="rbf-exception-legend" style="display:none;" role="group" aria-labelledby="legend-label">
+                                <div id="legend-label" class="sr-only"><?php echo esc_html(rbf_translate_string('Legenda calendario')); ?></div>
+                                <div class="rbf-exception-legend-item">
+                                    <span class="rbf-exception-legend-dot" style="background: #20c997;" role="img" aria-label="<?php echo esc_attr(rbf_translate_string('Indicatore evento speciale')); ?>"></span>
+                                    <span><?php echo esc_html(rbf_translate_string('Eventi Speciali')); ?></span>
+                                </div>
+                                <div class="rbf-exception-legend-item">
+                                    <span class="rbf-exception-legend-dot" style="background: #0d6efd;" role="img" aria-label="<?php echo esc_attr(rbf_translate_string('Indicatore orari estesi')); ?>"></span>
+                                    <span><?php echo esc_html(rbf_translate_string('Orari Estesi')); ?></span>
+                                </div>
+                                <div class="rbf-exception-legend-item">
+                                    <span class="rbf-exception-legend-dot" style="background: #fd7e14;" role="img" aria-label="<?php echo esc_attr(rbf_translate_string('Indicatore festività')); ?>"></span>
+                                    <span><?php echo esc_html(rbf_translate_string('Festività')); ?></span>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <div id="step-time" class="rbf-step" style="display:none;" role="group" aria-labelledby="time-label" data-skeleton="true">
-                    <label id="time-label" for="rbf-time"><?php echo esc_html(rbf_translate_string('Orario')); ?></label>
-                    
-                    <!-- Skeleton for time slot loading -->
-                    <div class="rbf-skeleton rbf-skeleton-select" aria-hidden="true"></div>
-                    
-                    <!-- Actual time select (initially hidden) -->
-                    <div class="rbf-fade-in">
-                        <select id="rbf-time" name="rbf_orario" required disabled aria-describedby="time-help">
-                            <option value=""><?php echo esc_html(rbf_translate_string('Prima scegli la data')); ?></option>
-                        </select>
-                        <small id="time-help" class="rbf-help-text"><?php echo esc_html(rbf_translate_string('Seleziona un orario disponibile')); ?></small>
+                    <div class="rbf-field-wrapper">
+                        <label id="time-label" for="rbf-time"><?php echo esc_html(rbf_translate_string('Orario')); ?><span class="rbf-required-indicator">*</span></label>
+                        
+                        <!-- Skeleton for time slot loading -->
+                        <div class="rbf-skeleton rbf-skeleton-select" aria-hidden="true"></div>
+                        
+                        <!-- Actual time select (initially hidden) -->
+                        <div class="rbf-fade-in">
+                            <select id="rbf-time" name="rbf_orario" required disabled aria-describedby="time-help">
+                                <option value=""><?php echo esc_html(rbf_translate_string('Prima scegli la data')); ?></option>
+                            </select>
+                            <div id="rbf-time-error" class="rbf-field-error"></div>
+                            <small id="time-help" class="rbf-help-text"><?php echo esc_html(rbf_translate_string('Seleziona un orario disponibile')); ?></small>
+                        </div>
                     </div>
                 </div>
 
                 <div id="step-people" class="rbf-step" style="display:none;" role="group" aria-labelledby="people-label" data-skeleton="true">
-                    <label id="people-label"><?php echo esc_html(rbf_translate_string('Persone')); ?></label>
-                    
-                    <!-- Skeleton for people selector -->
-                    <div class="rbf-skeleton-people-selector" aria-hidden="true">
-                        <div class="rbf-skeleton rbf-skeleton-button"></div>
-                        <div class="rbf-skeleton rbf-skeleton-input" style="width: 4rem; margin: 0 0.5rem;"></div>
-                        <div class="rbf-skeleton rbf-skeleton-button"></div>
-                    </div>
-                    
-                    <!-- Actual people selector (initially hidden) -->
-                    <div class="rbf-fade-in">
-                        <div class="rbf-people-selector" role="group" aria-labelledby="people-label" aria-describedby="people-instructions">
-                            <button type="button" id="rbf-people-minus" disabled aria-label="<?php echo esc_attr(rbf_translate_string('Diminuisci numero persone')); ?>" tabindex="0">-</button>
-                            <input type="number" id="rbf-people" name="rbf_persone" value="1" min="1" readonly="readonly" required aria-describedby="people-help" aria-label="<?php echo esc_attr(rbf_translate_string('Numero di persone')); ?>" role="spinbutton" aria-valuemin="1" aria-valuenow="1">
-                            <button type="button" id="rbf-people-plus" aria-label="<?php echo esc_attr(rbf_translate_string('Aumenta numero persone')); ?>" tabindex="0">+</button>
+                    <div class="rbf-field-wrapper">
+                        <label id="people-label"><?php echo esc_html(rbf_translate_string('Persone')); ?><span class="rbf-required-indicator">*</span></label>
+                        
+                        <!-- Skeleton for people selector -->
+                        <div class="rbf-skeleton-people-selector" aria-hidden="true">
+                            <div class="rbf-skeleton rbf-skeleton-button"></div>
+                            <div class="rbf-skeleton rbf-skeleton-input" style="width: 4rem; margin: 0 0.5rem;"></div>
+                            <div class="rbf-skeleton rbf-skeleton-button"></div>
                         </div>
-                        <div id="people-instructions" class="sr-only"><?php echo esc_html(rbf_translate_string('Usa i pulsanti più e meno, oppure i tasti freccia su e giù per modificare il numero di persone')); ?></div>
-                        <small id="people-help" class="rbf-help-text"><?php echo esc_html(rbf_translate_string('Usa i pulsanti + e - per modificare')); ?></small>
+                        
+                        <!-- Actual people selector (initially hidden) -->
+                        <div class="rbf-fade-in">
+                            <div class="rbf-people-selector" role="group" aria-labelledby="people-label" aria-describedby="people-instructions">
+                                <button type="button" id="rbf-people-minus" disabled aria-label="<?php echo esc_attr(rbf_translate_string('Diminuisci numero persone')); ?>" tabindex="0">-</button>
+                                <input type="number" id="rbf-people" name="rbf_persone" value="1" min="1" readonly="readonly" required aria-describedby="people-help" aria-label="<?php echo esc_attr(rbf_translate_string('Numero di persone')); ?>" role="spinbutton" aria-valuemin="1" aria-valuenow="1">
+                                <button type="button" id="rbf-people-plus" aria-label="<?php echo esc_attr(rbf_translate_string('Aumenta numero persone')); ?>" tabindex="0">+</button>
+                            </div>
+                            <div id="rbf-people-error" class="rbf-field-error"></div>
+                            <div id="people-instructions" class="sr-only"><?php echo esc_html(rbf_translate_string('Usa i pulsanti più e meno, oppure i tasti freccia su e giù per modificare il numero di persone')); ?></div>
+                            <small id="people-help" class="rbf-help-text"><?php echo esc_html(rbf_translate_string('Usa i pulsanti + e - per modificare')); ?></small>
+                        </div>
                     </div>
                 </div>
 
@@ -530,30 +561,47 @@ function rbf_render_booking_form($atts = []) {
                     
                     <!-- Actual form fields (initially hidden) -->
                     <div class="rbf-fade-in">
-                        <label for="rbf-name"><?php echo esc_html(rbf_translate_string('Nome')); ?> *</label>
-                        <input type="text" id="rbf-name" name="rbf_nome" required disabled aria-required="true">
+                        <div class="rbf-field-wrapper">
+                            <label for="rbf-name"><?php echo esc_html(rbf_translate_string('Nome')); ?><span class="rbf-required-indicator">*</span></label>
+                            <input type="text" id="rbf-name" name="rbf_nome" required disabled aria-required="true">
+                            <div id="rbf-name-error" class="rbf-field-error"></div>
+                        </div>
                         
-                        <label for="rbf-surname"><?php echo esc_html(rbf_translate_string('Cognome')); ?> *</label>
-                        <input type="text" id="rbf-surname" name="rbf_cognome" required disabled aria-required="true">
+                        <div class="rbf-field-wrapper">
+                            <label for="rbf-surname"><?php echo esc_html(rbf_translate_string('Cognome')); ?><span class="rbf-required-indicator">*</span></label>
+                            <input type="text" id="rbf-surname" name="rbf_cognome" required disabled aria-required="true">
+                            <div id="rbf-surname-error" class="rbf-field-error"></div>
+                        </div>
                         
-                        <label for="rbf-email"><?php echo esc_html(rbf_translate_string('Email')); ?> *</label>
-                        <input type="email" id="rbf-email" name="rbf_email" required disabled aria-required="true">
+                        <div class="rbf-field-wrapper">
+                            <label for="rbf-email"><?php echo esc_html(rbf_translate_string('Email')); ?><span class="rbf-required-indicator">*</span></label>
+                            <input type="email" id="rbf-email" name="rbf_email" required disabled aria-required="true">
+                            <div id="rbf-email-error" class="rbf-field-error"></div>
+                        </div>
                         
-                        <label for="rbf-tel"><?php echo esc_html(rbf_translate_string('Telefono')); ?> *</label>
-                        <input type="tel" id="rbf-tel" name="rbf_tel" required disabled aria-required="true">
+                        <div class="rbf-field-wrapper">
+                            <label for="rbf-tel"><?php echo esc_html(rbf_translate_string('Telefono')); ?><span class="rbf-required-indicator">*</span></label>
+                            <input type="tel" id="rbf-tel" name="rbf_tel" required disabled aria-required="true">
+                            <div id="rbf-tel-error" class="rbf-field-error"></div>
+                        </div>
                         
-                        <label for="rbf-notes"><?php echo esc_html(rbf_translate_string('Allergie/Note')); ?></label>
-                        <textarea id="rbf-notes" name="rbf_allergie" disabled placeholder="<?php echo esc_attr(rbf_translate_string('Inserisci eventuali allergie o note particolari...')); ?>"></textarea>
+                        <div class="rbf-field-wrapper">
+                            <label for="rbf-notes"><?php echo esc_html(rbf_translate_string('Allergie/Note')); ?></label>
+                            <textarea id="rbf-notes" name="rbf_allergie" disabled placeholder="<?php echo esc_attr(rbf_translate_string('Inserisci eventuali allergie o note particolari...')); ?>"></textarea>
+                        </div>
 
                         <div class="rbf-checkbox-group" role="group" aria-labelledby="consent-label">
                             <h4 id="consent-label" class="rbf-consent-title"><?php echo esc_html(rbf_translate_string('Consensi')); ?></h4>
-                            <label>
-                                <input type="checkbox" id="rbf-privacy" name="rbf_privacy" value="yes" required disabled aria-required="true">
-                                <span><?php echo sprintf(
-                                    rbf_translate_string('Acconsento al trattamento dei dati secondo l\'<a href="%s" target="_blank" rel="noopener">Informativa sulla Privacy</a> *'),
-                                    'https://www.villadianella.it/privacy-statement-eu'
-                                ); ?></span>
-                            </label>
+                            <div class="rbf-field-wrapper">
+                                <label>
+                                    <input type="checkbox" id="rbf-privacy" name="rbf_privacy" value="yes" required disabled aria-required="true">
+                                    <span><?php echo sprintf(
+                                        rbf_translate_string('Acconsento al trattamento dei dati secondo l\'<a href="%s" target="_blank" rel="noopener">Informativa sulla Privacy</a> <span class="rbf-required-indicator">*</span>'),
+                                        'https://www.villadianella.it/privacy-statement-eu'
+                                    ); ?></span>
+                                </label>
+                                <div id="rbf-privacy-error" class="rbf-field-error"></div>
+                            </div>
                             <label>
                                 <input type="checkbox" id="rbf-marketing" name="rbf_marketing" value="yes" disabled>
                                 <span><?php echo rbf_translate_string('Acconsento a ricevere comunicazioni promozionali via email e/o messaggi riguardanti eventi, offerte o novità.'); ?></span>

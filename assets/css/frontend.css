@@ -1688,6 +1688,107 @@
     border-color: var(--rbf-success);
 }
 
+/* Required field indicators */
+.rbf-required-indicator {
+    color: var(--rbf-error);
+    font-weight: bold;
+    margin-left: 4px;
+}
+
+.rbf-field-wrapper {
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.rbf-field-wrapper label {
+    display: flex;
+    align-items: center;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--rbf-text);
+}
+
+/* Inline validation message styling */
+.rbf-field-error {
+    color: var(--rbf-error);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+}
+
+.rbf-field-error.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.rbf-field-error::before {
+    content: '⚠️';
+    font-size: 1rem;
+}
+
+.rbf-field-success {
+    color: var(--rbf-success);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+}
+
+.rbf-field-success.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.rbf-field-success::before {
+    content: '✅';
+    font-size: 1rem;
+}
+
+/* Validation states for form fields */
+.rbf-form .rbf-field-invalid {
+    border-color: var(--rbf-error) !important;
+    box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.25) !important;
+}
+
+.rbf-form .rbf-field-valid {
+    border-color: var(--rbf-success) !important;
+    box-shadow: 0 0 0 2px rgba(21, 87, 36, 0.25) !important;
+}
+
+.rbf-form .rbf-field-validating {
+    border-color: var(--rbf-secondary) !important;
+    box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.25) !important;
+    position: relative;
+}
+
+.rbf-form .rbf-field-validating::after {
+    content: '';
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--rbf-secondary);
+    border-top: 2px solid transparent;
+    border-radius: 50%;
+    animation: rbf-spin 1s linear infinite;
+}
+
+@keyframes rbf-spin {
+    0% { transform: translateY(-50%) rotate(0deg); }
+    100% { transform: translateY(-50%) rotate(360deg); }
+}
+
 /* Error message styling */
 .rbf-error-message {
     color: var(--rbf-error);

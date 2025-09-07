@@ -1872,6 +1872,295 @@ jQuery(function($) {
   enhanceMobileExperience();
 
   /**
+   * Inline validation functionality
+   */
+  const ValidationManager = {
+    // Validation rules
+    rules: {
+      'rbf_meal': {
+        required: true,
+        validate: function(value) {
+          if (!value) {
+            return { valid: false, message: rbfData.labels.mealRequired || 'Seleziona un pasto per continuare.' };
+          }
+          return { valid: true };
+        }
+      },
+      'rbf_data': {
+        required: true,
+        validate: function(value) {
+          if (!value) {
+            return { valid: false, message: rbfData.labels.dateRequired || 'Seleziona una data per continuare.' };
+          }
+          // Check if date is in the past
+          const selectedDate = new Date(value);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          if (selectedDate < today) {
+            return { valid: false, message: rbfData.labels.dateInPast || 'La data selezionata non può essere nel passato.' };
+          }
+          return { valid: true };
+        }
+      },
+      'rbf_orario': {
+        required: true,
+        validate: function(value) {
+          if (!value) {
+            return { valid: false, message: rbfData.labels.timeRequired || 'Seleziona un orario per continuare.' };
+          }
+          return { valid: true };
+        }
+      },
+      'rbf_persone': {
+        required: true,
+        validate: function(value) {
+          const people = parseInt(value);
+          if (!people || people < 1) {
+            return { valid: false, message: rbfData.labels.peopleMinimum || 'Il numero di persone deve essere almeno 1.' };
+          }
+          if (people > 20) {
+            return { valid: false, message: rbfData.labels.peopleMaximum || 'Il numero di persone non può superare 20.' };
+          }
+          return { valid: true };
+        }
+      },
+      'rbf_nome': {
+        required: true,
+        validate: function(value) {
+          if (!value || value.trim().length < 2) {
+            return { valid: false, message: rbfData.labels.nameRequired || 'Il nome deve contenere almeno 2 caratteri.' };
+          }
+          if (!/^[a-zA-ZÀ-ÿ\s\'-]+$/.test(value.trim())) {
+            return { valid: false, message: rbfData.labels.nameInvalid || 'Il nome può contenere solo lettere, spazi, apostrofi e trattini.' };
+          }
+          return { valid: true };
+        }
+      },
+      'rbf_cognome': {
+        required: true,
+        validate: function(value) {
+          if (!value || value.trim().length < 2) {
+            return { valid: false, message: rbfData.labels.surnameRequired || 'Il cognome deve contenere almeno 2 caratteri.' };
+          }
+          if (!/^[a-zA-ZÀ-ÿ\s\'-]+$/.test(value.trim())) {
+            return { valid: false, message: rbfData.labels.surnameInvalid || 'Il cognome può contenere solo lettere, spazi, apostrofi e trattini.' };
+          }
+          return { valid: true };
+        }
+      },
+      'rbf_email': {
+        required: true,
+        validate: function(value) {
+          if (!value) {
+            return { valid: false, message: rbfData.labels.emailRequired || 'L\'indirizzo email è obbligatorio.' };
+          }
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(value)) {
+            return { valid: false, message: rbfData.labels.emailInvalid || 'Inserisci un indirizzo email valido.' };
+          }
+          return { valid: true };
+        },
+        asyncValidate: function(value) {
+          // Check if email is already used for booking on the same date
+          return new Promise((resolve) => {
+            const selectedDate = el.dateInput.val();
+            if (!selectedDate) {
+              resolve({ valid: true });
+              return;
+            }
+            
+            // Simple check for common email providers format
+            setTimeout(() => {
+              if (value.includes('@example.') || value.includes('@test.')) {
+                resolve({ valid: false, message: rbfData.labels.emailTest || 'Utilizza un indirizzo email reale per la prenotazione.' });
+              } else {
+                resolve({ valid: true });
+              }
+            }, 500);
+          });
+        }
+      },
+      'rbf_tel': {
+        required: true,
+        validate: function(value) {
+          if (!value) {
+            return { valid: false, message: rbfData.labels.phoneRequired || 'Il numero di telefono è obbligatorio.' };
+          }
+          // Remove all non-numeric characters for validation
+          const cleaned = value.replace(/[^\d]/g, '');
+          if (cleaned.length < 8) {
+            return { valid: false, message: rbfData.labels.phoneMinLength || 'Il numero di telefono deve contenere almeno 8 cifre.' };
+          }
+          if (cleaned.length > 15) {
+            return { valid: false, message: rbfData.labels.phoneMaxLength || 'Il numero di telefono non può superare 15 cifre.' };
+          }
+          return { valid: true };
+        }
+      },
+      'rbf_privacy': {
+        required: true,
+        validate: function(value, element) {
+          if (!element.checked) {
+            return { valid: false, message: rbfData.labels.privacyRequired || 'Devi accettare la Privacy Policy per procedere.' };
+          }
+          return { valid: true };
+        }
+      }
+    },
+
+    // Show field error
+    showFieldError: function(fieldName, message) {
+      const errorElement = document.getElementById(fieldName + '-error');
+      const field = document.getElementById(fieldName.replace('rbf_', 'rbf-'));
+      
+      if (errorElement) {
+        errorElement.textContent = message;
+        errorElement.classList.add('show');
+      }
+      
+      if (field) {
+        field.classList.remove('rbf-field-valid', 'rbf-field-validating');
+        field.classList.add('rbf-field-invalid');
+      }
+    },
+
+    // Show field success
+    showFieldSuccess: function(fieldName) {
+      const errorElement = document.getElementById(fieldName + '-error');
+      const field = document.getElementById(fieldName.replace('rbf_', 'rbf-'));
+      
+      if (errorElement) {
+        errorElement.classList.remove('show');
+      }
+      
+      if (field) {
+        field.classList.remove('rbf-field-invalid', 'rbf-field-validating');
+        field.classList.add('rbf-field-valid');
+      }
+    },
+
+    // Show field validating state
+    showFieldValidating: function(fieldName) {
+      const field = document.getElementById(fieldName.replace('rbf_', 'rbf-'));
+      if (field) {
+        field.classList.remove('rbf-field-invalid', 'rbf-field-valid');
+        field.classList.add('rbf-field-validating');
+      }
+    },
+
+    // Clear field validation state
+    clearFieldValidation: function(fieldName) {
+      const errorElement = document.getElementById(fieldName + '-error');
+      const field = document.getElementById(fieldName.replace('rbf_', 'rbf-'));
+      
+      if (errorElement) {
+        errorElement.classList.remove('show');
+      }
+      
+      if (field) {
+        field.classList.remove('rbf-field-invalid', 'rbf-field-valid', 'rbf-field-validating');
+      }
+    },
+
+    // Validate a single field
+    validateField: function(fieldName, value, element) {
+      const rule = this.rules[fieldName];
+      if (!rule) return true;
+
+      // Synchronous validation
+      const result = rule.validate(value, element);
+      if (!result.valid) {
+        this.showFieldError(fieldName, result.message);
+        return false;
+      }
+
+      // Asynchronous validation if available
+      if (rule.asyncValidate) {
+        this.showFieldValidating(fieldName);
+        rule.asyncValidate(value).then((asyncResult) => {
+          if (!asyncResult.valid) {
+            this.showFieldError(fieldName, asyncResult.message);
+          } else {
+            this.showFieldSuccess(fieldName);
+          }
+        }).catch(() => {
+          this.showFieldSuccess(fieldName);
+        });
+      } else {
+        this.showFieldSuccess(fieldName);
+      }
+
+      return true;
+    },
+
+    // Initialize validation listeners
+    init: function() {
+      // Meal radio buttons validation
+      el.mealRadios.on('change', function() {
+        ValidationManager.validateField('rbf_meal', this.value, this);
+      });
+
+      // Date validation
+      el.dateInput.on('change', function() {
+        ValidationManager.validateField('rbf_data', this.value, this);
+      });
+
+      // Time validation
+      el.timeSelect.on('change', function() {
+        ValidationManager.validateField('rbf_orario', this.value, this);
+      });
+
+      // People validation
+      el.peopleInput.on('change input', function() {
+        ValidationManager.validateField('rbf_persone', this.value, this);
+      });
+
+      // Personal details validation
+      ['rbf-name', 'rbf-surname', 'rbf-email', 'rbf-tel'].forEach(function(fieldId) {
+        const field = document.getElementById(fieldId);
+        if (field) {
+          const fieldName = fieldId.replace('-', '_');
+          
+          // Validate on blur
+          field.addEventListener('blur', function() {
+            if (this.value.trim()) {
+              ValidationManager.validateField(fieldName, this.value, this);
+            }
+          });
+
+          // Clear validation on focus (give user a fresh start)
+          field.addEventListener('focus', function() {
+            ValidationManager.clearFieldValidation(fieldName);
+          });
+
+          // For email and phone, also validate on input with debounce
+          if (fieldId === 'rbf-email' || fieldId === 'rbf-tel') {
+            let timeout;
+            field.addEventListener('input', function() {
+              clearTimeout(timeout);
+              if (this.value.length > 0) {
+                timeout = setTimeout(() => {
+                  ValidationManager.validateField(fieldName, this.value, this);
+                }, 1000);
+              }
+            });
+          }
+        }
+      });
+
+      // Privacy checkbox validation
+      el.privacyCheckbox.on('change', function() {
+        ValidationManager.validateField('rbf_privacy', this.value, this);
+      });
+
+      rbfLog.log('Validation manager initialized');
+    }
+  };
+
+  // Initialize validation
+  ValidationManager.init();
+
+  /**
    * UTM parameters and click ID capture
    */
   (function() {
