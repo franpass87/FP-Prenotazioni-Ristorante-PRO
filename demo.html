@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo Accessibilità - FP Prenotazioni</title>
+    <link rel="stylesheet" href="assets/css/frontend.css">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background: #f5f7fa; }
+        .demo-container { max-width: 800px; margin: 0 auto; }
+        .demo-section { background: white; margin: 20px 0; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .color-demo { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
+        .color-sample { padding: 20px; border-radius: 8px; text-align: center; font-weight: 600; border: 2px solid transparent; }
+        .color-sample:focus { outline: 2px solid #0056b3; outline-offset: 2px; }
+        .keyboard-demo { padding: 20px; background: #f8f9fa; border: 2px solid #adb5bd; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <h1>Demo Miglioramenti Accessibilità</h1>
+        
+        <div class="demo-section">
+            <h2>Skip Link (Accessibile solo da tastiera)</h2>
+            <a href="#main-content" class="rbf-skip-link">Salta al contenuto principale</a>
+            <p>Premi Tab per vedere il link di salto.</p>
+        </div>
+        
+        <div class="demo-section">
+            <h2>Indicatori di Focus Migliorati</h2>
+            <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                <button style="padding: 12px 20px; border: 2px solid var(--rbf-border); border-radius: 8px; background: white; cursor: pointer;">Pulsante Standard</button>
+                <input type="text" placeholder="Campo di testo" style="padding: 12px; border: 2px solid var(--rbf-border); border-radius: 8px;">
+                <select style="padding: 12px; border: 2px solid var(--rbf-border); border-radius: 8px;">
+                    <option>Opzione 1</option>
+                    <option>Opzione 2</option>
+                </select>
+            </div>
+            <p>Usa Tab per navigare tra gli elementi e vedere i nuovi indicatori di focus.</p>
+        </div>
+        
+        <div class="demo-section">
+            <h2>Palette Colori con Contrasto Migliorato</h2>
+            <div class="color-demo">
+                <div class="color-sample" style="background: #155724; color: white;" tabindex="0">
+                    Successo Migliorato<br>
+                    <small>Contrasto: 8.68:1 (AAA)</small>
+                </div>
+                <div class="color-sample" style="background: #996f0b; color: white;" tabindex="0">
+                    Secondario Migliorato<br>
+                    <small>Contrasto: 4.53:1 (AA)</small>
+                </div>
+                <div class="color-sample" style="background: #0056b3; color: white;" tabindex="0">
+                    Focus Migliorato<br>
+                    <small>Contrasto: 7.04:1 (AAA)</small>
+                </div>
+                <div class="color-sample" style="background: #004085; color: white;" tabindex="0">
+                    Eventi Speciali<br>
+                    <small>Contrasto: 10.13:1 (AAA)</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="demo-section">
+            <h2>Navigazione da Tastiera</h2>
+            <div class="keyboard-demo">
+                <h3>Gruppo Radio con Navigazione Frecce</h3>
+                <div class="rbf-radio-group" role="radiogroup" aria-labelledby="demo-radio-label">
+                    <label id="demo-radio-label" class="sr-only">Scegli un'opzione</label>
+                    <input type="radio" name="demo" id="option1" value="1">
+                    <label for="option1">Opzione 1</label>
+                    <input type="radio" name="demo" id="option2" value="2">
+                    <label for="option2">Opzione 2</label>
+                    <input type="radio" name="demo" id="option3" value="3">
+                    <label for="option3">Opzione 3</label>
+                </div>
+                <p><strong>Istruzioni:</strong></p>
+                <ul>
+                    <li>Tab: Entra nel gruppo radio</li>
+                    <li>Frecce Su/Giù/Sinistra/Destra: Naviga tra le opzioni</li>
+                    <li>Home: Prima opzione</li>
+                    <li>End: Ultima opzione</li>
+                    <li>Spazio/Enter: Seleziona opzione</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="demo-section">
+            <h2>Supporto Screen Reader</h2>
+            <div id="rbf-aria-status" aria-live="polite" aria-atomic="true" class="sr-only"></div>
+            <div id="rbf-aria-alert" aria-live="assertive" aria-atomic="true" class="sr-only"></div>
+            <button onclick="announceDemo('Questo è un annuncio di test per screen reader')">
+                Testa Annuncio Screen Reader
+            </button>
+            <p>Gli screen reader riceveranno annunci quando si naviga nel form.</p>
+        </div>
+        
+        <div class="demo-section" id="main-content">
+            <h2>Contenuto Principale</h2>
+            <p>Questo è il contenuto principale a cui il skip link porta l'utente.</p>
+        </div>
+    </div>
+    
+    <script>
+        // Demo functionality
+        function announceDemo(message) {
+            const status = document.getElementById('rbf-aria-status');
+            status.textContent = message;
+            setTimeout(() => status.textContent = '', 3000);
+        }
+        
+        // Radio group keyboard navigation demo
+        document.addEventListener('DOMContentLoaded', function() {
+            const radioGroup = document.querySelector('.rbf-radio-group');
+            const radios = radioGroup.querySelectorAll('input[type="radio"]');
+            
+            radios.forEach(radio => {
+                radio.addEventListener('keydown', function(e) {
+                    const currentIndex = Array.from(radios).indexOf(this);
+                    let newIndex = currentIndex;
+                    
+                    switch(e.key) {
+                        case 'ArrowRight':
+                        case 'ArrowDown':
+                            e.preventDefault();
+                            newIndex = (currentIndex + 1) % radios.length;
+                            break;
+                        case 'ArrowLeft':
+                        case 'ArrowUp':
+                            e.preventDefault();
+                            newIndex = (currentIndex - 1 + radios.length) % radios.length;
+                            break;
+                        case 'Home':
+                            e.preventDefault();
+                            newIndex = 0;
+                            break;
+                        case 'End':
+                            e.preventDefault();
+                            newIndex = radios.length - 1;
+                            break;
+                    }
+                    
+                    if (newIndex !== currentIndex) {
+                        radios[newIndex].focus();
+                        radios[newIndex].checked = true;
+                        announceDemo('Opzione ' + (newIndex + 1) + ' selezionata');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

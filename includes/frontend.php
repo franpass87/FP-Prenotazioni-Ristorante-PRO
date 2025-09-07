@@ -388,26 +388,31 @@ function rbf_render_booking_form($atts = []) {
             </div>
         <?php else : ?>
             <?php if (isset($_GET['rbf_error'])) : ?>
-                <div class="rbf-error-message">
+                <div class="rbf-error-message" role="alert">
                     <?php echo esc_html(urldecode($_GET['rbf_error'])); ?>
                 </div>
             <?php endif; ?>
-            <form id="rbf-form" class="rbf-form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+            
+            <!-- Skip to main content link for accessibility -->
+            <a href="#rbf-form" class="rbf-skip-link"><?php echo esc_html(rbf_translate_string('Salta al contenuto principale')); ?></a>
+            
+            <form id="rbf-form" class="rbf-form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" role="form" aria-label="<?php echo esc_attr(rbf_translate_string('Modulo di prenotazione ristorante')); ?>">
                 <input type="hidden" name="action" value="rbf_submit_booking">
                 <?php wp_nonce_field('rbf_booking','rbf_nonce'); ?>
                 
                 <!-- Progress Indicator -->
-                <div class="rbf-progress-indicator" role="progressbar" aria-valuenow="1" aria-valuemin="1" aria-valuemax="5" aria-label="<?php echo esc_attr(rbf_translate_string('Progresso prenotazione')); ?>">
-                    <div class="rbf-progress-step active" data-step="1" aria-label="<?php echo esc_attr(rbf_translate_string('Scegli il pasto')); ?>">1</div>
-                    <div class="rbf-progress-step" data-step="2" aria-label="<?php echo esc_attr(rbf_translate_string('Data')); ?>">2</div>
-                    <div class="rbf-progress-step" data-step="3" aria-label="<?php echo esc_attr(rbf_translate_string('Orario')); ?>">3</div>
-                    <div class="rbf-progress-step" data-step="4" aria-label="<?php echo esc_attr(rbf_translate_string('Persone')); ?>">4</div>
-                    <div class="rbf-progress-step" data-step="5" aria-label="<?php echo esc_attr(rbf_translate_string('Dati personali')); ?>">5</div>
+                <div class="rbf-progress-indicator" role="progressbar" aria-valuenow="1" aria-valuemin="1" aria-valuemax="5" aria-label="<?php echo esc_attr(rbf_translate_string('Progresso prenotazione')); ?>" aria-describedby="progress-description">
+                    <div class="rbf-progress-step active" data-step="1" aria-label="<?php echo esc_attr(rbf_translate_string('Scegli il pasto')); ?>" aria-current="step">1</div>
+                    <div class="rbf-progress-step" data-step="2" aria-label="<?php echo esc_attr(rbf_translate_string('Data')); ?>" aria-current="false">2</div>
+                    <div class="rbf-progress-step" data-step="3" aria-label="<?php echo esc_attr(rbf_translate_string('Orario')); ?>" aria-current="false">3</div>
+                    <div class="rbf-progress-step" data-step="4" aria-label="<?php echo esc_attr(rbf_translate_string('Persone')); ?>" aria-current="false">4</div>
+                    <div class="rbf-progress-step" data-step="5" aria-label="<?php echo esc_attr(rbf_translate_string('Dati personali')); ?>" aria-current="false">5</div>
                 </div>
+                <div id="progress-description" class="sr-only"><?php echo esc_html(rbf_translate_string('Indicatore di progresso a 5 passaggi per completare la prenotazione')); ?></div>
 
                 <div id="step-meal" class="rbf-step active" role="group" aria-labelledby="meal-label">
                     <label id="meal-label"><?php echo esc_html(rbf_translate_string('Scegli il pasto')); ?></label>
-                    <div class="rbf-radio-group" role="radiogroup" aria-labelledby="meal-label">
+                    <div class="rbf-radio-group" role="radiogroup" aria-labelledby="meal-label" aria-required="true">
                         <?php
                         $active_meals = rbf_get_active_meals();
                         foreach ($active_meals as $meal) {
@@ -431,19 +436,20 @@ function rbf_render_booking_form($atts = []) {
                     
                     <!-- Actual calendar input (initially hidden) -->
                     <div class="rbf-fade-in">
-                        <input id="rbf-date" name="rbf_data" readonly="readonly" required aria-describedby="date-help">
-                        <small id="date-help" class="rbf-help-text"><?php echo esc_html(rbf_translate_string('Seleziona una data dal calendario')); ?></small>
-                        <div class="rbf-exception-legend" style="display:none;">
+                        <input id="rbf-date" name="rbf_data" readonly="readonly" required aria-describedby="date-help" role="combobox" aria-expanded="false" aria-haspopup="grid" aria-label="<?php echo esc_attr(rbf_translate_string('Seleziona data prenotazione')); ?>">
+                        <small id="date-help" class="rbf-help-text"><?php echo esc_html(rbf_translate_string('Seleziona una data dal calendario. Usa i tasti freccia per navigare, Invio per selezionare')); ?></small>
+                        <div class="rbf-exception-legend" style="display:none;" role="group" aria-labelledby="legend-label">
+                            <div id="legend-label" class="sr-only"><?php echo esc_html(rbf_translate_string('Legenda calendario')); ?></div>
                             <div class="rbf-exception-legend-item">
-                                <span class="rbf-exception-legend-dot" style="background: #20c997;"></span>
+                                <span class="rbf-exception-legend-dot" style="background: #20c997;" role="img" aria-label="<?php echo esc_attr(rbf_translate_string('Indicatore evento speciale')); ?>"></span>
                                 <span><?php echo esc_html(rbf_translate_string('Eventi Speciali')); ?></span>
                             </div>
                             <div class="rbf-exception-legend-item">
-                                <span class="rbf-exception-legend-dot" style="background: #0d6efd;"></span>
+                                <span class="rbf-exception-legend-dot" style="background: #0d6efd;" role="img" aria-label="<?php echo esc_attr(rbf_translate_string('Indicatore orari estesi')); ?>"></span>
                                 <span><?php echo esc_html(rbf_translate_string('Orari Estesi')); ?></span>
                             </div>
                             <div class="rbf-exception-legend-item">
-                                <span class="rbf-exception-legend-dot" style="background: #fd7e14;"></span>
+                                <span class="rbf-exception-legend-dot" style="background: #fd7e14;" role="img" aria-label="<?php echo esc_attr(rbf_translate_string('Indicatore festività')); ?>"></span>
                                 <span><?php echo esc_html(rbf_translate_string('Festività')); ?></span>
                             </div>
                         </div>
@@ -477,11 +483,12 @@ function rbf_render_booking_form($atts = []) {
                     
                     <!-- Actual people selector (initially hidden) -->
                     <div class="rbf-fade-in">
-                        <div class="rbf-people-selector" role="group" aria-labelledby="people-label">
-                            <button type="button" id="rbf-people-minus" disabled aria-label="<?php echo esc_attr(rbf_translate_string('Diminuisci numero persone')); ?>">-</button>
-                            <input type="number" id="rbf-people" name="rbf_persone" value="1" min="1" readonly="readonly" required aria-describedby="people-help">
-                            <button type="button" id="rbf-people-plus" aria-label="<?php echo esc_attr(rbf_translate_string('Aumenta numero persone')); ?>">+</button>
+                        <div class="rbf-people-selector" role="group" aria-labelledby="people-label" aria-describedby="people-instructions">
+                            <button type="button" id="rbf-people-minus" disabled aria-label="<?php echo esc_attr(rbf_translate_string('Diminuisci numero persone')); ?>" tabindex="0">-</button>
+                            <input type="number" id="rbf-people" name="rbf_persone" value="1" min="1" readonly="readonly" required aria-describedby="people-help" aria-label="<?php echo esc_attr(rbf_translate_string('Numero di persone')); ?>" role="spinbutton" aria-valuemin="1" aria-valuenow="1">
+                            <button type="button" id="rbf-people-plus" aria-label="<?php echo esc_attr(rbf_translate_string('Aumenta numero persone')); ?>" tabindex="0">+</button>
                         </div>
+                        <div id="people-instructions" class="sr-only"><?php echo esc_html(rbf_translate_string('Usa i pulsanti più e meno, oppure i tasti freccia su e giù per modificare il numero di persone')); ?></div>
                         <small id="people-help" class="rbf-help-text"><?php echo esc_html(rbf_translate_string('Usa i pulsanti + e - per modificare')); ?></small>
                     </div>
                 </div>
