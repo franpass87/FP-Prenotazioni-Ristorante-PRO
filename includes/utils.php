@@ -20,7 +20,7 @@ function rbf_get_default_settings() {
         'ga4_api_secret' => '',
         'meta_pixel_id' => '',
         'meta_access_token' => '',
-        'notification_email' => 'info@villadianella.it',
+        'notification_email' => get_option('admin_email'),
         'webmaster_email' => '',
         'brevo_api' => '',
         'brevo_list_it' => '',
