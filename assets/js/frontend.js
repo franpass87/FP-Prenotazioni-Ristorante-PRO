@@ -1294,9 +1294,8 @@ jQuery(function($) {
               ${formData.notes ? `
                 <div class="rbf-summary-item">
                   <span class="rbf-summary-label">${rbfData.labels.notes}:</span>
-                  <span class="rbf-summary-value"></span>
+                  <span class="rbf-summary-value">${notesText}</span>
                 </div>
-                <div class="rbf-summary-notes">${notesText}</div>
               ` : ''}
             </div>
           </div>
