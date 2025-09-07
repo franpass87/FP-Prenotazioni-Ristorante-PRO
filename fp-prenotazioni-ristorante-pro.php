@@ -86,6 +86,7 @@ add_action('plugins_loaded', 'rbf_maybe_clear_transients_on_load', -1);
 function rbf_load_modules() {
     $modules = [
         'utils.php',
+        'optimistic-locking.php',
         'table-management.php',
         'admin.php',
         'frontend.php',
@@ -128,6 +129,9 @@ function rbf_activate_plugin() {
     
     // Create table management database tables
     rbf_create_table_management_tables();
+    
+    // Create optimistic locking tables
+    rbf_create_slot_version_table();
     
     // Flush rewrite rules to ensure custom post types work
     // The post type registration happens via 'init' hook in admin.php

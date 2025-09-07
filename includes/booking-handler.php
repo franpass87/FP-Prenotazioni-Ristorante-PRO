@@ -169,15 +169,24 @@ function rbf_handle_booking_submission() {
         return;
     }
 
-    $remaining_capacity = rbf_get_remaining_capacity($date, $slot);
+    // Use optimistic locking for capacity check and booking
+    $booking_result = rbf_book_slot_optimistic($date, $slot, $people);
     
-    // Check capacity - if not enough, show error (no waitlist)
-    if ($remaining_capacity < $people) {
-        $error_msg = sprintf(
-            rbf_translate_string('Spiacenti, non ci sono abbastanza posti. Rimasti: %d. Scegli un altro orario.'), 
-            $remaining_capacity
-        );
-        rbf_handle_error($error_msg, 'capacity_validation', $redirect_url . $anchor);
+    if (!$booking_result['success']) {
+        if ($booking_result['error'] === 'insufficient_capacity') {
+            $remaining = $booking_result['remaining'] ?? 0;
+            $error_msg = sprintf(
+                rbf_translate_string('Spiacenti, non ci sono abbastanza posti. Rimasti: %d. Scegli un altro orario.'), 
+                $remaining
+            );
+            rbf_handle_error($error_msg, 'capacity_validation', $redirect_url . $anchor);
+        } elseif ($booking_result['error'] === 'version_conflict') {
+            $error_msg = rbf_translate_string('Questo slot è stato appena prenotato da un altro utente. Ti preghiamo di ricaricare la pagina e riprovare.');
+            rbf_handle_error($error_msg, 'concurrent_booking', $redirect_url . $anchor);
+        } else {
+            $error_msg = rbf_translate_string('Errore durante la prenotazione. Ti preghiamo di riprovare.');
+            rbf_handle_error($error_msg, 'booking_system_error', $redirect_url . $anchor);
+        }
         return;
     }
     
@@ -220,9 +229,15 @@ function rbf_handle_booking_submission() {
     ]);
 
     if (is_wp_error($post_id)) {
+        // Rollback the optimistic lock reservation if booking creation fails
+        rbf_release_slot_capacity($date, $slot, $people);
         rbf_handle_error(rbf_translate_string('Errore nel salvataggio.'), 'database_error', $redirect_url . $anchor);
         return;
     }
+
+    // Store optimistic locking metadata for tracking
+    update_post_meta($post_id, 'rbf_slot_version', $booking_result['version']);
+    update_post_meta($post_id, 'rbf_booking_attempt', $booking_result['attempt']);
 
     // Automatic table assignment
     $table_assignment = rbf_assign_tables_first_fit($people, $date, $time, $meal);
