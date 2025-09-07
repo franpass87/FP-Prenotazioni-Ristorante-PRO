@@ -59,6 +59,7 @@ jQuery(function($) {
   let currentStep = 1;
   let stepTimeouts = new Map(); // Track timeouts for each step element
   let componentsLoading = new Set(); // Track which components are loading
+  let availabilityData = {}; // Store availability data for calendar coloring
 
   // Autosave functionality variables
   let autosaveTimeout = null;
@@ -348,6 +349,80 @@ jQuery(function($) {
   }
 
   /**
+   * Fetch availability data for calendar month
+   */
+  function fetchAvailabilityData(startDate, endDate, meal) {
+    return new Promise((resolve) => {
+      $.post(rbfData.ajaxUrl, {
+        action: 'rbf_get_calendar_availability',
+        _ajax_nonce: rbfData.nonce,
+        start_date: startDate,
+        end_date: endDate,
+        meal: meal
+      }, function(response) {
+        if (response.success) {
+          availabilityData = response.data;
+        } else {
+          availabilityData = {};
+        }
+        resolve();
+      }).fail(function() {
+        availabilityData = {};
+        resolve();
+      });
+    });
+  }
+
+  /**
+   * Add availability tooltip to calendar day
+   */
+  function addAvailabilityTooltip(dayElem, status) {
+    let tooltip = null;
+    
+    dayElem.addEventListener('mouseenter', function(e) {
+      // Remove any existing tooltip
+      if (tooltip) {
+        tooltip.remove();
+      }
+      
+      tooltip = document.createElement('div');
+      tooltip.className = 'rbf-availability-tooltip';
+      
+      let statusText;
+      if (status.level === 'available') {
+        statusText = rbfData.labels.available || 'Disponibile';
+      } else if (status.level === 'limited') {
+        statusText = rbfData.labels.limited || 'Limitato';
+      } else {
+        statusText = rbfData.labels.nearlyFull || 'Quasi pieno';
+      }
+      
+      const spotsLabel = rbfData.labels.spotsRemaining || 'Posti rimasti:';
+      const occupancyLabel = rbfData.labels.occupancy || 'Occupazione:';
+      
+      tooltip.innerHTML = `
+        <div>${statusText}</div>
+        <div>${spotsLabel} ${status.remaining}/${status.total}</div>
+        <div>${occupancyLabel} ${status.occupancy}%</div>
+      `;
+      
+      document.body.appendChild(tooltip);
+      
+      // Position tooltip above the day element
+      const rect = dayElem.getBoundingClientRect();
+      tooltip.style.left = (rect.left + rect.width / 2 - tooltip.offsetWidth / 2) + 'px';
+      tooltip.style.top = (rect.top - tooltip.offsetHeight - 10) + 'px';
+    });
+    
+    dayElem.addEventListener('mouseleave', function() {
+      if (tooltip) {
+        tooltip.remove();
+        tooltip = null;
+      }
+    });
+  }
+
+  /**
    * Initialize flatpickr after lazy loading
    */
   function initializeFlatpickr() {
@@ -403,6 +478,13 @@ jQuery(function($) {
       onDayCreate: function(dObj, dStr, fp, dayElem) {
         const dateStr = formatLocalISO(dayElem.dateObj);
         
+        // Add availability coloring
+        if (availabilityData[dateStr]) {
+          const status = availabilityData[dateStr];
+          dayElem.classList.add('rbf-availability-' + status.level);
+          addAvailabilityTooltip(dayElem, status);
+        }
+        
         // Check for exceptions and add visual indicators
         if (rbfData.exceptions) {
           for (let exception of rbfData.exceptions) {
@@ -441,6 +523,24 @@ jQuery(function($) {
             }
           }
         }
+      },
+      onMonthChange: function(selectedDates, dateStr, instance) {
+        // Fetch availability data when month changes
+        const selectedMeal = el.mealRadios.filter(':checked').val();
+        if (selectedMeal) {
+          const viewDate = instance.currentMonth;
+          const startDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+          const endDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
+          
+          fetchAvailabilityData(
+            formatLocalISO(startDate),
+            formatLocalISO(endDate),
+            selectedMeal
+          ).then(() => {
+            // Redraw calendar to apply new availability colors
+            instance.redraw();
+          });
+        }
       }
     };
     
@@ -449,6 +549,24 @@ jQuery(function($) {
     }
     
     fp = flatpickr(el.dateInput[0], flatpickrConfig);
+    
+    // Fetch initial availability data for current month
+    if (selectedMeal) {
+      const now = new Date();
+      const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      
+      fetchAvailabilityData(
+        formatLocalISO(startDate),
+        formatLocalISO(endDate),
+        selectedMeal
+      ).then(() => {
+        // Redraw calendar to apply availability colors
+        if (fp) {
+          fp.redraw();
+        }
+      });
+    }
     
     // Show exception legend if there are exceptions
     if (rbfData.exceptions && rbfData.exceptions.length > 0) {
@@ -816,6 +934,24 @@ jQuery(function($) {
     // Show meal-specific tooltip if configured
     if (rbfData.mealTooltips && rbfData.mealTooltips[selectedMeal]) {
       el.mealNotice.text(rbfData.mealTooltips[selectedMeal]).show();
+    }
+    
+    // Update availability data when meal changes
+    if (fp && selectedMeal) {
+      const viewDate = fp.currentMonth;
+      const startDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+      const endDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
+      
+      fetchAvailabilityData(
+        formatLocalISO(startDate),
+        formatLocalISO(endDate),
+        selectedMeal
+      ).then(() => {
+        // Redraw calendar to apply new availability colors
+        if (fp) {
+          fp.redraw();
+        }
+      });
     }
     
     // Show date step for any meal selection
