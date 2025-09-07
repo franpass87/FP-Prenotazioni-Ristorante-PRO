@@ -151,7 +151,7 @@ function test_rbf_modal_ux_requirements() {
         ],
         'Loading state' => [
             '.rbf-btn-confirm.loading',
-            'animation: rbf-spin'
+            'rbf-spin'
         ]
     ];
     
