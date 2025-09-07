@@ -93,6 +93,23 @@ function rbf_enqueue_frontend_assets() {
             'nearlyFull' => rbf_translate_string('Quasi pieno'),
             'spotsRemaining' => rbf_translate_string('Posti rimasti:'),
             'occupancy' => rbf_translate_string('Occupazione:'),
+            // Enhanced contextual tooltip labels
+            'manySpots' => rbf_translate_string('Molti posti disponibili'),
+            'someSpots' => rbf_translate_string('Buona disponibilità'),
+            'lastSpots' => rbf_translate_string('Ultimi 2 posti rimasti'),
+            'fewSpots' => rbf_translate_string('Pochi posti rimasti'),
+            'actFast' => rbf_translate_string('Prenota subito!'),
+            // Form tooltip labels
+            'timeTooltip' => rbf_translate_string('Seleziona il tuo orario preferito'),
+            'timeSelected' => rbf_translate_string('Orario selezionato: {time}'),
+            'peopleTooltip' => rbf_translate_string('Numero di persone per la prenotazione'),
+            'singlePerson' => rbf_translate_string('Prenotazione per 1 persona'),
+            'multiplePeople' => rbf_translate_string('Prenotazione per {count} persone'),
+            'nearMaxPeople' => rbf_translate_string('Prenotazione per {count} persone (quasi al massimo)'),
+            'largePeople' => rbf_translate_string('Prenotazione per {count} persone (gruppo numeroso)'),
+            'phoneTooltip' => rbf_translate_string('Inserisci il tuo numero di telefono per confermare la prenotazione'),
+            'emailTooltip' => rbf_translate_string('Riceverai una email di conferma della prenotazione'),
+            'nameTooltip' => rbf_translate_string('Il nome del titolare della prenotazione'),
         ],
     ]);
 }
