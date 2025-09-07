@@ -1182,28 +1182,21 @@ jQuery(function($) {
   });
 
   /**
-   * Form submission handler with loading states
+   * Form submission handler with confirmation modal
    */
   form.on('submit', function(e) {
-    // Show loading state immediately
-    showComponentLoading(form[0], 'Invio prenotazione in corso...');
-    el.submitButton.prop('disabled', true);
+    e.preventDefault(); // Always prevent default submission first
     
+    // Perform all validations first
     if (!el.privacyCheckbox.is(':checked')) {
-      e.preventDefault();
-      hideComponentLoading(form[0]);
       alert(rbfData.labels.privacyRequired);
-      el.submitButton.prop('disabled', false);
       return;
     }
     
     if (iti) {
       // Validate phone number if intlTelInput is initialized
       if (!iti.isValidNumber()) {
-        e.preventDefault();
-        hideComponentLoading(form[0]);
         alert(rbfData.labels.invalidPhone);
-        el.submitButton.prop('disabled', false);
         return;
       }
       
@@ -1221,21 +1214,218 @@ jQuery(function($) {
       // Basic phone validation as fallback
       const phoneValue = el.telInput.val().trim();
       if (!phoneValue || phoneValue.length < 6) {
-        e.preventDefault();
-        hideComponentLoading(form[0]);
         alert(rbfData.labels.invalidPhone);
-        el.submitButton.prop('disabled', false);
         return;
       }
     }
     
-    // Form validation complete, proceeding with submission
-    // Clear autosave data on successful submission
-    AutoSave.clear();
-    rbfLog.log('Autosave data cleared on form submission');
-    
-    // Loading state will be cleared by page navigation or success message
+    // All validations passed - show confirmation modal
+    showBookingConfirmationModal();
   });
+
+  /**
+   * Show booking confirmation modal with summary
+   */
+  function showBookingConfirmationModal() {
+    // Collect form data for display
+    const formData = collectFormData();
+    
+    // Get meal name from selected radio button
+    const selectedMealRadio = el.mealRadios.filter(':checked');
+    const mealName = selectedMealRadio.length ? selectedMealRadio.next('span').text().trim() : '';
+    
+    // Format data for display
+    const customerName = `${form.find('#rbf-name').val()} ${form.find('#rbf-surname').val()}`;
+    const formattedDate = formatDateForDisplay(formData.date);
+    const notesText = formData.notes || rbfData.labels.noNotes;
+    
+    // Create modal HTML
+    const modalHtml = `
+      <div id="rbf-confirmation-modal" class="rbf-confirmation-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="rbf-confirmation-modal-content">
+          <div class="rbf-confirmation-modal-header">
+            <h3 id="modal-title">${rbfData.labels.confirmBookingTitle}</h3>
+            <button class="rbf-confirmation-modal-close" aria-label="${rbfData.labels.cancel}" type="button">&times;</button>
+          </div>
+          <div class="rbf-confirmation-modal-body">
+            <div class="rbf-confirmation-warning">
+              <span class="rbf-confirmation-warning-icon">⚠️</span>
+              <span>${rbfData.labels.confirmWarning}</span>
+            </div>
+            
+            <div class="rbf-booking-summary">
+              <h4>${rbfData.labels.bookingSummary}</h4>
+              
+              <div class="rbf-summary-item">
+                <span class="rbf-summary-label">${rbfData.labels.meal}:</span>
+                <span class="rbf-summary-value">${mealName}</span>
+              </div>
+              
+              <div class="rbf-summary-item">
+                <span class="rbf-summary-label">${rbfData.labels.date}:</span>
+                <span class="rbf-summary-value">${formattedDate}</span>
+              </div>
+              
+              <div class="rbf-summary-item">
+                <span class="rbf-summary-label">${rbfData.labels.time}:</span>
+                <span class="rbf-summary-value">${formData.time}</span>
+              </div>
+              
+              <div class="rbf-summary-item">
+                <span class="rbf-summary-label">${rbfData.labels.people}:</span>
+                <span class="rbf-summary-value">${formData.people}</span>
+              </div>
+              
+              <div class="rbf-summary-item">
+                <span class="rbf-summary-label">${rbfData.labels.customer}:</span>
+                <span class="rbf-summary-value">${customerName}</span>
+              </div>
+              
+              <div class="rbf-summary-item">
+                <span class="rbf-summary-label">${rbfData.labels.email}:</span>
+                <span class="rbf-summary-value">${formData.email}</span>
+              </div>
+              
+              <div class="rbf-summary-item">
+                <span class="rbf-summary-label">${rbfData.labels.phone}:</span>
+                <span class="rbf-summary-value">${el.telInput.val()}</span>
+              </div>
+              
+              ${formData.notes ? `
+                <div class="rbf-summary-item">
+                  <span class="rbf-summary-label">${rbfData.labels.notes}:</span>
+                  <span class="rbf-summary-value"></span>
+                </div>
+                <div class="rbf-summary-notes">${notesText}</div>
+              ` : ''}
+            </div>
+          </div>
+          <div class="rbf-confirmation-modal-footer">
+            <button type="button" class="rbf-btn rbf-btn-cancel" id="rbf-modal-cancel">
+              ${rbfData.labels.cancel}
+            </button>
+            <button type="button" class="rbf-btn rbf-btn-confirm" id="rbf-modal-confirm">
+              ${rbfData.labels.confirmBooking}
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Add modal to page
+    $('body').append(modalHtml);
+    
+    // Get modal elements
+    const $modal = $('#rbf-confirmation-modal');
+    const $modalContent = $modal.find('.rbf-confirmation-modal-content');
+    
+    // Show modal with animation
+    setTimeout(() => {
+      $modal.addClass('show');
+      $modalContent.addClass('show');
+    }, 10);
+    
+    // Focus management
+    const $closeBtn = $modal.find('.rbf-confirmation-modal-close');
+    const $cancelBtn = $('#rbf-modal-cancel');
+    const $confirmBtn = $('#rbf-modal-confirm');
+    
+    // Store current focus to restore later
+    const previousFocus = document.activeElement;
+    
+    // Focus first interactive element
+    setTimeout(() => {
+      $closeBtn.focus();
+    }, 300);
+    
+    // Trap focus within modal
+    const focusableElements = $modal.find('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    const firstElement = focusableElements.first();
+    const lastElement = focusableElements.last();
+    
+    $modal.on('keydown', function(e) {
+      if (e.key === 'Tab') {
+        if (e.shiftKey) {
+          // Shift + Tab
+          if (document.activeElement === firstElement[0]) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          // Tab
+          if (document.activeElement === lastElement[0]) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
+      } else if (e.key === 'Escape') {
+        closeModal();
+      }
+    });
+    
+    // Bind modal events
+    function closeModal() {
+      $modal.removeClass('show');
+      $modalContent.removeClass('show');
+      
+      setTimeout(() => {
+        $modal.remove();
+        // Restore focus
+        if (previousFocus && previousFocus.focus) {
+          previousFocus.focus();
+        }
+      }, 300);
+    }
+    
+    // Close button and cancel button
+    $closeBtn.add($cancelBtn).on('click', closeModal);
+    
+    // Click outside to close
+    $modal.on('click', function(e) {
+      if (e.target === this) {
+        closeModal();
+      }
+    });
+    
+    // Confirm button - actually submit the form
+    $confirmBtn.on('click', function() {
+      // Disable confirm button and show loading
+      $confirmBtn.addClass('loading').prop('disabled', true);
+      $confirmBtn.text(rbfData.labels.submittingBooking);
+      
+      // Clear autosave data
+      AutoSave.clear();
+      rbfLog.log('Autosave data cleared on form submission');
+      
+      // Show loading state on form
+      showComponentLoading(form[0], rbfData.labels.submittingBooking);
+      
+      // Actually submit the form
+      form.off('submit'); // Remove our handler to avoid recursion
+      form.submit(); // Submit the form normally
+    });
+  }
+
+  /**
+   * Format date for display in modal
+   */
+  function formatDateForDisplay(dateString) {
+    if (!dateString) return '';
+    
+    try {
+      const date = new Date(dateString);
+      const options = { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric'
+      };
+      
+      return date.toLocaleDateString(rbfData.locale === 'it' ? 'it-IT' : 'en-US', options);
+    } catch (e) {
+      return dateString; // Fallback to original string
+    }
+  }
 
   /**
    * Add contextual tooltip to form elements

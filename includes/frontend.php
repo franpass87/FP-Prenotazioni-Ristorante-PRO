@@ -110,6 +110,22 @@ function rbf_enqueue_frontend_assets() {
             'phoneTooltip' => rbf_translate_string('Inserisci il tuo numero di telefono per confermare la prenotazione'),
             'emailTooltip' => rbf_translate_string('Riceverai una email di conferma della prenotazione'),
             'nameTooltip' => rbf_translate_string('Il nome del titolare della prenotazione'),
+            // Confirmation modal labels
+            'confirmBookingTitle' => rbf_translate_string('Conferma Prenotazione'),
+            'bookingSummary' => rbf_translate_string('Riepilogo Prenotazione'),
+            'confirmWarning' => rbf_translate_string('Controlla attentamente i dati inseriti prima di confermare. Una volta confermata, la prenotazione sarà definitiva.'),
+            'meal' => rbf_translate_string('Servizio'),
+            'date' => rbf_translate_string('Data'),
+            'time' => rbf_translate_string('Orario'),
+            'people' => rbf_translate_string('Persone'),
+            'customer' => rbf_translate_string('Cliente'),
+            'phone' => rbf_translate_string('Telefono'),
+            'email' => rbf_translate_string('Email'),
+            'notes' => rbf_translate_string('Note/Allergie'),
+            'noNotes' => rbf_translate_string('Nessuna nota inserita'),
+            'cancel' => rbf_translate_string('Annulla'),
+            'confirmBooking' => rbf_translate_string('Conferma Prenotazione'),
+            'submittingBooking' => rbf_translate_string('Invio prenotazione in corso...'),
         ],
     ]);
 }
