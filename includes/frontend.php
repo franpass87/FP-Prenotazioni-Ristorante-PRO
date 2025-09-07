@@ -291,8 +291,9 @@ function rbf_render_customer_booking_management() {
         
         <?php
         // Show appropriate actions based on status and date
-        $booking_date = DateTime::createFromFormat('Y-m-d', $date);
-        $today = new DateTime();
+        $tz = rbf_wp_timezone();
+        $booking_date = DateTime::createFromFormat('Y-m-d', $date, $tz);
+        $today = new DateTime('now', $tz);
         $can_cancel = in_array($status, ['confirmed']) && $booking_date > $today;
         
         if ($can_cancel) : ?>
