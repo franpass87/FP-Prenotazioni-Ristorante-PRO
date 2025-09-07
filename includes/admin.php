@@ -1030,6 +1030,20 @@ function rbf_update_booking_status_callback() {
     
     $updated = update_post_meta($booking_id, 'rbf_booking_status', $status);
     
+    // Handle optimistic locking for cancellations
+    if ($status === 'cancelled') {
+        $date = get_post_meta($booking_id, 'rbf_data', true);
+        $slot = get_post_meta($booking_id, 'rbf_orario', true);
+        $people = get_post_meta($booking_id, 'rbf_persone', true);
+        
+        if ($date && $slot && $people) {
+            rbf_release_slot_capacity($date, $slot, intval($people));
+            
+            // Clear availability cache
+            delete_transient('rbf_avail_' . $date . '_' . $slot);
+        }
+    }
+    
     if ($updated !== false) {
         wp_send_json_success('Stato aggiornato con successo');
     } else {
