@@ -32,16 +32,16 @@ function rbf_clear_transients() {
 
     // Clear RBF-specific transients with improved pattern matching
     $transient_patterns = [
-        '_transient_rbf_%',
-        '_transient_timeout_rbf_%'
+        '_transient_rbf_',
+        '_transient_timeout_rbf_'
     ];
-    
+
     foreach ($transient_patterns as $pattern) {
-        $escaped_pattern = $wpdb->esc_like($pattern);
+        $pattern_like = $wpdb->esc_like($pattern) . '%';
         $deleted = $wpdb->query(
             $wpdb->prepare(
                 "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",
-                $escaped_pattern
+                $pattern_like
             )
         );
         
