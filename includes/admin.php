@@ -1035,9 +1035,21 @@ function rbf_update_booking_data_callback() {
     }
 
     $booking_id = intval($_POST['booking_id']);
-    $booking_data = $_POST['booking_data'];
-    
-    if (!$booking_id || !$booking_data) {
+
+    if (!isset($_POST['booking_data']) || !is_array($_POST['booking_data'])) {
+        wp_send_json_error('Parametri non validi');
+    }
+
+    $booking_data = rbf_sanitize_input_fields($_POST['booking_data'], [
+        'customer_name' => 'text',
+        'customer_email' => 'email',
+        'customer_phone' => 'text',
+        'people' => 'int',
+        'notes' => 'textarea',
+        'status' => 'text'
+    ]);
+
+    if (!$booking_id || empty($booking_data)) {
         wp_send_json_error('Parametri non validi');
     }
     
@@ -1048,30 +1060,30 @@ function rbf_update_booking_data_callback() {
     
     // Update customer name (split into first and last name)
     if (isset($booking_data['customer_name'])) {
-        $name_parts = explode(' ', sanitize_text_field($booking_data['customer_name']), 2);
+        $name_parts = explode(' ', $booking_data['customer_name'], 2);
         update_post_meta($booking_id, 'rbf_nome', $name_parts[0]);
         update_post_meta($booking_id, 'rbf_cognome', isset($name_parts[1]) ? $name_parts[1] : '');
-        
+
         // Update post title
         wp_update_post([
             'ID' => $booking_id,
-            'post_title' => sanitize_text_field($booking_data['customer_name'])
+            'post_title' => $booking_data['customer_name']
         ]);
     }
-    
+
     // Update email
     if (isset($booking_data['customer_email'])) {
-        update_post_meta($booking_id, 'rbf_email', sanitize_email($booking_data['customer_email']));
+        update_post_meta($booking_id, 'rbf_email', $booking_data['customer_email']);
     }
-    
+
     // Update phone
     if (isset($booking_data['customer_phone'])) {
-        update_post_meta($booking_id, 'rbf_tel', sanitize_text_field($booking_data['customer_phone']));
+        update_post_meta($booking_id, 'rbf_tel', $booking_data['customer_phone']);
     }
     
     // Update people count
     if (isset($booking_data['people'])) {
-        $people = intval($booking_data['people']);
+        $people = $booking_data['people'];
         if ($people > 0 && $people <= 30) {
             update_post_meta($booking_id, 'rbf_persone', $people);
         }
@@ -1079,7 +1091,7 @@ function rbf_update_booking_data_callback() {
     
     // Update notes
     if (isset($booking_data['notes'])) {
-        update_post_meta($booking_id, 'rbf_allergie', sanitize_textarea_field($booking_data['notes']));
+        update_post_meta($booking_id, 'rbf_allergie', $booking_data['notes']);
     }
     
     // Update status
