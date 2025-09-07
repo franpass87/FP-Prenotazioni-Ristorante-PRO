@@ -1975,8 +1975,10 @@ function rbf_tables_page_html() {
         }
         
         global $wpdb;
-        
-        switch ($_POST['action']) {
+
+        $action = sanitize_text_field($_POST['action']);
+
+        switch ($action) {
             case 'add_area':
                 $name = sanitize_text_field($_POST['area_name']);
                 $description = sanitize_textarea_field($_POST['area_description']);
@@ -2052,6 +2054,9 @@ function rbf_tables_page_html() {
                         echo '<div class="notice notice-error"><p>Errore nell\'aggiunta del gruppo.</p></div>';
                     }
                 }
+                break;
+            default:
+                echo '<div class="notice notice-error"><p>' . esc_html(rbf_translate_string('Azione non valida.')) . '</p></div>';
                 break;
         }
     }
