@@ -992,7 +992,11 @@ function rbf_get_bookings_for_calendar_callback() {
 add_action('wp_ajax_rbf_update_booking_status', 'rbf_update_booking_status_callback');
 function rbf_update_booking_status_callback() {
     check_ajax_referer('rbf_calendar_nonce', '_ajax_nonce');
-    
+
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error('Permessi insufficienti', 403);
+    }
+
     $sanitized = rbf_sanitize_input_fields($_POST, [
         'booking_id' => 'int',
         'status' => 'text'
@@ -1025,7 +1029,11 @@ function rbf_update_booking_status_callback() {
 add_action('wp_ajax_rbf_update_booking_data', 'rbf_update_booking_data_callback');
 function rbf_update_booking_data_callback() {
     check_ajax_referer('rbf_calendar_nonce', '_ajax_nonce');
-    
+
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error('Permessi insufficienti', 403);
+    }
+
     $booking_id = intval($_POST['booking_id']);
     $booking_data = $_POST['booking_data'];
     
