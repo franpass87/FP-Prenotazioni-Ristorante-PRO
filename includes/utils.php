@@ -640,6 +640,9 @@ function rbf_handle_error($message, $context = 'general', $redirect_url = null) 
         error_log("RBF Error [{$context}]: {$message}");
     }
     
+    // Fire action for error tracking
+    do_action('rbf_error_logged', $message, $context);
+    
     // If AJAX request, send JSON response
     if (wp_doing_ajax()) {
         wp_send_json_error(['message' => $message, 'context' => $context]);
