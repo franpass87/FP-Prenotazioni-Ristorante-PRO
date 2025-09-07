@@ -1272,7 +1272,7 @@ function rbf_get_availability_status($date, $meal_id) {
     
     // Define thresholds
     $level = 'available';  // green
-    if ($occupancy >= 90) {
+    if ($occupancy >= 100) {
         $level = 'full';     // red
     } elseif ($occupancy >= 70) {
         $level = 'limited';  // yellow
