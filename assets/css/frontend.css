@@ -1846,3 +1846,369 @@
         border: 1px solid #000000;
     }
 }
+
+/* ================================================================
+   BOOKING CONFIRMATION MODAL
+   ================================================================ */
+
+/* Modal Overlay */
+.rbf-confirmation-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 100000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: rbf-modal-fadeIn 0.3s ease;
+    opacity: 0;
+}
+
+.rbf-confirmation-modal-overlay.show {
+    opacity: 1;
+}
+
+@keyframes rbf-modal-fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Modal Content */
+.rbf-confirmation-modal-content {
+    background: white;
+    border-radius: var(--rbf-radius);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    max-width: 500px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: rbf-modal-slideIn 0.3s ease;
+    transform: translateY(-20px);
+}
+
+.rbf-confirmation-modal-content.show {
+    transform: translateY(0);
+}
+
+@keyframes rbf-modal-slideIn {
+    from { 
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to { 
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Modal Header */
+.rbf-confirmation-modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--rbf-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, var(--rbf-bg-light) 0%, #e8eef5 100%);
+    border-radius: var(--rbf-radius) var(--rbf-radius) 0 0;
+}
+
+.rbf-confirmation-modal-header h3 {
+    margin: 0;
+    color: var(--rbf-primary);
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.rbf-confirmation-modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #666;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.rbf-confirmation-modal-close:hover {
+    background: rgba(0,0,0,0.1);
+    color: #000;
+}
+
+.rbf-confirmation-modal-close:focus {
+    outline: var(--rbf-focus-outline);
+    outline-offset: 2px;
+}
+
+/* Modal Body */
+.rbf-confirmation-modal-body {
+    padding: 24px;
+}
+
+.rbf-booking-summary {
+    background: var(--rbf-bg-light);
+    border-radius: var(--rbf-radius);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.rbf-booking-summary h4 {
+    margin: 0 0 15px 0;
+    color: var(--rbf-primary);
+    font-size: 16px;
+    font-weight: 600;
+    border-bottom: 2px solid var(--rbf-primary);
+    padding-bottom: 8px;
+}
+
+.rbf-summary-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.rbf-summary-item:last-child {
+    border-bottom: none;
+}
+
+.rbf-summary-label {
+    font-weight: 500;
+    color: var(--rbf-text);
+    flex: 1;
+}
+
+.rbf-summary-value {
+    font-weight: 600;
+    color: var(--rbf-primary);
+    text-align: right;
+    flex: 1;
+}
+
+.rbf-summary-notes {
+    background: white;
+    border: 1px solid var(--rbf-border);
+    border-radius: 4px;
+    padding: 10px;
+    margin-top: 10px;
+    font-style: italic;
+    color: var(--rbf-text-light);
+    max-height: 80px;
+    overflow-y: auto;
+}
+
+/* Warning message */
+.rbf-confirmation-warning {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: var(--rbf-radius);
+    padding: 15px;
+    margin-bottom: 20px;
+    color: #856404;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.rbf-confirmation-warning-icon {
+    font-size: 18px;
+    margin-top: 2px;
+}
+
+/* Modal Footer */
+.rbf-confirmation-modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--rbf-border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    background: var(--rbf-bg-light);
+    border-radius: 0 0 var(--rbf-radius) var(--rbf-radius);
+}
+
+.rbf-confirmation-modal-footer .rbf-btn {
+    min-height: 44px;
+    padding: 12px 24px;
+    border: 2px solid transparent;
+    border-radius: var(--rbf-radius);
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--rbf-transition);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.rbf-btn-cancel {
+    background: white;
+    color: var(--rbf-text);
+    border-color: var(--rbf-border);
+}
+
+.rbf-btn-cancel:hover {
+    background: var(--rbf-bg-light);
+    border-color: var(--rbf-text-light);
+}
+
+.rbf-btn-confirm {
+    background: var(--rbf-success);
+    color: white;
+    border-color: var(--rbf-success);
+}
+
+.rbf-btn-confirm:hover {
+    background: var(--rbf-success-light);
+    transform: translateY(-1px);
+    box-shadow: var(--rbf-shadow-hover);
+}
+
+.rbf-btn-confirm:disabled {
+    background: var(--rbf-border);
+    color: var(--rbf-text-light);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Loading state for confirm button */
+.rbf-btn-confirm.loading {
+    position: relative;
+    pointer-events: none;
+}
+
+.rbf-btn-confirm.loading::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border: 2px solid transparent;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    animation: rbf-spin 1s linear infinite;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .rbf-confirmation-modal-content {
+        width: 95%;
+        margin: 10px;
+    }
+    
+    .rbf-confirmation-modal-header {
+        padding: 16px;
+    }
+    
+    .rbf-confirmation-modal-header h3 {
+        font-size: 16px;
+    }
+    
+    .rbf-confirmation-modal-body {
+        padding: 16px;
+    }
+    
+    .rbf-booking-summary {
+        padding: 16px;
+    }
+    
+    .rbf-summary-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+    
+    .rbf-summary-value {
+        text-align: left;
+        font-size: 16px;
+    }
+    
+    .rbf-confirmation-modal-footer {
+        padding: 12px 16px;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .rbf-confirmation-modal-footer .rbf-btn {
+        width: 100%;
+        padding: 14px 20px;
+        font-size: 16px;
+        margin: 0;
+    }
+}
+
+/* Extra small screens */
+@media (max-width: 360px) {
+    .rbf-confirmation-modal-content {
+        width: 98%;
+        margin: 5px;
+    }
+    
+    .rbf-confirmation-modal-header {
+        padding: 12px;
+    }
+    
+    .rbf-confirmation-modal-header h3 {
+        font-size: 15px;
+    }
+    
+    .rbf-confirmation-modal-body {
+        padding: 12px;
+    }
+    
+    .rbf-booking-summary {
+        padding: 12px;
+    }
+    
+    .rbf-confirmation-modal-footer .rbf-btn {
+        font-size: 15px;
+        padding: 12px 16px;
+        min-height: 48px;
+    }
+}
+
+/* High contrast mode support for modal */
+@media (prefers-contrast: high) {
+    .rbf-confirmation-modal-content {
+        border: 3px solid #000000;
+    }
+    
+    .rbf-summary-item {
+        border-bottom-width: 2px;
+        border-bottom-color: #000000;
+    }
+    
+    .rbf-confirmation-modal-footer .rbf-btn {
+        border-width: 3px;
+    }
+}
+
+/* Reduced motion support for modal */
+@media (prefers-reduced-motion: reduce) {
+    .rbf-confirmation-modal-overlay,
+    .rbf-confirmation-modal-content {
+        animation: none;
+        transition: none;
+    }
+    
+    .rbf-confirmation-modal-content {
+        transform: none;
+    }
+}
+
+/* Print support - hide modal */
+@media print {
+    .rbf-confirmation-modal-overlay {
+        display: none !important;
+    }
+}
