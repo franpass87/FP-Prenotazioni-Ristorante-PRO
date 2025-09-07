@@ -52,7 +52,8 @@ function rbf_get_default_custom_meals() {
             'available_days' => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
             'buffer_time_minutes' => 15,
             'buffer_time_per_person' => 5,
-            'overbooking_limit' => 10
+            'overbooking_limit' => 10,
+            'slot_duration_minutes' => 60
         ],
         [
             'id' => 'aperitivo',
@@ -65,7 +66,8 @@ function rbf_get_default_custom_meals() {
             'available_days' => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'],
             'buffer_time_minutes' => 10,
             'buffer_time_per_person' => 3,
-            'overbooking_limit' => 15
+            'overbooking_limit' => 15,
+            'slot_duration_minutes' => 75
         ],
         [
             'id' => 'cena',
@@ -78,7 +80,8 @@ function rbf_get_default_custom_meals() {
             'available_days' => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'],
             'buffer_time_minutes' => 20,
             'buffer_time_per_person' => 5,
-            'overbooking_limit' => 5
+            'overbooking_limit' => 5,
+            'slot_duration_minutes' => 90
         ],
         [
             'id' => 'brunch',
@@ -91,7 +94,8 @@ function rbf_get_default_custom_meals() {
             'available_days' => ['sun'],
             'buffer_time_minutes' => 15,
             'buffer_time_per_person' => 5,
-            'overbooking_limit' => 10
+            'overbooking_limit' => 10,
+            'slot_duration_minutes' => 60
         ]
     ];
 }
@@ -275,6 +279,8 @@ function rbf_translate_string($text) {
         'Tempo aggiuntivo di buffer per ogni persona (minuti)' => 'Additional buffer time for each person (minutes)',
         'Limite Overbooking (%)' => 'Overbooking Limit (%)',
         'Percentuale di overbooking consentita oltre la capienza normale' => 'Percentage of overbooking allowed beyond normal capacity',
+        'Durata Slot (minuti)' => 'Slot Duration (minutes)',
+        'Durata di occupazione del tavolo per questo servizio (minuti)' => 'Table occupation duration for this service (minutes)',
         'Tooltip informativo' => 'Informative Tooltip',
         'Questo orario non rispetta il buffer di %d minuti richiesto. Scegli un altro orario.' => 'This time slot does not respect the required %d minute buffer. Choose another time.',
         'Rimuovi Pasto' => 'Remove Meal',
@@ -1109,6 +1115,30 @@ function rbf_calculate_buffer_time($meal_id, $people_count) {
     $per_person_buffer = intval($meal_config['buffer_time_per_person'] ?? 5);
     
     return $base_buffer + ($per_person_buffer * $people_count);
+}
+
+/**
+ * Calculate dynamic slot duration based on meal type and party size
+ * 
+ * @param string $meal_id Meal ID  
+ * @param int $people_count Number of people
+ * @return int Slot duration in minutes
+ */
+function rbf_calculate_slot_duration($meal_id, $people_count) {
+    $meal_config = rbf_get_meal_config($meal_id);
+    if (!$meal_config) {
+        return 90; // Default duration if meal not found
+    }
+    
+    // Get base duration from meal configuration
+    $base_duration = intval($meal_config['slot_duration_minutes'] ?? 90);
+    
+    // Apply group rule: groups >6 people get 120 minutes
+    if ($people_count > 6) {
+        return 120;
+    }
+    
+    return $base_duration;
 }
 
 /**
