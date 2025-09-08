@@ -620,8 +620,58 @@ function rbf_render_booking_form($atts = []) {
 
                 <input type="hidden" name="rbf_lang" value="<?php echo esc_attr(rbf_current_lang()); ?>">
                 <input type="hidden" name="rbf_country_code" id="rbf_country_code" value="it">
+                
+                <!-- Anti-bot protection fields -->
+                <input type="hidden" name="rbf_form_timestamp" value="<?php echo esc_attr(time()); ?>">
+                <!-- Honeypot field - invisible to users but visible to bots -->
+                <div style="position: absolute; left: -9999px; visibility: hidden;" aria-hidden="true">
+                    <label for="rbf_website">Website (leave blank):</label>
+                    <input type="text" name="rbf_website" id="rbf_website" value="" tabindex="-1" autocomplete="off">
+                </div>
                 <button id="rbf-submit" type="submit" disabled style="display:none;"><?php echo esc_html(rbf_translate_string('Prenota')); ?></button>
             </form>
+        <?php endif; ?>
+        
+        <?php
+        // Add reCAPTCHA v3 script if configured
+        $options = rbf_get_settings();
+        $site_key = $options['recaptcha_site_key'] ?? '';
+        if (!empty($site_key)) : ?>
+            <script src="https://www.google.com/recaptcha/api.js?render=<?php echo esc_attr($site_key); ?>" async defer></script>
+            <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                // Initialize reCAPTCHA when ready
+                if (typeof grecaptcha !== 'undefined') {
+                    grecaptcha.ready(function() {
+                        // Add reCAPTCHA token to form submission
+                        var form = document.getElementById('rbf-form');
+                        if (form) {
+                            form.addEventListener('submit', function(e) {
+                                e.preventDefault();
+                                
+                                grecaptcha.execute('<?php echo esc_js($site_key); ?>', {action: 'booking_submit'})
+                                .then(function(token) {
+                                    // Add token to form
+                                    var tokenInput = document.createElement('input');
+                                    tokenInput.type = 'hidden';
+                                    tokenInput.name = 'g-recaptcha-response';
+                                    tokenInput.value = token;
+                                    form.appendChild(tokenInput);
+                                    
+                                    // Submit form
+                                    form.submit();
+                                })
+                                .catch(function(error) {
+                                    console.error('reCAPTCHA error:', error);
+                                    // Submit anyway to avoid blocking legitimate users
+                                    form.submit();
+                                });
+                            });
+                        }
+                    });
+                }
+            });
+            </script>
         <?php endif; ?>
     </div>
     <?php
