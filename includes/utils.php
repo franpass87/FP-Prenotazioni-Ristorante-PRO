@@ -609,14 +609,22 @@ function rbf_validate_email($email) {
 }
 
 /**
- * Centralized phone number validation
+ * Enhanced centralized phone number validation with security improvements
  */
 function rbf_validate_phone($phone) {
-    $phone = sanitize_text_field($phone);
-    // Basic phone validation - at least 8 digits
-    if (strlen(preg_replace('/[^0-9]/', '', $phone)) < 8) {
+    $phone = rbf_sanitize_phone_field($phone);
+    
+    // Enhanced phone validation - at least 8 digits, max 20 characters
+    $digits_only = preg_replace('/[^0-9]/', '', $phone);
+    if (strlen($digits_only) < 8) {
         return ['error' => true, 'message' => rbf_translate_string('Il numero di telefono inserito non è valido.')];
     }
+    
+    // Check for suspicious patterns (all same digits, etc.)
+    if (preg_match('/^(\d)\1+$/', $digits_only)) {
+        return ['error' => true, 'message' => rbf_translate_string('Il numero di telefono inserito non sembra valido.')];
+    }
+    
     return $phone;
 }
 
@@ -856,8 +864,8 @@ function rbf_get_utm_analytics($days = 30) {
 }
 
 /**
- * Centralized input sanitization helper
- * Reduces repetitive sanitize_text_field calls across the codebase
+ * Enhanced centralized input sanitization helper with security improvements
+ * Reduces repetitive sanitize_text_field calls across the codebase and prevents injection attacks
  */
 function rbf_sanitize_input_fields(array $input_data, array $field_map) {
     $sanitized = [];
@@ -869,15 +877,18 @@ function rbf_sanitize_input_fields(array $input_data, array $field_map) {
         
         $value = $input_data[$key];
         
+        // First level: remove potential null bytes and control characters
+        $value = str_replace(chr(0), '', $value);
+        
         switch ($type) {
             case 'text':
-                $sanitized[$key] = sanitize_text_field($value);
+                $sanitized[$key] = rbf_sanitize_text_strict($value);
                 break;
             case 'email':
                 $sanitized[$key] = sanitize_email($value);
                 break;
             case 'textarea':
-                $sanitized[$key] = sanitize_textarea_field($value);
+                $sanitized[$key] = rbf_sanitize_textarea_strict($value);
                 break;
             case 'int':
                 $sanitized[$key] = intval($value);
@@ -888,12 +899,182 @@ function rbf_sanitize_input_fields(array $input_data, array $field_map) {
             case 'url':
                 $sanitized[$key] = esc_url_raw($value);
                 break;
+            case 'name':
+                $sanitized[$key] = rbf_sanitize_name_field($value);
+                break;
+            case 'phone':
+                $sanitized[$key] = rbf_sanitize_phone_field($value);
+                break;
             default:
-                $sanitized[$key] = sanitize_text_field($value);
+                $sanitized[$key] = rbf_sanitize_text_strict($value);
         }
     }
     
     return $sanitized;
+}
+
+/**
+ * Strict text field sanitization with enhanced security
+ */
+function rbf_sanitize_text_strict($value) {
+    // Remove potential script tags and dangerous characters
+    $value = strip_tags($value);
+    $value = sanitize_text_field($value);
+    
+    // Additional security: remove potentially dangerous sequences
+    $dangerous_patterns = [
+        '/javascript:/i',
+        '/data:/i',
+        '/vbscript:/i',
+        '/on\w+\s*=/i', // onload, onclick, etc.
+        '/<script/i',
+        '/<iframe/i',
+        '/<object/i',
+        '/<embed/i'
+    ];
+    
+    foreach ($dangerous_patterns as $pattern) {
+        $value = preg_replace($pattern, '', $value);
+    }
+    
+    return trim($value);
+}
+
+/**
+ * Strict textarea sanitization while preserving basic formatting
+ */
+function rbf_sanitize_textarea_strict($value) {
+    // Allow only safe HTML tags for formatting
+    $allowed_tags = '<br><p>';
+    $value = strip_tags($value, $allowed_tags);
+    $value = sanitize_textarea_field($value);
+    
+    // Remove dangerous sequences
+    $dangerous_patterns = [
+        '/javascript:/i',
+        '/data:/i',
+        '/vbscript:/i',
+        '/on\w+\s*=/i',
+        '/<script/i',
+        '/<iframe/i',
+        '/<object/i',
+        '/<embed/i'
+    ];
+    
+    foreach ($dangerous_patterns as $pattern) {
+        $value = preg_replace($pattern, '', $value);
+    }
+    
+    return trim($value);
+}
+
+/**
+ * Sanitize name fields with extra validation
+ */
+function rbf_sanitize_name_field($value) {
+    $value = rbf_sanitize_text_strict($value);
+    
+    // Names should only contain letters, spaces, hyphens, apostrophes, and accented characters
+    $value = preg_replace('/[^\p{L}\s\-\'\.]/u', '', $value);
+    
+    // Limit length to prevent buffer overflow attempts
+    $value = substr($value, 0, 100);
+    
+    return trim($value);
+}
+
+/**
+ * Sanitize phone fields with validation
+ */
+function rbf_sanitize_phone_field($value) {
+    $value = sanitize_text_field($value);
+    
+    // Phone should only contain numbers, spaces, hyphens, parentheses, and plus sign
+    $value = preg_replace('/[^\d\s\-\(\)\+]/', '', $value);
+    
+    // Limit length
+    $value = substr($value, 0, 20);
+    
+    return trim($value);
+}
+
+/**
+ * Escape data for safe use in email templates (HTML context)
+ */
+function rbf_escape_for_email($value, $context = 'html') {
+    switch ($context) {
+        case 'html':
+            return esc_html($value);
+        case 'attr':
+            return esc_attr($value);
+        case 'url':
+            return esc_url($value);
+        case 'subject':
+            // For email subjects, ensure no header injection
+            $value = str_replace(["\r", "\n", "\r\n"], '', $value);
+            return sanitize_text_field($value);
+        default:
+            return esc_html($value);
+    }
+}
+
+/**
+ * Generate secure ICS calendar file content
+ */
+function rbf_generate_ics_content($booking_data) {
+    // Sanitize all booking data for ICS format
+    $sanitized_data = [];
+    foreach ($booking_data as $key => $value) {
+        // ICS format requires specific escaping
+        $sanitized_data[$key] = rbf_escape_for_ics($value);
+    }
+    
+    // Generate unique UID
+    $uid = uniqid('rbf_booking_', true) . '@' . $_SERVER['HTTP_HOST'];
+    
+    // Format datetime for ICS
+    $booking_datetime = DateTime::createFromFormat('Y-m-d H:i', $sanitized_data['date'] . ' ' . $sanitized_data['time']);
+    if (!$booking_datetime) {
+        return false;
+    }
+    
+    $start_time = $booking_datetime->format('Ymd\THis\Z');
+    $end_time = $booking_datetime->add(new DateInterval('PT2H'))->format('Ymd\THis\Z'); // 2 hour duration
+    $created_time = gmdate('Ymd\THis\Z');
+    
+    $ics_content = "BEGIN:VCALENDAR\r\n";
+    $ics_content .= "VERSION:2.0\r\n";
+    $ics_content .= "PRODID:-//RBF Restaurant Booking//EN\r\n";
+    $ics_content .= "CALSCALE:GREGORIAN\r\n";
+    $ics_content .= "BEGIN:VEVENT\r\n";
+    $ics_content .= "UID:" . $uid . "\r\n";
+    $ics_content .= "DTSTAMP:" . $created_time . "\r\n";
+    $ics_content .= "DTSTART:" . $start_time . "\r\n";
+    $ics_content .= "DTEND:" . $end_time . "\r\n";
+    $ics_content .= "SUMMARY:" . $sanitized_data['summary'] . "\r\n";
+    $ics_content .= "DESCRIPTION:" . $sanitized_data['description'] . "\r\n";
+    if (!empty($sanitized_data['location'])) {
+        $ics_content .= "LOCATION:" . $sanitized_data['location'] . "\r\n";
+    }
+    $ics_content .= "STATUS:CONFIRMED\r\n";
+    $ics_content .= "END:VEVENT\r\n";
+    $ics_content .= "END:VCALENDAR\r\n";
+    
+    return $ics_content;
+}
+
+/**
+ * Escape text for ICS format
+ */
+function rbf_escape_for_ics($text) {
+    // ICS format escaping rules
+    $text = str_replace(['\\', ';', ',', "\n", "\r"], ['\\\\', '\\;', '\\,', '\\n', ''], $text);
+    
+    // Remove any remaining control characters
+    $text = preg_replace('/[\x00-\x1F\x7F]/', '', $text);
+    
+    // Limit length to prevent issues
+    return substr($text, 0, 250);
 }
 
 function rbf_update_booking_status($booking_id, $new_status, $note = '') {

@@ -169,10 +169,24 @@ function rbf_send_admin_notification_email($first_name, $last_name, $email, $dat
 
     $site_name = wp_strip_all_tags(get_bloginfo('name'), true);
     $site_name_for_body = esc_html($site_name);
-    $subject = "Nuova Prenotazione dal Sito Web - {$first_name} {$last_name}";
+    
+    // Escape all user input for email subject (prevent header injection)
+    $safe_first_name = rbf_escape_for_email($first_name, 'subject');
+    $safe_last_name = rbf_escape_for_email($last_name, 'subject');
+    $subject = "Nuova Prenotazione dal Sito Web - {$safe_first_name} {$safe_last_name}";
+    
     $date_obj = date_create($date);
     $formatted_date = date_format($date_obj, 'd/m/Y');
-    $notes_display = empty($notes) ? 'Nessuna' : nl2br(esc_html($notes));
+    $notes_display = empty($notes) ? 'Nessuna' : nl2br(rbf_escape_for_email($notes, 'html'));
+
+    // Escape all user data for HTML context
+    $safe_first_name_html = rbf_escape_for_email($first_name, 'html');
+    $safe_last_name_html = rbf_escape_for_email($last_name, 'html');
+    $safe_email_html = rbf_escape_for_email($email, 'html');
+    $safe_tel_html = rbf_escape_for_email($tel, 'html');
+    $safe_time_html = rbf_escape_for_email($time, 'html');
+    $safe_meal_html = rbf_escape_for_email($meal, 'html');
+    $safe_people_html = rbf_escape_for_email($people, 'html');
 
     $body = <<<HTML
 <!DOCTYPE html><html><head><meta charset="UTF-8">
@@ -180,13 +194,13 @@ function rbf_send_admin_notification_email($first_name, $last_name, $email, $dat
 </head><body><div class="container">
 <h2>Nuova Prenotazione da {$site_name_for_body}</h2>
 <ul>
-  <li><strong>Cliente:</strong> {$first_name} {$last_name}</li>
-  <li><strong>Email:</strong> {$email}</li>
-  <li><strong>Telefono:</strong> {$tel}</li>
+  <li><strong>Cliente:</strong> {$safe_first_name_html} {$safe_last_name_html}</li>
+  <li><strong>Email:</strong> {$safe_email_html}</li>
+  <li><strong>Telefono:</strong> {$safe_tel_html}</li>
   <li><strong>Data:</strong> {$formatted_date}</li>
-  <li><strong>Orario:</strong> {$time}</li>
-  <li><strong>Pasto:</strong> {$meal}</li>
-  <li><strong>Persone:</strong> {$people}</li>
+  <li><strong>Orario:</strong> {$safe_time_html}</li>
+  <li><strong>Pasto:</strong> {$safe_meal_html}</li>
+  <li><strong>Persone:</strong> {$safe_people_html}</li>
   <li><strong>Note/Allergie:</strong> {$notes_display}</li>
 </ul>
 </div></body></html>
@@ -202,6 +216,25 @@ HTML;
     foreach ($recipients as $recipient) {
         wp_mail($recipient, $subject, $body, $headers);
     }
+}
+
+/**
+ * Generate and offer ICS calendar file for booking
+ */
+function rbf_generate_booking_ics($first_name, $last_name, $email, $date, $time, $people, $notes, $meal) {
+    $options = rbf_get_settings();
+    $restaurant_name = get_bloginfo('name');
+    
+    // Prepare booking data for ICS generation
+    $booking_data = [
+        'date' => $date,
+        'time' => $time,
+        'summary' => "Prenotazione Ristorante - {$meal}",
+        'description' => "Prenotazione presso {$restaurant_name}\\nNome: {$first_name} {$last_name}\\nPersone: {$people}\\nNote: {$notes}",
+        'location' => $restaurant_name
+    ];
+    
+    return rbf_generate_ics_content($booking_data);
 }
 
 /**

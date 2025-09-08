@@ -32,14 +32,14 @@ function rbf_handle_booking_submission() {
         }
     }
 
-    // Sanitize form input using centralized helper
+    // Sanitize form input using centralized helper with enhanced security
     $sanitized_fields = rbf_sanitize_input_fields($_POST, [
         'rbf_meal' => 'text',
         'rbf_data' => 'text', 
         'rbf_orario' => 'text',
         'rbf_persone' => 'int',
-        'rbf_nome' => 'text',
-        'rbf_cognome' => 'text',
+        'rbf_nome' => 'name',
+        'rbf_cognome' => 'name',
         'rbf_allergie' => 'textarea',
         'rbf_lang' => 'text',
         'rbf_country_code' => 'text',
