@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo Anti-Bot Protection - Restaurant Booking Form</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .demo-container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        .protection-indicator {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .protection-indicator h3 {
+            margin: 0 0 10px 0;
+            color: #0366d6;
+        }
+        .protection-list {
+            list-style: none;
+            padding: 0;
+        }
+        .protection-list li {
+            padding: 5px 0;
+            position: relative;
+            padding-left: 25px;
+        }
+        .protection-list li:before {
+            content: "🛡️";
+            position: absolute;
+            left: 0;
+        }
+        .form-field {
+            margin-bottom: 15px;
+        }
+        .form-field label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        .form-field input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .honeypot-demo {
+            position: absolute;
+            left: -9999px;
+            visibility: hidden;
+            background: #ffe6e6;
+            border: 2px dashed #ff6b6b;
+            padding: 10px;
+            border-radius: 4px;
+            visibility: visible !important;
+            position: static !important;
+            left: auto !important;
+        }
+        .honeypot-demo label {
+            color: #d63031;
+            font-weight: bold;
+        }
+        .submit-btn {
+            background: #28a745;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .timestamp-info {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        .detection-status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+        .status-safe {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .status-warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+        .status-danger {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .code-example {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <h1>🛡️ Anti-Bot Protection Demo</h1>
+        <p>This demo shows the anti-bot protection features implemented in the restaurant booking form.</p>
+        
+        <div class="protection-indicator">
+            <h3>Active Protection Mechanisms</h3>
+            <ul class="protection-list">
+                <li><strong>Honeypot Field:</strong> Hidden field that only bots fill</li>
+                <li><strong>Timestamp Validation:</strong> Detects too-fast submissions</li>
+                <li><strong>User Agent Analysis:</strong> Identifies bot patterns</li>
+                <li><strong>Field Pattern Analysis:</strong> Detects fake data</li>
+                <li><strong>Rate Limiting:</strong> Prevents spam from same IP</li>
+                <li><strong>Conditional reCAPTCHA v3:</strong> Human verification when suspicious</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="demo-container">
+        <h2>Demo Form with Anti-Bot Protection</h2>
+        
+        <form id="demo-form">
+            <div class="form-field">
+                <label for="name">Nome *</label>
+                <input type="text" id="name" name="rbf_nome" required>
+            </div>
+            
+            <div class="form-field">
+                <label for="surname">Cognome *</label>
+                <input type="text" id="surname" name="rbf_cognome" required>
+            </div>
+            
+            <div class="form-field">
+                <label for="email">Email *</label>
+                <input type="email" id="email" name="rbf_email" required>
+            </div>
+            
+            <!-- HONEYPOT FIELD DEMO (normally invisible) -->
+            <div class="honeypot-demo">
+                <label for="website">🚨 HONEYPOT FIELD (Normally Hidden) 🚨</label>
+                <input type="text" id="website" name="rbf_website" placeholder="Bots fill this field, humans don't see it">
+                <small>In production, this field is completely invisible using CSS positioning</small>
+            </div>
+            
+            <!-- TIMESTAMP FIELD -->
+            <input type="hidden" name="rbf_form_timestamp" id="timestamp" value="">
+            
+            <div class="timestamp-info">
+                <strong>Timestamp Protection:</strong> Form loaded at: <span id="load-time"></span><br>
+                Time since load: <span id="time-elapsed">0</span> seconds
+            </div>
+            
+            <button type="submit" class="submit-btn">Submit Form</button>
+        </form>
+        
+        <div id="detection-result" class="detection-status" style="display: none;">
+            <div id="detection-message"></div>
+        </div>
+    </div>
+
+    <div class="demo-container">
+        <h2>How It Works</h2>
+        
+        <h3>1. Honeypot Detection</h3>
+        <div class="code-example">
+// Hidden field in form
+&lt;div style="position: absolute; left: -9999px; visibility: hidden;"&gt;
+    &lt;input type="text" name="rbf_website" tabindex="-1"&gt;
+&lt;/div&gt;
+
+// Server-side check
+if (!empty($_POST['rbf_website'])) {
+    // Bot detected - block submission
+}
+        </div>
+        
+        <h3>2. Timestamp Validation</h3>
+        <div class="code-example">
+// Check submission timing
+$submission_time = time() - $form_timestamp;
+if ($submission_time &lt; 5) {
+    // Too fast - likely bot
+    $suspicion_score += 80;
+}
+        </div>
+        
+        <h3>3. Conditional reCAPTCHA</h3>
+        <div class="code-example">
+// Only trigger reCAPTCHA for suspicious submissions
+if ($bot_score >= 70 && $recaptcha_configured) {
+    $result = verify_recaptcha($_POST['g-recaptcha-response']);
+    if (!$result['success']) {
+        // Block submission
+    }
+}
+        </div>
+    </div>
+
+    <script>
+        // Demo JavaScript
+        const loadTime = new Date();
+        document.getElementById('timestamp').value = Math.floor(loadTime.getTime() / 1000);
+        document.getElementById('load-time').textContent = loadTime.toLocaleString();
+        
+        // Update elapsed time
+        setInterval(() => {
+            const elapsed = Math.floor((new Date() - loadTime) / 1000);
+            document.getElementById('time-elapsed').textContent = elapsed;
+        }, 1000);
+        
+        // Demo form submission
+        document.getElementById('demo-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const elapsedTime = Math.floor((new Date() - loadTime) / 1000);
+            const honeypotValue = formData.get('rbf_website');
+            const name = formData.get('rbf_nome');
+            const surname = formData.get('rbf_cognome');
+            const email = formData.get('rbf_email');
+            
+            let score = 0;
+            let reasons = [];
+            let severity = 'low';
+            
+            // Simulate detection logic
+            if (honeypotValue) {
+                score = 100;
+                reasons.push('Honeypot field filled');
+                severity = 'high';
+            } else if (elapsedTime < 5) {
+                score += 80;
+                reasons.push(`Too fast submission: ${elapsedTime}s`);
+                severity = 'high';
+            } else if (elapsedTime > 1800) {
+                score += 30;
+                reasons.push(`Very slow submission: ${Math.floor(elapsedTime/60)}m`);
+                severity = 'medium';
+            }
+            
+            // Check for test data
+            if ((name && name.toLowerCase().includes('test')) || 
+                (email && email.includes('test'))) {
+                score += 25;
+                reasons.push('Test data detected');
+                if (score >= 40) severity = 'medium';
+            }
+            
+            // Check identical names
+            if (name && surname && name.toLowerCase() === surname.toLowerCase()) {
+                score += 15;
+                reasons.push('Identical names');
+            }
+            
+            // Determine final result
+            let resultClass, resultMessage;
+            if (score >= 70) {
+                resultClass = 'status-danger';
+                resultMessage = `🚫 BOT DETECTED (Score: ${score}) - ${reasons.join(', ')}`;
+                if (severity === 'high') {
+                    resultMessage += '<br>🔒 Would trigger reCAPTCHA or block submission';
+                }
+            } else if (score >= 40) {
+                resultClass = 'status-warning';
+                resultMessage = `⚠️ SUSPICIOUS ACTIVITY (Score: ${score}) - ${reasons.join(', ')}<br>📝 Would be logged for monitoring`;
+            } else {
+                resultClass = 'status-safe';
+                resultMessage = `✅ LEGITIMATE USER (Score: ${score}) - Submission allowed`;
+                if (reasons.length > 0) {
+                    resultMessage += `<br>Minor flags: ${reasons.join(', ')}`;
+                }
+            }
+            
+            const resultDiv = document.getElementById('detection-result');
+            const messageDiv = document.getElementById('detection-message');
+            
+            resultDiv.className = `detection-status ${resultClass}`;
+            messageDiv.innerHTML = resultMessage;
+            resultDiv.style.display = 'block';
+            
+            // Scroll to result
+            resultDiv.scrollIntoView({ behavior: 'smooth' });
+        });
+    </script>
+</body>
+</html>
