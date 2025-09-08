@@ -49,6 +49,7 @@ function rbf_create_bookings_menu() {
     add_submenu_page('rbf_calendar', rbf_translate_string('Aggiungi Prenotazione'), rbf_translate_string('Aggiungi Nuova'), 'manage_options', 'rbf_add_booking', 'rbf_add_booking_page_html');
     add_submenu_page('rbf_calendar', rbf_translate_string('Gestione Tavoli'), rbf_translate_string('Gestione Tavoli'), 'manage_options', 'rbf_tables', 'rbf_tables_page_html');
     add_submenu_page('rbf_calendar', rbf_translate_string('Report & Analytics'), rbf_translate_string('Report & Analytics'), 'manage_options', 'rbf_reports', 'rbf_reports_page_html');
+    add_submenu_page('rbf_calendar', rbf_translate_string('Notifiche Email'), rbf_translate_string('Notifiche Email'), 'manage_options', 'rbf_email_notifications', 'rbf_email_notifications_page_html');
     add_submenu_page('rbf_calendar', rbf_translate_string('Esporta Dati'), rbf_translate_string('Esporta Dati'), 'manage_options', 'rbf_export', 'rbf_export_page_html');
     add_submenu_page('rbf_calendar', rbf_translate_string('Impostazioni'), rbf_translate_string('Impostazioni'), 'manage_options', 'rbf_settings', 'rbf_settings_page_html');
 }
@@ -2495,5 +2496,391 @@ function rbf_tables_page_html() {
     }
     </style>
     
+    <?php
+}
+
+/**
+ * Email Notifications page HTML
+ */
+function rbf_email_notifications_page_html() {
+    $service = rbf_get_email_failover_service();
+    
+    // Handle actions
+    if (isset($_GET['action']) && isset($_GET['log_id']) && wp_verify_nonce($_GET['_wpnonce'], 'rbf_email_action')) {
+        $log_id = intval($_GET['log_id']);
+        $action = sanitize_text_field($_GET['action']);
+        
+        if ($action === 'retry') {
+            // Get log entry details and retry notification
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'rbf_email_notifications';
+            $log_entry = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM {$table_name} WHERE id = %d",
+                $log_id
+            ));
+            
+            if ($log_entry && $log_entry->status === 'failed') {
+                // Decode metadata to get original notification data
+                $metadata = json_decode($log_entry->metadata, true);
+                if ($metadata) {
+                    $result = $service->send_notification($metadata);
+                    if ($result['success']) {
+                        echo '<div class="notice notice-success"><p>Notifica reinviata con successo!</p></div>';
+                    } else {
+                        echo '<div class="notice notice-error"><p>Errore nel reinvio: ' . esc_html($result['error']) . '</p></div>';
+                    }
+                }
+            }
+        }
+    }
+    
+    // Get filter parameters
+    $filter_status = isset($_GET['filter_status']) ? sanitize_text_field($_GET['filter_status']) : '';
+    $filter_type = isset($_GET['filter_type']) ? sanitize_text_field($_GET['filter_type']) : '';
+    $filter_days = isset($_GET['filter_days']) ? intval($_GET['filter_days']) : 7;
+    
+    // Get notification logs
+    $logs = $service->get_notification_logs(null, 100);
+    
+    // Filter logs
+    if ($filter_status || $filter_type) {
+        $logs = array_filter($logs, function($log) use ($filter_status, $filter_type) {
+            $status_match = !$filter_status || $log->status === $filter_status;
+            $type_match = !$filter_type || $log->notification_type === $filter_type;
+            return $status_match && $type_match;
+        });
+    }
+    
+    // Get statistics
+    $stats = $service->get_notification_stats($filter_days);
+    
+    // Process stats for display
+    $stats_summary = [
+        'total' => 0,
+        'success' => 0,
+        'failed' => 0,
+        'fallback_success' => 0,
+        'by_provider' => ['brevo' => 0, 'wp_mail' => 0],
+        'success_rate' => 0,
+        'fallback_rate' => 0
+    ];
+    
+    foreach ($stats as $stat) {
+        $stats_summary['total'] += $stat->count;
+        $stats_summary[$stat->status] += $stat->count;
+        $stats_summary['by_provider'][$stat->provider_used] += $stat->count;
+    }
+    
+    if ($stats_summary['total'] > 0) {
+        $total_success = $stats_summary['success'] + $stats_summary['fallback_success'];
+        $stats_summary['success_rate'] = ($total_success / $stats_summary['total']) * 100;
+        $stats_summary['fallback_rate'] = ($stats_summary['fallback_success'] / $stats_summary['total']) * 100;
+    }
+    ?>
+    
+    <div class="rbf-admin-wrap">
+        <h1><?php echo esc_html(rbf_translate_string('Sistema Email Failover')); ?></h1>
+        
+        <!-- Statistics Dashboard -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px;">
+            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h3 style="margin: 0 0 10px 0; color: #2271b1;"><?php echo esc_html(rbf_translate_string('Notifiche Totali')); ?></h3>
+                <div style="font-size: 32px; font-weight: bold; color: #2271b1;"><?php echo esc_html($stats_summary['total']); ?></div>
+                <div style="font-size: 14px; color: #666;">Ultimi <?php echo esc_html($filter_days); ?> giorni</div>
+            </div>
+            
+            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h3 style="margin: 0 0 10px 0; color: #00a32a;"><?php echo esc_html(rbf_translate_string('Tasso di Successo')); ?></h3>
+                <div style="font-size: 32px; font-weight: bold; color: #00a32a;"><?php echo number_format($stats_summary['success_rate'], 1); ?>%</div>
+                <div style="font-size: 14px; color: #666;">
+                    <?php echo esc_html($stats_summary['success'] + $stats_summary['fallback_success']); ?> 
+                    / <?php echo esc_html($stats_summary['total']); ?> inviate
+                </div>
+            </div>
+            
+            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h3 style="margin: 0 0 10px 0; color: #dba617;"><?php echo esc_html(rbf_translate_string('Uso Fallback')); ?></h3>
+                <div style="font-size: 32px; font-weight: bold; color: #dba617;"><?php echo number_format($stats_summary['fallback_rate'], 1); ?>%</div>
+                <div style="font-size: 14px; color: #666;">
+                    <?php echo esc_html($stats_summary['fallback_success']); ?> tramite wp_mail
+                </div>
+            </div>
+            
+            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h3 style="margin: 0 0 10px 0; color: #d63638;"><?php echo esc_html(rbf_translate_string('Notifiche Fallite')); ?></h3>
+                <div style="font-size: 32px; font-weight: bold; color: #d63638;"><?php echo esc_html($stats_summary['failed']); ?></div>
+                <div style="font-size: 14px; color: #666;">
+                    Richiedono attenzione
+                </div>
+            </div>
+        </div>
+        
+        <!-- Provider Usage Chart -->
+        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 30px;">
+            <h3><?php echo esc_html(rbf_translate_string('Utilizzo Provider Email')); ?></h3>
+            <div style="display: flex; gap: 30px; align-items: center;">
+                <div style="flex: 1;">
+                    <div style="background: #f0f8ff; padding: 15px; border-radius: 6px; margin-bottom: 10px;">
+                        <strong>Brevo (Primario):</strong> <?php echo esc_html($stats_summary['by_provider']['brevo']); ?> notifiche
+                        <div style="background: #2271b1; height: 8px; border-radius: 4px; width: <?php echo $stats_summary['total'] > 0 ? ($stats_summary['by_provider']['brevo'] / $stats_summary['total']) * 100 : 0; ?>%; margin-top: 5px;"></div>
+                    </div>
+                    <div style="background: #fff8f0; padding: 15px; border-radius: 6px;">
+                        <strong>wp_mail (Fallback):</strong> <?php echo esc_html($stats_summary['by_provider']['wp_mail']); ?> notifiche
+                        <div style="background: #dba617; height: 8px; border-radius: 4px; width: <?php echo $stats_summary['total'] > 0 ? ($stats_summary['by_provider']['wp_mail'] / $stats_summary['total']) * 100 : 0; ?>%; margin-top: 5px;"></div>
+                    </div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 14px; color: #666; margin-bottom: 10px;">Sistema Funzionante</div>
+                    <div style="width: 60px; height: 60px; border-radius: 50%; background: <?php echo $stats_summary['success_rate'] >= 90 ? '#00a32a' : ($stats_summary['success_rate'] >= 75 ? '#dba617' : '#d63638'); ?>; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
+                        <?php echo $stats_summary['success_rate'] >= 90 ? '✓' : ($stats_summary['success_rate'] >= 75 ? '!' : '✗'); ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Filters -->
+        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px;">
+            <form method="get">
+                <input type="hidden" name="page" value="rbf_email_notifications">
+                <div style="display: flex; gap: 15px; align-items: end; flex-wrap: wrap;">
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;"><?php echo esc_html(rbf_translate_string('Stato')); ?></label>
+                        <select name="filter_status">
+                            <option value=""><?php echo esc_html(rbf_translate_string('Tutti gli stati')); ?></option>
+                            <option value="success" <?php selected($filter_status, 'success'); ?>><?php echo esc_html(rbf_translate_string('Successo')); ?></option>
+                            <option value="fallback_success" <?php selected($filter_status, 'fallback_success'); ?>><?php echo esc_html(rbf_translate_string('Fallback Successo')); ?></option>
+                            <option value="failed" <?php selected($filter_status, 'failed'); ?>><?php echo esc_html(rbf_translate_string('Fallito')); ?></option>
+                            <option value="pending" <?php selected($filter_status, 'pending'); ?>><?php echo esc_html(rbf_translate_string('In Attesa')); ?></option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;"><?php echo esc_html(rbf_translate_string('Tipo')); ?></label>
+                        <select name="filter_type">
+                            <option value=""><?php echo esc_html(rbf_translate_string('Tutti i tipi')); ?></option>
+                            <option value="admin_notification" <?php selected($filter_type, 'admin_notification'); ?>><?php echo esc_html(rbf_translate_string('Notifica Admin')); ?></option>
+                            <option value="customer_notification" <?php selected($filter_type, 'customer_notification'); ?>><?php echo esc_html(rbf_translate_string('Notifica Cliente')); ?></option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;"><?php echo esc_html(rbf_translate_string('Periodo')); ?></label>
+                        <select name="filter_days">
+                            <option value="1" <?php selected($filter_days, 1); ?>><?php echo esc_html(rbf_translate_string('Ultimo giorno')); ?></option>
+                            <option value="7" <?php selected($filter_days, 7); ?>><?php echo esc_html(rbf_translate_string('Ultimi 7 giorni')); ?></option>
+                            <option value="30" <?php selected($filter_days, 30); ?>><?php echo esc_html(rbf_translate_string('Ultimi 30 giorni')); ?></option>
+                        </select>
+                    </div>
+                    <button type="submit" class="button"><?php echo esc_html(rbf_translate_string('Filtra')); ?></button>
+                    <a href="<?php echo admin_url('admin.php?page=rbf_email_notifications'); ?>" class="button"><?php echo esc_html(rbf_translate_string('Reset')); ?></a>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Notification Logs -->
+        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <h3><?php echo esc_html(rbf_translate_string('Log Notifiche Email')); ?></h3>
+            
+            <?php if (!empty($logs)): ?>
+                <div style="overflow-x: auto;">
+                    <table class="wp-list-table widefat fixed striped">
+                        <thead>
+                            <tr>
+                                <th style="width: 80px;"><?php echo esc_html(rbf_translate_string('ID')); ?></th>
+                                <th style="width: 100px;"><?php echo esc_html(rbf_translate_string('Prenotazione')); ?></th>
+                                <th style="width: 120px;"><?php echo esc_html(rbf_translate_string('Tipo')); ?></th>
+                                <th><?php echo esc_html(rbf_translate_string('Destinatario')); ?></th>
+                                <th style="width: 100px;"><?php echo esc_html(rbf_translate_string('Provider')); ?></th>
+                                <th style="width: 120px;"><?php echo esc_html(rbf_translate_string('Stato')); ?></th>
+                                <th style="width: 60px;"><?php echo esc_html(rbf_translate_string('Tentativi')); ?></th>
+                                <th style="width: 150px;"><?php echo esc_html(rbf_translate_string('Data/Ora')); ?></th>
+                                <th style="width: 100px;"><?php echo esc_html(rbf_translate_string('Azioni')); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($logs as $log): ?>
+                                <tr>
+                                    <td><?php echo esc_html($log->id); ?></td>
+                                    <td>
+                                        <?php if ($log->booking_id): ?>
+                                            <a href="<?php echo admin_url('post.php?post=' . $log->booking_id . '&action=edit'); ?>">
+                                                #<?php echo esc_html($log->booking_id); ?>
+                                            </a>
+                                        <?php else: ?>
+                                            <em>N/A</em>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <?php 
+                                        $type_labels = [
+                                            'admin_notification' => 'Admin',
+                                            'customer_notification' => 'Cliente'
+                                        ];
+                                        echo esc_html($type_labels[$log->notification_type] ?? $log->notification_type);
+                                        ?>
+                                    </td>
+                                    <td style="word-break: break-all;">
+                                        <?php echo esc_html($log->recipient_email); ?>
+                                    </td>
+                                    <td>
+                                        <span style="padding: 3px 8px; border-radius: 3px; font-size: 12px; font-weight: bold; color: white; background: <?php echo $log->provider_used === 'brevo' ? '#2271b1' : '#dba617'; ?>;">
+                                            <?php echo esc_html(ucfirst($log->provider_used)); ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <?php
+                                        $status_colors = [
+                                            'success' => '#00a32a',
+                                            'fallback_success' => '#dba617',
+                                            'failed' => '#d63638',
+                                            'pending' => '#666'
+                                        ];
+                                        $status_labels = [
+                                            'success' => 'Successo',
+                                            'fallback_success' => 'Fallback OK',
+                                            'failed' => 'Fallito',
+                                            'pending' => 'In Attesa'
+                                        ];
+                                        $color = $status_colors[$log->status] ?? '#666';
+                                        $label = $status_labels[$log->status] ?? $log->status;
+                                        ?>
+                                        <span style="padding: 3px 8px; border-radius: 3px; font-size: 12px; font-weight: bold; color: white; background: <?php echo esc_attr($color); ?>;">
+                                            <?php echo esc_html($label); ?>
+                                        </span>
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <?php echo esc_html($log->attempt_number); ?>
+                                    </td>
+                                    <td>
+                                        <div style="font-size: 12px;">
+                                            <?php echo esc_html(date('d/m/Y H:i', strtotime($log->attempted_at))); ?>
+                                        </div>
+                                        <?php if ($log->completed_at && $log->completed_at !== $log->attempted_at): ?>
+                                            <div style="font-size: 11px; color: #666;">
+                                                <?php echo esc_html(rbf_translate_string('Completato')); ?>: <?php echo esc_html(date('H:i', strtotime($log->completed_at))); ?>
+                                            </div>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <div style="display: flex; gap: 5px;">
+                                            <?php if ($log->status === 'failed'): ?>
+                                                <a href="<?php echo wp_nonce_url(admin_url('admin.php?page=rbf_email_notifications&action=retry&log_id=' . $log->id), 'rbf_email_action'); ?>" 
+                                                   class="button button-small" 
+                                                   title="<?php echo esc_attr(rbf_translate_string('Riprova invio')); ?>"
+                                                   onclick="return confirm('<?php echo esc_js(rbf_translate_string('Riprovare l\'invio di questa notifica?')); ?>')">
+                                                    ↻
+                                                </a>
+                                            <?php endif; ?>
+                                            <?php if ($log->error_message): ?>
+                                                <button type="button" 
+                                                        class="button button-small" 
+                                                        onclick="alert('<?php echo esc_js($log->error_message); ?>')"
+                                                        title="<?php echo esc_attr(rbf_translate_string('Visualizza errore')); ?>">
+                                                    !
+                                                </button>
+                                            <?php endif; ?>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php else: ?>
+                <p style="text-align: center; color: #666; font-style: italic; padding: 40px;">
+                    <?php echo esc_html(rbf_translate_string('Nessuna notifica trovata con i filtri selezionati.')); ?>
+                </p>
+            <?php endif; ?>
+        </div>
+        
+        <!-- Configuration Help -->
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 30px;">
+            <h3><?php echo esc_html(rbf_translate_string('Configurazione Sistema Failover')); ?></h3>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                <div>
+                    <h4><?php echo esc_html(rbf_translate_string('Provider Primario (Brevo)')); ?></h4>
+                    <ul style="margin: 10px 0; padding-left: 20px;">
+                        <li><?php echo esc_html(rbf_translate_string('Automazioni clienti (liste e eventi)')); ?></li>
+                        <li><?php echo esc_html(rbf_translate_string('Email transazionali admin')); ?></li>
+                        <li><?php echo esc_html(rbf_translate_string('Supporto multilingua')); ?></li>
+                        <li><?php echo esc_html(rbf_translate_string('Analytics avanzate')); ?></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4><?php echo esc_html(rbf_translate_string('Provider Fallback (wp_mail)')); ?></h4>
+                    <ul style="margin: 10px 0; padding-left: 20px;">
+                        <li><?php echo esc_html(rbf_translate_string('Solo notifiche admin')); ?></li>
+                        <li><?php echo esc_html(rbf_translate_string('Attivazione automatica su errore Brevo')); ?></li>
+                        <li><?php echo esc_html(rbf_translate_string('Configurazione SMTP WordPress')); ?></li>
+                        <li><?php echo esc_html(rbf_translate_string('Backup affidabile')); ?></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div style="background: white; padding: 15px; border-radius: 6px; margin-top: 20px;">
+                <strong><?php echo esc_html(rbf_translate_string('Stato Configurazione Attuale:')); ?></strong>
+                <div style="margin-top: 10px;">
+                    <?php
+                    $options = rbf_get_settings();
+                    $brevo_configured = !empty($options['brevo_api']);
+                    $emails_configured = !empty($options['notification_email']) || !empty($options['webmaster_email']);
+                    ?>
+                    
+                    <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                        <span style="color: <?php echo $brevo_configured ? '#00a32a' : '#d63638'; ?>; margin-right: 10px;">
+                            <?php echo $brevo_configured ? '✓' : '✗'; ?>
+                        </span>
+                        <span>
+                            <?php echo esc_html(rbf_translate_string('Brevo API configurata')); ?>
+                            <?php if (!$brevo_configured): ?>
+                                - <a href="<?php echo admin_url('admin.php?page=rbf_settings'); ?>"><?php echo esc_html(rbf_translate_string('Configura ora')); ?></a>
+                            <?php endif; ?>
+                        </span>
+                    </div>
+                    
+                    <div style="display: flex; align-items: center;">
+                        <span style="color: <?php echo $emails_configured ? '#00a32a' : '#d63638'; ?>; margin-right: 10px;">
+                            <?php echo $emails_configured ? '✓' : '✗'; ?>
+                        </span>
+                        <span>
+                            <?php echo esc_html(rbf_translate_string('Email amministratori configurate')); ?>
+                            <?php if (!$emails_configured): ?>
+                                - <a href="<?php echo admin_url('admin.php?page=rbf_settings'); ?>"><?php echo esc_html(rbf_translate_string('Configura ora')); ?></a>
+                            <?php endif; ?>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+    .rbf-admin-wrap h1 {
+        margin-bottom: 20px;
+    }
+    
+    .rbf-admin-wrap table th,
+    .rbf-admin-wrap table td {
+        padding: 12px 8px;
+        vertical-align: middle;
+    }
+    
+    .rbf-admin-wrap .button-small {
+        padding: 3px 8px;
+        font-size: 11px;
+        line-height: 1.2;
+        min-height: auto;
+    }
+    
+    @media (max-width: 768px) {
+        .rbf-admin-wrap table {
+            font-size: 12px;
+        }
+        .rbf-admin-wrap table th,
+        .rbf-admin-wrap table td {
+            padding: 8px 4px;
+        }
+    }
+    </style>
     <?php
 }

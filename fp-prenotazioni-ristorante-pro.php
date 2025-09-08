@@ -91,6 +91,7 @@ function rbf_load_modules() {
         'admin.php',
         'frontend.php',
         'booking-handler.php',
+        'email-failover.php',
         'integrations.php',
         'ga4-funnel-tracking.php'
     ];
