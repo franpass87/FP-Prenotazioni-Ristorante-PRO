@@ -283,14 +283,14 @@ function rbf_handle_booking_submission() {
     ], 60 * 15);
 
     // Notifiche e integrazioni
-    // Admin notification email (webmaster notification)
-    if (function_exists('rbf_send_admin_notification_email')) {
-        rbf_send_admin_notification_email($first_name, $last_name, $email, $date, $time, $people, $notes, $tel, $meal);
+    // Admin notification email with failover
+    if (function_exists('rbf_send_admin_notification_with_failover')) {
+        rbf_send_admin_notification_with_failover($first_name, $last_name, $email, $date, $time, $people, $notes, $tel, $meal, $post_id);
     }
     
-    // Brevo: sempre (lista + evento) - use country-based language for list selection
-    if (function_exists('rbf_trigger_brevo_automation')) {
-        rbf_trigger_brevo_automation($first_name, $last_name, $email, $date, $time, $people, $notes, $brevo_lang, $tel, $marketing, $meal);
+    // Customer Brevo automation with failover
+    if (function_exists('rbf_send_customer_notification_with_failover')) {
+        rbf_send_customer_notification_with_failover($first_name, $last_name, $email, $date, $time, $people, $notes, $brevo_lang, $tel, $marketing, $meal, $post_id);
     }
 
     // Meta CAPI server-side (dedup con event_id) + bucket standard
