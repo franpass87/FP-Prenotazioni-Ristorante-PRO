@@ -322,6 +322,38 @@ function rbf_sanitize_settings_callback($input) {
         $output['custom_meals'] = $defaults['custom_meals'] ?? rbf_get_default_custom_meals();
     }
 
+    // Sanitize reCAPTCHA settings
+    if (isset($input['recaptcha_site_key'])) {
+        $site_key = sanitize_text_field($input['recaptcha_site_key']);
+        if (empty($site_key) || preg_match('/^6L[a-zA-Z0-9_-]+$/', $site_key)) {
+            $output['recaptcha_site_key'] = $site_key;
+        } else {
+            $output['recaptcha_site_key'] = '';
+            add_settings_error('rbf_settings', 'invalid_recaptcha_site', rbf_translate_string('reCAPTCHA Site Key non valida.'));
+        }
+    } else {
+        $output['recaptcha_site_key'] = '';
+    }
+
+    if (isset($input['recaptcha_secret_key'])) {
+        $secret_key = sanitize_text_field($input['recaptcha_secret_key']);
+        if (empty($secret_key) || preg_match('/^6L[a-zA-Z0-9_-]+$/', $secret_key)) {
+            $output['recaptcha_secret_key'] = $secret_key;
+        } else {
+            $output['recaptcha_secret_key'] = '';
+            add_settings_error('rbf_settings', 'invalid_recaptcha_secret', rbf_translate_string('reCAPTCHA Secret Key non valida.'));
+        }
+    } else {
+        $output['recaptcha_secret_key'] = '';
+    }
+
+    if (isset($input['recaptcha_threshold'])) {
+        $threshold = floatval($input['recaptcha_threshold']);
+        $output['recaptcha_threshold'] = max(0, min(1, $threshold));
+    } else {
+        $output['recaptcha_threshold'] = '0.5';
+    }
+
     return $output;
 }
 
@@ -896,6 +928,17 @@ function rbf_settings_page_html() {
                     <td><input type="number" id="rbf_brevo_list_it" name="rbf_settings[brevo_list_it]" value="<?php echo esc_attr($options['brevo_list_it']); ?>"></td></tr>
                 <tr><th><label for="rbf_brevo_list_en"><?php echo esc_html(rbf_translate_string('ID Lista Brevo (EN)')); ?></label></th>
                     <td><input type="number" id="rbf_brevo_list_en" name="rbf_settings[brevo_list_en]" value="<?php echo esc_attr($options['brevo_list_en']); ?>"></td></tr>
+
+                <tr><th colspan="2"><h3><?php echo esc_html(rbf_translate_string('Protezione Anti-Bot')); ?></h3></th></tr>
+                <tr><th><label for="rbf_recaptcha_site_key"><?php echo esc_html(rbf_translate_string('reCAPTCHA v3 Site Key')); ?></label></th>
+                    <td><input type="text" id="rbf_recaptcha_site_key" name="rbf_settings[recaptcha_site_key]" value="<?php echo esc_attr($options['recaptcha_site_key'] ?? ''); ?>" class="regular-text" placeholder="6Le...">
+                    <p class="description"><?php echo esc_html(rbf_translate_string('Chiave pubblica per reCAPTCHA v3. Lascia vuoto per disabilitare.')); ?></p></td></tr>
+                <tr><th><label for="rbf_recaptcha_secret_key"><?php echo esc_html(rbf_translate_string('reCAPTCHA v3 Secret Key')); ?></label></th>
+                    <td><input type="password" id="rbf_recaptcha_secret_key" name="rbf_settings[recaptcha_secret_key]" value="<?php echo esc_attr($options['recaptcha_secret_key'] ?? ''); ?>" class="regular-text" placeholder="6Le...">
+                    <p class="description"><?php echo esc_html(rbf_translate_string('Chiave segreta per reCAPTCHA v3.')); ?></p></td></tr>
+                <tr><th><label for="rbf_recaptcha_threshold"><?php echo esc_html(rbf_translate_string('Soglia reCAPTCHA')); ?></label></th>
+                    <td><input type="number" id="rbf_recaptcha_threshold" name="rbf_settings[recaptcha_threshold]" value="<?php echo esc_attr($options['recaptcha_threshold'] ?? '0.5'); ?>" step="0.1" min="0" max="1" style="width: 80px;">
+                    <p class="description"><?php echo esc_html(rbf_translate_string('Soglia minima per considerare valida una submission (0.0-1.0). Default: 0.5')); ?></p></td></tr>
 
             </table>
             <?php submit_button(); ?>

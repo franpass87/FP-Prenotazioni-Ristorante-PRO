@@ -33,6 +33,11 @@ function rbf_get_default_settings() {
         // Custom meals system (always enabled)
         'use_custom_meals' => 'yes',
         'custom_meals' => rbf_get_default_custom_meals(),
+        
+        // Anti-bot protection
+        'recaptcha_site_key' => '',
+        'recaptcha_secret_key' => '',
+        'recaptcha_threshold' => '0.5',
     ];
 }
 
@@ -1467,5 +1472,287 @@ function rbf_get_availability_status($date, $meal_id) {
         'occupancy' => round($occupancy, 1),
         'remaining' => $remaining,
         'total' => $total_capacity
+    ];
+}
+
+/**
+ * Anti-bot detection system
+ * Detects suspicious submission patterns that indicate automated behavior
+ * 
+ * @param array $form_data POST data from form submission
+ * @return array Detection result with is_bot, severity, and reason
+ */
+function rbf_detect_bot_submission($form_data) {
+    $suspicion_score = 0;
+    $reasons = [];
+    
+    // 1. Honeypot field check (highest priority)
+    if (!empty($form_data['rbf_website'])) {
+        return [
+            'is_bot' => true,
+            'severity' => 'high',
+            'reason' => 'Honeypot field filled',
+            'score' => 100
+        ];
+    }
+    
+    // 2. Timestamp validation (form submission timing)
+    if (isset($form_data['rbf_form_timestamp'])) {
+        $form_timestamp = intval($form_data['rbf_form_timestamp']);
+        $current_time = time();
+        $submission_time = $current_time - $form_timestamp;
+        
+        // Too fast (less than 5 seconds) - likely bot
+        if ($submission_time < 5) {
+            $suspicion_score += 80;
+            $reasons[] = "Too fast submission: {$submission_time}s";
+        }
+        // Reasonable time range for humans (5s to 30 minutes)
+        elseif ($submission_time <= 1800) {
+            // Normal submission time, no penalty
+        }
+        // Too slow (over 30 minutes) - might be bot or abandoned session
+        else {
+            $suspicion_score += 30;
+            $reasons[] = "Very slow submission: " . floor($submission_time / 60) . "m";
+        }
+    } else {
+        // Missing timestamp is suspicious
+        $suspicion_score += 40;
+        $reasons[] = "Missing form timestamp";
+    }
+    
+    // 3. User agent analysis
+    $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+    if (rbf_detect_bot_user_agent($user_agent)) {
+        $suspicion_score += 60;
+        $reasons[] = "Bot user agent detected";
+    }
+    
+    // 4. Field completion pattern analysis
+    $pattern_score = rbf_analyze_field_patterns($form_data);
+    $suspicion_score += $pattern_score;
+    if ($pattern_score > 0) {
+        $reasons[] = "Suspicious field patterns";
+    }
+    
+    // 5. Rate limiting check (multiple submissions from same IP)
+    $rate_limit_score = rbf_check_submission_rate();
+    $suspicion_score += $rate_limit_score;
+    if ($rate_limit_score > 0) {
+        $reasons[] = "High submission rate from IP";
+    }
+    
+    // Determine result based on score
+    $is_bot = $suspicion_score >= 70;
+    $severity = $suspicion_score >= 90 ? 'high' : ($suspicion_score >= 40 ? 'medium' : 'low');
+    
+    return [
+        'is_bot' => $is_bot,
+        'severity' => $severity,
+        'reason' => implode(', ', $reasons),
+        'score' => $suspicion_score
+    ];
+}
+
+/**
+ * Detect bot user agents
+ * 
+ * @param string $user_agent User agent string
+ * @return bool True if bot detected
+ */
+function rbf_detect_bot_user_agent($user_agent) {
+    if (empty($user_agent)) {
+        return true; // Missing user agent is suspicious
+    }
+    
+    $bot_patterns = [
+        'bot', 'crawler', 'spider', 'scraper', 'curl', 'wget', 'python',
+        'http', 'php', 'ruby', 'perl', 'java', 'automated', 'headless'
+    ];
+    
+    $user_agent_lower = strtolower($user_agent);
+    
+    foreach ($bot_patterns as $pattern) {
+        if (strpos($user_agent_lower, $pattern) !== false) {
+            return true;
+        }
+    }
+    
+    // Check for very short or suspicious user agent strings
+    if (strlen($user_agent) < 20) {
+        return true;
+    }
+    
+    return false;
+}
+
+/**
+ * Analyze field completion patterns for bot-like behavior
+ * 
+ * @param array $form_data Form submission data
+ * @return int Suspicion score (0-50)
+ */
+function rbf_analyze_field_patterns($form_data) {
+    $score = 0;
+    
+    // Check for obviously fake or test data
+    $test_patterns = [
+        'test', 'bot', 'automated', 'fake', 'example', 'asdf', 'qwerty',
+        '123456', 'aaaa', 'bbbb', 'cccc', 'dddd'
+    ];
+    
+    $name = strtolower(($form_data['rbf_nome'] ?? '') . ' ' . ($form_data['rbf_cognome'] ?? ''));
+    $email = strtolower($form_data['rbf_email'] ?? '');
+    
+    foreach ($test_patterns as $pattern) {
+        if (strpos($name, $pattern) !== false || strpos($email, $pattern) !== false) {
+            $score += 25;
+            break;
+        }
+    }
+    
+    // Check for identical name/surname (unlikely for real users)
+    if (!empty($form_data['rbf_nome']) && !empty($form_data['rbf_cognome'])) {
+        if (strtolower($form_data['rbf_nome']) === strtolower($form_data['rbf_cognome'])) {
+            $score += 15;
+        }
+    }
+    
+    // Check for very generic email domains commonly used by bots
+    $suspicious_domains = ['10minutemail.com', 'guerrillamail.com', 'tempmail.org'];
+    foreach ($suspicious_domains as $domain) {
+        if (strpos($email, $domain) !== false) {
+            $score += 20;
+            break;
+        }
+    }
+    
+    return min($score, 50); // Cap at 50
+}
+
+/**
+ * Check submission rate from current IP
+ * 
+ * @return int Suspicion score (0-30)
+ */
+function rbf_check_submission_rate() {
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+    if (empty($ip)) {
+        return 0;
+    }
+    
+    // Check transient for recent submissions from this IP
+    $transient_key = 'rbf_ip_submissions_' . md5($ip);
+    $recent_submissions = get_transient($transient_key);
+    
+    if (!is_array($recent_submissions)) {
+        $recent_submissions = [];
+    }
+    
+    // Clean old submissions (older than 1 hour)
+    $one_hour_ago = time() - 3600;
+    $recent_submissions = array_filter($recent_submissions, function($timestamp) use ($one_hour_ago) {
+        return $timestamp > $one_hour_ago;
+    });
+    
+    // Add current submission
+    $recent_submissions[] = time();
+    
+    // Store back in transient for 1 hour
+    set_transient($transient_key, $recent_submissions, 3600);
+    
+    // Calculate score based on submission frequency
+    $submission_count = count($recent_submissions);
+    
+    if ($submission_count > 10) {
+        return 30; // Very high rate
+    } elseif ($submission_count > 5) {
+        return 20; // High rate
+    } elseif ($submission_count > 3) {
+        return 10; // Moderate rate
+    }
+    
+    return 0; // Normal rate
+}
+
+/**
+ * Verify reCAPTCHA v3 token
+ * 
+ * @param string $token reCAPTCHA token from frontend
+ * @param string $action Expected action name
+ * @return array Result with success, score, and details
+ */
+function rbf_verify_recaptcha($token, $action = 'booking_submit') {
+    $options = rbf_get_settings();
+    $secret_key = $options['recaptcha_secret_key'] ?? '';
+    $threshold = floatval($options['recaptcha_threshold'] ?? 0.5);
+    
+    if (empty($secret_key) || empty($token)) {
+        return [
+            'success' => true, // Allow if reCAPTCHA not configured
+            'score' => 1.0,
+            'reason' => 'reCAPTCHA not configured'
+        ];
+    }
+    
+    // Verify token with Google
+    $response = wp_remote_post('https://www.google.com/recaptcha/api/siteverify', [
+        'body' => [
+            'secret' => $secret_key,
+            'response' => $token,
+            'remoteip' => $_SERVER['REMOTE_ADDR'] ?? ''
+        ],
+        'timeout' => 10
+    ]);
+    
+    if (is_wp_error($response)) {
+        error_log('reCAPTCHA verification failed: ' . $response->get_error_message());
+        return [
+            'success' => true, // Allow on API failure to avoid blocking legitimate users
+            'score' => 0.5,
+            'reason' => 'API error: ' . $response->get_error_message()
+        ];
+    }
+    
+    $body = wp_remote_retrieve_body($response);
+    $data = json_decode($body, true);
+    
+    if (!$data || !isset($data['success'])) {
+        return [
+            'success' => true, // Allow on invalid response
+            'score' => 0.5,
+            'reason' => 'Invalid API response'
+        ];
+    }
+    
+    if (!$data['success']) {
+        $errors = $data['error-codes'] ?? ['unknown-error'];
+        return [
+            'success' => false,
+            'score' => 0.0,
+            'reason' => 'reCAPTCHA verification failed: ' . implode(', ', $errors)
+        ];
+    }
+    
+    $score = floatval($data['score'] ?? 0);
+    $api_action = $data['action'] ?? '';
+    
+    // Verify action matches (if provided)
+    if (!empty($action) && $api_action !== $action) {
+        return [
+            'success' => false,
+            'score' => $score,
+            'reason' => "Action mismatch: expected '$action', got '$api_action'"
+        ];
+    }
+    
+    // Check if score meets threshold
+    $success = $score >= $threshold;
+    
+    return [
+        'success' => $success,
+        'score' => $score,
+        'reason' => $success ? 'Passed threshold' : "Score $score below threshold $threshold"
     ];
 }

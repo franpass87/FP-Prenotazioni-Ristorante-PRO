@@ -24,6 +24,37 @@ function rbf_handle_booking_submission() {
         return;
     }
 
+    // Anti-bot validation
+    $bot_detected = rbf_detect_bot_submission($_POST);
+    if ($bot_detected['is_bot']) {
+        // Log bot attempt for analysis
+        error_log("RBF Bot Detection: " . $bot_detected['reason'] . " - IP: " . $_SERVER['REMOTE_ADDR']);
+        
+        // If high suspicion, verify with reCAPTCHA if available
+        if ($bot_detected['severity'] === 'high') {
+            // Check if reCAPTCHA is configured
+            $options = rbf_get_settings();
+            $recaptcha_configured = !empty($options['recaptcha_site_key']) && !empty($options['recaptcha_secret_key']);
+            
+            if ($recaptcha_configured && !empty($_POST['g-recaptcha-response'])) {
+                // Verify reCAPTCHA token
+                $recaptcha_result = rbf_verify_recaptcha($_POST['g-recaptcha-response']);
+                if (!$recaptcha_result['success']) {
+                    error_log("RBF reCAPTCHA Failed: " . $recaptcha_result['reason'] . " - IP: " . $_SERVER['REMOTE_ADDR']);
+                    rbf_handle_error(rbf_translate_string('Verifica di sicurezza fallita. Per favore riprova.'), 'recaptcha_failed', $redirect_url . $anchor);
+                    return;
+                }
+                // reCAPTCHA passed, allow submission to continue
+                error_log("RBF Bot detected but reCAPTCHA passed - allowing submission");
+            } else {
+                // Block submission - either no reCAPTCHA configured or no token provided
+                rbf_handle_error(rbf_translate_string('Rilevata attività sospetta. Per favore riprova.'), 'bot_detected', $redirect_url . $anchor);
+                return;
+            }
+        }
+        // For medium/low severity, just log but allow through
+    }
+
     $required = ['rbf_meal','rbf_data','rbf_orario','rbf_persone','rbf_nome','rbf_cognome','rbf_email','rbf_tel','rbf_privacy'];
     foreach ($required as $f) {
         if (empty($_POST[$f])) {
@@ -48,7 +79,10 @@ function rbf_handle_booking_submission() {
         'rbf_utm_campaign' => 'text',
         'rbf_gclid' => 'text',
         'rbf_fbclid' => 'text',
-        'rbf_referrer' => 'text'
+        'rbf_referrer' => 'text',
+        // Anti-bot fields
+        'rbf_form_timestamp' => 'int',
+        'rbf_website' => 'text'
     ]);
     
     $meal = $sanitized_fields['rbf_meal'];
