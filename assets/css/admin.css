@@ -738,3 +738,181 @@
         -webkit-tap-highlight-color: transparent;
     }
 }
+/* Weekly Staff View Styles */
+#rbf-weekly-staff-calendar {
+    margin-top: 20px;
+    background: white;
+    border-radius: var(--rbf-admin-radius);
+    box-shadow: var(--rbf-admin-shadow);
+    overflow: hidden;
+}
+
+/* Compact event styling */
+.rbf-compact-event {
+    font-size: 11px !important;
+    padding: 2px 4px !important;
+    border-radius: 3px !important;
+    cursor: move !important;
+}
+
+.rbf-compact-event .fc-event-title {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Calendar header styling */
+.fc-toolbar-title {
+    color: var(--rbf-admin-primary) !important;
+    font-weight: 600 !important;
+}
+
+.fc-button-primary {
+    background-color: var(--rbf-admin-primary) !important;
+    border-color: var(--rbf-admin-primary) !important;
+}
+
+.fc-button-primary:hover {
+    background-color: var(--rbf-admin-primary-dark) !important;
+    border-color: var(--rbf-admin-primary-dark) !important;
+}
+
+.fc-button-primary:focus {
+    box-shadow: 0 0 0 0.2rem rgba(var(--rbf-admin-primary), 0.25) !important;
+}
+
+/* Compact modal styles */
+.rbf-compact-modal-content {
+    max-width: 400px;
+}
+
+.rbf-compact-booking-details {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.rbf-detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f1;
+}
+
+.rbf-detail-row:last-child {
+    border-bottom: none;
+}
+
+.rbf-detail-row strong {
+    color: var(--rbf-admin-text);
+    font-weight: 600;
+    margin-right: 12px;
+}
+
+/* Status badges */
+.rbf-status-badge {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.rbf-status-confirmed {
+    background: #d4edda;
+    color: #155724;
+}
+
+.rbf-status-cancelled {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.rbf-status-completed {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+/* Notification styles */
+#rbf-move-notification {
+    position: fixed;
+    top: 32px;
+    right: 20px;
+    z-index: 999999;
+    min-width: 300px;
+    border-left: 4px solid #0073aa;
+    box-shadow: var(--rbf-admin-shadow);
+}
+
+#rbf-move-notification.notice-success {
+    border-left-color: #46b450;
+}
+
+#rbf-move-notification.notice-error {
+    border-left-color: #dc3232;
+}
+
+#rbf-move-notification.notice-info {
+    border-left-color: #0073aa;
+}
+
+/* Time grid improvements for staff view */
+.fc-timegrid-slot {
+    border-bottom: 1px solid #f0f0f1 !important;
+}
+
+.fc-timegrid-axis {
+    font-size: 11px !important;
+    color: #666 !important;
+}
+
+.fc-col-header-cell {
+    background: #f7f7f9 !important;
+    border-bottom: 2px solid var(--rbf-admin-primary) !important;
+}
+
+.fc-col-header-cell a {
+    color: var(--rbf-admin-text) !important;
+    font-weight: 600 !important;
+}
+
+/* Responsive improvements for mobile staff usage */
+@media (max-width: 768px) {
+    #rbf-weekly-staff-calendar {
+        font-size: 12px;
+    }
+    
+    .rbf-compact-event {
+        font-size: 10px !important;
+        padding: 1px 2px !important;
+    }
+    
+    .fc-toolbar {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .fc-toolbar-title {
+        font-size: 16px !important;
+        order: -1;
+    }
+    
+    .rbf-compact-modal-content {
+        max-width: 90vw;
+        margin: 20px;
+    }
+    
+    .rbf-detail-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+    
+    #rbf-move-notification {
+        right: 10px;
+        left: 10px;
+        min-width: auto;
+    }
+}

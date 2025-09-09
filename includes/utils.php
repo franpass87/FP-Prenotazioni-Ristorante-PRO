@@ -1756,3 +1756,79 @@ function rbf_verify_recaptcha($token, $action = 'booking_submit') {
         'reason' => $success ? 'Passed threshold' : "Score $score below threshold $threshold"
     ];
 }
+
+/**
+ * Check slot availability for booking movement
+ * Used by drag & drop functionality to validate if a slot can accommodate a booking
+ * 
+ * @param string $date Date in YYYY-MM-DD format
+ * @param string $meal Meal type (pranzo, cena, etc.)
+ * @param string $time Time in HH:MM format
+ * @param int $people Number of people
+ * @return bool True if slot is available, false otherwise
+ */
+function rbf_check_slot_availability($date, $meal, $time, $people) {
+    // Basic input validation
+    if (empty($date) || empty($meal) || empty($time) || $people <= 0) {
+        return false;
+    }
+    
+    // Check if date is in the past
+    if (strtotime($date) < strtotime('today')) {
+        return false;
+    }
+    
+    // Get meal configuration
+    $meals = rbf_get_active_meals();
+    $meal_config = null;
+    foreach ($meals as $m) {
+        if ($m['id'] === $meal) {
+            $meal_config = $m;
+            break;
+        }
+    }
+    
+    if (!$meal_config) {
+        return false;
+    }
+    
+    // Check if meal is available on this day
+    if (!rbf_is_meal_available_on_day($meal, $date)) {
+        return false;
+    }
+    
+    // Check if time is within meal time slots
+    $time_slots = explode(',', $meal_config['time_slots']);
+    if (!in_array($time, $time_slots)) {
+        return false;
+    }
+    
+    // Get current capacity usage (excluding the booking being moved)
+    $current_bookings = rbf_calculate_current_bookings($date, $meal);
+    $meal_capacity = intval($meal_config['capacity']);
+    
+    // Calculate overbooking allowance
+    $overbooking_limit = intval($meal_config['overbooking_limit'] ?? 0);
+    $overbooking_spots = round($meal_capacity * ($overbooking_limit / 100));
+    $effective_capacity = $meal_capacity + $overbooking_spots;
+    
+    // Check if there's enough capacity
+    $remaining_capacity = $effective_capacity - $current_bookings;
+    
+    return $remaining_capacity >= $people;
+}
+
+/**
+ * Reserve slot capacity for booking movement
+ * Wrapper function for optimistic locking system
+ * 
+ * @param string $date Date in YYYY-MM-DD format
+ * @param string $meal Meal type (pranzo, cena, etc.)
+ * @param int $people Number of people
+ * @return bool True if successfully reserved, false otherwise
+ */
+function rbf_reserve_slot_capacity($date, $meal, $people) {
+    // Use the optimistic locking system to reserve capacity
+    $result = rbf_book_slot_optimistic($date, $meal, $people);
+    return $result['success'];
+}
