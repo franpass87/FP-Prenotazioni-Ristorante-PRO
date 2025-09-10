@@ -46,6 +46,7 @@ add_action('admin_menu', 'rbf_create_bookings_menu');
 function rbf_create_bookings_menu() {
     add_menu_page(rbf_translate_string('Prenotazioni'), rbf_translate_string('Prenotazioni'), 'manage_options', 'rbf_calendar', 'rbf_calendar_page_html', 'dashicons-calendar-alt', 20);
     add_submenu_page('rbf_calendar', rbf_translate_string('Prenotazioni'), rbf_translate_string('Tutte le Prenotazioni'), 'manage_options', 'rbf_calendar', 'rbf_calendar_page_html');
+    add_submenu_page('rbf_calendar', rbf_translate_string('Vista Settimanale Staff'), rbf_translate_string('Vista Settimanale Staff'), 'manage_options', 'rbf_weekly_staff', 'rbf_weekly_staff_page_html');
     add_submenu_page('rbf_calendar', rbf_translate_string('Aggiungi Prenotazione'), rbf_translate_string('Aggiungi Nuova'), 'manage_options', 'rbf_add_booking', 'rbf_add_booking_page_html');
     add_submenu_page('rbf_calendar', rbf_translate_string('Gestione Tavoli'), rbf_translate_string('Gestione Tavoli'), 'manage_options', 'rbf_tables', 'rbf_tables_page_html');
     add_submenu_page('rbf_calendar', rbf_translate_string('Report & Analytics'), rbf_translate_string('Report & Analytics'), 'manage_options', 'rbf_reports', 'rbf_reports_page_html');
@@ -965,6 +966,39 @@ function rbf_calendar_page_html() {
         <h1><?php echo esc_html(rbf_translate_string('Prenotazioni')); ?></h1>
         
         <div id="rbf-calendar"></div>
+    </div>
+    <?php
+}
+
+/**
+ * Weekly staff view page HTML
+ */
+function rbf_weekly_staff_page_html() {
+    wp_enqueue_style('fullcalendar-css', 'https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css', [], '5.11.3');
+    wp_enqueue_script('fullcalendar-js', 'https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js', ['jquery'], '5.11.3', true);
+    wp_enqueue_script('rbf-weekly-staff-js', plugin_dir_url(dirname(__FILE__)) . 'assets/js/weekly-staff.js', ['jquery', 'fullcalendar-js'], rbf_get_asset_version(), true);
+    
+    wp_localize_script('rbf-weekly-staff-js', 'rbfWeeklyStaffData', [
+        'ajaxUrl' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('rbf_weekly_staff_nonce'),
+        'editUrl' => admin_url('post.php?post=BOOKING_ID&action=edit'),
+        'labels' => [
+            'moveSuccess' => rbf_translate_string('Prenotazione spostata con successo'),
+            'moveError' => rbf_translate_string('Errore nello spostamento della prenotazione'),
+            'conflictError' => rbf_translate_string('Conflitto di orario rilevato'),
+            'confirmMove' => rbf_translate_string('Confermi lo spostamento della prenotazione?'),
+        ]
+    ]);
+    ?>
+    <div class="rbf-admin-wrap">
+        <h1><?php echo esc_html(rbf_translate_string('Vista Settimanale Staff')); ?></h1>
+        <p class="description"><?php echo esc_html(rbf_translate_string('Vista compatta per lo staff con funzionalità drag & drop per spostare le prenotazioni.')); ?></p>
+        
+        <div id="rbf-weekly-staff-calendar"></div>
+        
+        <div id="rbf-move-notification" class="notice" style="display: none;">
+            <p id="rbf-move-message"></p>
+        </div>
     </div>
     <?php
 }
@@ -2926,4 +2960,154 @@ function rbf_email_notifications_page_html() {
     }
     </style>
     <?php
+}
+
+/**
+ * AJAX handler for moving bookings in weekly staff view
+ */
+add_action('wp_ajax_rbf_move_booking', 'rbf_move_booking_callback');
+function rbf_move_booking_callback() {
+    check_ajax_referer('rbf_weekly_staff_nonce', '_ajax_nonce');
+
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error('Permessi insufficienti', 403);
+    }
+
+    $sanitized = rbf_sanitize_input_fields($_POST, [
+        'booking_id' => 'int',
+        'new_date' => 'text',
+        'new_time' => 'text'
+    ]);
+    
+    $booking_id = $sanitized['booking_id'];
+    $new_date = $sanitized['new_date'];
+    $new_time = $sanitized['new_time'];
+    
+    if (!$booking_id || !$new_date || !$new_time) {
+        wp_send_json_error('Parametri non validi');
+    }
+    
+    $booking = get_post($booking_id);
+    if (!$booking || $booking->post_type !== 'rbf_booking') {
+        wp_send_json_error('Prenotazione non trovata');
+    }
+    
+    // Get current booking data
+    $old_date = get_post_meta($booking_id, 'rbf_data', true);
+    $old_time = get_post_meta($booking_id, 'rbf_time', true);
+    $meal = get_post_meta($booking_id, 'rbf_orario', true);
+    $people = intval(get_post_meta($booking_id, 'rbf_persone', true));
+    
+    // Validate new date and time format
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $new_date) || !preg_match('/^\d{2}:\d{2}$/', $new_time)) {
+        wp_send_json_error('Formato data o orario non valido');
+    }
+    
+    // Check availability for new slot
+    $availability_check = rbf_check_slot_availability($new_date, $meal, $new_time, $people);
+    if (!$availability_check) {
+        wp_send_json_error('Nuovo slot non disponibile');
+    }
+    
+    // Release old slot capacity
+    if ($old_date && $meal && $people) {
+        rbf_release_slot_capacity($old_date, $meal, $people);
+        delete_transient('rbf_avail_' . $old_date . '_' . $meal);
+    }
+    
+    // Reserve new slot capacity
+    rbf_reserve_slot_capacity($new_date, $meal, $people);
+    delete_transient('rbf_avail_' . $new_date . '_' . $meal);
+    
+    // Update booking data
+    update_post_meta($booking_id, 'rbf_data', $new_date);
+    update_post_meta($booking_id, 'rbf_time', $new_time);
+    
+    // Update post title
+    $first_name = get_post_meta($booking_id, 'rbf_nome', true);
+    $last_name = get_post_meta($booking_id, 'rbf_cognome', true);
+    $new_title = ucfirst($meal) . " per {$first_name} {$last_name} - {$new_date} {$new_time}";
+    
+    wp_update_post([
+        'ID' => $booking_id,
+        'post_title' => $new_title
+    ]);
+    
+    wp_send_json_success([
+        'message' => 'Prenotazione spostata con successo',
+        'booking_id' => $booking_id,
+        'old_date' => $old_date,
+        'old_time' => $old_time,
+        'new_date' => $new_date,
+        'new_time' => $new_time
+    ]);
+}
+
+/**
+ * AJAX handler for getting bookings for weekly staff view  
+ */
+add_action('wp_ajax_rbf_get_weekly_staff_bookings', 'rbf_get_weekly_staff_bookings_callback');
+function rbf_get_weekly_staff_bookings_callback() {
+    check_ajax_referer('rbf_weekly_staff_nonce', '_ajax_nonce');
+    
+    $sanitized = rbf_sanitize_input_fields($_POST, [
+        'start' => 'text',
+        'end' => 'text'
+    ]);
+    
+    $start = $sanitized['start'];
+    $end = $sanitized['end'];
+
+    $args = [
+        'post_type' => 'rbf_booking',
+        'posts_per_page' => -1,
+        'post_status' => 'publish',
+        'meta_query' => [[
+            'key' => 'rbf_data',
+            'value' => [$start, $end],
+            'compare' => 'BETWEEN',
+            'type' => 'DATE'
+        ]]
+    ];
+
+    $bookings = get_posts($args);
+    $events = [];
+    foreach ($bookings as $booking) {
+        $meta = get_post_meta($booking->ID);
+        
+        $date = $meta['rbf_data'][0] ?? '';
+        $time = $meta['rbf_time'][0] ?? '';
+        $people = $meta['rbf_persone'][0] ?? '';
+        $first_name = $meta['rbf_nome'][0] ?? '';
+        $last_name = $meta['rbf_cognome'][0] ?? '';
+        $status = $meta['rbf_booking_status'][0] ?? 'confirmed';
+        $meal = $meta['rbf_orario'][0] ?? '';
+        
+        $title = trim($first_name . ' ' . $last_name) . ' (' . $people . 'p)';
+        
+        // Color coding based on status
+        $color = '#28a745'; // confirmed - green
+        if ($status === 'cancelled') $color = '#dc3545'; // red
+        if ($status === 'completed') $color = '#6c757d'; // gray
+        
+        $events[] = [
+            'id' => $booking->ID,
+            'title' => $title,
+            'start' => $date . 'T' . $time,
+            'backgroundColor' => $color,
+            'borderColor' => $color,
+            'className' => 'fc-status-' . $status,
+            'extendedProps' => [
+                'booking_id' => $booking->ID,
+                'customer_name' => trim($first_name . ' ' . $last_name),
+                'booking_date' => $date,
+                'booking_time' => $time,
+                'people' => $people,
+                'status' => $status,
+                'meal' => $meal
+            ]
+        ];
+    }
+
+    wp_send_json_success($events);
 }

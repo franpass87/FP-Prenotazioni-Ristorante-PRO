@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo Vista Settimanale Staff - FP Prenotazioni</title>
+    
+    <!-- FullCalendar CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
+    
+    <!-- Admin CSS -->
+    <link rel="stylesheet" href="assets/css/admin.css">
+    
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: #f1f1f1; 
+        }
+        
+        .demo-header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .demo-notice {
+            background: #e7f3ff;
+            border-left: 4px solid #0073aa;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        
+        .demo-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .feature-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .feature-card h4 {
+            margin: 0 0 10px 0;
+            color: #23282d;
+        }
+        
+        .feature-card p {
+            margin: 0;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        /* Mock WordPress admin styles */
+        .wp-admin-mock {
+            background: #f1f1f1;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .admin-menu-mock {
+            background: #23282d;
+            color: white;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        
+        .admin-menu-mock ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .admin-menu-mock li {
+            padding: 8px 15px;
+            border-bottom: 1px solid #32373c;
+        }
+        
+        .admin-menu-mock li.current {
+            background: #0073aa;
+            border-radius: 3px;
+            border-bottom: 1px solid #0073aa;
+        }
+        
+        .calendar-mock {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            min-height: 500px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        /* Sample events */
+        .fc-event-mock {
+            background: #28a745;
+            color: white;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-size: 11px;
+            margin: 2px 0;
+            cursor: move;
+            border: 1px solid #1e7e34;
+        }
+        
+        .fc-event-mock.cancelled {
+            background: #dc3545;
+            border-color: #c82333;
+        }
+        
+        .fc-event-mock.completed {
+            background: #6c757d;
+            border-color: #5a6268;
+        }
+        
+        .drag-drop-demo {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        
+        .modal-demo {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            z-index: 1000;
+            min-width: 400px;
+            display: none;
+        }
+        
+        .modal-demo.show { display: block; }
+        
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+            display: none;
+        }
+        
+        .modal-overlay.show { display: block; }
+        
+        /* Notification demo */
+        .notification-demo {
+            position: fixed;
+            top: 32px;
+            right: 20px;
+            background: white;
+            border-left: 4px solid #46b450;
+            padding: 15px;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            z-index: 1001;
+            display: none;
+        }
+        
+        .notification-demo.show { display: block; }
+    </style>
+</head>
+<body>
+    <div class="demo-header">
+        <h1>🗓️ Vista Settimanale Staff - Anteprima Funzionalità</h1>
+        <p>Questa è una demo della nuova interfaccia compatta per la gestione delle prenotazioni con drag & drop.</p>
+    </div>
+    
+    <div class="demo-notice">
+        <strong>💡 Novità:</strong> La vista settimanale staff permette di spostare le prenotazioni trascinandole direttamente nella griglia temporale.
+    </div>
+    
+    <div class="demo-features">
+        <div class="feature-card">
+            <h4>🖱️ Drag & Drop</h4>
+            <p>Trascina le prenotazioni per spostarle rapidamente in nuovi orari o giorni.</p>
+        </div>
+        <div class="feature-card">
+            <h4>✅ Validazione Automatica</h4>
+            <p>Il sistema verifica automaticamente disponibilità e conflitti.</p>
+        </div>
+        <div class="feature-card">
+            <h4>📱 Design Responsivo</h4>
+            <p>Ottimizzato per tablet e dispositivi mobili del personale.</p>
+        </div>
+        <div class="feature-card">
+            <h4>⚡ Feedback Immediato</h4>
+            <p>Notifiche istantanee per successi ed errori di spostamento.</p>
+        </div>
+    </div>
+    
+    <!-- Mock WordPress Admin Interface -->
+    <div class="wp-admin-mock">
+        <div class="admin-menu-mock">
+            <h3 style="margin: 0 0 10px 0; color: #ccc;">Menu Amministrativo</h3>
+            <ul>
+                <li>📊 Dashboard</li>
+                <li>📝 Articoli</li>
+                <li>📄 Pagine</li>
+                <li><strong>📅 Prenotazioni</strong>
+                    <ul style="margin-left: 20px; margin-top: 5px;">
+                        <li>Tutte le Prenotazioni</li>
+                        <li class="current"><strong>Vista Settimanale Staff ⭐ NUOVO</strong></li>
+                        <li>Aggiungi Nuova</li>
+                        <li>Gestione Tavoli</li>
+                        <li>Impostazioni</li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+        
+        <div class="rbf-admin-wrap">
+            <h1>Vista Settimanale Staff</h1>
+            <p class="description">Vista compatta per lo staff con funzionalità drag & drop per spostare le prenotazioni.</p>
+            
+            <div class="drag-drop-demo">
+                <strong>💡 Come usare:</strong> Clicca e trascina una prenotazione colorata verso un nuovo orario. 
+                <button onclick="showDragDemo()" style="margin-left: 10px; padding: 5px 10px; background: #0073aa; color: white; border: none; border-radius: 3px; cursor: pointer;">Prova Demo</button>
+            </div>
+            
+            <!-- Mock Calendar -->
+            <div id="demo-calendar" class="calendar-mock">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #ddd;">
+                    <div>
+                        <button style="padding: 8px 12px; margin-right: 5px;">←</button>
+                        <button style="padding: 8px 12px; margin-right: 15px;">→</button>
+                        <button style="padding: 8px 12px;">Oggi</button>
+                    </div>
+                    <h2 style="margin: 0; color: #23282d;">9 - 15 Settembre 2024</h2>
+                    <div>
+                        <strong style="background: #0073aa; color: white; padding: 8px 12px; border-radius: 3px;">Vista Settimanale</strong>
+                    </div>
+                </div>
+                
+                <!-- Mock time grid -->
+                <div style="display: grid; grid-template-columns: 80px repeat(7, 1fr); gap: 1px; font-size: 12px;">
+                    <!-- Header row -->
+                    <div style="padding: 10px 5px; background: #f7f7f9; font-weight: 600; text-align: center;"></div>
+                    <div style="padding: 10px 5px; background: #f7f7f9; font-weight: 600; text-align: center;">Lun 9</div>
+                    <div style="padding: 10px 5px; background: #f7f7f9; font-weight: 600; text-align: center;">Mar 10</div>
+                    <div style="padding: 10px 5px; background: #f7f7f9; font-weight: 600; text-align: center;">Mer 11</div>
+                    <div style="padding: 10px 5px; background: #f7f7f9; font-weight: 600; text-align: center;">Gio 12</div>
+                    <div style="padding: 10px 5px; background: #f7f7f9; font-weight: 600; text-align: center;">Ven 13</div>
+                    <div style="padding: 10px 5px; background: #f7f7f9; font-weight: 600; text-align: center;">Sab 14</div>
+                    <div style="padding: 10px 5px; background: #f7f7f9; font-weight: 600; text-align: center;">Dom 15</div>
+                    
+                    <!-- Time slots with sample bookings -->
+                    <div style="padding: 8px 5px; background: #f9f9f9; font-size: 10px; text-align: center;">12:00</div>
+                    <div style="background: #fafafa; padding: 5px; min-height: 40px;">
+                        <div class="fc-event-mock" draggable="true" onclick="showModal()">Mario R. (4p)</div>
+                    </div>
+                    <div style="background: #fafafa; padding: 5px; min-height: 40px;"></div>
+                    <div style="background: #fafafa; padding: 5px; min-height: 40px;">
+                        <div class="fc-event-mock" draggable="true">Anna B. (2p)</div>
+                    </div>
+                    <div style="background: #fafafa; padding: 5px; min-height: 40px;"></div>
+                    <div style="background: #fafafa; padding: 5px; min-height: 40px;">
+                        <div class="fc-event-mock" draggable="true">Luigi V. (6p)</div>
+                    </div>
+                    <div style="background: #fafafa; padding: 5px; min-height: 40px;"></div>
+                    <div style="background: #fafafa; padding: 5px; min-height: 40px;"></div>
+                    
+                    <div style="padding: 8px 5px; background: #f9f9f9; font-size: 10px; text-align: center;">12:30</div>
+                    <div style="background: #fafafa; padding: 5px; min-height: 40px;"></div>
+                    <div style="background: #fafafa; padding: 5px; min-height: 40px;">
+                        <div class="fc-event-mock" draggable="true">Paolo M. (3p)</div>
+                    </div>
+                    <div style="background: #fafafa; padding: 5px; min-height: 40px;"></div>
+                    <div style="background: #fafafa; padding: 5px; min-height: 40px;">
+                        <div class="fc-event-mock cancelled" draggable="true">Sara L. (2p)</div>
+                    </div>
+                    <div style="background: #fafafa; padding: 5px; min-height: 40px;"></div>
+                    <div style="background: #fafafa; padding: 5px; min-height: 40px;"></div>
+                    <div style="background: #fafafa; padding: 5px; min-height: 40px;">
+                        <div class="fc-event-mock" draggable="true">Franco P. (5p)</div>
+                    </div>
+                    
+                    <div style="padding: 8px 5px; background: #f9f9f9; font-size: 10px; text-align: center;">19:30</div>
+                    <div style="background: #fafafa; padding: 5px; min-height: 40px;">
+                        <div class="fc-event-mock" draggable="true">Elena T. (8p)</div>
+                    </div>
+                    <div style="background: #fafafa; padding: 5px; min-height: 40px;"></div>
+                    <div style="background: #fafafa; padding: 5px; min-height: 40px;">
+                        <div class="fc-event-mock" draggable="true">Roberto C. (4p)</div>
+                    </div>
+                    <div style="background: #fafafa; padding: 5px; min-height: 40px;"></div>
+                    <div style="background: #fafafa; padding: 5px; min-height: 40px;">
+                        <div class="fc-event-mock completed" draggable="true">Maria G. (2p)</div>
+                    </div>
+                    <div style="background: #fafafa; padding: 5px; min-height: 40px;"></div>
+                    <div style="background: #fafafa; padding: 5px; min-height: 40px;"></div>
+                </div>
+                
+                <div style="margin-top: 20px; padding: 15px; background: #f0f0f1; border-radius: 4px;">
+                    <strong>Legenda colori:</strong>
+                    <span style="display: inline-block; width: 15px; height: 15px; background: #28a745; margin: 0 5px; border-radius: 2px;"></span> Confermata
+                    <span style="display: inline-block; width: 15px; height: 15px; background: #dc3545; margin: 0 5px; border-radius: 2px;"></span> Cancellata
+                    <span style="display: inline-block; width: 15px; height: 15px; background: #6c757d; margin: 0 5px; border-radius: 2px;"></span> Completata
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Demo -->
+    <div class="modal-overlay" id="modal-overlay" onclick="hideModal()"></div>
+    <div class="modal-demo" id="booking-modal">
+        <div class="rbf-modal-header" style="padding: 15px 20px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0;">Prenotazione</h3>
+            <button onclick="hideModal()" style="background: none; border: none; font-size: 18px; cursor: pointer;">&times;</button>
+        </div>
+        <div class="rbf-modal-body" style="padding: 20px;">
+            <div class="rbf-compact-booking-details">
+                <div class="rbf-detail-row" style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f1;">
+                    <strong>Cliente:</strong> Mario Rossi
+                </div>
+                <div class="rbf-detail-row" style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f1;">
+                    <strong>Data:</strong> Lun 9 Settembre 2024
+                </div>
+                <div class="rbf-detail-row" style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f1;">
+                    <strong>Orario:</strong> 12:00
+                </div>
+                <div class="rbf-detail-row" style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f1;">
+                    <strong>Persone:</strong> 4
+                </div>
+                <div class="rbf-detail-row" style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f1;">
+                    <strong>Pasto:</strong> Pranzo
+                </div>
+                <div class="rbf-detail-row" style="display: flex; justify-content: space-between; padding: 8px 0;">
+                    <strong>Stato:</strong> 
+                    <span style="background: #d4edda; color: #155724; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">CONFERMATA</span>
+                </div>
+            </div>
+        </div>
+        <div class="rbf-modal-footer" style="padding: 15px 20px; border-top: 1px solid #ddd; display: flex; gap: 10px;">
+            <button class="button button-primary" style="padding: 8px 16px; background: #0073aa; color: white; border: none; border-radius: 3px; cursor: pointer;">Modifica Completa</button>
+            <button onclick="hideModal()" style="padding: 8px 16px; background: #f1f1f1; border: 1px solid #ccd0d4; border-radius: 3px; cursor: pointer;">Chiudi</button>
+        </div>
+    </div>
+    
+    <!-- Notification Demo -->
+    <div class="notification-demo" id="notification">
+        <strong>✅ Prenotazione spostata con successo</strong>
+        <p style="margin: 5px 0 0 0; color: #666;">Mario Rossi spostato alle 13:00</p>
+    </div>
+    
+    <script>
+        function showModal() {
+            document.getElementById('modal-overlay').classList.add('show');
+            document.getElementById('booking-modal').classList.add('show');
+        }
+        
+        function hideModal() {
+            document.getElementById('modal-overlay').classList.remove('show');
+            document.getElementById('booking-modal').classList.remove('show');
+        }
+        
+        function showDragDemo() {
+            showNotification();
+            setTimeout(hideNotification, 3000);
+        }
+        
+        function showNotification() {
+            document.getElementById('notification').classList.add('show');
+        }
+        
+        function hideNotification() {
+            document.getElementById('notification').classList.remove('show');
+        }
+        
+        // Add drag and drop visual feedback
+        document.querySelectorAll('.fc-event-mock').forEach(event => {
+            event.addEventListener('dragstart', function(e) {
+                this.style.opacity = '0.7';
+            });
+            
+            event.addEventListener('dragend', function(e) {
+                this.style.opacity = '1';
+                showNotification();
+                setTimeout(hideNotification, 3000);
+            });
+        });
+        
+        // Allow drop on calendar cells
+        document.querySelectorAll('[style*="min-height: 40px"]').forEach(cell => {
+            cell.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                this.style.background = '#e3f2fd';
+            });
+            
+            cell.addEventListener('dragleave', function(e) {
+                this.style.background = '#fafafa';
+            });
+            
+            cell.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.style.background = '#fafafa';
+            });
+        });
+    </script>
+</body>
+</html>
