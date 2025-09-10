@@ -513,6 +513,22 @@ function rbf_translate_string($text) {
         'Quasi pieno' => 'Nearly full',
         'Posti rimasti:' => 'Spots remaining:',
         'Occupazione:' => 'Occupancy:',
+        
+        // AI Suggestions
+        'Alternative disponibili' => 'Available alternatives',
+        'Seleziona una delle alternative seguenti:' => 'Select one of the following alternatives:',
+        'Stesso giorno, servizio diverso' => 'Same day, different service',
+        'Il giorno successivo' => 'The next day',
+        'Il giorno precedente' => 'The previous day',
+        '%d giorni dopo' => '%d days later',
+        '%d giorni prima' => '%d days earlier',
+        'Stesso giorno della settimana, %d settimana dopo' => 'Same day of the week, %d week later',
+        'Abbiamo trovato alcune alternative per te!' => 'We found some alternatives for you!',
+        'Non abbiamo trovato alternative disponibili.' => 'We found no available alternatives.',
+        'Questo orario è completo, ma abbiamo trovato delle alternative per te!' => 'This time is full, but we found alternatives for you!',
+        'Questo orario è completamente prenotato.' => 'This time is completely booked.',
+        'Non ci sono orari disponibili per questa data, ma abbiamo trovato delle alternative!' => 'No times available for this date, but we found alternatives!',
+        'Non ci sono orari disponibili per questa data.' => 'No times available for this date.',
     ];
     return $translations[$text] ?? $text;
 }

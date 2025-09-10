@@ -112,6 +112,11 @@ function rbf_enqueue_frontend_assets() {
             'nearlyFull' => rbf_translate_string('Quasi pieno'),
             'spotsRemaining' => rbf_translate_string('Posti rimasti:'),
             'occupancy' => rbf_translate_string('Occupazione:'),
+            
+            // AI Suggestions labels
+            'alternativesTitle' => rbf_translate_string('Alternative disponibili'),
+            'alternativesSubtitle' => rbf_translate_string('Seleziona una delle alternative seguenti:'),
+            
             // Enhanced contextual tooltip labels
             'manySpots' => rbf_translate_string('Molti posti disponibili'),
             'someSpots' => rbf_translate_string('Buona disponibilità'),
