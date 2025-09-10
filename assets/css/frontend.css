@@ -2313,3 +2313,197 @@
         display: none !important;
     }
 }
+
+/* AI Alternative Suggestions Styles */
+.rbf-suggestions-container {
+    margin-top: 1.5rem;
+    padding: 1.25rem;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: var(--rbf-radius);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.rbf-suggestions-header {
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.rbf-suggestions-header h4 {
+    margin: 0 0 0.5rem 0;
+    color: var(--rbf-primary);
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.rbf-suggestions-header p {
+    margin: 0;
+    color: var(--rbf-text-light);
+    font-size: 0.9rem;
+}
+
+.rbf-suggestions-list {
+    display: grid;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.rbf-suggestion-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: var(--rbf-radius);
+    cursor: pointer;
+    transition: var(--rbf-transition);
+    position: relative;
+}
+
+.rbf-suggestion-item:hover,
+.rbf-suggestion-item:focus {
+    border-color: var(--rbf-primary);
+    box-shadow: var(--rbf-shadow-hover);
+    background: #fafbfc;
+    outline: none;
+}
+
+.rbf-suggestion-item:focus {
+    outline: var(--rbf-focus-outline);
+    outline-offset: 2px;
+}
+
+.rbf-suggestion-primary {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    flex: 1;
+}
+
+.rbf-suggestion-date {
+    font-weight: 600;
+    color: var(--rbf-text);
+    font-size: 0.95rem;
+    margin-bottom: 0.25rem;
+}
+
+.rbf-suggestion-time {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--rbf-primary);
+}
+
+.rbf-suggestion-secondary {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    text-align: center;
+}
+
+.rbf-suggestion-meal {
+    font-weight: 600;
+    color: var(--rbf-text);
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+}
+
+.rbf-suggestion-reason {
+    font-size: 0.8rem;
+    color: var(--rbf-text-light);
+    font-style: italic;
+}
+
+.rbf-suggestion-capacity {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    font-size: 0.8rem;
+    color: var(--rbf-success);
+    font-weight: 500;
+    min-width: 80px;
+    text-align: right;
+}
+
+/* Responsive design for suggestions */
+@media (max-width: 580px) {
+    .rbf-suggestion-item {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+        gap: 0.75rem;
+    }
+    
+    .rbf-suggestion-primary,
+    .rbf-suggestion-secondary,
+    .rbf-suggestion-capacity {
+        align-items: center;
+        text-align: center;
+    }
+    
+    .rbf-suggestion-capacity {
+        min-width: auto;
+    }
+}
+
+/* Animation for suggestions appearing */
+.rbf-suggestions-container {
+    animation: rbfSuggestionsSlideIn 0.4s ease-out;
+}
+
+@keyframes rbfSuggestionsSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Accessibility improvements */
+.rbf-suggestion-item[aria-selected="true"] {
+    background: var(--rbf-primary);
+    color: white;
+}
+
+.rbf-suggestion-item[aria-selected="true"] .rbf-suggestion-date,
+.rbf-suggestion-item[aria-selected="true"] .rbf-suggestion-time,
+.rbf-suggestion-item[aria-selected="true"] .rbf-suggestion-meal {
+    color: white;
+}
+
+.rbf-suggestion-item[aria-selected="true"] .rbf-suggestion-reason {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.rbf-suggestion-item[aria-selected="true"] .rbf-suggestion-capacity {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* Loading state for suggestions */
+.rbf-suggestions-loading {
+    text-align: center;
+    padding: 2rem;
+    color: var(--rbf-text-light);
+}
+
+.rbf-suggestions-loading::before {
+    content: '';
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid var(--rbf-primary);
+    border-radius: 50%;
+    animation: rbfSpin 1s linear infinite;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+}
+
+@keyframes rbfSpin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

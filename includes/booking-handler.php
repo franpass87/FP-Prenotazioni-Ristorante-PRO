@@ -528,7 +528,17 @@ function rbf_ajax_get_availability_callback() {
     // Step 4: Check remaining capacity
     $remaining_capacity = rbf_get_remaining_capacity($date, $meal);
     if ($remaining_capacity <= 0) {
-        wp_send_json_success([]);
+        // Get alternative suggestions when no capacity
+        $people = intval($_POST['people'] ?? 2); // Default party size for suggestions
+        $suggestions = rbf_get_alternative_suggestions($date, $meal, $people);
+        
+        wp_send_json_success([
+            'available_times' => [],
+            'suggestions' => $suggestions,
+            'message' => !empty($suggestions) 
+                ? rbf_translate_string('Questo orario è completo, ma abbiamo trovato delle alternative per te!')
+                : rbf_translate_string('Questo orario è completamente prenotato.')
+        ]);
         return;
     }
 
@@ -580,6 +590,21 @@ function rbf_ajax_get_availability_callback() {
             'slot' => $meal, // Use the actual slot for capacity
             'time' => $time
         ];
+    }
+
+    // If no times are available after filtering, provide suggestions
+    if (empty($response)) {
+        $people = intval($_POST['people'] ?? 2); // Default party size for suggestions
+        $suggestions = rbf_get_alternative_suggestions($date, $meal, $people);
+        
+        wp_send_json_success([
+            'available_times' => [],
+            'suggestions' => $suggestions,
+            'message' => !empty($suggestions) 
+                ? rbf_translate_string('Non ci sono orari disponibili per questa data, ma abbiamo trovato delle alternative!')
+                : rbf_translate_string('Non ci sono orari disponibili per questa data.')
+        ]);
+        return;
     }
 
     wp_send_json_success($response);

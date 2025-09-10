@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Suggestions Demo - Restaurant Booking</title>
+    <link rel="stylesheet" href="assets/css/frontend.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f7fa;
+        }
+        .demo-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .demo-header {
+            text-align: center;
+            margin-bottom: 2rem;
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .demo-scenario {
+            background: white;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .demo-scenario h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .simulate-button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 1rem;
+        }
+        .simulate-button:hover {
+            background: #005a87;
+        }
+        .demo-result {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border-left: 4px solid #007cba;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <div class="demo-header">
+            <h1>🤖 AI Alternative Suggestions Demo</h1>
+            <p>This demo showcases the new AI-powered alternative booking suggestions feature.</p>
+            <p><strong>Scenario:</strong> When a user's requested time slot is full, the system automatically suggests alternatives.</p>
+        </div>
+
+        <div class="demo-scenario">
+            <h3>📅 Scenario 1: Same Day, Different Service</h3>
+            <p><strong>User Request:</strong> Lunch at 13:00 on Friday</p>
+            <p><strong>Status:</strong> Lunch is fully booked</p>
+            <button class="simulate-button" onclick="simulateScenario1()">Simulate Suggestions</button>
+            <div id="scenario1-result" class="demo-result" style="display: none;"></div>
+        </div>
+
+        <div class="demo-scenario">
+            <h3>📅 Scenario 2: Nearby Dates</h3>
+            <p><strong>User Request:</strong> Dinner at 20:00 on Saturday</p>
+            <p><strong>Status:</strong> Saturday dinner is fully booked</p>
+            <button class="simulate-button" onclick="simulateScenario2()">Simulate Suggestions</button>
+            <div id="scenario2-result" class="demo-result" style="display: none;"></div>
+        </div>
+
+        <div class="demo-scenario">
+            <h3>📅 Scenario 3: Same Weekday, Future Weeks</h3>
+            <p><strong>User Request:</strong> Sunday brunch at 11:00</p>
+            <p><strong>Status:</strong> This Sunday is fully booked</p>
+            <button class="simulate-button" onclick="simulateScenario3()">Simulate Suggestions</button>
+            <div id="scenario3-result" class="demo-result" style="display: none;"></div>
+        </div>
+
+        <!-- Mock suggestions display area -->
+        <div id="mock-time-step" style="display: none;">
+            <select id="rbf-time">
+                <option value="">Nessun orario disponibile</option>
+            </select>
+        </div>
+    </div>
+
+    <script>
+        // Mock data for demonstration
+        const mockSuggestions = {
+            scenario1: [
+                {
+                    date: '2024-02-16',
+                    date_display: 'Venerdì 16 Febbraio',
+                    meal: 'cena',
+                    meal_name: 'Cena',
+                    time: '20:00',
+                    time_display: '20:00',
+                    reason: 'Stesso giorno, servizio diverso',
+                    preference_score: 90,
+                    remaining_spots: 8
+                },
+                {
+                    date: '2024-02-16',
+                    date_display: 'Venerdì 16 Febbraio',
+                    meal: 'aperitivo',
+                    meal_name: 'Aperitivo',
+                    time: '18:30',
+                    time_display: '18:30',
+                    reason: 'Stesso giorno, servizio diverso',
+                    preference_score: 88,
+                    remaining_spots: 12
+                }
+            ],
+            scenario2: [
+                {
+                    date: '2024-02-17',
+                    date_display: 'Domenica 17 Febbraio',
+                    meal: 'cena',
+                    meal_name: 'Cena',
+                    time: '20:00',
+                    time_display: '20:00',
+                    reason: 'Il giorno successivo',
+                    preference_score: 75,
+                    remaining_spots: 6
+                },
+                {
+                    date: '2024-02-15',
+                    date_display: 'Giovedì 15 Febbraio',
+                    meal: 'cena',
+                    meal_name: 'Cena',
+                    time: '20:00',
+                    time_display: '20:00',
+                    reason: 'Il giorno precedente',
+                    preference_score: 70,
+                    remaining_spots: 4
+                }
+            ],
+            scenario3: [
+                {
+                    date: '2024-02-25',
+                    date_display: 'Domenica 25 Febbraio',
+                    meal: 'pranzo',
+                    meal_name: 'Brunch',
+                    time: '11:00',
+                    time_display: '11:00',
+                    reason: 'Stesso giorno della settimana, 1 settimana dopo',
+                    preference_score: 50,
+                    remaining_spots: 10
+                },
+                {
+                    date: '2024-03-03',
+                    date_display: 'Domenica 3 Marzo',
+                    meal: 'pranzo',
+                    meal_name: 'Brunch',
+                    time: '11:00',
+                    time_display: '11:00',
+                    reason: 'Stesso giorno della settimana, 2 settimane dopo',
+                    preference_score: 40,
+                    remaining_spots: 15
+                }
+            ]
+        };
+
+        // Mock display function (vanilla JavaScript version)
+        function displayAlternativeSuggestions(suggestions, message, containerId) {
+            // Remove any existing suggestions display
+            const existingSuggestions = document.querySelectorAll('.rbf-suggestions-container');
+            existingSuggestions.forEach(el => el.remove());
+            
+            if (!suggestions || suggestions.length === 0) {
+                return;
+            }
+            
+            // Create suggestions container
+            const suggestionsHtml = `
+                <div class="rbf-suggestions-container">
+                    <div class="rbf-suggestions-header">
+                        <h4>${message || 'Alternative disponibili'}</h4>
+                        <p>Seleziona una delle alternative seguenti:</p>
+                    </div>
+                    <div class="rbf-suggestions-list">
+                        ${suggestions.map(suggestion => `
+                            <div class="rbf-suggestion-item" 
+                                 data-date="${suggestion.date}" 
+                                 data-meal="${suggestion.meal}" 
+                                 data-time="${suggestion.time}"
+                                 tabindex="0">
+                                <div class="rbf-suggestion-primary">
+                                    <span class="rbf-suggestion-date">${suggestion.date_display}</span>
+                                    <span class="rbf-suggestion-time">${suggestion.time_display}</span>
+                                </div>
+                                <div class="rbf-suggestion-secondary">
+                                    <span class="rbf-suggestion-meal">${suggestion.meal_name}</span>
+                                    <span class="rbf-suggestion-reason">${suggestion.reason}</span>
+                                </div>
+                                <div class="rbf-suggestion-capacity">
+                                    ${suggestion.remaining_spots} posti rimasti
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            
+            // Insert suggestions
+            const container = document.getElementById(containerId);
+            container.innerHTML = suggestionsHtml;
+            container.style.display = 'block';
+            
+            // Add click handlers for demo
+            const suggestionItems = container.querySelectorAll('.rbf-suggestion-item');
+            suggestionItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    this.style.background = '#007cba';
+                    this.style.color = 'white';
+                    setTimeout(() => {
+                        alert('In una vera implementazione, questo compilerebbe automaticamente il form con la prenotazione selezionata!');
+                        this.style.background = '';
+                        this.style.color = '';
+                    }, 200);
+                });
+                
+                // Keyboard navigation
+                item.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        this.click();
+                    }
+                });
+            });
+        }
+
+        function simulateScenario1() {
+            const suggestions = mockSuggestions.scenario1;
+            const message = "Il pranzo è completo, ma abbiamo trovato alternative per te!";
+            displayAlternativeSuggestions(suggestions, message, 'scenario1-result');
+        }
+
+        function simulateScenario2() {
+            const suggestions = mockSuggestions.scenario2;
+            const message = "La cena di sabato è completa, ma ci sono altre date disponibili!";
+            displayAlternativeSuggestions(suggestions, message, 'scenario2-result');
+        }
+
+        function simulateScenario3() {
+            const suggestions = mockSuggestions.scenario3;
+            const message = "Questa domenica è completa, ma le prossime domeniche sono disponibili!";
+            displayAlternativeSuggestions(suggestions, message, 'scenario3-result');
+        }
+    </script>
+</body>
+</html>

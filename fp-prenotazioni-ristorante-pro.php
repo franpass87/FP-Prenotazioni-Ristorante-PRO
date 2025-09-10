@@ -93,7 +93,8 @@ function rbf_load_modules() {
         'booking-handler.php',
         'email-failover.php',
         'integrations.php',
-        'ga4-funnel-tracking.php'
+        'ga4-funnel-tracking.php',
+        'ai-suggestions.php'
     ];
 
     foreach ($modules as $module) {
@@ -111,9 +112,16 @@ add_action('plugins_loaded', 'rbf_load_modules', 0);
 // Load test files in admin context
 if (is_admin()) {
     add_action('plugins_loaded', function() {
-        $test_file = RBF_PLUGIN_DIR . 'tests/ga4-funnel-tests.php';
-        if (file_exists($test_file)) {
-            require_once $test_file;
+        $test_files = [
+            'ga4-funnel-tests.php',
+            'ai-suggestions-tests.php'
+        ];
+        
+        foreach ($test_files as $test_file) {
+            $file_path = RBF_PLUGIN_DIR . 'tests/' . $test_file;
+            if (file_exists($file_path)) {
+                require_once $file_path;
+            }
         }
     });
 }
