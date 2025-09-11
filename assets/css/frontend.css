@@ -1673,23 +1673,19 @@
     cursor: pointer;
 }
 
-/* Ensure calendar navigation is always clickable */
+/* Ensure calendar navigation is always clickable - but let month dropdown handle itself */
 .flatpickr-calendar .flatpickr-months,
 .flatpickr-calendar .flatpickr-prev-month,
 .flatpickr-calendar .flatpickr-next-month,
 .flatpickr-calendar .flatpickr-current-month,
-.flatpickr-calendar .flatpickr-monthDropdown-months,
 .flatpickr-calendar .numInputWrapper {
     pointer-events: auto !important;
 }
 
-/* Ensure month dropdown stays open and is clickable */
+/* Allow month dropdown to handle its own events naturally */
 .flatpickr-calendar .flatpickr-monthDropdown-months {
-    z-index: 1001 !important;
-}
-
-.flatpickr-calendar .flatpickr-monthDropdown-months option {
-    pointer-events: auto !important;
+    /* Remove aggressive pointer-events override - let flatpickr handle it */
+    z-index: auto; /* Let flatpickr control stacking */
 }
 
 /* Ensure calendar days are always clickable when not disabled */
@@ -1701,7 +1697,7 @@
 /* Fix calendar container pointer events */
 .flatpickr-calendar {
     pointer-events: auto !important;
-    z-index: 1100 !important; /* Ensure calendar stays above loading overlays */
+    z-index: 1050 !important; /* Lower z-index to avoid dropdown conflicts */
 }
 
 /* Ensure calendar never gets loading class that blocks interactions */

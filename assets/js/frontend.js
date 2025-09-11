@@ -576,7 +576,7 @@ jQuery(function($) {
           });
           
           // Ensure calendar stays above any loading overlays
-          calendar.style.zIndex = '1100';
+          calendar.style.zIndex = '1050';
         }
       },
       onReady: function(selectedDates, dateStr, instance) {
@@ -585,19 +585,26 @@ jQuery(function($) {
         if (calendar) {
           calendar.style.pointerEvents = 'auto';
           calendar.classList.remove('rbf-component-loading'); // Remove any loading class
-          calendar.style.zIndex = '1100'; // Ensure calendar stays above loading overlays
+          calendar.style.zIndex = '1050'; // Lower z-index to avoid dropdown conflicts
           
-          // Enable month navigation
+          // Enable navigation but let month dropdown handle itself
           const monthDropdown = calendar.querySelector('.flatpickr-monthDropdown-months');
           const yearDropdown = calendar.querySelector('.numInputWrapper');
           const prevMonthNav = calendar.querySelector('.flatpickr-prev-month');
           const nextMonthNav = calendar.querySelector('.flatpickr-next-month');
           
-          [monthDropdown, yearDropdown, prevMonthNav, nextMonthNav].forEach(el => {
+          // Only set pointer-events for non-dropdown navigation
+          [yearDropdown, prevMonthNav, nextMonthNav].forEach(el => {
             if (el) {
               el.style.pointerEvents = 'auto';
             }
           });
+          
+          // For month dropdown, just ensure no loading class interferes
+          if (monthDropdown) {
+            monthDropdown.classList.remove('rbf-component-loading');
+            // Don't override pointer-events - let flatpickr handle it
+          }
         }
         
         rbfLog.log('Flatpickr calendar initialized and ready');
@@ -700,7 +707,7 @@ jQuery(function($) {
     if (fp && fp.calendarContainer) {
       fp.calendarContainer.classList.remove('rbf-component-loading');
       fp.calendarContainer.style.pointerEvents = 'auto';
-      fp.calendarContainer.style.zIndex = '1100';
+      fp.calendarContainer.style.zIndex = '1050'; // Lower z-index to avoid dropdown conflicts
     }
     
     // Fetch initial availability data for current month
@@ -844,13 +851,19 @@ jQuery(function($) {
                 fp.calendarContainer.style.pointerEvents = 'auto';
                 fp.calendarContainer.classList.remove('rbf-component-loading');
                 
-                // Enable all navigation elements
+                // Enable navigation elements but handle month dropdown carefully
                 const navElements = fp.calendarContainer.querySelectorAll(
-                  '.flatpickr-prev-month, .flatpickr-next-month, .flatpickr-monthDropdown-months, .numInputWrapper'
+                  '.flatpickr-prev-month, .flatpickr-next-month, .numInputWrapper'
                 );
                 navElements.forEach(el => {
                   el.style.pointerEvents = 'auto';
                 });
+                
+                // For month dropdown, just remove loading class without overriding pointer-events
+                const monthDropdown = fp.calendarContainer.querySelector('.flatpickr-monthDropdown-months');
+                if (monthDropdown) {
+                  monthDropdown.classList.remove('rbf-component-loading');
+                }
                 
                 // Enable all non-disabled days
                 const days = fp.calendarContainer.querySelectorAll('.flatpickr-day:not(.flatpickr-disabled)');
