@@ -95,6 +95,7 @@ function rbf_load_modules() {
         'integrations.php',
         'ga4-funnel-tracking.php',
         'tracking-validation.php',
+        'tracking-enhanced-integration.php',
         'ai-suggestions.php'
     ];
 
@@ -116,7 +117,8 @@ if (is_admin()) {
         $test_files = [
             'ga4-funnel-tests.php',
             'ai-suggestions-tests.php',
-            'hybrid-tracking-tests.php'
+            'hybrid-tracking-tests.php',
+            'comprehensive-tracking-verification.php'
         ];
         
         foreach ($test_files as $test_file) {
