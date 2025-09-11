@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Calendar Issue Reproduction</title>
+    <link rel="stylesheet" href="assets/css/frontend.css">
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: #f5f7fa; 
+        }
+        .test-container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+        }
+        .issue-banner {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        /* Simulate the calendar issue */
+        .simulate-calendar {
+            position: relative;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            min-height: 250px;
+        }
+        
+        .simulate-calendar-header {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .simulate-calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            margin-top: 10px;
+        }
+        
+        .simulate-calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .simulate-calendar-day:hover {
+            background-color: #f0f0f0;
+        }
+        
+        .simulate-calendar-day.disabled {
+            background-color: #f5f5f5;
+            color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        /* Issue simulation: overlay that blocks interaction */
+        .blocking-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.8);
+            z-index: 10;
+            display: none;
+        }
+        
+        .blocking-overlay.active {
+            display: block;
+        }
+        
+        /* Apply the problematic loading class */
+        .rbf-component-loading .simulate-calendar-day {
+            pointer-events: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="issue-banner">
+            🚨 Test per riproduzione problema calendario - I giorni non sono cliccabili
+        </div>
+        
+        <div class="rbf-form-container">
+            <form id="test-form" class="rbf-form">
+                <h2 style="text-align: center; color: var(--rbf-primary); margin-bottom: 2rem;">
+                    🍽️ Test Problema Calendario
+                </h2>
+                
+                <!-- Step 1: Meal Selection -->
+                <div class="rbf-step active">
+                    <div class="rbf-field-wrapper">
+                        <label>Scegli il pasto <span class="rbf-required-indicator">*</span></label>
+                        <div class="rbf-radio-group" role="radiogroup">
+                            <input type="radio" name="meal" value="pranzo" id="test-pranzo">
+                            <label for="test-pranzo">Pranzo</label>
+                            <input type="radio" name="meal" value="cena" id="test-cena">
+                            <label for="test-cena">Cena</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Simulated Calendar -->
+                <div id="calendar-container" class="simulate-calendar" style="display: none;">
+                    <div class="simulate-calendar-header">Settembre 2024</div>
+                    <div class="simulate-calendar-grid">
+                        <!-- Week days header -->
+                        <div style="font-weight: bold; text-align: center;">Dom</div>
+                        <div style="font-weight: bold; text-align: center;">Lun</div>
+                        <div style="font-weight: bold; text-align: center;">Mar</div>
+                        <div style="font-weight: bold; text-align: center;">Mer</div>
+                        <div style="font-weight: bold; text-align: center;">Gio</div>
+                        <div style="font-weight: bold; text-align: center;">Ven</div>
+                        <div style="font-weight: bold; text-align: center;">Sab</div>
+                        
+                        <!-- Calendar days -->
+                        <div class="simulate-calendar-day disabled">1</div>
+                        <div class="simulate-calendar-day disabled">2</div>
+                        <div class="simulate-calendar-day disabled">3</div>
+                        <div class="simulate-calendar-day disabled">4</div>
+                        <div class="simulate-calendar-day disabled">5</div>
+                        <div class="simulate-calendar-day disabled">6</div>
+                        <div class="simulate-calendar-day disabled">7</div>
+                        <div class="simulate-calendar-day disabled">8</div>
+                        <div class="simulate-calendar-day disabled">9</div>
+                        <div class="simulate-calendar-day disabled">10</div>
+                        <div class="simulate-calendar-day disabled">11</div>
+                        <div class="simulate-calendar-day clickable-day" data-date="12">12</div>
+                        <div class="simulate-calendar-day clickable-day" data-date="13">13</div>
+                        <div class="simulate-calendar-day clickable-day" data-date="14">14</div>
+                        <div class="simulate-calendar-day clickable-day" data-date="15">15</div>
+                        <div class="simulate-calendar-day clickable-day" data-date="16">16</div>
+                        <div class="simulate-calendar-day clickable-day" data-date="17">17</div>
+                        <div class="simulate-calendar-day clickable-day" data-date="18">18</div>
+                        <div class="simulate-calendar-day clickable-day" data-date="19">19</div>
+                        <div class="simulate-calendar-day clickable-day" data-date="20">20</div>
+                        <div class="simulate-calendar-day clickable-day" data-date="21">21</div>
+                        <div class="simulate-calendar-day clickable-day" data-date="22">22</div>
+                        <div class="simulate-calendar-day clickable-day" data-date="23">23</div>
+                        <div class="simulate-calendar-day clickable-day" data-date="24">24</div>
+                        <div class="simulate-calendar-day clickable-day" data-date="25">25</div>
+                        <div class="simulate-calendar-day clickable-day" data-date="26">26</div>
+                        <div class="simulate-calendar-day clickable-day" data-date="27">27</div>
+                        <div class="simulate-calendar-day clickable-day" data-date="28">28</div>
+                        <div class="simulate-calendar-day clickable-day" data-date="29">29</div>
+                        <div class="simulate-calendar-day clickable-day" data-date="30">30</div>
+                    </div>
+                    
+                    <!-- This overlay simulates the issue -->
+                    <div class="blocking-overlay" id="blocking-overlay"></div>
+                </div>
+
+                <!-- Time Selection (simulated) -->
+                <div id="time-container" style="display: none;">
+                    <div class="rbf-field-wrapper">
+                        <label>Orario <span class="rbf-required-indicator">*</span></label>
+                        <select id="time-select">
+                            <option value="">Caricamento orari...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <button type="button" id="test-issue" class="rbf-btn rbf-btn-secondary" style="display: none;">
+                        🚨 Simula Problema (Blocca Calendario)
+                    </button>
+                    <button type="button" id="fix-issue" class="rbf-btn rbf-btn-primary" style="display: none;">
+                        ✅ Applica Fix (Sblocca Calendario)
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <div style="background: white; padding: 20px; margin-top: 20px; border-radius: 8px;">
+            <h3>🔍 Risultati Test</h3>
+            <div id="test-results">
+                <p>Seleziona un pasto per iniziare il test...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const mealInputs = document.querySelectorAll('input[name="meal"]');
+            const calendarContainer = document.getElementById('calendar-container');
+            const timeContainer = document.getElementById('time-container');
+            const testIssueBtn = document.getElementById('test-issue');
+            const fixIssueBtn = document.getElementById('fix-issue');
+            const blockingOverlay = document.getElementById('blocking-overlay');
+            const testResults = document.getElementById('test-results');
+            const clickableDays = document.querySelectorAll('.clickable-day');
+
+            let issueActive = false;
+
+            mealInputs.forEach(input => {
+                input.addEventListener('change', function() {
+                    if (this.checked) {
+                        calendarContainer.style.display = 'block';
+                        testIssueBtn.style.display = 'inline-block';
+                        testResults.innerHTML = `
+                            <p>✅ Pasto selezionato: ${this.value}</p>
+                            <p>📅 Calendario mostrato</p>
+                            <p>⚡ Prova a cliccare sui giorni 12-30 nel calendario</p>
+                            <p>🚨 Poi clicca "Simula Problema" per vedere l'issue</p>
+                        `;
+                    }
+                });
+            });
+
+            // Add click handlers to calendar days
+            clickableDays.forEach(day => {
+                day.addEventListener('click', function() {
+                    if (!issueActive) {
+                        // Remove previous selection
+                        clickableDays.forEach(d => d.style.backgroundColor = '');
+                        
+                        // Highlight selected day
+                        this.style.backgroundColor = '#007bff';
+                        this.style.color = 'white';
+                        
+                        const date = this.dataset.date;
+                        timeContainer.style.display = 'block';
+                        
+                        testResults.innerHTML += `
+                            <p>✅ Giorno ${date} selezionato correttamente!</p>
+                        `;
+                        
+                        // Simulate loading times
+                        setTimeout(() => {
+                            const timeSelect = document.getElementById('time-select');
+                            timeSelect.innerHTML = `
+                                <option value="">Scegli un orario...</option>
+                                <option value="12:00">12:00</option>
+                                <option value="12:30">12:30</option>
+                                <option value="13:00">13:00</option>
+                            `;
+                        }, 1000);
+                    } else {
+                        testResults.innerHTML += `
+                            <p>❌ Giorno NON cliccabile a causa del problema!</p>
+                        `;
+                    }
+                });
+            });
+
+            testIssueBtn.addEventListener('click', function() {
+                issueActive = true;
+                calendarContainer.classList.add('rbf-component-loading');
+                blockingOverlay.classList.add('active');
+                
+                testIssueBtn.style.display = 'none';
+                fixIssueBtn.style.display = 'inline-block';
+                
+                testResults.innerHTML += `
+                    <p>🚨 PROBLEMA SIMULATO: Calendario bloccato da rbf-component-loading</p>
+                    <p>❌ I giorni del calendario ora non sono più cliccabili</p>
+                    <p>⚪ Overlay bianco copre il calendario</p>
+                `;
+            });
+
+            fixIssueBtn.addEventListener('click', function() {
+                issueActive = false;
+                calendarContainer.classList.remove('rbf-component-loading');
+                blockingOverlay.classList.remove('active');
+                
+                // Apply CSS fixes
+                const calendarDays = document.querySelectorAll('.clickable-day');
+                calendarDays.forEach(day => {
+                    day.style.pointerEvents = 'auto';
+                    day.style.cursor = 'pointer';
+                });
+                
+                fixIssueBtn.style.display = 'none';
+                testIssueBtn.style.display = 'inline-block';
+                
+                testResults.innerHTML += `
+                    <p>✅ FIX APPLICATO: Calendario sbloccato</p>
+                    <p>✅ pointer-events: auto applicato ai giorni</p>
+                    <p>✅ Overlay rimosso</p>
+                    <p>🎯 Ora i giorni dovrebbero essere cliccabili di nuovo</p>
+                `;
+            });
+        });
+    </script>
+</body>
+</html>

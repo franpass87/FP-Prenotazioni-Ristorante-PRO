@@ -1697,7 +1697,7 @@
 /* Fix calendar container pointer events */
 .pika-single {
     pointer-events: auto !important;
-    z-index: 1050 !important; /* Lower z-index to avoid dropdown conflicts */
+    z-index: 1100 !important; /* Higher z-index to ensure visibility above overlays */
 }
 
 /* Ensure calendar never gets loading class that blocks interactions */
@@ -1707,6 +1707,86 @@
 
 .pika-single .rbf-loading-overlay {
     display: none !important; /* Never show loading overlay on calendar */
+}
+
+/* Enhanced protection: Calendar should always remain interactive */
+.pika-single,
+.pika-single * {
+    pointer-events: auto !important;
+}
+
+/* Flatpickr calendar support - ensure it has same protections as Pikaday */
+.flatpickr-calendar {
+    pointer-events: auto !important;
+    z-index: 1100 !important; /* Same high z-index as Pikaday */
+}
+
+.flatpickr-calendar.rbf-component-loading {
+    pointer-events: auto !important;
+}
+
+.flatpickr-calendar .rbf-loading-overlay {
+    display: none !important; /* Never show loading overlay on calendar */
+}
+
+/* Ensure Flatpickr navigation is always clickable */
+.flatpickr-calendar .flatpickr-prev-month,
+.flatpickr-calendar .flatpickr-next-month,
+.flatpickr-calendar .flatpickr-current-month,
+.flatpickr-calendar .flatpickr-monthDropdown-months {
+    pointer-events: auto !important;
+}
+
+/* Ensure Flatpickr days are always clickable when not disabled */
+.flatpickr-calendar .flatpickr-day:not(.flatpickr-disabled) {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+}
+
+/* Enhanced protection: Flatpickr calendar should always remain interactive */
+.flatpickr-calendar,
+.flatpickr-calendar * {
+    pointer-events: auto !important;
+}
+
+/* Prevent any parent loading states from affecting calendars */
+.rbf-component-loading .pika-single,
+.rbf-component-loading .pika-single *,
+.rbf-component-loading .flatpickr-calendar,
+.rbf-component-loading .flatpickr-calendar * {
+    pointer-events: auto !important;
+}
+
+/* Improved calendar sizing and spacing */
+.pika-single {
+    min-width: 280px !important; /* Ensure adequate calendar width */
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15) !important; /* Better visibility */
+}
+
+.flatpickr-calendar {
+    min-width: 280px !important; /* Match Pikaday sizing */
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Ensure calendar input field has adequate spacing */
+.rbf-field-wrapper input[type="text"]:focus,
+.rbf-field-wrapper input[id*="date"]:focus {
+    min-height: var(--rbf-input-height);
+    padding: var(--rbf-input-padding);
+    margin-bottom: 8px; /* Add space below calendar field */
+}
+
+/* Calendar day sizing improvements */
+.pika-single .pika-day {
+    min-width: 32px !important;
+    min-height: 32px !important;
+    line-height: 32px !important;
+}
+
+.flatpickr-calendar .flatpickr-day {
+    min-width: 32px !important;
+    min-height: 32px !important;
+    line-height: 32px !important;
 }
 
 /* Calendar day colors - use primary color instead of secondary */

@@ -565,6 +565,35 @@ jQuery(function($) {
 
     fp = new Pikaday(pickerConfig);
 
+    // Apply enhanced protection immediately after creation
+    if (fp && fp.el) {
+      // Ensure calendar is always interactive
+      fp.el.style.pointerEvents = 'auto';
+      fp.el.style.zIndex = '1100';
+      fp.el.classList.remove('rbf-component-loading');
+      
+      // Remove any potential loading overlays
+      const loadingOverlays = fp.el.querySelectorAll('.rbf-loading-overlay');
+      loadingOverlays.forEach(overlay => overlay.remove());
+      
+      // Ensure all days are clickable
+      const allDays = fp.el.querySelectorAll('.pika-day');
+      allDays.forEach(day => {
+        if (!day.classList.contains('is-disabled')) {
+          day.style.pointerEvents = 'auto';
+          day.style.cursor = 'pointer';
+        }
+      });
+      
+      // Ensure navigation is clickable
+      const navElements = fp.el.querySelectorAll('.pika-prev, .pika-next, .pika-title, .pika-label');
+      navElements.forEach(nav => {
+        nav.style.pointerEvents = 'auto';
+      });
+      
+      rbfLog.log('Calendar protection applied during initialization');
+    }
+
     el.dateInput.removeClass('rbf-component-loading');
 
     if (rbfData.exceptions && rbfData.exceptions.length > 0) {
@@ -1094,10 +1123,16 @@ jQuery(function($) {
     // Show loading state for time selection
     showComponentLoading(el.timeStep[0], rbfData.labels.loading + ' orari...');
     
-    // Ensure calendar remains interactive during loading
+    // Enhanced calendar protection during loading
     if (fp && fp.el) {
+      // Ensure calendar container is always interactive
       fp.el.style.pointerEvents = 'auto';
+      fp.el.style.zIndex = '1100';
       fp.el.classList.remove('rbf-component-loading');
+
+      // Remove any loading overlays from calendar
+      const loadingOverlays = fp.el.querySelectorAll('.rbf-loading-overlay');
+      loadingOverlays.forEach(overlay => overlay.remove());
 
       // Ensure calendar days remain clickable
       const calendarDays = fp.el.querySelectorAll('.pika-day:not(.is-disabled)');
@@ -1105,6 +1140,14 @@ jQuery(function($) {
         day.style.pointerEvents = 'auto';
         day.style.cursor = 'pointer';
       });
+
+      // Ensure calendar navigation remains clickable
+      const navElements = fp.el.querySelectorAll('.pika-prev, .pika-next, .pika-title, .pika-label');
+      navElements.forEach(nav => {
+        nav.style.pointerEvents = 'auto';
+      });
+
+      rbfLog.log('Calendar protection applied during date change');
     }
     
     el.timeSelect.html(`<option value="">${rbfData.labels.loading}</option>`).prop('disabled', true);
