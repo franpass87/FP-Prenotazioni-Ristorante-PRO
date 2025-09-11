@@ -39,7 +39,8 @@
 
 #rbf-message-anchor {
     position: absolute;
-    top: -20px;
+    top: -10px;
+    visibility: hidden;
 }
 
 .rbf-form {
@@ -256,6 +257,10 @@
     color: #ccc;
 }
 
+.rbf-people-selector button:first-child {
+    order: 3; /* Move minus button to the right */
+}
+
 .rbf-people-selector input {
     flex: 1;
     min-height: 50px;
@@ -265,6 +270,11 @@
     font-size: 18px;
     color: var(--rbf-text);
     background: white;
+    order: 2;
+}
+
+.rbf-people-selector button:last-child {
+    order: 1; /* Move plus button to the left */
 }
 
 #rbf-submit {
@@ -1567,7 +1577,7 @@
 /* Form element tooltips */
 .rbf-form-tooltip {
     position: relative;
-    display: inline-block;
+    /* display: inline-block; */
 }
 
 .rbf-form-tooltip .rbf-tooltip-content {
@@ -1671,7 +1681,7 @@
 .rbf-people-selector button:focus {
     outline: var(--rbf-focus-outline);
     outline-offset: 2px;
-    background: var(--rbf-primary-light);
+    background: var(--rbf-focus-color);
     color: white;
 }
 
