@@ -20,11 +20,11 @@ function test_brevo_segmentation_logic() {
     $test_cases = [
         ['it', 'it', 'it', 'Italian form + Italian phone → Italian list'],
         ['en', 'it', 'it', 'English form + Italian phone → Italian list (phone priority)'],
-        ['it', 'gb', 'it', 'Italian form + UK phone → Italian list (form fallback)'],
+        ['it', 'gb', 'en', 'Italian form + UK phone → English list (non-IT phone)'],
         ['en', 'gb', 'en', 'English form + UK phone → English list'],
-        ['it', 'us', 'it', 'Italian form + US phone → Italian list (form fallback)'],
+        ['it', 'us', 'en', 'Italian form + US phone → English list (non-IT phone)'],
         ['en', 'us', 'en', 'English form + US phone → English list'],
-        ['it', 'de', 'it', 'Italian form + German phone → Italian list (form fallback)'],
+        ['it', 'de', 'en', 'Italian form + German phone → English list (non-IT phone)'],
         ['en', 'de', 'en', 'English form + German phone → English list'],
         ['it', '', 'it', 'Italian form + no country code → Italian list (fallback to IT)'],
         ['en', '', 'it', 'English form + no country code → Italian list (fallback to IT)'],
@@ -46,11 +46,11 @@ function test_brevo_segmentation_logic() {
         
         // Apply the new segmentation logic
         if ($country_code === 'it') {
-            // Italian phone prefix → always Italian list
+            // Italian phone prefix → Italian list
             $brevo_lang = 'it';
         } else {
-            // Non-Italian phone prefix → use form language to determine list
-            $brevo_lang = ($lang === 'it') ? 'it' : 'en';
+            // Non-Italian phone prefix → English list
+            $brevo_lang = 'en';
         }
         
         $result = ($brevo_lang === $expected) ? 'PASS' : 'FAIL';

@@ -165,18 +165,16 @@ function rbf_handle_booking_submission() {
         $country_code = 'it';
     }
     
-    // Determine Brevo list based on both form language and phone prefix
-    // Priority: Phone prefix takes precedence, but form language is also considered
+    // Determine Brevo list based on phone prefix only
     // Logic: 
-    // - If phone prefix is Italian (+39) → Italian list (regardless of form language)
-    // - If phone prefix is NOT Italian but form is in Italian → Italian list  
-    // - If phone prefix is NOT Italian and form is in English → English list
+    // - If phone prefix is Italian (+39) → Italian list
+    // - If phone prefix is NOT Italian → English list (regardless of form language)
     if ($country_code === 'it') {
-        // Italian phone prefix → always Italian list
+        // Italian phone prefix → Italian list
         $brevo_lang = 'it';
     } else {
-        // Non-Italian phone prefix → use form language to determine list
-        $brevo_lang = ($lang === 'it') ? 'it' : 'en';
+        // Non-Italian phone prefix → English list
+        $brevo_lang = 'en';
     }
     
     $privacy = (isset($_POST['rbf_privacy']) && $_POST['rbf_privacy']==='yes') ? 'yes' : 'no';
