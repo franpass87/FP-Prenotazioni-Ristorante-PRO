@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test: Fix Anchor Jumps - Form Prenotazione</title>
+    <!-- Flatpickr CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <!-- Frontend CSS -->
+    <link rel="stylesheet" href="assets/css/frontend.css">
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: #f5f7fa;
+            min-height: 200vh; /* Make page long to test scroll behavior */
+        }
+        .demo-container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+        }
+        .test-banner {
+            background: #e7f3ff;
+            border: 1px solid #b8daff;
+            color: #004085;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .scroll-indicator {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #007bff;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            z-index: 1000;
+        }
+        .padding-content {
+            height: 300px;
+            background: linear-gradient(45deg, #f0f0f0, #e0e0e0);
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="scroll-indicator" id="scrollIndicator">
+        Scroll: <span id="scrollValue">0</span>px
+    </div>
+
+    <div class="demo-container">
+        <div class="test-banner">
+            <h2>🧪 Test: Anchor Jump Fix</h2>
+            <p><strong>Test obiettivo:</strong> Selezionare un pasto NON dovrebbe più causare uno scroll automatico della pagina</p>
+        </div>
+
+        <div class="test-section">
+            <h3>📋 Istruzioni per il test</h3>
+            <ol>
+                <li><strong>Scorri verso il basso</strong> per vedere il form</li>
+                <li><strong>Seleziona un pasto</strong> (es. Pranzo)</li>
+                <li><strong>Verifica</strong> che la pagina non faccia uno scroll automatico verso il basso</li>
+                <li><strong>Testa il calendario</strong> - dovrebbe aprirsi correttamente quando clicchi sulla data</li>
+                <li><strong>Prova su mobile e desktop</strong> - in entrambi i casi non dovrebbero esserci scroll automatici</li>
+            </ol>
+        </div>
+
+        <div class="padding-content">
+            <p>📍 Contenuto di riempimento per testare il comportamento scroll</p>
+        </div>
+
+        <div class="padding-content">
+            <p>📍 Scroll down per vedere il form di prenotazione</p>
+        </div>
+
+        <!-- Form di prenotazione -->
+        <div class="rbf-form-container">
+            <div class="test-banner">
+                <h3>🍽️ Form Prenotazione - Senza Anchor Jumps</h3>
+                <p>Seleziona un pasto - la pagina non dovrebbe più fare scroll automatico</p>
+            </div>
+
+            <form id="rbf-form" class="rbf-form">
+                <!-- Progress Indicator -->
+                <div class="rbf-progress-indicator" role="progressbar" aria-valuenow="1" aria-valuemin="1" aria-valuemax="5">
+                    <div class="rbf-progress-step active" data-step="1">1</div>
+                    <div class="rbf-progress-step" data-step="2">2</div>
+                    <div class="rbf-progress-step" data-step="3">3</div>
+                    <div class="rbf-progress-step" data-step="4">4</div>
+                    <div class="rbf-progress-step" data-step="5">5</div>
+                </div>
+
+                <!-- Step 1: Meal Selection -->
+                <div id="step-meal" class="rbf-step active" role="group">
+                    <div class="rbf-field-wrapper">
+                        <label id="meal-label">Scegli il pasto <span class="rbf-required-indicator">*</span></label>
+                        <div class="rbf-radio-group" role="radiogroup" aria-labelledby="meal-label">
+                            <input type="radio" name="rbf_meal" value="brunch" id="rbf_meal_brunch" required>
+                            <label for="rbf_meal_brunch">Brunch</label>
+                            <input type="radio" name="rbf_meal" value="pranzo" id="rbf_meal_pranzo">
+                            <label for="rbf_meal_pranzo">Pranzo</label>
+                            <input type="radio" name="rbf_meal" value="aperitivo_cena" id="rbf_meal_aperitivo_cena">
+                            <label for="rbf_meal_aperitivo_cena">Aperitivo e Cena</label>
+                        </div>
+                        <div id="rbf-meal-error" class="rbf-field-error"></div>
+                        <p id="rbf-meal-notice" style="display:none;" role="status"></p>
+                    </div>
+                </div>
+
+                <!-- Step 2: Date Selection -->
+                <div id="step-date" class="rbf-step" style="display:none;" role="group" data-skeleton="true">
+                    <div class="rbf-field-wrapper">
+                        <label id="date-label" for="rbf-date">Data <span class="rbf-required-indicator">*</span></label>
+                        
+                        <!-- Skeleton for calendar loading -->
+                        <div class="rbf-skeleton rbf-skeleton-calendar" aria-hidden="true"></div>
+                        
+                        <!-- Actual calendar input -->
+                        <div class="rbf-fade-in">
+                            <input id="rbf-date" name="rbf_data" readonly="readonly" required>
+                            <div id="rbf-date-error" class="rbf-field-error"></div>
+                            <small class="rbf-help-text">Clicca per aprire il calendario</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: Time Selection -->
+                <div id="step-time" class="rbf-step" style="display:none;" role="group" data-skeleton="true">
+                    <div class="rbf-field-wrapper">
+                        <label id="time-label" for="rbf-time">Orario <span class="rbf-required-indicator">*</span></label>
+                        <div class="rbf-fade-in">
+                            <select id="rbf-time" name="rbf_orario" required disabled>
+                                <option value="">Prima scegli la data</option>
+                            </select>
+                            <div id="rbf-time-error" class="rbf-field-error"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4: People -->
+                <div id="step-people" class="rbf-step" style="display:none;" role="group" data-skeleton="true">
+                    <div class="rbf-field-wrapper">
+                        <label id="people-label">Persone <span class="rbf-required-indicator">*</span></label>
+                        <div class="rbf-fade-in">
+                            <div class="rbf-people-selector" role="group">
+                                <button type="button" id="rbf-people-minus" disabled>-</button>
+                                <input type="number" id="rbf-people" name="rbf_persone" value="1" min="1" readonly="readonly" required>
+                                <button type="button" id="rbf-people-plus">+</button>
+                            </div>
+                            <div id="rbf-people-error" class="rbf-field-error"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 5: Details -->
+                <div id="step-details" class="rbf-step" style="display:none;" role="group" data-skeleton="true">
+                    <h3 id="details-label" class="rbf-section-title">I tuoi dati</h3>
+                    <div class="rbf-fade-in">
+                        <div class="rbf-field-wrapper">
+                            <label for="rbf-name">Nome <span class="rbf-required-indicator">*</span></label>
+                            <input type="text" id="rbf-name" name="rbf_nome" required disabled>
+                        </div>
+                        <div class="rbf-field-wrapper">
+                            <label for="rbf-email">Email <span class="rbf-required-indicator">*</span></label>
+                            <input type="email" id="rbf-email" name="rbf_email" required disabled>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="padding-content">
+            <p>📍 Contenuto dopo il form per verificare il comportamento scroll</p>
+        </div>
+
+        <div class="test-section">
+            <h3>✅ Risultati attesi</h3>
+            <ul>
+                <li>✅ Quando selezioni un pasto, la pagina NON deve fare scroll automatico</li>
+                <li>✅ Il calendario si deve aprire correttamente quando clicchi sulla data</li>
+                <li>✅ I passaggi successivi devono apparire senza scroll automatico</li>
+                <li>✅ Il comportamento deve essere consistente su mobile e desktop</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Include dependencies -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/it.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/19.2.16/js/intlTelInput.min.js"></script>
+
+    <!-- Mock rbfData for testing -->
+    <script>
+        window.rbfData = {
+            ajaxUrl: '#',
+            nonce: 'test_nonce',
+            locale: 'it',
+            closedDays: [],
+            closedSingles: [],
+            closedRanges: [],
+            exceptions: [],
+            minAdvanceMinutes: 60,
+            maxAdvanceMinutes: 10080,
+            utilsScript: 'https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/19.2.16/js/utils.js',
+            mealTooltips: {
+                'brunch': 'Servizio Brunch dalle 11:00 alle 16:00',
+                'pranzo': 'Servizio Pranzo dalle 12:00 alle 15:00',
+                'aperitivo_cena': 'Aperitivo dalle 18:00 e Cena dalle 19:30'
+            },
+            mealAvailability: {
+                'brunch': [0, 6],
+                'pranzo': [1, 2, 3, 4, 5],
+                'aperitivo_cena': [1, 2, 3, 4, 5, 6]
+            },
+            labels: {
+                loading: 'Caricamento...',
+                chooseTime: 'Scegli un orario...',
+                noTime: 'Nessun orario disponibile',
+                mealRequired: 'Seleziona un pasto per continuare.',
+                dateRequired: 'Seleziona una data per continuare.'
+            }
+        };
+    </script>
+
+    <!-- Include frontend script -->
+    <script src="assets/js/frontend.js"></script>
+
+    <!-- Scroll position indicator -->
+    <script>
+        let lastScrollPosition = 0;
+        
+        function updateScrollIndicator() {
+            const scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+            document.getElementById('scrollValue').textContent = Math.round(scrollPosition);
+            
+            // Check for unexpected scroll jumps
+            const scrollDifference = Math.abs(scrollPosition - lastScrollPosition);
+            if (scrollDifference > 100 && lastScrollPosition > 0) {
+                console.warn('Large scroll jump detected:', scrollDifference, 'px');
+                // Highlight the indicator if a large jump is detected
+                const indicator = document.getElementById('scrollIndicator');
+                indicator.style.background = '#dc3545';
+                setTimeout(() => {
+                    indicator.style.background = '#007bff';
+                }, 2000);
+            }
+            
+            lastScrollPosition = scrollPosition;
+        }
+        
+        window.addEventListener('scroll', updateScrollIndicator);
+        updateScrollIndicator();
+        
+        // Log meal selection events for testing
+        document.addEventListener('change', function(e) {
+            if (e.target.name === 'rbf_meal') {
+                console.log('Meal selected:', e.target.value, 'at scroll position:', window.pageYOffset);
+            }
+        });
+    </script>
+</body>
+</html>

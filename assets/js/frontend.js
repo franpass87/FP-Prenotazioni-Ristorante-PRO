@@ -911,15 +911,9 @@ jQuery(function($) {
         }
       }, 300);
       
-      // Auto-scroll to step on mobile
-      if (window.innerWidth <= 768) {
-        setTimeout(() => {
-          $step[0].scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'center' 
-          });
-        }, 250);
-      }
+      // Auto-scroll disabled to prevent annoying anchor jumps
+      // The form is designed to be visible without forced scrolling
+      // Users can manually scroll if needed
       
       // Announce step change to screen readers
       const stepLabel = $step.attr('aria-labelledby');
@@ -1193,9 +1187,9 @@ jQuery(function($) {
       el.mealNotice.text(rbfData.mealTooltips[selectedMeal]).show();
     }
     
-    // Show date step for any meal selection
+    // Show date step for any meal selection without scrolling
     // The flatpickr will be lazy loaded when the step is shown
-    showStep(el.dateStep, 2);
+    showStepWithoutScroll(el.dateStep, 2);
     
     // Initialize flatpickr immediately after showing the step to fix calendar not reopening
     setTimeout(() => {
@@ -1257,7 +1251,7 @@ jQuery(function($) {
     const selectedMeal = el.mealRadios.filter(':checked').val();
     
     const dateString = formatLocalISO(date);
-    showStep(el.timeStep, 3);
+    showStepWithoutScroll(el.timeStep, 3);
     
     // Show loading state for time selection
     showComponentLoading(el.timeStep[0], rbfData.labels.loading + ' orari...');
@@ -1405,7 +1399,7 @@ jQuery(function($) {
   el.timeSelect.on('change', function() {
     resetSteps(3);
     if (this.value) {
-      showStep(el.peopleStep, 4);
+      showStepWithoutScroll(el.peopleStep, 4);
       const maxPeople = 30; // generic cap
       el.peopleInput.val(1).attr('max', maxPeople);
       updatePeopleButtons(); // Update buttons without triggering input event
@@ -2128,10 +2122,10 @@ jQuery(function($) {
   enhanceARIAAnnouncements();
 
   function enhanceMobileExperience() {
-    // Improve form scrolling on mobile
+    // Smooth scrolling disabled to prevent anchor jumps
     if (window.innerWidth <= 768) {
-      // Add smooth scrolling behavior
-      document.documentElement.style.scrollBehavior = 'smooth';
+      // Smooth scrolling behavior disabled to prevent unwanted anchor jumps
+      // document.documentElement.style.scrollBehavior = 'smooth';
       
       // Improve people selector on mobile
       el.peopleMinus.add(el.peoplePlus).on('touchstart', function() {
@@ -2152,14 +2146,8 @@ jQuery(function($) {
       $(window).on('resize orientationchange', function() {
         clearTimeout(resizeTimer);
         resizeTimer = setTimeout(function() {
-          // Re-focus current step if needed
-          const activeStep = form.find('.rbf-step.active');
-          if (activeStep.length && window.innerWidth <= 768) {
-            activeStep[0].scrollIntoView({ 
-              behavior: 'smooth', 
-              block: 'center' 
-            });
-          }
+          // Auto-scroll on resize disabled to prevent anchor jumps
+          // Form remains visible and accessible without forced scrolling
         }, 100);
       });
     }
@@ -2579,8 +2567,7 @@ jQuery(function($) {
         const timeValue = meal + '|' + time;
         el.timeSelect.val(timeValue).trigger('change');
         
-        // Scroll to the time step for better UX
-        el.timeStep[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Auto-scroll disabled to prevent anchor jumps when applying suggestions
         
         // Remove suggestions since one was applied
         $('.rbf-suggestions-container').fadeOut(300, function() {
