@@ -1027,7 +1027,8 @@ jQuery(function($) {
     // Show date step for any meal selection
     // The date picker will be lazy loaded when the step is shown
     showStep(el.dateStep, 2);
-    
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+
     // Initialize Pikaday immediately after showing the step to fix calendar not reopening
     setTimeout(() => {
       if (!fp && selectedMeal) {
