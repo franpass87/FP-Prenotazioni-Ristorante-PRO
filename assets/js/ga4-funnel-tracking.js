@@ -8,7 +8,7 @@
 (function($) {
     'use strict';
     
-    // Check if GA4 funnel tracking is enabled and required globals are available
+    // Check if GA4 funnel tracking is enabled and dataLayer is available
     if (typeof rbfGA4Funnel === 'undefined' || typeof window.dataLayer === 'undefined') {
         return;
     }
@@ -74,8 +74,6 @@
             if (typeof gtag === 'function') {
                 gtag('event', eventName, enhancedParams);
                 this.log(`Event sent to gtag: ${eventName}`);
-            } else {
-                this.log(`gtag not available for: ${eventName}`);
             }
             
             // Also send to server for Measurement Protocol (if configured)
