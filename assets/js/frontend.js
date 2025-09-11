@@ -387,7 +387,11 @@ jQuery(function($) {
           // Remove any remaining pointer-events restrictions
           $step.css('pointer-events', 'auto');
           $contentElements.css('pointer-events', 'auto');
-          
+          // Ensure date input is enabled and interactive
+          el.dateInput.prop('disabled', false);
+          el.dateInput.css('pointer-events', 'auto');
+          el.dateInput.parent().css('pointer-events', 'auto');
+
           // CRITICAL FIX: Force calendar interactivity
           if (fp) {
             forceCalendarInteractivity(fp);
