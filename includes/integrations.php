@@ -123,33 +123,42 @@ function rbf_add_tracking_scripts_to_footer() {
               var eventId = <?php echo json_encode($eventId); ?>;
 
               <?php if ($ga4_id) : ?>
-              if (typeof gtag === 'function') {
-                gtag('event', 'purchase', {
-                  transaction_id: transaction_id,
-                  value: Number(value || 0),
-                  currency: currency,
-                  items: [{
-                    item_id: 'booking_' + meal,
-                    item_name: 'Prenotazione ' + meal,
-                    category: 'booking',
-                    quantity: Number(people || 0),
-                    price: Number(value || 0) / Number(people || 1)
-                  }],
-                  bucket: bucketStd,
-                  vertical: 'restaurant'
-                });
-                // Evento custom con dettaglio ristorante
-                gtag('event', 'restaurant_booking', {
-                  transaction_id: transaction_id,
-                  value: Number(value || 0),
-                  currency: currency,
-                  bucket: bucketStd,          // standard (gads/fbads/organic)
-                  traffic_bucket: bucket,     // dettaglio (fborg/direct/other...)
-                  meal: meal,
-                  people: Number(people || 0),
-                  vertical: 'restaurant'
-                });
+              function rbfTrackEvent(eventName, params) {
+                window.dataLayer = window.dataLayer || [];
+                // Ensure Google Ads required params exist in dataLayer
+                var data = Object.assign({ event: eventName }, params);
+                window.dataLayer.push(data);
+                if (typeof gtag === 'function') {
+                  gtag('event', eventName, params);
+                }
               }
+
+              rbfTrackEvent('purchase', {
+                transaction_id: transaction_id,
+                value: Number(value || 0),
+                currency: currency,
+                items: [{
+                  item_id: 'booking_' + meal,
+                  item_name: 'Prenotazione ' + meal,
+                  category: 'booking',
+                  quantity: Number(people || 0),
+                  price: Number(value || 0) / Number(people || 1)
+                }],
+                bucket: bucketStd,
+                vertical: 'restaurant'
+              });
+
+              // Evento custom con dettaglio ristorante
+              rbfTrackEvent('restaurant_booking', {
+                transaction_id: transaction_id,
+                value: Number(value || 0),
+                currency: currency,
+                bucket: bucketStd,          // standard (gads/fbads/organic)
+                traffic_bucket: bucket,     // dettaglio (fborg/direct/other...)
+                meal: meal,
+                people: Number(people || 0),
+                vertical: 'restaurant'
+              });
               <?php endif; ?>
 
               <?php if ($meta_pixel_id) : ?>
