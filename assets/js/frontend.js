@@ -950,14 +950,50 @@ jQuery(function($) {
     updateProgressIndicator(stepNumber);
     
     const timeout = setTimeout(() => {
-      // Handle skeleton removal for this step
-      if ($step.attr('data-skeleton') === 'true') {
-        $step.removeAttr('data-skeleton');
-        $step.find('.rbf-skeleton-fields, .rbf-skeleton-time, .rbf-skeleton-people-selector').fadeOut(300, function() {
-          $(this).remove();
-        });
-        $step.find('.rbf-fade-in').delay(200).fadeIn(400);
-      } else if (stepNumber <= 3) hideStep(el.peopleStep);
+      // Handle skeleton loading for specific steps (same as showStep but without scrolling)
+      const stepId = $step.attr('id');
+      
+      if (stepId === 'step-date' && $step.attr('data-skeleton') === 'true') {
+        // Show skeleton initially, then lazy load date picker
+        setTimeout(() => {
+          lazyLoadDatePicker().then(() => {
+            removeSkeleton($step);
+            // CRITICAL FIX: Extra safety check to ensure calendar is interactive
+            setTimeout(() => {
+              if (fp) {
+                forceCalendarInteractivity(fp);
+                rbfLog.log('Calendar fully enabled and interactive after lazy load');
+              }
+            }, 200);
+          });
+        }, 100);
+      } else if (stepId === 'step-time' && $step.attr('data-skeleton') === 'true') {
+        // Remove skeleton immediately for time step as it's just a select
+        setTimeout(() => {
+          removeSkeleton($step);
+        }, 150);
+      } else if (stepId === 'step-people' && $step.attr('data-skeleton') === 'true') {
+        // Remove skeleton for people selector after short delay
+        setTimeout(() => {
+          removeSkeleton($step);
+        }, 100);
+      } else if (stepId === 'step-details' && $step.attr('data-skeleton') === 'true') {
+        // Show skeleton initially, then lazy load telephone input
+        setTimeout(() => {
+          lazyLoadTelInput().then(() => {
+            removeSkeleton($step);
+          });
+        }, 200);
+      } else {
+        // Handle generic skeleton removal for steps without specific handlers
+        if ($step.attr('data-skeleton') === 'true') {
+          $step.removeAttr('data-skeleton');
+          $step.find('.rbf-skeleton-fields, .rbf-skeleton-time, .rbf-skeleton-people-selector').fadeOut(300, function() {
+            $(this).remove();
+          });
+          $step.find('.rbf-fade-in').delay(200).fadeIn(400);
+        }
+      }
       
       // Focus management for accessibility (but no scrolling)
       if (stepNumber >= 2) {
@@ -966,7 +1002,7 @@ jQuery(function($) {
           if (firstFocusable.length && firstFocusable.is(':visible')) {
             firstFocusable.focus();
           }
-        }, 100);
+        }, 300); // Increased delay to ensure skeleton is removed first
       }
       
       // Announce step change to screen readers
@@ -1188,33 +1224,12 @@ jQuery(function($) {
     }
     
     // Show date step for any meal selection without scrolling
-    // The flatpickr will be lazy loaded when the step is shown
+    // The flatpickr will be lazy loaded when the step is shown by showStepWithoutScroll
     showStepWithoutScroll(el.dateStep, 2);
     
-    // Initialize flatpickr immediately after showing the step to fix calendar not reopening
+    // Update availability data for the selected meal (after calendar loads)
     setTimeout(() => {
-      if (!fp && selectedMeal) {
-        lazyLoadDatePicker().then(() => {
-          // Update availability data when meal changes
-          if (fp && selectedMeal) {
-            const viewDate = fp.currentMonth;
-            const startDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
-            const endDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
-            
-            fetchAvailabilityData(
-              formatLocalISO(startDate),
-              formatLocalISO(endDate),
-              selectedMeal
-            ).then(() => {
-              // Redraw calendar to apply new availability colors
-              if (fp) {
-                fp.redraw();
-              }
-            });
-          }
-        });
-      } else if (fp && selectedMeal) {
-        // If flatpickr already exists, just update availability
+      if (fp && selectedMeal) {
         const viewDate = fp.currentMonth;
         const startDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
         const endDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
@@ -1230,7 +1245,7 @@ jQuery(function($) {
           }
         });
       }
-    }, 100);
+    }, 500); // Increased delay to ensure calendar is fully loaded
   });
 
   /**
