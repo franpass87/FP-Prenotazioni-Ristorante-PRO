@@ -38,6 +38,14 @@ function rbf_add_tracking_scripts_to_footer() {
         </script>
         <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=<?php echo esc_attr($gtm_id); ?>" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <?php
+    } elseif ($gtm_id) {
+        ?>
+        <script>window.dataLayer = window.dataLayer || [];</script>
+        <script>
+            (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','<?php echo esc_js($gtm_id); ?>');
+        </script>
+        <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=<?php echo esc_attr($gtm_id); ?>" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+        <?php
     } elseif ($ga4_id) {
         ?>
         <script async src="https://www.googletagmanager.com/gtag/js?id=<?php echo esc_attr($ga4_id); ?>"></script>
@@ -122,7 +130,6 @@ function rbf_add_tracking_scripts_to_footer() {
               var bucketStd = <?php echo json_encode($bucketStd); ?>;
               var eventId = <?php echo json_encode($eventId); ?>;
 
-              <?php if ($ga4_id) : ?>
               function rbfTrackEvent(eventName, params) {
                 window.dataLayer = window.dataLayer || [];
                 // Ensure Google Ads required params exist in dataLayer
@@ -159,7 +166,6 @@ function rbf_add_tracking_scripts_to_footer() {
                 people: Number(people || 0),
                 vertical: 'restaurant'
               });
-              <?php endif; ?>
 
               <?php if ($meta_pixel_id) : ?>
               if (typeof fbq === 'function') {
