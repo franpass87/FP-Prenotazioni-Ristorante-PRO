@@ -82,11 +82,11 @@
         </div>
 
         <div class="demo-section fixed-state">
-            <h2>✅ Soluzione Proposta - Bottoni con larghezza uniforme</h2>
+            <h2>✅ Soluzione Implementata - Bottoni con larghezza uniforme</h2>
             <div class="demo-form">
                 <div class="rbf-field-wrapper">
                     <label>Scegli il pasto</label>
-                    <div class="rbf-radio-group rbf-uniform-width" role="radiogroup">
+                    <div class="rbf-radio-group" role="radiogroup">
                         <input type="radio" name="meal2" id="brunch2" value="brunch">
                         <label for="brunch2">Brunch</label>
                         <input type="radio" name="meal2" id="pranzo2" value="pranzo">
@@ -112,66 +112,8 @@
 
                 <button id="rbf-submit" type="submit">Prenota</button>
             </div>
-            <p><strong>Soluzione:</strong> Tutti i bottoni delle opzioni pasto hanno la stessa larghezza, allineandosi meglio con i campi di input.</p>
+            <p><strong>Soluzione implementata:</strong> Aumentata la larghezza minima dei bottoni pasto da 140px a 200px su desktop (220px su schermi grandi), garantendo una larghezza uniforme e migliore allineamento con i campi di input.</p>
         </div>
     </div>
-
-    <style>
-        /* CSS per la soluzione proposta */
-        .rbf-uniform-width {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 12px;
-        }
-        
-        .rbf-uniform-width label {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 16px 20px;
-            border: 2px solid var(--rbf-border);
-            border-radius: var(--rbf-radius);
-            font-weight: 600;
-            text-align: center;
-            cursor: pointer;
-            transition: var(--rbf-transition);
-            background: white;
-            color: var(--rbf-text);
-            min-height: 56px;
-            min-width: 180px; /* Larghezza minima uniforme */
-            word-break: break-word;
-            hyphens: auto;
-        }
-        
-        /* Media queries per mantenere la responsività */
-        @media (max-width: 768px) {
-            .rbf-uniform-width {
-                grid-template-columns: 1fr;
-                gap: 10px;
-            }
-            
-            .rbf-uniform-width label {
-                min-width: auto;
-                width: 100%;
-            }
-        }
-        
-        @media (min-width: 769px) and (max-width: 1024px) {
-            .rbf-uniform-width {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 12px;
-            }
-            
-            .rbf-uniform-width label {
-                min-width: 200px;
-            }
-        }
-        
-        @media (min-width: 1025px) {
-            .rbf-uniform-width label {
-                min-width: 200px;
-            }
-        }
-    </style>
 </body>
 </html>
