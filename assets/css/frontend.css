@@ -1701,6 +1701,16 @@
 /* Fix calendar container pointer events */
 .flatpickr-calendar {
     pointer-events: auto !important;
+    z-index: 1100 !important; /* Ensure calendar stays above loading overlays */
+}
+
+/* Ensure calendar never gets loading class that blocks interactions */
+.flatpickr-calendar.rbf-component-loading {
+    pointer-events: auto !important;
+}
+
+.flatpickr-calendar .rbf-loading-overlay {
+    display: none !important; /* Never show loading overlay on calendar */
 }
 
 /* Calendar day colors - use primary color instead of secondary */

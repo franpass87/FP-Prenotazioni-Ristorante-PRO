@@ -563,14 +563,20 @@ jQuery(function($) {
         const calendar = instance.calendarContainer;
         if (calendar) {
           calendar.style.pointerEvents = 'auto';
+          calendar.classList.remove('rbf-component-loading'); // Remove any loading class
+          
           // Make sure all day elements are clickable
           const days = calendar.querySelectorAll('.flatpickr-day');
           days.forEach(day => {
             if (!day.classList.contains('flatpickr-disabled')) {
               day.style.pointerEvents = 'auto';
               day.setAttribute('tabindex', '0');
+              day.style.cursor = 'pointer';
             }
           });
+          
+          // Ensure calendar stays above any loading overlays
+          calendar.style.zIndex = '1100';
         }
       },
       onReady: function(selectedDates, dateStr, instance) {
@@ -578,6 +584,9 @@ jQuery(function($) {
         const calendar = instance.calendarContainer;
         if (calendar) {
           calendar.style.pointerEvents = 'auto';
+          calendar.classList.remove('rbf-component-loading'); // Remove any loading class
+          calendar.style.zIndex = '1100'; // Ensure calendar stays above loading overlays
+          
           // Enable month navigation
           const monthDropdown = calendar.querySelector('.flatpickr-monthDropdown-months');
           const yearDropdown = calendar.querySelector('.numInputWrapper');
@@ -600,6 +609,9 @@ jQuery(function($) {
         if (!dayElem.classList.contains('flatpickr-disabled')) {
           dayElem.style.pointerEvents = 'auto';
           dayElem.setAttribute('tabindex', '0');
+          dayElem.style.cursor = 'pointer';
+          // Prevent any loading classes from affecting calendar days
+          dayElem.classList.remove('rbf-component-loading');
         }
         
         // Add availability coloring
@@ -681,8 +693,15 @@ jQuery(function($) {
     
     fp = flatpickr(el.dateInput[0], flatpickrConfig);
     
-    // Ensure the input is not stuck in loading state
+    // Ensure the input and calendar are never stuck in loading state
     el.dateInput.removeClass('rbf-component-loading');
+    
+    // Additional safety - ensure calendar container is never affected by loading overlays
+    if (fp && fp.calendarContainer) {
+      fp.calendarContainer.classList.remove('rbf-component-loading');
+      fp.calendarContainer.style.pointerEvents = 'auto';
+      fp.calendarContainer.style.zIndex = '1100';
+    }
     
     // Fetch initial availability data for current month
     if (selectedMeal) {
@@ -1222,6 +1241,19 @@ jQuery(function($) {
     
     // Show loading state for time selection
     showComponentLoading(el.timeStep[0], rbfData.labels.loading + ' orari...');
+    
+    // Ensure calendar remains interactive during loading
+    if (fp && fp.calendarContainer) {
+      fp.calendarContainer.style.pointerEvents = 'auto';
+      fp.calendarContainer.classList.remove('rbf-component-loading');
+      
+      // Ensure calendar days remain clickable
+      const calendarDays = fp.calendarContainer.querySelectorAll('.flatpickr-day:not(.flatpickr-disabled)');
+      calendarDays.forEach(day => {
+        day.style.pointerEvents = 'auto';
+        day.style.cursor = 'pointer';
+      });
+    }
     
     el.timeSelect.html(`<option value="">${rbfData.labels.loading}</option>`).prop('disabled', true);
     el.timeSelect.addClass('rbf-loading');
