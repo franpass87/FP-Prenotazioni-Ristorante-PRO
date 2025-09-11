@@ -687,7 +687,6 @@
 .rbf-iti-enhanced:focus-within {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12), 0 0 0 3px rgba(0, 0, 0, 0.1);
 }
-}
 
 /* Add visual indicator for fallback mode */
 .rbf-tel-fallback::before {
@@ -1702,6 +1701,30 @@
 /* Fix calendar container pointer events */
 .flatpickr-calendar {
     pointer-events: auto !important;
+}
+
+/* Calendar day colors - use primary color instead of secondary */
+.flatpickr-day.today {
+    background: var(--rbf-primary) !important;
+    border-color: var(--rbf-primary) !important;
+    color: white !important;
+}
+
+.flatpickr-day.selected {
+    background: var(--rbf-primary) !important;
+    border-color: var(--rbf-primary) !important;
+    color: white !important;
+}
+
+.flatpickr-day.selected:hover {
+    background: var(--rbf-primary-dark) !important;
+    border-color: var(--rbf-primary-dark) !important;
+}
+
+.flatpickr-day:hover {
+    background: var(--rbf-primary-light) !important;
+    border-color: var(--rbf-primary-light) !important;
+    color: white !important;
 }
 
 /* Progress indicator accessibility */
