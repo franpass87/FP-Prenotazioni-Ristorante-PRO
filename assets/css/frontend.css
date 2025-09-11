@@ -256,7 +256,7 @@
 
 .rbf-people-selector input {
     flex: 1;
-    height: 50px;
+    min-height: 50px;
     text-align: center;
     font-weight: 700;
     border: none;
@@ -428,7 +428,7 @@
     border: 2px solid var(--rbf-primary);
     border-radius: 12px;
     box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1);
-    z-index: 9999 !important;
+    z-index: 1000 !important;
     max-height: 240px;
     overflow-y: auto;
     position: absolute;
@@ -545,7 +545,7 @@
 }
 
 .rbf-form .iti.iti--container-open {
-    z-index: 9999;
+    z-index: 1000;
 }
 
 .iti--allow-dropdown input {
@@ -826,7 +826,7 @@
     }
     
     .rbf-people-selector input {
-        height: 48px;
+        min-height: 48px;
         font-size: 15px;
     }
     
@@ -887,7 +887,7 @@
     }
     
     .rbf-people-selector input {
-        height: 48px;
+        min-height: 48px;
         font-size: 16px;
     }
     
@@ -940,7 +940,7 @@
     }
     
     .rbf-people-selector input {
-        height: 48px;
+        min-height: 48px;
         font-size: 17px;
     }
     
@@ -987,7 +987,7 @@
     }
     
     .rbf-people-selector input {
-        height: 48px;
+        min-height: 48px;
         flex: 1;
     }
 }
@@ -1033,7 +1033,7 @@
     }
     
     .rbf-people-selector input {
-        height: 48px;
+        min-height: 48px;
         flex: 1;
     }
     
@@ -1134,7 +1134,7 @@
     }
     
     .rbf-people-selector input {
-        height: 52px;
+        min-height: 52px;
         font-size: 20px;
     }
 }
@@ -1635,7 +1635,7 @@
     padding: 8px;
     text-decoration: none;
     border-radius: 4px;
-    z-index: 9999;
+    z-index: 1001;
     transition: top 0.2s;
 }
 
@@ -1973,7 +1973,7 @@
     right: 0;
     bottom: 0;
     background: rgba(0, 0, 0, 0.6);
-    z-index: 100000;
+    z-index: 9999;
     display: flex;
     align-items: center;
     justify-content: center;
