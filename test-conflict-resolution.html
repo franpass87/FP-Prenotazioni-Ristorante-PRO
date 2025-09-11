@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test: Risoluzione Conflitti Flatpickr</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .rbf-simple-date-picker {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin: 10px 0;
+        }
+        .rbf-simple-date-picker select,
+        .rbf-simple-date-picker input {
+            padding: 8px 12px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .rbf-date-separator {
+            font-weight: bold;
+            color: #666;
+        }
+        .hidden-date-input {
+            position: absolute;
+            left: -9999px;
+            opacity: 0;
+        }
+        .test-result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🔧 Test: Risoluzione Conflitti Flatpickr</h1>
+        <p><strong>Problema:</strong> Il main branch ha aggiunto un event listener che chiama <code>fp.open()</code>, ma il nostro simple date picker ha rimosso Flatpickr.</p>
+        
+        <div class="test-section">
+            <h2>📅 Simple Date Picker</h2>
+            <p>Clicca sul campo nascosto o sui dropdown per testare il focus:</p>
+            
+            <!-- Hidden input (like the original implementation) -->
+            <input type="text" id="rbf-date" class="hidden-date-input" placeholder="Clicca per selezionare una data" required>
+            
+            <!-- Simple date picker dropdowns -->
+            <div class="rbf-simple-date-picker">
+                <select id="rbf-date-day" required aria-label="Giorno">
+                    <option value="">Giorno</option>
+                    <!-- Days 1-31 -->
+                </select>
+                <span class="rbf-date-separator">/</span>
+                <select id="rbf-date-month" required aria-label="Mese">
+                    <option value="">Mese</option>
+                    <option value="1">Gennaio</option>
+                    <option value="2">Febbraio</option>
+                    <option value="3">Marzo</option>
+                    <option value="4">Aprile</option>
+                    <option value="5">Maggio</option>
+                    <option value="6">Giugno</option>
+                    <option value="7">Luglio</option>
+                    <option value="8">Agosto</option>
+                    <option value="9">Settembre</option>
+                    <option value="10">Ottobre</option>
+                    <option value="11">Novembre</option>
+                    <option value="12">Dicembre</option>
+                </select>
+                <span class="rbf-date-separator">/</span>
+                <input type="number" id="rbf-date-year" placeholder="Anno" min="2024" max="2030" required aria-label="Anno">
+            </div>
+            
+            <div id="test-results"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>🧪 Test Funzionalità</h2>
+            <button onclick="testFocusEvent()">Test Focus Event</button>
+            <button onclick="testDatePickerInit()">Test Date Picker Init</button>
+            <button onclick="testResetSteps()">Test Reset Steps</button>
+            <div id="functionality-results"></div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        // Simulate rbfData object
+        window.rbfData = {
+            ajaxUrl: '/wp-admin/admin-ajax.php',
+            nonce: 'test123',
+            minAdvanceMinutes: 120
+        };
+
+        // Simulate console logger
+        window.rbfLog = {
+            log: console.log,
+            error: console.error,
+            warn: console.warn
+        };
+
+        // Simple date picker variables (adapted from main branch)
+        let datePickerInitPromise = null;
+
+        // Fill day options
+        $(function() {
+            const daySelect = $('#rbf-date-day');
+            for (let i = 1; i <= 31; i++) {
+                daySelect.append(`<option value="${i}">${i}</option>`);
+            }
+        });
+
+        // Simulate the lazyLoadDatePicker function from our implementation
+        function lazyLoadDatePicker() {
+            // If already initialized, return resolved promise
+            if ($('#rbf-date-day').length) return Promise.resolve();
+            if (datePickerInitPromise) return datePickerInitPromise;
+
+            datePickerInitPromise = new Promise((resolve) => {
+                // Small delay to ensure DOM is ready
+                setTimeout(() => {
+                    initializeSimpleDatePicker();
+                    resolve();
+                    datePickerInitPromise = null;
+                }, 50);
+            });
+
+            return datePickerInitPromise;
+        }
+
+        // Simulate initializeSimpleDatePicker
+        function initializeSimpleDatePicker() {
+            console.log('✅ Simple date picker initialized');
+            $('#test-results').append('<div class="test-result success">Simple date picker initialized successfully</div>');
+        }
+
+        // Implement the focus event listener (adapted from main branch)
+        $(function() {
+            // This is the adapted version from main branch
+            $('#rbf-date').on('focus click', () => {
+                console.log('🎯 Date input focused/clicked');
+                lazyLoadDatePicker().then(() => {
+                    // Focus the day dropdown instead of opening Flatpickr calendar
+                    const daySelect = $('#rbf-date-day');
+                    if (daySelect.length) {
+                        daySelect.focus();
+                        $('#test-results').append('<div class="test-result success">Day dropdown focused successfully</div>');
+                    }
+                });
+            });
+        });
+
+        // Test functions
+        function testFocusEvent() {
+            $('#functionality-results').append('<div class="test-result info">Testing focus event...</div>');
+            $('#rbf-date').trigger('focus');
+        }
+
+        function testDatePickerInit() {
+            $('#functionality-results').append('<div class="test-result info">Testing date picker initialization...</div>');
+            lazyLoadDatePicker().then(() => {
+                $('#functionality-results').append('<div class="test-result success">Date picker initialization completed</div>');
+            });
+        }
+
+        function testResetSteps() {
+            $('#functionality-results').append('<div class="test-result info">Testing reset functionality...</div>');
+            // Simulate reset
+            $('#rbf-date-day').val('');
+            $('#rbf-date-month').val('');
+            $('#rbf-date-year').val('');
+            $('#rbf-date').val('');
+            datePickerInitPromise = null;
+            $('#functionality-results').append('<div class="test-result success">Reset completed successfully</div>');
+        }
+    </script>
+</body>
+</html>

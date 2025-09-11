@@ -56,6 +56,7 @@ jQuery(function($) {
 
   // Simple date picker - no longer using Flatpickr
   // let fp = null; // Removed - no longer needed
+  let datePickerInitPromise = null; // Track initialization promise to prevent multiple inits
   let iti = null;
   let currentStep = 1;
   let stepTimeouts = new Map(); // Track timeouts for each step element
@@ -345,13 +346,20 @@ jQuery(function($) {
    * Initialize simple date picker (replaces Flatpickr due to issues)
    */
   function lazyLoadDatePicker() {
-    return new Promise((resolve) => {
+    // If already initialized, return resolved promise
+    if ($('#rbf-date-day').length) return Promise.resolve();
+    if (datePickerInitPromise) return datePickerInitPromise;
+
+    datePickerInitPromise = new Promise((resolve) => {
       // Small delay to ensure DOM is ready
       setTimeout(() => {
         initializeSimpleDatePicker();
         resolve();
+        datePickerInitPromise = null;
       }, 50);
     });
+
+    return datePickerInitPromise;
   }
 
   /**
@@ -1196,6 +1204,7 @@ jQuery(function($) {
       $('#rbf-date-year').val('');
       el.dateInput.val('');
       hideDateError();
+      datePickerInitPromise = null; // Reset initialization promise
     }
     if (fromStep <= 2) hideStep(el.timeStep);
     if (fromStep <= 3) hideStep(el.peopleStep);
@@ -2405,6 +2414,17 @@ jQuery(function($) {
       document.getElementById('rbf_referrer').value = document.referrer || '';
     }
   })();
+
+  // Ensure date picker is focused when date field gains focus or is clicked
+  el.dateInput.on('focus click', () => {
+    lazyLoadDatePicker().then(() => {
+      // Focus the day dropdown instead of opening Flatpickr calendar
+      const daySelect = $('#rbf-date-day');
+      if (daySelect.length) {
+        daySelect.focus();
+      }
+    });
+  });
 
   // Initialize autosave functionality
   initializeAutosave();
