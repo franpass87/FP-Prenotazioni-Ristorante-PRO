@@ -550,7 +550,6 @@ jQuery(function($) {
       },
       onSelect: function(date) {
         onDateChange([date]);
-        this.hide();
       }
     };
 
@@ -1879,10 +1878,7 @@ jQuery(function($) {
 
     // Restore focus when closing dropdowns
     $(document).on('click', function(e) {
-      if (!$(e.target).closest('.iti, .pika-single, #rbf-date').length && lastFocusedElement) {
-        if (fp) {
-          fp.hide();
-        }
+      if (!$(e.target).closest('.iti').length && lastFocusedElement) {
         // Country dropdown closed
         if ($('.iti__country-list:visible').length === 0) {
           setTimeout(() => {
