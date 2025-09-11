@@ -1663,7 +1663,7 @@
     color: white;
 }
 
-/* Enhanced calendar accessibility */
+/* Enhanced calendar accessibility and navigation */
 .flatpickr-day:focus {
     outline: var(--rbf-focus-outline) !important;
     outline-offset: 2px !important;
@@ -1672,6 +1672,36 @@
 
 .flatpickr-day[tabindex="0"] {
     cursor: pointer;
+}
+
+/* Ensure calendar navigation is always clickable */
+.flatpickr-calendar .flatpickr-months,
+.flatpickr-calendar .flatpickr-prev-month,
+.flatpickr-calendar .flatpickr-next-month,
+.flatpickr-calendar .flatpickr-current-month,
+.flatpickr-calendar .flatpickr-monthDropdown-months,
+.flatpickr-calendar .numInputWrapper {
+    pointer-events: auto !important;
+}
+
+/* Ensure month dropdown stays open and is clickable */
+.flatpickr-calendar .flatpickr-monthDropdown-months {
+    z-index: 1001 !important;
+}
+
+.flatpickr-calendar .flatpickr-monthDropdown-months option {
+    pointer-events: auto !important;
+}
+
+/* Ensure calendar days are always clickable when not disabled */
+.flatpickr-calendar .flatpickr-day:not(.flatpickr-disabled) {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+}
+
+/* Fix calendar container pointer events */
+.flatpickr-calendar {
+    pointer-events: auto !important;
 }
 
 /* Progress indicator accessibility */

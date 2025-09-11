@@ -301,7 +301,7 @@ jQuery(function($) {
   }
 
   /**
-   * Remove skeleton and show actual content with fade-in
+   * Remove skeleton and show actual content with fade-in, ensuring full interactivity
    */
   function removeSkeleton($step) {
     const $skeletonElements = $step.find('[aria-hidden="true"]');
@@ -309,29 +309,51 @@ jQuery(function($) {
     
     $step.attr('data-skeleton', 'false');
     
+    // Remove any loading classes that might prevent interaction
+    $step.removeClass('rbf-component-loading');
+    $contentElements.removeClass('rbf-component-loading');
+    
     // Hide skeleton with fade out
     $skeletonElements.fadeOut(200, function() {
       // Show content with fade in
       $contentElements.addClass('loaded');
+      
+      // Ensure calendar is fully interactive for date step
+      if ($step.attr('id') === 'step-date') {
+        setTimeout(() => {
+          // Remove any remaining pointer-events restrictions
+          $step.css('pointer-events', 'auto');
+          $contentElements.css('pointer-events', 'auto');
+          
+          // If flatpickr exists, ensure its calendar is interactive
+          if (fp && fp.calendarContainer) {
+            fp.calendarContainer.style.pointerEvents = 'auto';
+            const days = fp.calendarContainer.querySelectorAll('.flatpickr-day:not(.flatpickr-disabled)');
+            days.forEach(day => {
+              day.style.pointerEvents = 'auto';
+              day.setAttribute('tabindex', '0');
+            });
+          }
+          
+          rbfLog.log('Calendar skeleton removed and interactivity enabled');
+        }, 100);
+      }
     });
   }
 
   /**
-   * Lazy load flatpickr when date step is shown
+   * Initialize flatpickr calendar (no lazy loading since it's enqueued as dependency)
    */
   function lazyLoadDatePicker() {
     return new Promise((resolve) => {
-      if (typeof flatpickr === 'undefined') {
-        // If flatpickr is not loaded, try to load it
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/flatpickr';
-        script.onload = () => {
+      // Small delay to ensure DOM is ready and flatpickr is available
+      setTimeout(() => {
+        if (typeof flatpickr !== 'undefined') {
           initializeFlatpickr();
           resolve();
-        };
-        script.onerror = () => {
-          rbfLog.warn('Could not load flatpickr, falling back to basic date input');
-          // Ensure the date input still works with basic HTML5 date picker
+        } else {
+          rbfLog.error('Flatpickr not available despite being enqueued');
+          // Fallback to basic HTML5 date input
           if (el.dateInput.length) {
             el.dateInput.attr('type', 'date');
             const today = new Date();
@@ -339,12 +361,8 @@ jQuery(function($) {
             el.dateInput.attr('min', minDate.toISOString().split('T')[0]);
           }
           resolve();
-        };
-        document.head.appendChild(script);
-      } else {
-        initializeFlatpickr();
-        resolve();
-      }
+        }
+      }, 50);
     });
   }
 
@@ -479,7 +497,7 @@ jQuery(function($) {
   }
 
   /**
-   * Initialize flatpickr after lazy loading
+   * Initialize flatpickr after ensuring it's loaded
    */
   function initializeFlatpickr() {
     const selectedMeal = el.mealRadios.filter(':checked').val();
@@ -490,6 +508,15 @@ jQuery(function($) {
       dateFormat: 'Y-m-d',
       minDate: new Date(new Date().getTime() + rbfData.minAdvanceMinutes * 60 * 1000),
       locale: (rbfData.locale === 'it') ? 'it' : 'default',
+      // Enable month/year selection dropdown
+      enableTime: false,
+      noCalendar: false,
+      // Allow month dropdown to stay open
+      static: false,
+      // Ensure calendar stays open when navigating months
+      inline: false,
+      // Enable month/year dropdowns for better navigation
+      showMonths: 1,
       disable: [function(date) {
         const day = date.getDay();
         
@@ -531,8 +558,49 @@ jQuery(function($) {
         return false;
       }],
       onChange: onDateChange,
+      onOpen: function(selectedDates, dateStr, instance) {
+        // Ensure calendar is fully interactive when opened
+        const calendar = instance.calendarContainer;
+        if (calendar) {
+          calendar.style.pointerEvents = 'auto';
+          // Make sure all day elements are clickable
+          const days = calendar.querySelectorAll('.flatpickr-day');
+          days.forEach(day => {
+            if (!day.classList.contains('flatpickr-disabled')) {
+              day.style.pointerEvents = 'auto';
+              day.setAttribute('tabindex', '0');
+            }
+          });
+        }
+      },
+      onReady: function(selectedDates, dateStr, instance) {
+        // Ensure calendar is fully interactive after ready
+        const calendar = instance.calendarContainer;
+        if (calendar) {
+          calendar.style.pointerEvents = 'auto';
+          // Enable month navigation
+          const monthDropdown = calendar.querySelector('.flatpickr-monthDropdown-months');
+          const yearDropdown = calendar.querySelector('.numInputWrapper');
+          const prevMonthNav = calendar.querySelector('.flatpickr-prev-month');
+          const nextMonthNav = calendar.querySelector('.flatpickr-next-month');
+          
+          [monthDropdown, yearDropdown, prevMonthNav, nextMonthNav].forEach(el => {
+            if (el) {
+              el.style.pointerEvents = 'auto';
+            }
+          });
+        }
+        
+        rbfLog.log('Flatpickr calendar initialized and ready');
+      },
       onDayCreate: function(dObj, dStr, fp, dayElem) {
         const dateStr = formatLocalISO(dayElem.dateObj);
+        
+        // Ensure day is clickable if not disabled
+        if (!dayElem.classList.contains('flatpickr-disabled')) {
+          dayElem.style.pointerEvents = 'auto';
+          dayElem.setAttribute('tabindex', '0');
+        }
         
         // Add availability coloring
         if (availabilityData[dateStr]) {
@@ -567,6 +635,7 @@ jQuery(function($) {
                 border-radius: 50%;
                 background: ${style.background};
                 z-index: 1;
+                pointer-events: none;
               `;
               
               if (!exception.description) {
@@ -604,7 +673,16 @@ jQuery(function($) {
       flatpickrConfig.maxDate = new Date(new Date().getTime() + rbfData.maxAdvanceMinutes * 60 * 1000);
     }
     
+    // Destroy existing instance if it exists
+    if (fp) {
+      fp.destroy();
+      fp = null;
+    }
+    
     fp = flatpickr(el.dateInput[0], flatpickrConfig);
+    
+    // Ensure the input is not stuck in loading state
+    el.dateInput.removeClass('rbf-component-loading');
     
     // Fetch initial availability data for current month
     if (selectedMeal) {
@@ -628,6 +706,8 @@ jQuery(function($) {
     if (rbfData.exceptions && rbfData.exceptions.length > 0) {
       $('.rbf-exception-legend').show();
     }
+    
+    rbfLog.log('Flatpickr instance created successfully');
   }
 
   /**
@@ -738,6 +818,31 @@ jQuery(function($) {
         setTimeout(() => {
           lazyLoadDatePicker().then(() => {
             removeSkeleton($step);
+            // Extra safety check to ensure calendar is interactive
+            setTimeout(() => {
+              if (fp && fp.calendarContainer) {
+                // Force enable all calendar interactions
+                fp.calendarContainer.style.pointerEvents = 'auto';
+                fp.calendarContainer.classList.remove('rbf-component-loading');
+                
+                // Enable all navigation elements
+                const navElements = fp.calendarContainer.querySelectorAll(
+                  '.flatpickr-prev-month, .flatpickr-next-month, .flatpickr-monthDropdown-months, .numInputWrapper'
+                );
+                navElements.forEach(el => {
+                  el.style.pointerEvents = 'auto';
+                });
+                
+                // Enable all non-disabled days
+                const days = fp.calendarContainer.querySelectorAll('.flatpickr-day:not(.flatpickr-disabled)');
+                days.forEach(day => {
+                  day.style.pointerEvents = 'auto';
+                  day.setAttribute('tabindex', '0');
+                });
+                
+                rbfLog.log('Calendar fully enabled and interactive');
+              }
+            }, 200);
           });
         }, 100);
       } else if (stepId === 'step-time' && $step.attr('data-skeleton') === 'true') {
