@@ -1458,19 +1458,19 @@
 }
 
 /* Enhanced calendar day styling for exceptions */
-.flatpickr-day.has-exception-special {
+.pika-day.has-exception-special {
     background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%) !important;
     color: white !important;
     border-color: #20c997 !important;
 }
 
-.flatpickr-day.has-exception-extended {
+.pika-day.has-exception-extended {
     background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%) !important;
     color: white !important;
     border-color: #0d6efd !important;
 }
 
-.flatpickr-day.has-exception-holiday {
+.pika-day.has-exception-holiday {
     background: linear-gradient(135deg, #fd7e14 0%, #e55a00 100%) !important;
     color: white !important;
     border-color: #fd7e14 !important;
@@ -1501,17 +1501,17 @@
 }
 
 /* Calendar availability colors */
-.flatpickr-day.rbf-availability-available {
+.pika-day.rbf-availability-available {
     background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%) !important;
     border-left: 3px solid #28a745 !important;
 }
 
-.flatpickr-day.rbf-availability-limited {
+.pika-day.rbf-availability-limited {
     background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%) !important;
     border-left: 3px solid #ffc107 !important;
 }
 
-.flatpickr-day.rbf-availability-full {
+.pika-day.rbf-availability-full {
     background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%) !important;
     border-left: 3px solid #dc3545 !important;
 }
@@ -1663,71 +1663,71 @@
 }
 
 /* Enhanced calendar accessibility and navigation */
-.flatpickr-day:focus {
+.pika-day:focus {
     outline: var(--rbf-focus-outline) !important;
     outline-offset: 2px !important;
     z-index: 1 !important;
 }
 
-.flatpickr-day[tabindex="0"] {
+.pika-day[tabindex="0"] {
     cursor: pointer;
 }
 
 /* Ensure calendar navigation is always clickable - but let month dropdown handle itself */
-.flatpickr-calendar .flatpickr-months,
-.flatpickr-calendar .flatpickr-prev-month,
-.flatpickr-calendar .flatpickr-next-month,
-.flatpickr-calendar .flatpickr-current-month,
-.flatpickr-calendar .numInputWrapper {
+.pika-single .pika-title,
+.pika-single .pika-prev,
+.pika-single .pika-next,
+.pika-single .pika-label,
+.pika-single .pika-select-year {
     pointer-events: auto !important;
 }
 
 /* Allow month dropdown to handle its own events naturally */
-.flatpickr-calendar .flatpickr-monthDropdown-months {
-    /* Remove aggressive pointer-events override - let flatpickr handle it */
-    z-index: auto; /* Let flatpickr control stacking */
+.pika-single .pika-select-month {
+    /* Remove aggressive pointer-events override - let Pikaday handle it */
+    z-index: auto; /* Let Pikaday control stacking */
 }
 
 /* Ensure calendar days are always clickable when not disabled */
-.flatpickr-calendar .flatpickr-day:not(.flatpickr-disabled) {
+.pika-single .pika-day:not(.is-disabled) {
     pointer-events: auto !important;
     cursor: pointer !important;
 }
 
 /* Fix calendar container pointer events */
-.flatpickr-calendar {
+.pika-single {
     pointer-events: auto !important;
     z-index: 1050 !important; /* Lower z-index to avoid dropdown conflicts */
 }
 
 /* Ensure calendar never gets loading class that blocks interactions */
-.flatpickr-calendar.rbf-component-loading {
+.pika-single.rbf-component-loading {
     pointer-events: auto !important;
 }
 
-.flatpickr-calendar .rbf-loading-overlay {
+.pika-single .rbf-loading-overlay {
     display: none !important; /* Never show loading overlay on calendar */
 }
 
 /* Calendar day colors - use primary color instead of secondary */
-.flatpickr-day.today {
+.pika-day.today {
     background: var(--rbf-primary) !important;
     border-color: var(--rbf-primary) !important;
     color: white !important;
 }
 
-.flatpickr-day.selected {
+.pika-day.selected {
     background: var(--rbf-primary) !important;
     border-color: var(--rbf-primary) !important;
     color: white !important;
 }
 
-.flatpickr-day.selected:hover {
+.pika-day.selected:hover {
     background: var(--rbf-primary-dark) !important;
     border-color: var(--rbf-primary-dark) !important;
 }
 
-.flatpickr-day:hover {
+.pika-day:hover {
     background: var(--rbf-primary-light) !important;
     border-color: var(--rbf-primary-light) !important;
     color: white !important;
@@ -1942,19 +1942,19 @@
 }
 
 /* Calendar exception indicators with better contrast */
-.flatpickr-day.has-exception-special {
+.pika-day.has-exception-special {
     background: linear-gradient(135deg, #004085 0%, #003366 100%) !important;
     color: white !important;
     border-color: #004085 !important;
 }
 
-.flatpickr-day.has-exception-extended {
+.pika-day.has-exception-extended {
     background: linear-gradient(135deg, #0056b3 0%, #004085 100%) !important;
     color: white !important;
     border-color: #0056b3 !important;
 }
 
-.flatpickr-day.has-exception-holiday {
+.pika-day.has-exception-holiday {
     background: linear-gradient(135deg, #b8860b 0%, #996f0b 100%) !important;
     color: white !important;
     border-color: #b8860b !important;

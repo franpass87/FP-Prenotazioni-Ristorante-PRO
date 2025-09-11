@@ -325,10 +325,10 @@ jQuery(function($) {
           $step.css('pointer-events', 'auto');
           $contentElements.css('pointer-events', 'auto');
           
-          // If flatpickr exists, ensure its calendar is interactive
-          if (fp && fp.calendarContainer) {
-            fp.calendarContainer.style.pointerEvents = 'auto';
-            const days = fp.calendarContainer.querySelectorAll('.flatpickr-day:not(.flatpickr-disabled)');
+          // If date picker exists, ensure its calendar is interactive
+          if (fp && fp.el) {
+            fp.el.style.pointerEvents = 'auto';
+            const days = fp.el.querySelectorAll('.pika-day:not(.is-disabled)');
             days.forEach(day => {
               day.style.pointerEvents = 'auto';
               day.setAttribute('tabindex', '0');
@@ -342,17 +342,17 @@ jQuery(function($) {
   }
 
   /**
-   * Initialize flatpickr calendar (no lazy loading since it's enqueued as dependency)
+   * Initialize Pikaday calendar (no lazy loading since it's enqueued as dependency)
    */
   function lazyLoadDatePicker() {
     return new Promise((resolve) => {
-      // Small delay to ensure DOM is ready and flatpickr is available
+      // Small delay to ensure DOM is ready and Pikaday is available
       setTimeout(() => {
-        if (typeof flatpickr !== 'undefined') {
-          initializeFlatpickr();
+        if (typeof Pikaday !== 'undefined') {
+          initializePikaday();
           resolve();
         } else {
-          rbfLog.error('Flatpickr not available despite being enqueued');
+          rbfLog.error('Pikaday not available despite being enqueued');
           // Fallback to basic HTML5 date input
           if (el.dateInput.length) {
             el.dateInput.attr('type', 'date');
@@ -497,243 +497,80 @@ jQuery(function($) {
   }
 
   /**
-   * Initialize flatpickr after ensuring it's loaded
+   * Initialize Pikaday after ensuring it's loaded
    */
-  function initializeFlatpickr() {
+  function initializePikaday() {
     const selectedMeal = el.mealRadios.filter(':checked').val();
-    
-    const flatpickrConfig = {
-      altInput: true,
-      altFormat: 'd-m-Y',
-      dateFormat: 'Y-m-d',
+
+    const i18n = (rbfData.locale === 'it') ? {
+      previousMonth: 'Mese precedente',
+      nextMonth: 'Mese successivo',
+      months: ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'],
+      weekdays: ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'],
+      weekdaysShort: ['Dom','Lun','Mar','Mer','Gio','Ven','Sab']
+    } : undefined;
+
+    const pickerConfig = {
+      field: el.dateInput[0],
+      format: 'YYYY-MM-DD',
       minDate: new Date(new Date().getTime() + rbfData.minAdvanceMinutes * 60 * 1000),
-      locale: (rbfData.locale === 'it') ? 'it' : 'default',
-      // Enable month/year selection dropdown
-      enableTime: false,
-      noCalendar: false,
-      // Allow month dropdown to stay open
-      static: false,
-      // Ensure calendar stays open when navigating months
-      inline: false,
-      // Enable month/year dropdowns for better navigation
-      showMonths: 1,
-      disable: [function(date) {
+      i18n: i18n,
+      disableDayFn: function(date) {
         const day = date.getDay();
-        
-        // Convert JavaScript day (0=Sunday, 1=Monday...) to our day key format
         const dayMapping = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
         const dayKey = dayMapping[day];
         const dateStr = formatLocalISO(date);
-        
-        // Check if this meal is available on this day
+
         if (rbfData.mealAvailability && rbfData.mealAvailability[selectedMeal]) {
           const availableDays = rbfData.mealAvailability[selectedMeal];
           if (!availableDays.includes(dayKey)) {
-            return true; // Disable this day for this meal
+            return true;
           }
         }
-        
-        // Check for exceptions first
+
         if (rbfData.exceptions) {
           for (let exception of rbfData.exceptions) {
             if (exception.date === dateStr) {
-              // Only disable if it's a closure or holiday
               if (exception.type === 'closure' || exception.type === 'holiday') {
                 return true;
               }
-              // Special events and extended hours are allowed
               if (exception.type === 'special' || exception.type === 'extended') {
                 return false;
               }
             }
           }
         }
-        
-        // Apply regular closed day/date logic
+
         if (rbfData.closedDays.includes(day)) return true;
         if (rbfData.closedSingles.includes(dateStr)) return true;
         for (let range of rbfData.closedRanges) {
           if (dateStr >= range.from && dateStr <= range.to) return true;
         }
         return false;
-      }],
-      onChange: onDateChange,
-      onOpen: function(selectedDates, dateStr, instance) {
-        // Ensure calendar is fully interactive when opened
-        const calendar = instance.calendarContainer;
-        if (calendar) {
-          calendar.style.pointerEvents = 'auto';
-          calendar.classList.remove('rbf-component-loading'); // Remove any loading class
-          
-          // Make sure all day elements are clickable
-          const days = calendar.querySelectorAll('.flatpickr-day');
-          days.forEach(day => {
-            if (!day.classList.contains('flatpickr-disabled')) {
-              day.style.pointerEvents = 'auto';
-              day.setAttribute('tabindex', '0');
-              day.style.cursor = 'pointer';
-            }
-          });
-          
-          // Ensure calendar stays above any loading overlays
-          calendar.style.zIndex = '1050';
-        }
       },
-      onReady: function(selectedDates, dateStr, instance) {
-        // Ensure calendar is fully interactive after ready
-        const calendar = instance.calendarContainer;
-        if (calendar) {
-          calendar.style.pointerEvents = 'auto';
-          calendar.classList.remove('rbf-component-loading'); // Remove any loading class
-          calendar.style.zIndex = '1050'; // Lower z-index to avoid dropdown conflicts
-          
-          // Enable navigation but let month dropdown handle itself
-          const monthDropdown = calendar.querySelector('.flatpickr-monthDropdown-months');
-          const yearDropdown = calendar.querySelector('.numInputWrapper');
-          const prevMonthNav = calendar.querySelector('.flatpickr-prev-month');
-          const nextMonthNav = calendar.querySelector('.flatpickr-next-month');
-          
-          // Only set pointer-events for non-dropdown navigation
-          [yearDropdown, prevMonthNav, nextMonthNav].forEach(el => {
-            if (el) {
-              el.style.pointerEvents = 'auto';
-            }
-          });
-          
-          // For month dropdown, just ensure no loading class interferes
-          if (monthDropdown) {
-            monthDropdown.classList.remove('rbf-component-loading');
-            // Don't override pointer-events - let flatpickr handle it
-          }
-        }
-        
-        rbfLog.log('Flatpickr calendar initialized and ready');
-      },
-      onDayCreate: function(dObj, dStr, fp, dayElem) {
-        const dateStr = formatLocalISO(dayElem.dateObj);
-        
-        // Ensure day is clickable if not disabled
-        if (!dayElem.classList.contains('flatpickr-disabled')) {
-          dayElem.style.pointerEvents = 'auto';
-          dayElem.setAttribute('tabindex', '0');
-          dayElem.style.cursor = 'pointer';
-          // Prevent any loading classes from affecting calendar days
-          dayElem.classList.remove('rbf-component-loading');
-        }
-        
-        // Add availability coloring
-        if (availabilityData[dateStr]) {
-          const status = availabilityData[dateStr];
-          dayElem.classList.add('rbf-availability-' + status.level);
-          addAvailabilityTooltip(dayElem, status);
-        }
-        
-        // Check for exceptions and add visual indicators
-        if (rbfData.exceptions) {
-          for (let exception of rbfData.exceptions) {
-            if (exception.date === dateStr) {
-              const indicator = document.createElement('div');
-              indicator.className = 'rbf-exception-indicator rbf-exception-' + exception.type;
-              indicator.title = exception.description || exception.type;
-              
-              // Style the indicator based on exception type
-              const styles = {
-                'special': { background: '#20c997', title: 'Evento Speciale' },
-                'extended': { background: '#0d6efd', title: 'Orari Estesi' },
-                'holiday': { background: '#fd7e14', title: 'Festività' },
-                'closure': { background: '#dc3545', title: 'Chiusura' }
-              };
-              
-              const style = styles[exception.type] || styles.closure;
-              indicator.style.cssText = `
-                position: absolute;
-                top: 2px;
-                right: 2px;
-                width: 6px;
-                height: 6px;
-                border-radius: 50%;
-                background: ${style.background};
-                z-index: 1;
-                pointer-events: none;
-              `;
-              
-              if (!exception.description) {
-                indicator.title = rbfData.labels[style.title] || style.title;
-              }
-              
-              dayElem.style.position = 'relative';
-              dayElem.appendChild(indicator);
-              break;
-            }
-          }
-        }
-      },
-      onMonthChange: function(selectedDates, dateStr, instance) {
-        // Fetch availability data when month changes
-        const selectedMeal = el.mealRadios.filter(':checked').val();
-        if (selectedMeal) {
-          const viewDate = instance.currentMonth;
-          const startDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
-          const endDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
-          
-          fetchAvailabilityData(
-            formatLocalISO(startDate),
-            formatLocalISO(endDate),
-            selectedMeal
-          ).then(() => {
-            // Redraw calendar to apply new availability colors
-            instance.redraw();
-          });
-        }
+      onSelect: function(date) {
+        onDateChange([date]);
       }
     };
-    
+
     if (rbfData.maxAdvanceMinutes > 0) {
-      flatpickrConfig.maxDate = new Date(new Date().getTime() + rbfData.maxAdvanceMinutes * 60 * 1000);
+      pickerConfig.maxDate = new Date(new Date().getTime() + rbfData.maxAdvanceMinutes * 60 * 1000);
     }
-    
-    // Destroy existing instance if it exists
+
     if (fp) {
       fp.destroy();
       fp = null;
     }
-    
-    fp = flatpickr(el.dateInput[0], flatpickrConfig);
-    
-    // Ensure the input and calendar are never stuck in loading state
+
+    fp = new Pikaday(pickerConfig);
+
     el.dateInput.removeClass('rbf-component-loading');
-    
-    // Additional safety - ensure calendar container is never affected by loading overlays
-    if (fp && fp.calendarContainer) {
-      fp.calendarContainer.classList.remove('rbf-component-loading');
-      fp.calendarContainer.style.pointerEvents = 'auto';
-      fp.calendarContainer.style.zIndex = '1050'; // Lower z-index to avoid dropdown conflicts
-    }
-    
-    // Fetch initial availability data for current month
-    if (selectedMeal) {
-      const now = new Date();
-      const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-      const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      
-      fetchAvailabilityData(
-        formatLocalISO(startDate),
-        formatLocalISO(endDate),
-        selectedMeal
-      ).then(() => {
-        // Redraw calendar to apply availability colors
-        if (fp) {
-          fp.redraw();
-        }
-      });
-    }
-    
-    // Show exception legend if there are exceptions
+
     if (rbfData.exceptions && rbfData.exceptions.length > 0) {
       $('.rbf-exception-legend').show();
     }
-    
-    rbfLog.log('Flatpickr instance created successfully');
+
+    rbfLog.log('Pikaday instance created successfully');
   }
 
   /**
@@ -846,32 +683,32 @@ jQuery(function($) {
             removeSkeleton($step);
             // Extra safety check to ensure calendar is interactive
             setTimeout(() => {
-              if (fp && fp.calendarContainer) {
+              if (fp && fp.el) {
                 // Force enable all calendar interactions
-                fp.calendarContainer.style.pointerEvents = 'auto';
-                fp.calendarContainer.classList.remove('rbf-component-loading');
-                
+                fp.el.style.pointerEvents = 'auto';
+                fp.el.classList.remove('rbf-component-loading');
+
                 // Enable navigation elements but handle month dropdown carefully
-                const navElements = fp.calendarContainer.querySelectorAll(
-                  '.flatpickr-prev-month, .flatpickr-next-month, .numInputWrapper'
+                const navElements = fp.el.querySelectorAll(
+                  '.pika-prev, .pika-next, .pika-select-year'
                 );
                 navElements.forEach(el => {
                   el.style.pointerEvents = 'auto';
                 });
-                
+
                 // For month dropdown, just remove loading class without overriding pointer-events
-                const monthDropdown = fp.calendarContainer.querySelector('.flatpickr-monthDropdown-months');
+                const monthDropdown = fp.el.querySelector('.pika-select-month');
                 if (monthDropdown) {
                   monthDropdown.classList.remove('rbf-component-loading');
                 }
-                
+
                 // Enable all non-disabled days
-                const days = fp.calendarContainer.querySelectorAll('.flatpickr-day:not(.flatpickr-disabled)');
+                const days = fp.el.querySelectorAll('.pika-day:not(.is-disabled)');
                 days.forEach(day => {
                   day.style.pointerEvents = 'auto';
                   day.setAttribute('tabindex', '0');
                 });
-                
+
                 rbfLog.log('Calendar fully enabled and interactive');
               }
             }, 200);
@@ -1151,10 +988,10 @@ jQuery(function($) {
   function resetSteps(fromStep) {
     if (fromStep <= 1) {
       hideStep(el.dateStep);
-      if (fp) { 
-        fp.clear(); 
-        fp.destroy(); 
-        fp = null; 
+      if (fp) {
+        fp.setDate(null);
+        fp.destroy();
+        fp = null;
       }
     }
     if (fromStep <= 2) hideStep(el.timeStep);
@@ -1187,19 +1024,19 @@ jQuery(function($) {
     }
     
     // Show date step for any meal selection
-    // The flatpickr will be lazy loaded when the step is shown
+    // The date picker will be lazy loaded when the step is shown
     showStep(el.dateStep, 2);
     
-    // Initialize flatpickr immediately after showing the step to fix calendar not reopening
+    // Initialize Pikaday immediately after showing the step to fix calendar not reopening
     setTimeout(() => {
       if (!fp && selectedMeal) {
         lazyLoadDatePicker().then(() => {
           // Update availability data when meal changes
           if (fp && selectedMeal) {
-            const viewDate = fp.currentMonth;
+            const viewDate = new Date(fp.calendars[0].year, fp.calendars[0].month, 1);
             const startDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
             const endDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
-            
+
             fetchAvailabilityData(
               formatLocalISO(startDate),
               formatLocalISO(endDate),
@@ -1207,17 +1044,17 @@ jQuery(function($) {
             ).then(() => {
               // Redraw calendar to apply new availability colors
               if (fp) {
-                fp.redraw();
+                fp.draw();
               }
             });
           }
         });
       } else if (fp && selectedMeal) {
-        // If flatpickr already exists, just update availability
-        const viewDate = fp.currentMonth;
+        // If Pikaday already exists, just update availability
+        const viewDate = new Date(fp.calendars[0].year, fp.calendars[0].month, 1);
         const startDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
         const endDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
-        
+
         fetchAvailabilityData(
           formatLocalISO(startDate),
           formatLocalISO(endDate),
@@ -1225,7 +1062,7 @@ jQuery(function($) {
         ).then(() => {
           // Redraw calendar to apply new availability colors
           if (fp) {
-            fp.redraw();
+            fp.draw();
           }
         });
       }
@@ -1256,12 +1093,12 @@ jQuery(function($) {
     showComponentLoading(el.timeStep[0], rbfData.labels.loading + ' orari...');
     
     // Ensure calendar remains interactive during loading
-    if (fp && fp.calendarContainer) {
-      fp.calendarContainer.style.pointerEvents = 'auto';
-      fp.calendarContainer.classList.remove('rbf-component-loading');
-      
+    if (fp && fp.el) {
+      fp.el.style.pointerEvents = 'auto';
+      fp.el.classList.remove('rbf-component-loading');
+
       // Ensure calendar days remain clickable
-      const calendarDays = fp.calendarContainer.querySelectorAll('.flatpickr-day:not(.flatpickr-disabled)');
+      const calendarDays = fp.el.querySelectorAll('.pika-day:not(.is-disabled)');
       calendarDays.forEach(day => {
         day.style.pointerEvents = 'auto';
         day.style.cursor = 'pointer';
@@ -1816,7 +1653,7 @@ jQuery(function($) {
         // Close any open tooltips
         $('.rbf-availability-tooltip').remove();
         // Remove focus from date picker if focused
-        if (document.activeElement && document.activeElement.closest('.flatpickr-calendar')) {
+        if (document.activeElement && document.activeElement.closest('.pika-single')) {
           document.activeElement.blur();
         }
         // Close country dropdown if open
@@ -1934,10 +1771,10 @@ jQuery(function($) {
     });
 
     // Calendar keyboard enhancements
-    $(document).on('keydown', '.flatpickr-day[tabindex="0"]', function(e) {
+    $(document).on('keydown', '.pika-day[tabindex="0"]', function(e) {
       const day = $(this);
-      const calendar = day.closest('.flatpickr-calendar');
-      const days = calendar.find('.flatpickr-day[tabindex="0"]');
+      const calendar = day.closest('.pika-single');
+      const days = calendar.find('.pika-day[tabindex="0"]');
       const currentIndex = days.index(this);
       let newIndex = currentIndex;
 
@@ -1977,14 +1814,14 @@ jQuery(function($) {
           e.preventDefault();
           // Previous month
           if (fp) {
-            fp.changeMonth(-1);
+            fp.prevMonth();
           }
           return;
         case 'PageDown':
           e.preventDefault();
           // Next month
           if (fp) {
-            fp.changeMonth(1);
+            fp.nextMonth();
           }
           return;
       }
@@ -2034,7 +1871,7 @@ jQuery(function($) {
     let lastFocusedElement = null;
 
     $(document).on('focus', 'input, select, button, [tabindex]', function() {
-      if (!$(this).closest('.iti__country-list, .flatpickr-calendar').length) {
+      if (!$(this).closest('.iti__country-list, .pika-single').length) {
         lastFocusedElement = this;
       }
     });
@@ -2552,8 +2389,8 @@ jQuery(function($) {
     $('input[name="rbf_meal"][value="' + meal + '"]').prop('checked', true).trigger('change');
     
     // Update date
-    if (window.flatpickrInstance) {
-      window.flatpickrInstance.setDate(date);
+    if (fp) {
+      fp.setDate(new Date(date));
     } else {
       el.dateInput.val(date);
     }
