@@ -70,10 +70,16 @@
             window.dataLayer.push({ event: eventName, ...enhancedParams });
             this.log(`Event pushed to dataLayer: ${eventName}`);
 
-            // Then track via gtag if available
+            // Then track via gtag if available and not in conflicting hybrid mode
             if (typeof gtag === 'function') {
-                gtag('event', eventName, enhancedParams);
-                this.log(`Event sent to gtag: ${eventName}`);
+                // Check if we should avoid direct gtag calls in hybrid GTM mode
+                var isGtmHybrid = typeof rbfGA4Funnel.gtmHybrid !== 'undefined' ? rbfGA4Funnel.gtmHybrid : false;
+                if (!isGtmHybrid || options.forceGtag) {
+                    gtag('event', eventName, enhancedParams);
+                    this.log(`Event sent to gtag: ${eventName}`);
+                } else {
+                    this.log(`Skipping gtag call in GTM hybrid mode: ${eventName}`);
+                }
             }
             
             // Also send to server for Measurement Protocol (if configured)
