@@ -21,10 +21,16 @@ function rbf_enqueue_frontend_assets() {
     $options = rbf_get_settings();
     $locale = rbf_current_lang(); // 'it' o 'en'
 
-    // Pikaday
-    wp_enqueue_style('rbf-pikaday-css', 'https://cdn.jsdelivr.net/npm/pikaday/css/pikaday.css', [], '1.8.2');
-    wp_enqueue_script('rbf-pikaday', 'https://cdn.jsdelivr.net/npm/pikaday/pikaday.js', [], '1.8.2', true);
-    $deps = ['jquery', 'rbf-pikaday'];
+    // Flatpickr
+    wp_enqueue_style('rbf-flatpickr-css', 'https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css', [], '4.6.9');
+    wp_enqueue_script('rbf-flatpickr', 'https://cdn.jsdelivr.net/npm/flatpickr', [], '4.6.9', true);
+    $deps = ['jquery','rbf-flatpickr'];
+
+    // Carica SOLO la locale italiana (EN è default)
+    if ($locale === 'it') {
+        wp_enqueue_script('rbf-flatpickr-locale-it', 'https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/it.js', ['rbf-flatpickr'], '4.6.9', true);
+        $deps[] = 'rbf-flatpickr-locale-it';
+    }
 
     // intl-tel-input - Updated to latest stable version for enhanced flag support and reliability
     wp_enqueue_style('rbf-intl-tel-input-css','https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/19.2.16/css/intlTelInput.css',[], '19.2.16');
@@ -32,7 +38,7 @@ function rbf_enqueue_frontend_assets() {
     $deps[] = 'rbf-intl-tel-input';
 
     // Frontend styles
-    wp_enqueue_style('rbf-frontend-css', plugin_dir_url(dirname(__FILE__)) . 'assets/css/frontend.css', ['rbf-pikaday-css'], rbf_get_asset_version());
+    wp_enqueue_style('rbf-frontend-css', plugin_dir_url(dirname(__FILE__)) . 'assets/css/frontend.css', ['rbf-flatpickr-css'], rbf_get_asset_version());
     
     // Inject brand CSS variables globally
     rbf_inject_brand_css_vars();
