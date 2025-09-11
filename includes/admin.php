@@ -245,7 +245,22 @@ function rbf_sanitize_settings_callback($input) {
         $output['ga4_id'] = $defaults['ga4_id'] ?? '';
     }
 
-    // Special validation for Meta Pixel ID  
+    // Special validation for GTM ID
+    if (isset($input['gtm_id']) && !empty($input['gtm_id'])) {
+        if (preg_match('/^GTM-[A-Z0-9]+$/', $input['gtm_id'])) {
+            $output['gtm_id'] = sanitize_text_field(trim($input['gtm_id']));
+        } else {
+            $output['gtm_id'] = '';
+            add_settings_error('rbf_settings', 'invalid_gtm_id', rbf_translate_string('ID GTM non valido. Deve essere nel formato GTM-XXXXXXX.'));
+        }
+    } else {
+        $output['gtm_id'] = $defaults['gtm_id'] ?? '';
+    }
+
+    // GTM Hybrid flag
+    $output['gtm_hybrid'] = (isset($input['gtm_hybrid']) && $input['gtm_hybrid'] === 'yes') ? 'yes' : 'no';
+
+    // Special validation for Meta Pixel ID
     if (isset($input['meta_pixel_id']) && !empty($input['meta_pixel_id'])) {
         if (ctype_digit($input['meta_pixel_id'])) {
             $output['meta_pixel_id'] = sanitize_text_field(trim($input['meta_pixel_id']));
@@ -917,6 +932,10 @@ function rbf_settings_page_html() {
                     <td><input type="text" id="rbf_ga4_id" name="rbf_settings[ga4_id]" value="<?php echo esc_attr($options['ga4_id']); ?>" class="regular-text" placeholder="G-XXXXXXXXXX"></td></tr>
                 <tr><th><label for="rbf_ga4_api_secret">GA4 API Secret (per invii server-side)</label></th>
                     <td><input type="text" id="rbf_ga4_api_secret" name="rbf_settings[ga4_api_secret]" value="<?php echo esc_attr($options['ga4_api_secret']); ?>" class="regular-text"></td></tr>
+                <tr><th><label for="rbf_gtm_id"><?php echo esc_html(rbf_translate_string('ID GTM')); ?></label></th>
+                    <td><input type="text" id="rbf_gtm_id" name="rbf_settings[gtm_id]" value="<?php echo esc_attr($options['gtm_id']); ?>" class="regular-text" placeholder="GTM-XXXXXXX"></td></tr>
+                <tr><th><label for="rbf_gtm_hybrid"><?php echo esc_html(rbf_translate_string('Modalità ibrida GTM + GA4')); ?></label></th>
+                    <td><input type="checkbox" id="rbf_gtm_hybrid" name="rbf_settings[gtm_hybrid]" value="yes" <?php checked($options['gtm_hybrid'] === 'yes'); ?>></td></tr>
                 <tr><th><label for="rbf_meta_pixel_id"><?php echo esc_html(rbf_translate_string('ID Meta Pixel')); ?></label></th>
                     <td><input type="text" id="rbf_meta_pixel_id" name="rbf_settings[meta_pixel_id]" value="<?php echo esc_attr($options['meta_pixel_id']); ?>" class="regular-text"></td></tr>
                 <tr><th><label for="rbf_meta_access_token">Meta Access Token (per invii server-side)</label></th>

@@ -18,9 +18,28 @@ add_action('wp_footer','rbf_add_tracking_scripts_to_footer');
 function rbf_add_tracking_scripts_to_footer() {
     $options = rbf_get_settings();
     $ga4_id = $options['ga4_id'] ?? '';
+    $gtm_id = $options['gtm_id'] ?? '';
+    $gtm_hybrid = ($options['gtm_hybrid'] ?? '') === 'yes';
     $meta_pixel_id = $options['meta_pixel_id'] ?? '';
 
-    if ($ga4_id) { ?>
+    if ($gtm_hybrid && $gtm_id) {
+        ?>
+        <script>window.dataLayer = window.dataLayer || [];</script>
+        <?php if ($ga4_id) : ?>
+        <script async src="https://www.googletagmanager.com/gtag/js?id=<?php echo esc_attr($ga4_id); ?>"></script>
+        <script>
+            function gtag(){ dataLayer.push(arguments); }
+            gtag('js', new Date());
+            gtag('config', '<?php echo esc_js($ga4_id); ?>', { 'send_page_view': true });
+        </script>
+        <?php endif; ?>
+        <script>
+            (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','<?php echo esc_js($gtm_id); ?>');
+        </script>
+        <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=<?php echo esc_attr($gtm_id); ?>" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+        <?php
+    } elseif ($ga4_id) {
+        ?>
         <script async src="https://www.googletagmanager.com/gtag/js?id=<?php echo esc_attr($ga4_id); ?>"></script>
         <script>
             window.dataLayer = window.dataLayer || [];
@@ -28,7 +47,8 @@ function rbf_add_tracking_scripts_to_footer() {
             gtag('js', new Date());
             gtag('config', '<?php echo esc_js($ga4_id); ?>', { 'send_page_view': true });
         </script>
-    <?php }
+        <?php
+    }
 
     if ($meta_pixel_id) { ?>
         <script>
