@@ -182,13 +182,13 @@ function rbf_add_booking_tracking_script() {
               var bucketStd = <?php echo json_encode($bucketStd); ?>;
               var eventId = <?php echo json_encode($eventId); ?>;
 
-              function rbfTrackEvent(eventName, params) {
+              function rbfTrackEvent(eventName, params, eventId) {
                 window.dataLayer = window.dataLayer || [];
                 // Ensure Google Ads required params exist in dataLayer
-                var data = Object.assign({ event: eventName }, params);
+                var data = Object.assign({ event: eventName }, params, { event_id: eventId });
                 window.dataLayer.push(data);
                 if (typeof gtag === 'function') {
-                  gtag('event', eventName, params);
+                  gtag('event', eventName, Object.assign({}, params, { event_id: eventId }));
                 }
               }
 
@@ -205,7 +205,7 @@ function rbf_add_booking_tracking_script() {
                 }],
                 bucket: bucketStd,
                 vertical: 'restaurant'
-              });
+              }, eventId);
 
               // Evento custom con dettaglio ristorante
               rbfTrackEvent('restaurant_booking', {
@@ -217,7 +217,7 @@ function rbf_add_booking_tracking_script() {
                 meal: meal,
                 people: Number(people || 0),
                 vertical: 'restaurant'
-              });
+              }, eventId);
 
               <?php if ($meta_pixel_id) : ?>
               if (typeof fbq === 'function') {
