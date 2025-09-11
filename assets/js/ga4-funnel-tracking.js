@@ -9,7 +9,7 @@
     'use strict';
     
     // Check if GA4 funnel tracking is enabled and required globals are available
-    if (typeof rbfGA4Funnel === 'undefined' || typeof gtag === 'undefined' || typeof window.dataLayer === 'undefined') {
+    if (typeof rbfGA4Funnel === 'undefined' || typeof window.dataLayer === 'undefined') {
         return;
     }
     
@@ -66,11 +66,9 @@
             
             this.log(`Tracking event: ${eventName}`, enhancedParams);
 
-            // Push to dataLayer first
-            if (Array.isArray(window.dataLayer)) {
-                window.dataLayer.push({ event: eventName, ...enhancedParams });
-                this.log(`Event pushed to dataLayer: ${eventName}`);
-            }
+            // Push to dataLayer (available even if gtag isn't)
+            window.dataLayer.push({ event: eventName, ...enhancedParams });
+            this.log(`Event pushed to dataLayer: ${eventName}`);
 
             // Then track via gtag if available
             if (typeof gtag === 'function') {
