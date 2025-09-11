@@ -8,8 +8,8 @@
 (function($) {
     'use strict';
     
-    // Check if GA4 funnel tracking is enabled
-    if (typeof rbfGA4Funnel === 'undefined' || typeof gtag === 'undefined') {
+    // Check if GA4 funnel tracking is enabled and required globals are available
+    if (typeof rbfGA4Funnel === 'undefined' || typeof gtag === 'undefined' || typeof window.dataLayer === 'undefined') {
         return;
     }
     
@@ -39,7 +39,7 @@
         },
         
         /**
-         * Track event both client-side (gtag) and server-side (optional)
+         * Track event via dataLayer and gtag (if available), and server-side (optional)
          */
         trackEvent: function(eventName, params = {}, options = {}) {
             const eventId = this.generateEventId(eventName);
@@ -65,10 +65,19 @@
             };
             
             this.log(`Tracking event: ${eventName}`, enhancedParams);
-            
-            // Track via gtag (client-side)
+
+            // Push to dataLayer first
+            if (Array.isArray(window.dataLayer)) {
+                window.dataLayer.push({ event: eventName, ...enhancedParams });
+                this.log(`Event pushed to dataLayer: ${eventName}`);
+            }
+
+            // Then track via gtag if available
             if (typeof gtag === 'function') {
                 gtag('event', eventName, enhancedParams);
+                this.log(`Event sent to gtag: ${eventName}`);
+            } else {
+                this.log(`gtag not available for: ${eventName}`);
             }
             
             // Also send to server for Measurement Protocol (if configured)
