@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Fix Calendario Flatpickr - FP Prenotazioni</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="assets/css/frontend.css">
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: #f5f7fa; 
+        }
+        .test-container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+        }
+        .test-banner {
+            background: #d1ecf1;
+            border: 1px solid #b8daff;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+        }
+        .test-status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        .test-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .test-error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .test-info {
+            background: #d1ecf1;
+            border: 1px solid #b8daff;
+            color: #0c5460;
+        }
+        .test-log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="test-banner">
+            🧪 Test Completo del Fix per il Calendario Flatpickr
+        </div>
+        
+        <div id="test-status" class="test-status test-info">
+            ⏳ Inizializzazione test...
+        </div>
+        
+        <div class="rbf-form-container">
+            <form id="rbf-form" class="rbf-form">
+                <h2 style="text-align: center; color: var(--rbf-primary); margin-bottom: 2rem;">
+                    🍽️ Test Prenotazione Tavolo
+                </h2>
+                
+                <!-- Progress indicator -->
+                <div class="rbf-progress-indicator" role="progressbar" aria-valuenow="1" aria-valuemin="1" aria-valuemax="5">
+                    <div class="rbf-progress-step active" aria-current="step">1</div>
+                    <div class="rbf-progress-step">2</div>
+                    <div class="rbf-progress-step">3</div>
+                    <div class="rbf-progress-step">4</div>
+                    <div class="rbf-progress-step">5</div>
+                </div>
+
+                <!-- Step 1: Meal Selection -->
+                <div class="rbf-step active" id="step-meal" aria-labelledby="meal-label">
+                    <div class="rbf-field-wrapper">
+                        <label id="meal-label">Scegli il pasto <span class="rbf-required-indicator">*</span></label>
+                        <div class="rbf-radio-group" role="radiogroup" aria-labelledby="meal-label">
+                            <input type="radio" name="rbf_meal" value="brunch" id="brunch" required>
+                            <label for="brunch"><span>🥐</span> Brunch</label>
+                            <input type="radio" name="rbf_meal" value="pranzo" id="pranzo">
+                            <label for="pranzo"><span>🍝</span> Pranzo</label>
+                            <input type="radio" name="rbf_meal" value="aperitivo_cena" id="aperitivo_cena">
+                            <label for="aperitivo_cena"><span>🍷</span> Aperitivo e Cena</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Date Selection -->
+                <div id="step-date" class="rbf-step" data-skeleton="true" aria-labelledby="date-label">
+                    <div class="rbf-field-wrapper">
+                        <label id="date-label">Data <span class="rbf-required-indicator">*</span></label>
+                        <div class="rbf-fade-in">
+                            <input type="text" id="rbf-date" placeholder="Clicca per selezionare una data" required>
+                        </div>
+                        <!-- Skeleton loading -->
+                        <div class="rbf-skeleton-fields" aria-hidden="true">
+                            <div class="rbf-skeleton rbf-skeleton-field"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: Time Selection -->
+                <div id="step-time" class="rbf-step" aria-labelledby="time-label">
+                    <div class="rbf-field-wrapper">
+                        <label id="time-label">Orario <span class="rbf-required-indicator">*</span></label>
+                        <select id="rbf-time" required>
+                            <option value="">Prima seleziona una data...</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Step 4: People Selection -->
+                <div id="step-people" class="rbf-step" aria-labelledby="people-label">
+                    <div class="rbf-field-wrapper">
+                        <label id="people-label">Numero di persone <span class="rbf-required-indicator">*</span></label>
+                        <div class="rbf-people-selector" role="group" aria-labelledby="people-label">
+                            <button type="button" id="rbf-people-minus" aria-label="Riduci numero persone" disabled>-</button>
+                            <input type="number" id="rbf-people" value="2" min="1" max="20" readonly aria-label="Numero di persone">
+                            <button type="button" id="rbf-people-plus" aria-label="Aumenta numero persone">+</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <div id="test-log" class="test-log"></div>
+        
+        <div style="text-align: center; margin-top: 20px;">
+            <button onclick="runCalendarTests()" style="padding: 12px 24px; background: var(--rbf-primary); color: white; border: none; border-radius: 8px; cursor: pointer;">
+                🔄 Riesegui Test
+            </button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/it.js"></script>
+    
+    <script>
+        // Mock rbfData per i test
+        window.rbfData = {
+            minAdvanceMinutes: 60,
+            maxAdvanceMinutes: 10080,
+            locale: 'it',
+            ajaxUrl: '#',
+            nonce: 'test',
+            closedDays: [0], // Domenica chiusa
+            closedSingles: [],
+            closedRanges: [],
+            exceptions: [],
+            labels: {
+                loading: 'Caricamento',
+                chooseTime: 'Scegli un orario...',
+                noTime: 'Nessun orario disponibile'
+            },
+            mealAvailability: {
+                brunch: ['sat', 'sun'],
+                pranzo: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
+                aperitivo_cena: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+            }
+        };
+        
+        let testLog = [];
+        let fp = null;
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            testLog.push(`[${timestamp}] ${type.toUpperCase()}: ${message}`);
+            updateTestLog();
+            
+            if (type === 'error') {
+                console.error('TEST:', message);
+            } else {
+                console.log('TEST:', message);
+            }
+        }
+        
+        function updateTestLog() {
+            const logElement = document.getElementById('test-log');
+            logElement.innerHTML = testLog.join('\n');
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        function updateTestStatus(message, type = 'info') {
+            const statusElement = document.getElementById('test-status');
+            statusElement.className = `test-status test-${type}`;
+            statusElement.innerHTML = message;
+        }
+        
+        // Includi le funzioni critiche dal frontend.js aggiornato
+        function forceCalendarInteractivity(calendarInstance) {
+            if (!calendarInstance || !calendarInstance.calendarContainer) {
+                return;
+            }
+            
+            const calendar = calendarInstance.calendarContainer;
+            
+            // Remove any blocking classes
+            calendar.classList.remove('rbf-component-loading', 'rbf-loading');
+            
+            // Force pointer events
+            calendar.style.pointerEvents = 'auto';
+            calendar.style.zIndex = '1100';
+            calendar.style.position = 'relative';
+            
+            // Ensure all calendar elements are interactive
+            const allCalendarElements = calendar.querySelectorAll('*');
+            allCalendarElements.forEach(element => {
+                if (!element.classList.contains('flatpickr-disabled')) {
+                    element.style.pointerEvents = 'auto';
+                }
+            });
+            
+            // Force calendar days to be clickable
+            const days = calendar.querySelectorAll('.flatpickr-day:not(.flatpickr-disabled)');
+            days.forEach(day => {
+                day.style.pointerEvents = 'auto';
+                day.style.cursor = 'pointer';
+                day.style.position = 'relative';
+                day.style.zIndex = '1';
+                day.setAttribute('tabindex', '0');
+            });
+            
+            // Force navigation elements to be clickable
+            const navElements = calendar.querySelectorAll(
+                '.flatpickr-months, .flatpickr-prev-month, .flatpickr-next-month, ' +
+                '.flatpickr-current-month, .numInputWrapper, .flatpickr-monthDropdown-months'
+            );
+            navElements.forEach(element => {
+                element.style.pointerEvents = 'auto';
+                element.style.zIndex = '2';
+            });
+            
+            // Remove any loading overlays that might exist
+            const loadingOverlays = calendar.querySelectorAll('.rbf-loading-overlay');
+            loadingOverlays.forEach(overlay => overlay.remove());
+            
+            log('Calendar interactivity forcefully enabled', 'success');
+        }
+        
+        function runCalendarTests() {
+            testLog = [];
+            updateTestStatus('🧪 Esecuzione test del calendario...', 'info');
+            
+            log('Inizializzazione test calendario Flatpickr');
+            
+            // Test 1: Verifica disponibilità dipendenze
+            if (typeof jQuery === 'undefined') {
+                log('jQuery non disponibile', 'error');
+                updateTestStatus('❌ Test fallito: jQuery non disponibile', 'error');
+                return;
+            }
+            log('✓ jQuery disponibile');
+            
+            if (typeof flatpickr === 'undefined') {
+                log('Flatpickr non disponibile', 'error');
+                updateTestStatus('❌ Test fallito: Flatpickr non disponibile', 'error');
+                return;
+            }
+            log('✓ Flatpickr disponibile');
+            
+            // Test 2: Inizializzazione calendario
+            const dateInput = document.getElementById('rbf-date');
+            if (!dateInput) {
+                log('Input data non trovato', 'error');
+                updateTestStatus('❌ Test fallito: Input data non trovato', 'error');
+                return;
+            }
+            
+            log('Inizializzazione Flatpickr...');
+            
+            try {
+                fp = flatpickr(dateInput, {
+                    altInput: true,
+                    altFormat: 'd-m-Y',
+                    dateFormat: 'Y-m-d',
+                    minDate: new Date(new Date().getTime() + 60 * 60 * 1000),
+                    locale: 'it',
+                    onChange: function(selectedDates) {
+                        if (selectedDates.length > 0) {
+                            log(`Data selezionata: ${selectedDates[0].toLocaleDateString('it-IT')}`, 'success');
+                            simulateTimeLoading();
+                        }
+                    },
+                    onReady: function(selectedDates, dateStr, instance) {
+                        log('Calendar ready event triggered');
+                        forceCalendarInteractivity(instance);
+                        testCalendarInteractivity(instance);
+                    },
+                    onOpen: function(selectedDates, dateStr, instance) {
+                        log('Calendar opened');
+                        forceCalendarInteractivity(instance);
+                    },
+                    onDayCreate: function(dObj, dStr, fp, dayElem) {
+                        if (!dayElem.classList.contains('flatpickr-disabled')) {
+                            dayElem.style.pointerEvents = 'auto';
+                            dayElem.style.cursor = 'pointer';
+                            dayElem.style.position = 'relative';
+                            dayElem.style.zIndex = '1';
+                            dayElem.setAttribute('tabindex', '0');
+                            dayElem.classList.remove('rbf-component-loading', 'rbf-loading');
+                        }
+                    }
+                });
+                
+                if (fp && fp.calendarContainer) {
+                    log('✓ Flatpickr inizializzato con successo');
+                    forceCalendarInteractivity(fp);
+                    
+                    // Set up periodic check
+                    const interactivityChecker = setInterval(() => {
+                        if (fp && fp.calendarContainer) {
+                            forceCalendarInteractivity(fp);
+                        } else {
+                            clearInterval(interactivityChecker);
+                        }
+                    }, 500);
+                    
+                    setTimeout(() => {
+                        clearInterval(interactivityChecker);
+                        log('Checker interattività calendario fermato');
+                    }, 10000);
+                    
+                    // Test immediato dell'interattività
+                    setTimeout(() => {
+                        testCalendarInteractivity(fp);
+                    }, 500);
+                    
+                } else {
+                    throw new Error('Flatpickr instance or calendar container not created');
+                }
+                
+            } catch (error) {
+                log(`Errore nell'inizializzazione Flatpickr: ${error.message}`, 'error');
+                updateTestStatus('❌ Test fallito: Errore nell\'inizializzazione', 'error');
+                return;
+            }
+        }
+        
+        function testCalendarInteractivity(calendarInstance) {
+            if (!calendarInstance || !calendarInstance.calendarContainer) {
+                log('Impossibile testare interattività: calendario non disponibile', 'error');
+                return;
+            }
+            
+            const calendar = calendarInstance.calendarContainer;
+            log('Testando interattività del calendario...');
+            
+            // Test 1: Verifica pointer-events
+            const calendarStyle = window.getComputedStyle(calendar);
+            if (calendarStyle.pointerEvents === 'none') {
+                log('❌ Calendario ha pointer-events: none', 'error');
+            } else {
+                log('✓ Calendario ha pointer-events abilitati');
+            }
+            
+            // Test 2: Verifica giorni cliccabili
+            const days = calendar.querySelectorAll('.flatpickr-day:not(.flatpickr-disabled)');
+            log(`Trovati ${days.length} giorni nel calendario`);
+            
+            let clickableDays = 0;
+            days.forEach((day, index) => {
+                const dayStyle = window.getComputedStyle(day);
+                if (dayStyle.pointerEvents !== 'none' && dayStyle.cursor === 'pointer') {
+                    clickableDays++;
+                } else {
+                    log(`⚠️ Giorno ${index + 1} non è cliccabile (pointer-events: ${dayStyle.pointerEvents}, cursor: ${dayStyle.cursor})`);
+                }
+            });
+            
+            if (clickableDays === days.length) {
+                log(`✓ Tutti i ${clickableDays} giorni sono cliccabili`, 'success');
+            } else {
+                log(`❌ Solo ${clickableDays}/${days.length} giorni sono cliccabili`, 'error');
+            }
+            
+            // Test 3: Verifica navigazione
+            const navElements = calendar.querySelectorAll('.flatpickr-prev-month, .flatpickr-next-month');
+            const clickableNavElements = Array.from(navElements).filter(el => {
+                const style = window.getComputedStyle(el);
+                return style.pointerEvents !== 'none';
+            });
+            
+            if (clickableNavElements.length === navElements.length) {
+                log('✓ Elementi di navigazione cliccabili');
+            } else {
+                log('❌ Alcuni elementi di navigazione non sono cliccabili', 'error');
+            }
+            
+            // Test 4: Verifica classi di loading
+            const hasLoadingClass = calendar.classList.contains('rbf-component-loading') || 
+                                   calendar.classList.contains('rbf-loading');
+            if (hasLoadingClass) {
+                log('❌ Calendario ha ancora classi di loading', 'error');
+            } else {
+                log('✓ Calendario non ha classi di loading');
+            }
+            
+            // Test 5: Verifica overlay di loading
+            const loadingOverlays = calendar.querySelectorAll('.rbf-loading-overlay');
+            if (loadingOverlays.length > 0) {
+                log(`❌ Trovati ${loadingOverlays.length} overlay di loading nel calendario`, 'error');
+            } else {
+                log('✓ Nessun overlay di loading nel calendario');
+            }
+            
+            // Risultato finale
+            if (clickableDays === days.length && clickableNavElements.length === navElements.length && 
+                !hasLoadingClass && loadingOverlays.length === 0) {
+                updateTestStatus('✅ Test completato con successo: Il calendario è completamente interattivo!', 'success');
+            } else {
+                updateTestStatus('⚠️ Test completato con avvisi: Alcuni problemi rilevati (vedi log)', 'error');
+            }
+        }
+        
+        function simulateTimeLoading() {
+            log('Simulazione caricamento orari...');
+            const timeSelect = document.getElementById('rbf-time');
+            timeSelect.innerHTML = '<option value="">Caricamento orari...</option>';
+            timeSelect.disabled = true;
+            
+            // Simula AJAX delay
+            setTimeout(() => {
+                timeSelect.innerHTML = '';
+                timeSelect.innerHTML += '<option value="">Scegli un orario...</option>';
+                timeSelect.innerHTML += '<option value="12:00">12:00</option>';
+                timeSelect.innerHTML += '<option value="12:30">12:30</option>';
+                timeSelect.innerHTML += '<option value="13:00">13:00</option>';
+                timeSelect.innerHTML += '<option value="13:30">13:30</option>';
+                timeSelect.disabled = false;
+                log('✓ Orari caricati');
+                
+                // Verifica che il calendario sia ancora interattivo dopo il caricamento
+                setTimeout(() => {
+                    if (fp) {
+                        log('Ri-testando interattività calendario dopo caricamento orari...');
+                        testCalendarInteractivity(fp);
+                    }
+                }, 500);
+            }, 1000);
+        }
+        
+        // Inizializzazione quando la pagina è pronta
+        jQuery(function($) {
+            log('Pagina pronta, inizializzazione test...');
+            
+            // Setup meal selection
+            $('input[name="rbf_meal"]').on('change', function() {
+                log(`Pasto selezionato: ${this.value}`);
+                $('#step-date').show().addClass('active');
+                
+                // Simula caricamento skeleton
+                setTimeout(() => {
+                    $('#step-date .rbf-skeleton-fields').fadeOut(200, function() {
+                        $('#step-date .rbf-fade-in').addClass('loaded');
+                        
+                        // Inizializza calendario dopo rimozione skeleton
+                        setTimeout(() => {
+                            runCalendarTests();
+                        }, 100);
+                    });
+                }, 300);
+            });
+            
+            updateTestStatus('✅ Test pronti - Seleziona un pasto per iniziare', 'success');
+        });
+    </script>
+</body>
+</html>
