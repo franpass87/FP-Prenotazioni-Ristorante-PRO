@@ -1245,7 +1245,11 @@ jQuery(function($) {
     // Show date step for any meal selection without scrolling
     // The flatpickr will be lazy loaded when the step is shown by showStepWithoutScroll
     showStepWithoutScroll(el.dateStep, 2);
-    
+
+    lazyLoadDatePicker().then(() => {
+      if (fp && !fp.isOpen) fp.open();
+    });
+
     // Update availability data for the selected meal (after calendar loads)
     setTimeout(() => {
       if (fp && selectedMeal) {
