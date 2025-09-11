@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Calendar Fix - FP Prenotazioni</title>
+    <link rel="stylesheet" href="assets/css/frontend.css">
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: #f5f7fa; 
+        }
+        .test-container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+        }
+        .success-banner {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        /* Include the CSS fixes inline for testing */
+        .flatpickr-calendar {
+            pointer-events: auto !important;
+            z-index: 1100 !important;
+        }
+        
+        .flatpickr-calendar.rbf-component-loading {
+            pointer-events: auto !important;
+        }
+        
+        .flatpickr-calendar .rbf-loading-overlay {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="success-banner">
+            ✅ Test del Fix per il Calendario - Verifica che i giorni siano cliccabili
+        </div>
+        
+        <div class="rbf-form-container">
+            <form id="rbf-form" class="rbf-form">
+                <h2 style="text-align: center; color: var(--rbf-primary); margin-bottom: 2rem;">
+                    🍽️ Prenota il tuo tavolo
+                </h2>
+                
+                <!-- Progress indicator -->
+                <div class="rbf-progress-indicator">
+                    <div class="rbf-progress-step active">1</div>
+                    <div class="rbf-progress-step">2</div>
+                    <div class="rbf-progress-step">3</div>
+                    <div class="rbf-progress-step">4</div>
+                    <div class="rbf-progress-step">5</div>
+                </div>
+
+                <!-- Step 1: Meal Selection -->
+                <div class="rbf-step active">
+                    <div class="rbf-field-wrapper">
+                        <label for="meal">Scegli il pasto <span class="rbf-required-indicator">*</span></label>
+                        <div class="rbf-radio-group" role="radiogroup" aria-labelledby="meal-label">
+                            <input type="radio" name="rbf_meal" value="brunch" id="brunch" required>
+                            <label for="brunch">Brunch</label>
+                            <input type="radio" name="rbf_meal" value="pranzo" id="pranzo">
+                            <label for="pranzo">Pranzo</label>
+                            <input type="radio" name="rbf_meal" value="aperitivo_cena" id="aperitivo_cena">
+                            <label for="aperitivo_cena">Aperitivo e Cena</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Date Selection -->
+                <div id="step-date" class="rbf-step">
+                    <div class="rbf-field-wrapper">
+                        <label>Data <span class="rbf-required-indicator">*</span></label>
+                        <input type="text" id="rbf-date" placeholder="Clicca per selezionare una data" required>
+                    </div>
+                </div>
+
+                <!-- Step 3: Time Selection -->
+                <div id="step-time" class="rbf-step">
+                    <div class="rbf-field-wrapper">
+                        <label>Orario <span class="rbf-required-indicator">*</span></label>
+                        <select id="rbf-time" required>
+                            <option value="">Prima seleziona una data...</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Step 4: People Selection -->
+                <div id="step-people" class="rbf-step">
+                    <div class="rbf-field-wrapper">
+                        <label>Numero di persone <span class="rbf-required-indicator">*</span></label>
+                        <div class="rbf-people-selector" role="group">
+                            <button type="button" id="rbf-people-minus" disabled>-</button>
+                            <input type="number" id="rbf-people" value="2" min="1" readonly>
+                            <button type="button" id="rbf-people-plus">+</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Step 5: Details -->
+                <div id="step-details" class="rbf-step">
+                    <div class="rbf-field-wrapper">
+                        <label>Nome <span class="rbf-required-indicator">*</span></label>
+                        <input type="text" id="rbf-name" placeholder="Il tuo nome" required>
+                    </div>
+                    
+                    <div class="rbf-field-wrapper">
+                        <label>Email <span class="rbf-required-indicator">*</span></label>
+                        <input type="email" id="rbf-email" placeholder="la-tua-email@esempio.com" required>
+                    </div>
+                    
+                    <div class="rbf-field-wrapper">
+                        <label>Telefono <span class="rbf-required-indicator">*</span></label>
+                        <input type="tel" id="rbf-tel" placeholder="Il tuo numero di telefono" required>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button id="rbf-submit" type="submit" style="display:none;">
+                    Conferma Prenotazione
+                </button>
+                
+                <!-- Privacy -->
+                <div class="rbf-checkbox-group" style="display:none;">
+                    <label>
+                        <input type="checkbox" id="rbf-privacy" required>
+                        <span>Accetto la Privacy Policy <span class="rbf-required-indicator">*</span></span>
+                    </label>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/it.js"></script>
+    
+    <script>
+        // Mock rbfData
+        window.rbfData = {
+            minAdvanceMinutes: 60,
+            locale: 'it',
+            ajaxUrl: '#',
+            nonce: 'test',
+            closedDays: [0], // Sunday closed
+            closedSingles: [],
+            closedRanges: [],
+            labels: {
+                loading: 'Caricamento',
+                chooseTime: 'Scegli un orario...',
+                noTime: 'Nessun orario disponibile'
+            },
+            mealAvailability: {
+                brunch: ['sat', 'sun'],
+                pranzo: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
+                aperitivo_cena: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+            }
+        };
+        
+        // Include simplified version of the fixed frontend.js code
+        // (Since external CDNs might be blocked, we'll include only the essential parts)
+        if (typeof jQuery !== 'undefined') {
+            console.log('jQuery available, initializing simplified test...');
+            
+            jQuery(function($) {
+                console.log('Starting test initialization...');
+                
+                // Simple test without full frontend.js functionality
+                $('input[name="rbf_meal"]').on('change', function() {
+                    console.log('Meal selected:', this.value);
+                    $('#step-date').show().addClass('active');
+                    
+                    // Initialize basic flatpickr for testing
+                    if (typeof flatpickr !== 'undefined') {
+                        const dateInput = document.getElementById('rbf-date');
+                        const fp = flatpickr(dateInput, {
+                            altInput: true,
+                            altFormat: 'd-m-Y',
+                            dateFormat: 'Y-m-d',
+                            minDate: new Date(new Date().getTime() + 60 * 60 * 1000),
+                            locale: 'it',
+                            onChange: function(selectedDates) {
+                                if (selectedDates.length > 0) {
+                                    console.log('Date selected:', selectedDates[0]);
+                                    $('#step-time').show().addClass('active');
+                                    
+                                    // Simulate loading times
+                                    $('#rbf-time').html('<option value="">Caricamento orari...</option>').prop('disabled', true);
+                                    
+                                    setTimeout(() => {
+                                        $('#rbf-time').html('');
+                                        $('#rbf-time').append(new Option('Scegli un orario...', ''));
+                                        $('#rbf-time').append(new Option('12:00', '12:00'));
+                                        $('#rbf-time').append(new Option('12:30', '12:30'));
+                                        $('#rbf-time').append(new Option('13:00', '13:00'));
+                                        $('#rbf-time').prop('disabled', false);
+                                        console.log('Times loaded successfully');
+                                    }, 1000);
+                                }
+                            },
+                            onReady: function(selectedDates, dateStr, instance) {
+                                console.log('Calendar ready');
+                                const calendar = instance.calendarContainer;
+                                if (calendar) {
+                                    calendar.style.pointerEvents = 'auto';
+                                    calendar.style.zIndex = '1100';
+                                    console.log('Calendar made interactive');
+                                }
+                            },
+                            onOpen: function(selectedDates, dateStr, instance) {
+                                console.log('Calendar opened');
+                                const calendar = instance.calendarContainer;
+                                if (calendar) {
+                                    calendar.style.pointerEvents = 'auto';
+                                    calendar.style.zIndex = '1100';
+                                    const days = calendar.querySelectorAll('.flatpickr-day:not(.flatpickr-disabled)');
+                                    days.forEach(day => {
+                                        day.style.pointerEvents = 'auto';
+                                        day.style.cursor = 'pointer';
+                                    });
+                                    console.log('Calendar days made clickable');
+                                }
+                            }
+                        });
+                        console.log('Flatpickr initialized');
+                    } else {
+                        console.log('Flatpickr not available');
+                        alert('Flatpickr non disponibile - CDN bloccato. Il test della funzionalità calendario non può essere eseguito.');
+                    }
+                });
+                
+                $('#rbf-time').on('change', function() {
+                    if (this.value) {
+                        $('#step-people').show().addClass('active');
+                    }
+                });
+                
+                console.log('Test initialization complete. Select a meal to begin.');
+            });
+        } else {
+            console.log('jQuery not available');
+            alert('jQuery non disponibile - CDN bloccato. Il test non può essere eseguito.');
+        }
+    </script>
+</body>
+</html>
