@@ -173,10 +173,11 @@
 
 .rbf-radio-group {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(200px, 200px));
     gap: 12px;
     margin-bottom: 1rem;
     max-width: 100%;
+    justify-content: center;
 }
 
 .rbf-radio-group input[type='radio'] {
