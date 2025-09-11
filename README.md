@@ -143,6 +143,18 @@ Aperitivo: Buffer 10min + 3min/persona, Overbooking 15%
 - **Meta Pixel**: Configura Pixel ID e Access Token per CAPI
 - **Brevo**: API Key per automazioni email
 
+#### Gestione del Consenso Cookie
+Collega il tuo sistema di gestione dei cookie all'azione personalizzata `rbf_update_consent` per aggiornare lo stato del consenso analitico.
+
+```php
+if ($user_grants_analytics) {
+    do_action('rbf_update_consent', true); // analytics_storage: granted
+} else {
+    do_action('rbf_update_consent', false); // analytics_storage: denied
+}
+```
+Questo invierà un evento `consent` nel `dataLayer` con il parametro `analytics_storage` aggiornato.
+
 ## 🎯 Tracciamento Marketing - Valutazione: 9.5/10
 
 ### Implementazione Google Analytics 4
