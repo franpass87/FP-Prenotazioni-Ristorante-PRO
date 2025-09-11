@@ -12,10 +12,10 @@ if (!defined('ABSPATH')) {
 }
 
 /**
- * Add tracking scripts to footer
+ * Output tracking scripts in head
  */
-add_action('wp_footer','rbf_add_tracking_scripts_to_footer');
-function rbf_add_tracking_scripts_to_footer() {
+add_action('wp_head','rbf_add_tracking_scripts_to_head');
+function rbf_add_tracking_scripts_to_head() {
     $options = rbf_get_settings();
     $ga4_id = $options['ga4_id'] ?? '';
     $gtm_id = $options['gtm_id'] ?? '';
@@ -36,7 +36,6 @@ function rbf_add_tracking_scripts_to_footer() {
         <script>
             (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','<?php echo esc_js($gtm_id); ?>');
         </script>
-        <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=<?php echo esc_attr($gtm_id); ?>" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <?php
     } elseif ($gtm_id) {
         ?>
@@ -44,7 +43,6 @@ function rbf_add_tracking_scripts_to_footer() {
         <script>
             (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','<?php echo esc_js($gtm_id); ?>');
         </script>
-        <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=<?php echo esc_attr($gtm_id); ?>" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <?php
     } elseif ($ga4_id) {
         ?>
@@ -69,6 +67,29 @@ function rbf_add_tracking_scripts_to_footer() {
             fbq('track','PageView');
         </script>
     <?php }
+}
+
+/**
+ * Output noscript tracking tag after body opening
+ */
+add_action('wp_body_open','rbf_add_tracking_noscript');
+function rbf_add_tracking_noscript() {
+    $options = rbf_get_settings();
+    $gtm_id = $options['gtm_id'] ?? '';
+    if ($gtm_id) {
+        ?>
+        <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=<?php echo esc_attr($gtm_id); ?>" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+        <?php
+    }
+}
+
+/**
+ * Add purchase tracking script in footer when booking succeeds
+ */
+add_action('wp_footer','rbf_add_booking_tracking_script');
+function rbf_add_booking_tracking_script() {
+    $options = rbf_get_settings();
+    $meta_pixel_id = $options['meta_pixel_id'] ?? '';
 
     if (isset($_GET['rbf_success'], $_GET['booking_id']) && is_numeric($_GET['booking_id'])) {
         $booking_id = intval($_GET['booking_id']);
