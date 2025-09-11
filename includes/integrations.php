@@ -32,6 +32,27 @@ function rbf_print_gtag($ga4_id, $send_page_view = true) {
 }
 
 /**
+ * Print the GTM snippet only once.
+ */
+function rbf_print_gtm($gtm_id, $init_datalayer = true) {
+    static $printed = false;
+    if ($printed || empty($gtm_id)) {
+        return;
+    }
+    $printed = true;
+    if ($init_datalayer) {
+        ?>
+        <script>window.dataLayer = window.dataLayer || [];</script>
+        <?php
+    }
+    ?>
+    <script>
+        (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?"&l="+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','<?php echo esc_js($gtm_id); ?>');
+    </script>
+    <?php
+}
+
+/**
  * Output tracking scripts in head
  */
 add_action('wp_head','rbf_add_tracking_scripts_to_head');
@@ -46,18 +67,9 @@ function rbf_add_tracking_scripts_to_head() {
 
     if ($gtm_hybrid && $gtm_id) {
         rbf_print_gtag($ga4_id, $send_page_view);
-        ?>
-        <script>
-            (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','<?php echo esc_js($gtm_id); ?>');
-        </script>
-        <?php
+        rbf_print_gtm($gtm_id, false);
     } elseif ($gtm_id) {
-        ?>
-        <script>window.dataLayer = window.dataLayer || [];</script>
-        <script>
-            (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','<?php echo esc_js($gtm_id); ?>');
-        </script>
-        <?php
+        rbf_print_gtm($gtm_id);
     } elseif ($ga4_id) {
         rbf_print_gtag($ga4_id, $send_page_view);
     }
