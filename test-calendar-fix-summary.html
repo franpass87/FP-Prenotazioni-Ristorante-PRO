@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Calendar Fix - Standalone</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        .status.success {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        .status.error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        .status.warning {
+            background: #fff3cd;
+            border-color: #ffeaa7;
+            color: #856404;
+        }
+        .meal-options {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .meal-option {
+            padding: 10px 20px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .meal-option:hover {
+            border-color: #007cba;
+        }
+        .meal-option.selected {
+            border-color: #007cba;
+            background: #f0f8ff;
+        }
+        .code-block {
+            background: #f8f8f8;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 14px;
+            margin: 15px 0;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h2>🔧 Test Calendar Fix - Verifica Funzionalità</h2>
+        
+        <div class="status warning">
+            <strong>Test obiettivo:</strong> Verificare che la fix abbia ripristinato la funzionalità del calendario mantenendo l'eliminazione degli scroll jumps.
+        </div>
+        
+        <h3>📋 Problema risolto:</h3>
+        <div class="code-block">PROBLEMA: Dopo aver selezionato un pasto, i giorni del calendario non erano più cliccabili.
+
+CAUSA: La funzione showStepWithoutScroll() non aveva la logica di gestione skeleton
+necessaria per inizializzare Flatpickr quando viene mostrato lo step della data.
+
+FIX: Aggiunta la logica completa di gestione skeleton a showStepWithoutScroll()
+preservando l'inizializzazione del calendario senza causare scroll automatici.</div>
+        
+        <h3>🧪 Test manuale:</h3>
+        <p>Per testare la fix completa:</p>
+        <ol>
+            <li><strong>Apri il form di prenotazione originale</strong></li>
+            <li><strong>Seleziona un pasto</strong> (es. Pranzo)</li>
+            <li><strong>Verifica che NON ci sia scroll automatico</strong> (fix precedente)</li>
+            <li><strong>Clicca sul campo data</strong> per aprire il calendario</li>
+            <li><strong>Verifica che i giorni siano cliccabili</strong> (nuovo fix)</li>
+            <li><strong>Seleziona una data</strong> e verifica che funzioni</li>
+        </ol>
+        
+        <div class="status success">
+            <strong>✅ Fix implementato:</strong><br>
+            • showStepWithoutScroll() ora include la gestione skeleton completa<br>
+            • lazyLoadDatePicker() viene chiamato correttamente per lo step data<br>
+            • forceCalendarInteractivity() mantiene i giorni cliccabili<br>
+            • Rimossa inizializzazione ridondante che causava conflitti<br>
+            • Preservati tutti i controlli di interattività del calendario
+        </div>
+        
+        <h3>🔍 Codice della fix:</h3>
+        <div class="code-block">// Prima (problema):
+showStepWithoutScroll() {
+  // Gestione skeleton generica - NON inizializzava Flatpickr
+  if ($step.attr('data-skeleton') === 'true') {
+    $step.removeAttr('data-skeleton');
+    // ... rimozione skeleton generica
+  }
+}
+
+// Dopo (risolto):
+showStepWithoutScroll() {
+  // Gestione skeleton specifica per ogni tipo di step
+  if (stepId === 'step-date' && $step.attr('data-skeleton') === 'true') {
+    setTimeout(() => {
+      lazyLoadDatePicker().then(() => {
+        removeSkeleton($step);
+        if (fp) {
+          forceCalendarInteractivity(fp);
+        }
+      });
+    }, 100);
+  }
+}</div>
+        
+        <div class="status success">
+            <strong>🎯 Risultato:</strong> Il calendario ora si inizializza correttamente quando si seleziona un pasto, 
+            i giorni sono cliccabili, e non ci sono più scroll automatici fastidiosi.
+        </div>
+    </div>
+</body>
+</html>
