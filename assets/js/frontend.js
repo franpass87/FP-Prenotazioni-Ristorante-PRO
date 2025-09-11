@@ -793,6 +793,60 @@ jQuery(function($) {
   }
 
   /**
+   * Show step with animation and accessibility but without auto-scrolling
+   * Used when we don't want to interrupt user's current view position
+   */
+  function showStepWithoutScroll($step, stepNumber) {
+    // Cancel any pending hide timeout for this step
+    if (stepTimeouts.has($step[0])) {
+      clearTimeout(stepTimeouts.get($step[0]));
+      stepTimeouts.delete($step[0]);
+    }
+    
+    if ($step.hasClass('active')) return;
+    
+    // Mark step as active immediately for proper state tracking
+    $step.addClass('active').show();
+    
+    // Update progress indicator
+    updateProgressIndicator(stepNumber);
+    
+    const timeout = setTimeout(() => {
+      // Handle skeleton removal for this step
+      if ($step.attr('data-skeleton') === 'true') {
+        $step.removeAttr('data-skeleton');
+        $step.find('.rbf-skeleton-fields, .rbf-skeleton-time, .rbf-skeleton-people-selector').fadeOut(300, function() {
+          $(this).remove();
+        });
+        $step.find('.rbf-fade-in').delay(200).fadeIn(400);
+      } else if (stepNumber <= 3) hideStep(el.peopleStep);
+      
+      // Focus management for accessibility (but no scrolling)
+      if (stepNumber >= 2) {
+        setTimeout(() => {
+          const firstFocusable = $step.find('input:not([readonly]), select, button, [tabindex="0"]').first();
+          if (firstFocusable.length && firstFocusable.is(':visible')) {
+            firstFocusable.focus();
+          }
+        }, 100);
+      }
+      
+      // Announce step change to screen readers
+      const stepLabel = $step.attr('aria-labelledby');
+      if (stepLabel) {
+        const labelText = $('#' + stepLabel).text();
+        setTimeout(() => {
+          announceToScreenReader(`Passaggio ${stepNumber}: ${labelText}`);
+        }, 300);
+      }
+      
+      stepTimeouts.delete($step[0]);
+    }, 100);
+    
+    stepTimeouts.set($step[0], timeout);
+  }
+
+  /**
    * Announce message to screen readers
    */
   function announceToScreenReader(message) {
@@ -1246,7 +1300,7 @@ jQuery(function($) {
     if (peopleVal > 0) {
       // Small delay to let user see the people selection before showing details
       setTimeout(() => {
-        showStep(el.detailsStep, 5);
+        showStepWithoutScroll(el.detailsStep, 5);
         el.detailsInputs.prop('disabled', false);
         el.privacyCheckbox.prop('disabled', false);
         el.marketingCheckbox.prop('disabled', false);

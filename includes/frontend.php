@@ -433,9 +433,6 @@ function rbf_render_booking_form($atts = []) {
                 </div>
             <?php endif; ?>
             
-            <!-- Skip to main content link for accessibility -->
-            <a href="#rbf-form" class="rbf-skip-link"><?php echo esc_html(rbf_translate_string('Salta al contenuto principale')); ?></a>
-            
             <form id="rbf-form" class="rbf-form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" role="form" aria-label="<?php echo esc_attr(rbf_translate_string('Modulo di prenotazione ristorante')); ?>">
                 <input type="hidden" name="action" value="rbf_submit_booking">
                 <?php wp_nonce_field('rbf_booking','rbf_nonce'); ?>
