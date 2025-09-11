@@ -183,17 +183,33 @@ function rbf_add_booking_tracking_script() {
               var bucket = <?php echo json_encode($bucket); ?>;
               var bucketStd = <?php echo json_encode($bucketStd); ?>;
               var eventId = <?php echo json_encode($eventId); ?>;
+              var isGtmHybrid = <?php echo json_encode($options['gtm_hybrid'] === 'yes'); ?>;
+              var gtmId = <?php echo json_encode($options['gtm_id'] ?? ''); ?>;
 
-              function rbfTrackEvent(eventName, params, eventId) {
+              function rbfTrackEvent(eventName, params, eventId, options) {
+                options = options || {};
                 window.dataLayer = window.dataLayer || [];
-                // Ensure Google Ads required params exist in dataLayer
-                var data = Object.assign({ event: eventName }, params, { event_id: eventId });
-                window.dataLayer.push(data);
-                if (typeof gtag === 'function') {
-                  gtag('event', eventName, Object.assign({}, params, { event_id: eventId }));
+                
+                // Enhanced params with deduplication data
+                var enhancedParams = Object.assign({}, params, { 
+                  event_id: eventId,
+                  transaction_id: transaction_id,
+                  deduplication_key: eventId
+                });
+                
+                // Always push to dataLayer for GTM and other integrations
+                var dataLayerEvent = Object.assign({ event: eventName }, enhancedParams, {
+                  gtm_uniqueEventId: eventId // GTM-specific deduplication
+                });
+                window.dataLayer.push(dataLayerEvent);
+                
+                // Only send direct gtag events if not in hybrid mode or explicitly requested
+                if ((!isGtmHybrid || options.forceGtag) && typeof gtag === 'function') {
+                  gtag('event', eventName, enhancedParams);
                 }
               }
 
+              // Standard GA4 purchase event with enhanced conversions data
               rbfTrackEvent('purchase', {
                 transaction_id: transaction_id,
                 value: Number(value || 0),
@@ -206,29 +222,75 @@ function rbf_add_booking_tracking_script() {
                   price: Number(value || 0) / Number(people || 1)
                 }],
                 bucket: bucketStd,
-                vertical: 'restaurant'
+                vertical: 'restaurant',
+                // Enhanced conversion data for Google Ads
+                customer_email: '<?php echo hash('sha256', strtolower(trim(get_post_meta($booking_id, 'rbf_email', true)))); ?>',
+                customer_phone: '<?php echo hash('sha256', preg_replace('/[^\d+]/', '', get_post_meta($booking_id, 'rbf_tel', true))); ?>',
+                customer_first_name: '<?php echo hash('sha256', strtolower(trim(get_post_meta($booking_id, 'rbf_nome', true)))); ?>',
+                customer_last_name: '<?php echo hash('sha256', strtolower(trim(get_post_meta($booking_id, 'rbf_cognome', true)))); ?>'
               }, eventId);
 
-              // Evento custom con dettaglio ristorante
+              // Custom restaurant booking event with detailed attribution data
               rbfTrackEvent('restaurant_booking', {
                 transaction_id: transaction_id,
                 value: Number(value || 0),
                 currency: currency,
                 bucket: bucketStd,          // standard (gads/fbads/organic)
-                traffic_bucket: bucket,     // dettaglio (fborg/direct/other...)
+                traffic_bucket: bucket,     // detailed (fborg/direct/other...)
                 meal: meal,
                 people: Number(people || 0),
-                vertical: 'restaurant'
+                vertical: 'restaurant',
+                booking_date: '<?php echo get_post_meta($booking_id, 'rbf_data', true); ?>',
+                booking_time: '<?php echo get_post_meta($booking_id, 'rbf_orario', true); ?>'
               }, eventId);
 
-              <?php if ($meta_pixel_id) : ?>
-              if (typeof fbq === 'function') {
-                // Dedup con CAPI: stesso eventID + bucket standard lato browser
-                fbq('track', 'Purchase',
-                    { value: Number(value || 0), currency: currency, bucket: bucketStd, vertical: 'restaurant' },
-                    { eventID: eventId }
-                );
+              // Google Ads specific conversion tracking with enhanced data (only if not in GTM hybrid mode)
+              if (!isGtmHybrid && bucketStd === 'gads' && typeof gtag === 'function') {
+                gtag('event', 'conversion', {
+                  send_to: 'AW-CONVERSION_ID/CONVERSION_LABEL', // Replace with actual conversion ID
+                  transaction_id: transaction_id,
+                  value: Number(value || 0),
+                  currency: currency,
+                  event_id: eventId,
+                  customer_data: {
+                    email_address: '<?php echo hash('sha256', strtolower(trim(get_post_meta($booking_id, 'rbf_email', true)))); ?>',
+                    phone_number: '<?php echo hash('sha256', preg_replace('/[^\d+]/', '', get_post_meta($booking_id, 'rbf_tel', true))); ?>',
+                    first_name: '<?php echo hash('sha256', strtolower(trim(get_post_meta($booking_id, 'rbf_nome', true)))); ?>',
+                    last_name: '<?php echo hash('sha256', strtolower(trim(get_post_meta($booking_id, 'rbf_cognome', true)))); ?>'
+                  }
+                });
               }
+
+              <?php if ($meta_pixel_id) : ?>
+              // Facebook Pixel tracking with deduplication
+              if (typeof fbq === 'function') {
+                // Browser-side tracking with deduplication
+                fbq('track', 'Purchase', {
+                  value: Number(value || 0), 
+                  currency: currency, 
+                  bucket: bucketStd, 
+                  vertical: 'restaurant',
+                  content_type: 'product',
+                  content_name: 'Restaurant Booking',
+                  content_category: 'booking'
+                }, { 
+                  eventID: eventId  // Deduplication with server-side
+                });
+              }
+              
+              // Send server-side Facebook Conversion API event
+              <?php 
+              // Add server-side Facebook CAPI call
+              $meta_access_token = $options['meta_access_token'] ?? '';
+              if (!empty($meta_access_token)) {
+                  rbf_send_facebook_capi_event($booking_id, $meta_pixel_id, $meta_access_token, $eventId, [
+                      'value' => $value,
+                      'currency' => 'EUR',
+                      'bucket' => $bucketStd,
+                      'vertical' => 'restaurant'
+                  ]);
+              }
+              ?>
               <?php endif; ?>
             })();
         </script>
@@ -399,6 +461,91 @@ function rbf_trigger_brevo_automation($first_name, $last_name, $email, $date, $t
         if ($response_code < 200 || $response_code >= 300) {
             $response_body = wp_remote_retrieve_body($response);
             rbf_handle_error("Errore Brevo (evento booking_bistrot) - HTTP {$response_code}: {$response_body}", 'brevo_api');
+        }
+    }
+}
+
+/**
+ * Send Facebook Conversion API event server-side for deduplication
+ */
+function rbf_send_facebook_capi_event($booking_id, $pixel_id, $access_token, $event_id, $event_data) {
+    if (empty($pixel_id) || empty($access_token)) {
+        return;
+    }
+    
+    // Get booking data
+    $email = get_post_meta($booking_id, 'rbf_email', true);
+    $phone = get_post_meta($booking_id, 'rbf_tel', true);
+    $first_name = get_post_meta($booking_id, 'rbf_nome', true);
+    $last_name = get_post_meta($booking_id, 'rbf_cognome', true);
+    
+    // Prepare user data with hashing
+    $user_data = [];
+    if (!empty($email)) {
+        $user_data['em'] = hash('sha256', strtolower(trim($email)));
+    }
+    if (!empty($phone)) {
+        $user_data['ph'] = hash('sha256', preg_replace('/[^\d+]/', '', $phone));
+    }
+    if (!empty($first_name)) {
+        $user_data['fn'] = hash('sha256', strtolower(trim($first_name)));
+    }
+    if (!empty($last_name)) {
+        $user_data['ln'] = hash('sha256', strtolower(trim($last_name)));
+    }
+    
+    // Add IP and user agent if available
+    if (!empty($_SERVER['REMOTE_ADDR'])) {
+        $user_data['client_ip_address'] = $_SERVER['REMOTE_ADDR'];
+    }
+    if (!empty($_SERVER['HTTP_USER_AGENT'])) {
+        $user_data['client_user_agent'] = $_SERVER['HTTP_USER_AGENT'];
+    }
+    
+    // Prepare event payload
+    $event_payload = [
+        'data' => [
+            [
+                'event_name' => 'Purchase',
+                'event_time' => time(),
+                'event_id' => $event_id,
+                'action_source' => 'website',
+                'user_data' => $user_data,
+                'custom_data' => [
+                    'value' => floatval($event_data['value']),
+                    'currency' => $event_data['currency'],
+                    'content_type' => 'product',
+                    'content_name' => 'Restaurant Booking',
+                    'content_category' => 'booking',
+                    'custom_properties' => [
+                        'bucket' => $event_data['bucket'],
+                        'vertical' => $event_data['vertical']
+                    ]
+                ]
+            ]
+        ]
+    ];
+    
+    // Send to Facebook Conversion API
+    $response = wp_remote_post(
+        "https://graph.facebook.com/v18.0/{$pixel_id}/events",
+        [
+            'timeout' => 30,
+            'headers' => [
+                'Content-Type' => 'application/json',
+                'Authorization' => 'Bearer ' . $access_token
+            ],
+            'body' => wp_json_encode($event_payload)
+        ]
+    );
+    
+    if (is_wp_error($response)) {
+        rbf_handle_error('Facebook CAPI error: ' . $response->get_error_message(), 'facebook_capi');
+    } else {
+        $response_code = wp_remote_retrieve_response_code($response);
+        if ($response_code < 200 || $response_code >= 300) {
+            $response_body = wp_remote_retrieve_body($response);
+            rbf_handle_error("Facebook CAPI HTTP {$response_code}: {$response_body}", 'facebook_capi');
         }
     }
 }

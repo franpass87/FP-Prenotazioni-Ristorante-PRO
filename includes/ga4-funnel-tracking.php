@@ -104,8 +104,17 @@ function rbf_enqueue_ga4_funnel_tracking() {
         'measurementId' => $config['measurement_id'],
         'ajaxUrl' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('rbf_ga4_funnel_nonce'),
-        'debug' => defined('WP_DEBUG') && WP_DEBUG
+        'debug' => defined('WP_DEBUG') && WP_DEBUG,
+        'gtmHybrid' => rbf_is_gtm_hybrid_mode()
     ]);
+}
+
+/**
+ * Check if GTM hybrid mode is enabled
+ */
+function rbf_is_gtm_hybrid_mode() {
+    $options = rbf_get_settings();
+    return ($options['gtm_hybrid'] ?? '') === 'yes';
 }
 
 /**

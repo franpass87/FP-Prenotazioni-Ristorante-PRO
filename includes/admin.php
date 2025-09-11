@@ -53,6 +53,7 @@ function rbf_create_bookings_menu() {
     add_submenu_page('rbf_calendar', rbf_translate_string('Notifiche Email'), rbf_translate_string('Notifiche Email'), 'manage_options', 'rbf_email_notifications', 'rbf_email_notifications_page_html');
     add_submenu_page('rbf_calendar', rbf_translate_string('Esporta Dati'), rbf_translate_string('Esporta Dati'), 'manage_options', 'rbf_export', 'rbf_export_page_html');
     add_submenu_page('rbf_calendar', rbf_translate_string('Impostazioni'), rbf_translate_string('Impostazioni'), 'manage_options', 'rbf_settings', 'rbf_settings_page_html');
+    add_submenu_page('rbf_calendar', rbf_translate_string('Validazione Tracking'), rbf_translate_string('Validazione Tracking'), 'manage_options', 'rbf_tracking_validation', 'rbf_tracking_validation_page_html');
 }
 
 /**
@@ -3129,4 +3130,217 @@ function rbf_get_weekly_staff_bookings_callback() {
     }
 
     wp_send_json_success($events);
+}
+
+/**
+ * Tracking Validation page HTML
+ */
+function rbf_tracking_validation_page_html() {
+    // Load tracking validation functions
+    if (!function_exists('rbf_validate_tracking_setup')) {
+        require_once RBF_PLUGIN_DIR . 'includes/tracking-validation.php';
+    }
+    
+    $validation_results = rbf_validate_tracking_setup();
+    $options = rbf_get_settings();
+    
+    // Handle test tracking action
+    $test_result = null;
+    if (isset($_POST['test_tracking']) && wp_verify_nonce($_POST['_wpnonce'], 'rbf_tracking_test')) {
+        $test_result = rbf_perform_tracking_test();
+    }
+    ?>
+    
+    <div class="rbf-admin-wrap">
+        <h1><?php echo esc_html(rbf_translate_string('Validazione Sistema Tracking')); ?></h1>
+        
+        <!-- Configuration Overview -->
+        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 30px;">
+            <h2><?php echo esc_html(rbf_translate_string('Panoramica Configurazione')); ?></h2>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                <div>
+                    <h3><?php echo esc_html(rbf_translate_string('Google Analytics 4')); ?></h3>
+                    <div style="margin-bottom: 10px;">
+                        <strong><?php echo esc_html(rbf_translate_string('ID Misurazione')); ?>:</strong>
+                        <code><?php echo esc_html($options['ga4_id'] ?: 'Non configurato'); ?></code>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <strong><?php echo esc_html(rbf_translate_string('API Secret')); ?>:</strong>
+                        <code><?php echo esc_html($options['ga4_api_secret'] ? 'Configurato' : 'Non configurato'); ?></code>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3><?php echo esc_html(rbf_translate_string('Google Tag Manager')); ?></h3>
+                    <div style="margin-bottom: 10px;">
+                        <strong><?php echo esc_html(rbf_translate_string('Container ID')); ?>:</strong>
+                        <code><?php echo esc_html($options['gtm_id'] ?: 'Non configurato'); ?></code>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <strong><?php echo esc_html(rbf_translate_string('Modalità Ibrida')); ?>:</strong>
+                        <code><?php echo esc_html(($options['gtm_hybrid'] === 'yes') ? 'Attiva' : 'Disattiva'); ?></code>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3><?php echo esc_html(rbf_translate_string('Meta Pixel')); ?></h3>
+                    <div style="margin-bottom: 10px;">
+                        <strong><?php echo esc_html(rbf_translate_string('Pixel ID')); ?>:</strong>
+                        <code><?php echo esc_html($options['meta_pixel_id'] ?: 'Non configurato'); ?></code>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <strong><?php echo esc_html(rbf_translate_string('Access Token (CAPI)')); ?>:</strong>
+                        <code><?php echo esc_html($options['meta_access_token'] ? 'Configurato' : 'Non configurato'); ?></code>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Validation Results -->
+        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 30px;">
+            <h2><?php echo esc_html(rbf_translate_string('Risultati Validazione')); ?></h2>
+            
+            <?php foreach ($validation_results as $check_name => $result): ?>
+                <div style="display: flex; align-items: center; padding: 15px; margin-bottom: 10px; border-radius: 6px; background: <?php 
+                    echo $result['status'] === 'ok' ? '#f0f9ff' : 
+                        ($result['status'] === 'warning' ? '#fff8f0' : '#f8f9fa'); 
+                ?>;">
+                    <span style="font-size: 20px; margin-right: 15px; color: <?php 
+                        echo $result['status'] === 'ok' ? '#00a32a' : 
+                            ($result['status'] === 'warning' ? '#dba617' : '#666'); 
+                    ?>;">
+                        <?php echo $result['status'] === 'ok' ? '✓' : ($result['status'] === 'warning' ? '⚠' : 'ℹ'); ?>
+                    </span>
+                    <div style="flex: 1;">
+                        <strong style="display: block; margin-bottom: 5px;">
+                            <?php echo esc_html(ucfirst(str_replace('_', ' ', $check_name))); ?>
+                        </strong>
+                        <span style="color: #666;">
+                            <?php echo esc_html($result['message']); ?>
+                        </span>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+        
+        <!-- Test Tracking -->
+        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 30px;">
+            <h2><?php echo esc_html(rbf_translate_string('Test Sistema Tracking')); ?></h2>
+            
+            <?php if ($test_result): ?>
+                <div style="padding: 15px; margin-bottom: 20px; border-radius: 6px; background: <?php echo $test_result['success'] ? '#f0f9ff' : '#fff0f0'; ?>; border: 1px solid <?php echo $test_result['success'] ? '#00a32a' : '#d63638'; ?>;">
+                    <strong><?php echo esc_html($test_result['success'] ? 'Test Completato' : 'Test Fallito'); ?></strong>
+                    <div style="margin-top: 10px;">
+                        <?php echo wp_kses_post($test_result['message']); ?>
+                    </div>
+                </div>
+            <?php endif; ?>
+            
+            <form method="post">
+                <?php wp_nonce_field('rbf_tracking_test'); ?>
+                <p><?php echo esc_html(rbf_translate_string('Esegui un test del sistema di tracking per verificare che tutti i componenti funzionino correttamente.')); ?></p>
+                <p class="submit">
+                    <input type="submit" name="test_tracking" class="button button-primary" value="<?php echo esc_attr(rbf_translate_string('Esegui Test Tracking')); ?>">
+                </p>
+            </form>
+        </div>
+    </div>
+    
+    <style>
+    .rbf-admin-wrap h1 {
+        margin-bottom: 20px;
+    }
+    
+    .rbf-admin-wrap h2 {
+        margin-top: 0;
+        margin-bottom: 20px;
+        color: #1f2937;
+    }
+    
+    .rbf-admin-wrap h3 {
+        margin-top: 0;
+        margin-bottom: 15px;
+        color: #374151;
+    }
+    
+    .rbf-admin-wrap code {
+        background: #f3f4f6;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: monospace;
+    }
+    </style>
+    <?php
+}
+
+/**
+ * Perform tracking system test
+ */
+function rbf_perform_tracking_test() {
+    $options = rbf_get_settings();
+    $results = [];
+    $success = true;
+    
+    // Test GA4 configuration
+    if (!empty($options['ga4_id'])) {
+        $results[] = '✓ GA4 ID configurato: ' . $options['ga4_id'];
+        
+        // Test server-side tracking if API secret is available
+        if (!empty($options['ga4_api_secret'])) {
+            $results[] = '✓ GA4 API Secret configurato per tracking server-side';
+        } else {
+            $results[] = '⚠ GA4 API Secret non configurato - tracking server-side non disponibile';
+        }
+    } else {
+        $results[] = '✗ GA4 non configurato';
+        $success = false;
+    }
+    
+    // Test GTM configuration
+    if (!empty($options['gtm_id'])) {
+        $results[] = '✓ GTM Container ID configurato: ' . $options['gtm_id'];
+        
+        if (($options['gtm_hybrid'] ?? '') === 'yes') {
+            $results[] = '✓ Modalità ibrida GTM + GA4 attiva';
+        } else {
+            $results[] = 'ℹ Modalità ibrida disattiva - tracking standard GA4';
+        }
+    } else {
+        $results[] = 'ℹ GTM non configurato - utilizzo tracking GA4 diretto';
+    }
+    
+    // Test Meta Pixel configuration
+    if (!empty($options['meta_pixel_id'])) {
+        $results[] = '✓ Meta Pixel ID configurato: ' . $options['meta_pixel_id'];
+        
+        if (!empty($options['meta_access_token'])) {
+            $results[] = '✓ Meta Access Token configurato per Conversion API';
+        } else {
+            $results[] = '⚠ Meta Access Token non configurato - CAPI non disponibile';
+        }
+    } else {
+        $results[] = 'ℹ Meta Pixel non configurato';
+    }
+    
+    // Test JavaScript integration
+    if (function_exists('rbf_is_gtm_hybrid_mode')) {
+        $results[] = '✓ Funzioni JavaScript integration caricate correttamente';
+    } else {
+        $results[] = '✗ Errore caricamento funzioni JavaScript integration';
+        $success = false;
+    }
+    
+    // Test validation functions
+    if (function_exists('rbf_validate_tracking_setup')) {
+        $results[] = '✓ Funzioni validazione tracking caricate correttamente';
+    } else {
+        $results[] = '✗ Errore caricamento funzioni validazione tracking';
+        $success = false;
+    }
+    
+    return [
+        'success' => $success,
+        'message' => '<ul><li>' . implode('</li><li>', $results) . '</li></ul>'
+    ];
 }
