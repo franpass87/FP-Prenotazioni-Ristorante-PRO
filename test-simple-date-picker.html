@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Simple Date Picker - Sostituzione Flatpickr</title>
+    <link rel="stylesheet" href="assets/css/frontend.css">
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: #f5f7fa; 
+        }
+        .demo-container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+        }
+        .test-banner {
+            background: #d1ecf1;
+            border: 1px solid #b8daff;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        /* Simple Date Picker Styles */
+        .rbf-simple-date-picker {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .rbf-simple-date-picker select,
+        .rbf-simple-date-picker input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            background: white;
+        }
+        
+        .rbf-simple-date-picker select {
+            min-width: 120px;
+        }
+        
+        .rbf-simple-date-picker input[type="number"] {
+            width: 80px;
+            text-align: center;
+        }
+        
+        .rbf-date-separator {
+            font-weight: 500;
+            color: #666;
+        }
+        
+        .rbf-simple-date-picker .rbf-field-error {
+            width: 100%;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <div class="test-banner">
+            🧪 Test: Sostituzione Flatpickr con selettori semplici
+        </div>
+        
+        <div class="rbf-form-container">
+            <form class="rbf-form" id="rbf-form">
+                <h2 style="text-align: center; color: var(--rbf-primary); margin-bottom: 2rem;">
+                    🍽️ Prenota il tuo tavolo
+                </h2>
+                
+                <!-- Step 1: Meal Selection -->
+                <div class="rbf-step active">
+                    <div class="rbf-field-wrapper">
+                        <label>Scegli il pasto <span class="rbf-required-indicator">*</span></label>
+                        <div class="rbf-radio-group" role="radiogroup">
+                            <div class="rbf-radio-item">
+                                <input type="radio" name="rbf_meal" value="brunch" id="brunch" required>
+                                <label for="brunch"><span>🥐</span> Brunch</label>
+                            </div>
+                            <div class="rbf-radio-item">
+                                <input type="radio" name="rbf_meal" value="pranzo" id="pranzo">
+                                <label for="pranzo"><span>🍝</span> Pranzo</label>
+                            </div>
+                            <div class="rbf-radio-item">
+                                <input type="radio" name="rbf_meal" value="aperitivo_cena" id="aperitivo_cena">
+                                <label for="aperitivo_cena"><span>🍷</span> Aperitivo e Cena</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Date Selection - NEW SIMPLE VERSION -->
+                <div id="step-date" class="rbf-step" style="display:none;" aria-labelledby="date-label">
+                    <div class="rbf-field-wrapper">
+                        <label id="date-label">Data <span class="rbf-required-indicator">*</span></label>
+                        <div class="rbf-fade-in">
+                            <div class="rbf-simple-date-picker">
+                                <select id="rbf-date-day" required aria-label="Giorno">
+                                    <option value="">Giorno</option>
+                                    <!-- Days 1-31 will be populated by JS -->
+                                </select>
+                                <span class="rbf-date-separator">/</span>
+                                <select id="rbf-date-month" required aria-label="Mese">
+                                    <option value="">Mese</option>
+                                    <option value="1">Gennaio</option>
+                                    <option value="2">Febbraio</option>
+                                    <option value="3">Marzo</option>
+                                    <option value="4">Aprile</option>
+                                    <option value="5">Maggio</option>
+                                    <option value="6">Giugno</option>
+                                    <option value="7">Luglio</option>
+                                    <option value="8">Agosto</option>
+                                    <option value="9">Settembre</option>
+                                    <option value="10">Ottobre</option>
+                                    <option value="11">Novembre</option>
+                                    <option value="12">Dicembre</option>
+                                </select>
+                                <span class="rbf-date-separator">/</span>
+                                <input type="number" id="rbf-date-year" placeholder="Anno" min="2024" max="2030" required aria-label="Anno">
+                                <!-- Hidden input to maintain compatibility -->
+                                <input type="hidden" id="rbf-date" name="rbf_data">
+                            </div>
+                            <div id="rbf-date-error" class="rbf-field-error"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: Time Selection -->
+                <div id="step-time" class="rbf-step" style="display:none;">
+                    <div class="rbf-field-wrapper">
+                        <label>Orario <span class="rbf-required-indicator">*</span></label>
+                        <select id="rbf-time" required>
+                            <option value="">Prima seleziona una data...</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <button type="submit" style="margin-top: 20px; width: 100%;">Prenota</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Mock rbfData per test
+        window.rbfData = {
+            minAdvanceMinutes: 60,
+            maxAdvanceMinutes: 10080,
+            locale: 'it',
+            ajaxUrl: '#',
+            nonce: 'test',
+            closedDays: [0], // Domenica chiusa
+            closedSingles: [],
+            closedRanges: [],
+            exceptions: [],
+            labels: {
+                loading: 'Caricamento',
+                chooseTime: 'Scegli un orario...',
+                noTime: 'Nessun orario disponibile'
+            },
+            mealAvailability: {
+                brunch: ['sat', 'sun'],
+                pranzo: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
+                aperitivo_cena: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+            }
+        };
+
+        // Simple date picker implementation with vanilla JavaScript
+        document.addEventListener('DOMContentLoaded', function() {
+            'use strict';
+
+            // Initialize day dropdown
+            function initializeDayDropdown() {
+                const daySelect = document.getElementById('rbf-date-day');
+                for (let i = 1; i <= 31; i++) {
+                    const option = new Option(i, i);
+                    daySelect.appendChild(option);
+                }
+            }
+
+            // Set default date to today
+            function setDefaultDate() {
+                const today = new Date();
+                document.getElementById('rbf-date-day').value = today.getDate();
+                document.getElementById('rbf-date-month').value = today.getMonth() + 1;
+                document.getElementById('rbf-date-year').value = today.getFullYear();
+                updateHiddenDateInput();
+            }
+
+            // Update hidden input when date changes
+            function updateHiddenDateInput() {
+                const day = document.getElementById('rbf-date-day').value;
+                const month = document.getElementById('rbf-date-month').value;
+                const year = document.getElementById('rbf-date-year').value;
+
+                if (day && month && year) {
+                    const dateStr = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                    document.getElementById('rbf-date').value = dateStr;
+                    return new Date(year, month - 1, day);
+                }
+                document.getElementById('rbf-date').value = '';
+                return null;
+            }
+
+            // Validate selected date
+            function validateDate() {
+                const date = updateHiddenDateInput();
+                const errorDiv = document.getElementById('rbf-date-error');
+                
+                if (!date) {
+                    errorDiv.textContent = 'Seleziona una data valida';
+                    errorDiv.style.display = 'block';
+                    return false;
+                }
+
+                // Check if date is valid
+                const day = parseInt(document.getElementById('rbf-date-day').value);
+                const month = parseInt(document.getElementById('rbf-date-month').value);
+                const year = parseInt(document.getElementById('rbf-date-year').value);
+                
+                if (date.getDate() !== day || date.getMonth() !== (month - 1) || date.getFullYear() !== year) {
+                    errorDiv.textContent = 'Data non valida per il mese selezionato';
+                    errorDiv.style.display = 'block';
+                    return false;
+                }
+
+                // Check minimum advance time
+                const now = new Date();
+                const minDate = new Date(now.getTime() + window.rbfData.minAdvanceMinutes * 60 * 1000);
+                if (date < minDate) {
+                    errorDiv.textContent = 'La data deve essere almeno 1 ora nel futuro';
+                    errorDiv.style.display = 'block';
+                    return false;
+                }
+
+                // Check closed days (0=Sunday, 1=Monday, etc.)
+                const dayOfWeek = date.getDay();
+                if (window.rbfData.closedDays.includes(dayOfWeek)) {
+                    errorDiv.textContent = 'Il ristorante è chiuso in questo giorno della settimana';
+                    errorDiv.style.display = 'block';
+                    return false;
+                }
+
+                errorDiv.style.display = 'none';
+                return true;
+            }
+
+            // Trigger time loading (mock)
+            function loadAvailableTimes(date) {
+                const timeSelect = document.getElementById('rbf-time');
+                timeSelect.innerHTML = '<option value="">Caricamento orari...</option>';
+                
+                // Mock time loading
+                setTimeout(() => {
+                    timeSelect.innerHTML = `
+                        <option value="">Scegli un orario...</option>
+                        <option value="12:00">12:00</option>
+                        <option value="12:30">12:30</option>
+                        <option value="13:00">13:00</option>
+                        <option value="13:30">13:30</option>
+                        <option value="19:00">19:00</option>
+                        <option value="19:30">19:30</option>
+                        <option value="20:00">20:00</option>
+                        <option value="20:30">20:30</option>
+                    `;
+                    document.getElementById('step-time').style.display = 'block';
+                }, 500);
+            }
+
+            // Event handlers for date inputs
+            ['rbf-date-day', 'rbf-date-month', 'rbf-date-year'].forEach(id => {
+                document.getElementById(id).addEventListener('change', function() {
+                    if (validateDate()) {
+                        const date = updateHiddenDateInput();
+                        if (date) {
+                            loadAvailableTimes(date);
+                        }
+                    }
+                });
+            });
+
+            // Meal selection handler
+            document.querySelectorAll('input[name="rbf_meal"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    document.getElementById('step-date').style.display = 'block';
+                });
+            });
+
+            // Initialize
+            initializeDayDropdown();
+            setDefaultDate();
+        });
+    </script>
+</body>
+</html>

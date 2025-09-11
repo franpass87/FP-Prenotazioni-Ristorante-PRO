@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Implementazione Simple Date Picker</title>
+    <link rel="stylesheet" href="assets/css/frontend.css">
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: #f5f7fa; 
+        }
+        .demo-container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+        }
+        .test-banner {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <div class="test-banner">
+            ✅ Test: Implementazione Simple Date Picker - Sostituzione di Flatpickr
+        </div>
+        
+        <div class="rbf-form-container">
+            <form class="rbf-form" id="rbf-form">
+                <h2 style="text-align: center; color: var(--rbf-primary); margin-bottom: 2rem;">
+                    🍽️ Prenota il tuo tavolo
+                </h2>
+                
+                <!-- Progress indicator -->
+                <div class="rbf-progress-indicator">
+                    <div class="rbf-progress-step active">1</div>
+                    <div class="rbf-progress-step">2</div>
+                    <div class="rbf-progress-step">3</div>
+                    <div class="rbf-progress-step">4</div>
+                </div>
+                
+                <!-- Step 1: Meal Selection -->
+                <div class="rbf-step active">
+                    <div class="rbf-field-wrapper">
+                        <label>Scegli il pasto <span class="rbf-required-indicator">*</span></label>
+                        <div class="rbf-radio-group" role="radiogroup">
+                            <div class="rbf-radio-item">
+                                <input type="radio" name="rbf_meal" value="brunch" id="brunch" required>
+                                <label for="brunch"><span>🥐</span> Brunch</label>
+                            </div>
+                            <div class="rbf-radio-item">
+                                <input type="radio" name="rbf_meal" value="pranzo" id="pranzo">
+                                <label for="pranzo"><span>🍝</span> Pranzo</label>
+                            </div>
+                            <div class="rbf-radio-item">
+                                <input type="radio" name="rbf_meal" value="aperitivo_cena" id="aperitivo_cena">
+                                <label for="aperitivo_cena"><span>🍷</span> Aperitivo e Cena</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Date Selection - Will be populated by JavaScript -->
+                <div id="step-date" class="rbf-step" style="display:none;" aria-labelledby="date-label">
+                    <div class="rbf-field-wrapper">
+                        <label id="date-label">Data <span class="rbf-required-indicator">*</span></label>
+                        <div class="rbf-fade-in">
+                            <input type="text" id="rbf-date" placeholder="Clicca per selezionare una data" required>
+                        </div>
+                        <!-- Skeleton loading -->
+                        <div class="rbf-skeleton-fields" aria-hidden="true">
+                            <div class="rbf-skeleton rbf-skeleton-field"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: Time Selection -->
+                <div id="step-time" class="rbf-step" style="display:none;">
+                    <div class="rbf-field-wrapper">
+                        <label>Orario <span class="rbf-required-indicator">*</span></label>
+                        <select id="rbf-time" required>
+                            <option value="">Prima seleziona una data...</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Step 4: People Selection -->
+                <div id="step-people" class="rbf-step" style="display:none;">
+                    <div class="rbf-field-wrapper">
+                        <label>Numero di persone <span class="rbf-required-indicator">*</span></label>
+                        <div class="rbf-people-selector">
+                            <button type="button" id="rbf-people-minus" disabled>-</button>
+                            <input type="number" id="rbf-people" value="2" min="1" readonly>
+                            <button type="button" id="rbf-people-plus">+</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" style="margin-top: 20px; width: 100%;">Prenota</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        // Mock rbfData per test (stesso oggetto del file originale)
+        window.rbfData = {
+            minAdvanceMinutes: 60,
+            maxAdvanceMinutes: 10080,
+            locale: 'it',
+            ajaxUrl: '/wp-admin/admin-ajax.php',
+            nonce: 'test_nonce',
+            closedDays: [0], // Domenica chiusa
+            closedSingles: [],
+            closedRanges: [],
+            exceptions: [],
+            labels: {
+                loading: 'Caricamento',
+                chooseTime: 'Scegli un orario...',
+                noTime: 'Nessun orario disponibile'
+            },
+            mealAvailability: {
+                brunch: ['sat', 'sun'],
+                pranzo: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
+                aperitivo_cena: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+            }
+        };
+        
+        // Mock AJAX responses for testing
+        jQuery.ajaxSetup({
+            beforeSend: function(xhr, settings) {
+                if (settings.url === '/wp-admin/admin-ajax.php' && settings.data && settings.data.includes('rbf_get_availability')) {
+                    // Mock successful response
+                    setTimeout(() => {
+                        const response = {
+                            success: true,
+                            data: {
+                                available_times: [
+                                    {time: '12:00', slot: '1'},
+                                    {time: '12:30', slot: '2'},
+                                    {time: '13:00', slot: '3'},
+                                    {time: '13:30', slot: '4'},
+                                    {time: '19:00', slot: '5'},
+                                    {time: '19:30', slot: '6'},
+                                    {time: '20:00', slot: '7'},
+                                    {time: '20:30', slot: '8'}
+                                ]
+                            }
+                        };
+                        settings.success(response);
+                    }, 500);
+                    return false; // Prevent actual AJAX call
+                }
+            }
+        });
+    </script>
+    <script src="assets/js/frontend.js"></script>
+    
+    <script>
+        // Additional test specific code
+        jQuery(function($) {
+            console.log('Test page loaded, rbfData:', window.rbfData);
+        });
+    </script>
+</body>
+</html>
