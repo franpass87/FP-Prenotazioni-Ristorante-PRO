@@ -1673,40 +1673,65 @@
     cursor: pointer;
 }
 
-/* Ensure calendar navigation is always clickable - but let month dropdown handle itself */
+/* CRITICAL FIX: Ensure calendar is always fully interactive */
+
+/* Fix calendar container - must be interactive at all times */
+.flatpickr-calendar {
+    pointer-events: auto !important;
+    z-index: 1100 !important;
+    position: relative !important;
+}
+
+/* Ensure calendar NEVER gets disabled by loading states */
+.flatpickr-calendar,
+.flatpickr-calendar * {
+    pointer-events: auto !important;
+}
+
+/* Force calendar days to be clickable */
+.flatpickr-calendar .flatpickr-day {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    position: relative !important;
+    z-index: 1 !important;
+}
+
+/* Ensure disabled days remain disabled but everything else works */
+.flatpickr-calendar .flatpickr-day.flatpickr-disabled {
+    pointer-events: none !important;
+    cursor: not-allowed !important;
+}
+
+/* Navigation elements must be clickable */
 .flatpickr-calendar .flatpickr-months,
 .flatpickr-calendar .flatpickr-prev-month,
 .flatpickr-calendar .flatpickr-next-month,
 .flatpickr-calendar .flatpickr-current-month,
-.flatpickr-calendar .numInputWrapper {
-    pointer-events: auto !important;
-}
-
-/* Allow month dropdown to handle its own events naturally */
+.flatpickr-calendar .numInputWrapper,
 .flatpickr-calendar .flatpickr-monthDropdown-months {
-    /* Remove aggressive pointer-events override - let flatpickr handle it */
-    z-index: auto; /* Let flatpickr control stacking */
-}
-
-/* Ensure calendar days are always clickable when not disabled */
-.flatpickr-calendar .flatpickr-day:not(.flatpickr-disabled) {
     pointer-events: auto !important;
-    cursor: pointer !important;
+    z-index: 2 !important;
 }
 
-/* Fix calendar container pointer events */
-.flatpickr-calendar {
+/* NEVER allow loading overlays on calendar */
+.flatpickr-calendar .rbf-loading-overlay,
+.flatpickr-calendar::after,
+.flatpickr-calendar::before {
+    display: none !important;
+    pointer-events: none !important;
+}
+
+/* Prevent calendar from getting loading classes */
+.flatpickr-calendar.rbf-component-loading,
+.flatpickr-calendar.rbf-loading {
     pointer-events: auto !important;
-    z-index: 1050 !important; /* Lower z-index to avoid dropdown conflicts */
+    opacity: 1 !important;
 }
 
-/* Ensure calendar never gets loading class that blocks interactions */
-.flatpickr-calendar.rbf-component-loading {
+/* Ensure calendar container parent doesn't block events */
+.flatpickr-wrapper,
+.flatpickr-wrapper * {
     pointer-events: auto !important;
-}
-
-.flatpickr-calendar .rbf-loading-overlay {
-    display: none !important; /* Never show loading overlay on calendar */
 }
 
 /* Calendar day colors - use primary color instead of secondary */
