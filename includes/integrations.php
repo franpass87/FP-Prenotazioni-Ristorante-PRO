@@ -225,7 +225,7 @@ function rbf_add_booking_tracking_script() {
                 vertical: 'restaurant',
                 // Enhanced conversion data for Google Ads
                 customer_email: '<?php echo hash('sha256', strtolower(trim(get_post_meta($booking_id, 'rbf_email', true)))); ?>',
-                customer_phone: '<?php echo hash('sha256', preg_replace('/[^\d+]/', '', get_post_meta($booking_id, 'rbf_telefono', true))); ?>',
+                customer_phone: '<?php echo hash('sha256', preg_replace('/[^\d+]/', '', get_post_meta($booking_id, 'rbf_tel', true))); ?>',
                 customer_first_name: '<?php echo hash('sha256', strtolower(trim(get_post_meta($booking_id, 'rbf_nome', true)))); ?>',
                 customer_last_name: '<?php echo hash('sha256', strtolower(trim(get_post_meta($booking_id, 'rbf_cognome', true)))); ?>'
               }, eventId);
@@ -254,7 +254,7 @@ function rbf_add_booking_tracking_script() {
                   event_id: eventId,
                   customer_data: {
                     email_address: '<?php echo hash('sha256', strtolower(trim(get_post_meta($booking_id, 'rbf_email', true)))); ?>',
-                    phone_number: '<?php echo hash('sha256', preg_replace('/[^\d+]/', '', get_post_meta($booking_id, 'rbf_telefono', true))); ?>',
+                    phone_number: '<?php echo hash('sha256', preg_replace('/[^\d+]/', '', get_post_meta($booking_id, 'rbf_tel', true))); ?>',
                     first_name: '<?php echo hash('sha256', strtolower(trim(get_post_meta($booking_id, 'rbf_nome', true)))); ?>',
                     last_name: '<?php echo hash('sha256', strtolower(trim(get_post_meta($booking_id, 'rbf_cognome', true)))); ?>'
                   }
@@ -475,7 +475,7 @@ function rbf_send_facebook_capi_event($booking_id, $pixel_id, $access_token, $ev
     
     // Get booking data
     $email = get_post_meta($booking_id, 'rbf_email', true);
-    $phone = get_post_meta($booking_id, 'rbf_telefono', true);
+    $phone = get_post_meta($booking_id, 'rbf_tel', true);
     $first_name = get_post_meta($booking_id, 'rbf_nome', true);
     $last_name = get_post_meta($booking_id, 'rbf_cognome', true);
     
