@@ -26,7 +26,7 @@ function rbf_print_gtag($ga4_id, $send_page_view = true) {
         window.dataLayer = window.dataLayer || [];
         function gtag(){ dataLayer.push(arguments); }
         gtag('js', new Date());
-        gtag('config', '<?php echo esc_js($ga4_id); ?>', ['send_page_view' => <?php echo $send_page_view ? 'true' : 'false'; ?>]);
+        gtag('config', '<?php echo esc_js($ga4_id); ?>', { 'send_page_view': <?php echo $send_page_view ? 'true' : 'false'; ?> });
     </script>
     <?php echo "<script>window.dataLayer.push({event:'consent', 'analytics_storage':'denied'});</script>"; ?>
     <?php
