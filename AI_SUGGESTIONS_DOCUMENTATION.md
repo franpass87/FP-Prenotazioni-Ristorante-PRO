@@ -130,7 +130,7 @@ $suggestion['preference_score'] = base_score - (distance_penalty * multiplier);
     success: true,
     data: {
         suggestions: [...], // Array of suggestion objects
-        count: 3,
+        count: 2,
         message: "We found some alternatives for you!"
     }
 }
@@ -204,7 +204,7 @@ The system automatically inherits from existing plugin settings:
 
 ### Performance Considerations
 - Transient caching for availability checks (1 hour TTL)
-- Limited suggestion count (6 maximum) to prevent UI overload
+- Limited suggestion count (2 maximum) to prevent UI overload
 - Efficient database queries with proper indexing
 - Conditional loading based on suggestion availability
 

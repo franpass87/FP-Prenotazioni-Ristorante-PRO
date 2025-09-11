@@ -21,7 +21,7 @@ if (!defined('ABSPATH')) {
  */
 function rbf_get_alternative_suggestions($date, $meal, $people, $requested_time = '') {
     $suggestions = [];
-    $max_suggestions = 6; // Limit to avoid overwhelming users
+    $max_suggestions = 2; // Limit to avoid overwhelming users
     
     // Get meal configurations for intelligent suggestions
     $meals = rbf_get_active_meals();
@@ -87,6 +87,7 @@ function rbf_suggest_same_day_alternatives($date, $original_meal, $people, $meal
             
             $suggestions[] = [
                 'date' => $date,
+                'date_display' => rbf_format_date_display($date),
                 'meal' => $meal['id'],
                 'meal_name' => rbf_translate_string($meal['name']),
                 'time' => $time_slot['time'],
