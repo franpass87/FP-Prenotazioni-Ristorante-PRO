@@ -12,6 +12,26 @@ if (!defined('ABSPATH')) {
 }
 
 /**
+ * Print the GA4 gtag snippet only once.
+ */
+function rbf_print_gtag($ga4_id) {
+    static $printed = false;
+    if ($printed || empty($ga4_id)) {
+        return;
+    }
+    $printed = true;
+    ?>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=<?php echo esc_attr($ga4_id); ?>"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){ dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', '<?php echo esc_js($ga4_id); ?>', { 'send_page_view': true });
+    </script>
+    <?php
+}
+
+/**
  * Output tracking scripts in head
  */
 add_action('wp_head','rbf_add_tracking_scripts_to_head');
@@ -23,16 +43,8 @@ function rbf_add_tracking_scripts_to_head() {
     $meta_pixel_id = $options['meta_pixel_id'] ?? '';
 
     if ($gtm_hybrid && $gtm_id) {
+        rbf_print_gtag($ga4_id);
         ?>
-        <script>window.dataLayer = window.dataLayer || [];</script>
-        <?php if ($ga4_id) : ?>
-        <script async src="https://www.googletagmanager.com/gtag/js?id=<?php echo esc_attr($ga4_id); ?>"></script>
-        <script>
-            function gtag(){ dataLayer.push(arguments); }
-            gtag('js', new Date());
-            gtag('config', '<?php echo esc_js($ga4_id); ?>', { 'send_page_view': true });
-        </script>
-        <?php endif; ?>
         <script>
             (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','<?php echo esc_js($gtm_id); ?>');
         </script>
@@ -45,15 +57,7 @@ function rbf_add_tracking_scripts_to_head() {
         </script>
         <?php
     } elseif ($ga4_id) {
-        ?>
-        <script async src="https://www.googletagmanager.com/gtag/js?id=<?php echo esc_attr($ga4_id); ?>"></script>
-        <script>
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){ dataLayer.push(arguments); }
-            gtag('js', new Date());
-            gtag('config', '<?php echo esc_js($ga4_id); ?>', { 'send_page_view': true });
-        </script>
-        <?php
+        rbf_print_gtag($ga4_id);
     }
 
     if ($meta_pixel_id) { ?>
