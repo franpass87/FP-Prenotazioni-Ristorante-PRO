@@ -985,6 +985,9 @@ jQuery(function($) {
     resetSteps(1);
     el.mealNotice.hide();
     
+    // Remove any existing suggestions when meal changes
+    $('.rbf-suggestions-container').remove();
+    
     const selectedMeal = $(this).val();
     
     // Show meal-specific tooltip if configured
@@ -992,27 +995,50 @@ jQuery(function($) {
       el.mealNotice.text(rbfData.mealTooltips[selectedMeal]).show();
     }
     
-    // Update availability data when meal changes
-    if (fp && selectedMeal) {
-      const viewDate = fp.currentMonth;
-      const startDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
-      const endDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
-      
-      fetchAvailabilityData(
-        formatLocalISO(startDate),
-        formatLocalISO(endDate),
-        selectedMeal
-      ).then(() => {
-        // Redraw calendar to apply new availability colors
-        if (fp) {
-          fp.redraw();
-        }
-      });
-    }
-    
     // Show date step for any meal selection
     // The flatpickr will be lazy loaded when the step is shown
     showStep(el.dateStep, 2);
+    
+    // Initialize flatpickr immediately after showing the step to fix calendar not reopening
+    setTimeout(() => {
+      if (!fp && selectedMeal) {
+        lazyLoadDatePicker().then(() => {
+          // Update availability data when meal changes
+          if (fp && selectedMeal) {
+            const viewDate = fp.currentMonth;
+            const startDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+            const endDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
+            
+            fetchAvailabilityData(
+              formatLocalISO(startDate),
+              formatLocalISO(endDate),
+              selectedMeal
+            ).then(() => {
+              // Redraw calendar to apply new availability colors
+              if (fp) {
+                fp.redraw();
+              }
+            });
+          }
+        });
+      } else if (fp && selectedMeal) {
+        // If flatpickr already exists, just update availability
+        const viewDate = fp.currentMonth;
+        const startDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+        const endDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
+        
+        fetchAvailabilityData(
+          formatLocalISO(startDate),
+          formatLocalISO(endDate),
+          selectedMeal
+        ).then(() => {
+          // Redraw calendar to apply new availability colors
+          if (fp) {
+            fp.redraw();
+          }
+        });
+      }
+    }, 100);
   });
 
   /**
@@ -1025,6 +1051,10 @@ jQuery(function($) {
     }
     
     resetSteps(2);
+    
+    // Remove any existing suggestions when date changes
+    $('.rbf-suggestions-container').remove();
+    
     const date = selectedDates[0];
     const selectedMeal = el.mealRadios.filter(':checked').val();
     
