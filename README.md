@@ -30,6 +30,22 @@ Sistema completo di prenotazioni per ristoranti con calendario Flatpickr multili
 - **UTM Intelligence**: Sistema sofisticato di classificazione sorgenti
 - **Bucket Standardization**: Attribution unificata cross-platform tramite `rbf_normalize_bucket()` (gclid > fbclid > organic)
 
+### 🧩 Configurazione Ibrida GTM + GA4
+
+Il plugin supporta un setup ibrido in cui il container Google Tag Manager e lo script `gtag.js` di GA4 vengono caricati insieme.
+Gli eventi vengono inviati direttamente a GA4 e contemporaneamente pubblicati nel `dataLayer` per ulteriori integrazioni.
+
+```html
+<script>
+window.dataLayer = window.dataLayer || [];
+dataLayer.push({ event: 'form_view', form_type: 'restaurant_booking' });
+dataLayer.push({ event: 'booking_confirmed', booking_id: '123ABC', value: 50, currency: 'EUR' });
+</script>
+```
+
+**Evita duplicazioni:** se utilizzi l'invio diretto a GA4 assicurati di disabilitare il tag GA4 all'interno di GTM, oppure configura
+filtri nelle regole di attivazione, per evitare l'invio doppio degli stessi eventi.
+
 ## 🏗️ Architettura Modulare
 
 Il plugin è stato refactorizzato da una struttura monolitica (1162+ linee) in un'architettura modulare avanzata per migliore manutenibilità e performance:

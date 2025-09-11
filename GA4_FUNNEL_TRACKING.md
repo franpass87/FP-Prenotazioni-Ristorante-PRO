@@ -3,6 +3,22 @@
 ## Overview
 This documentation describes the comprehensive GA4 funnel tracking implementation for the restaurant booking plugin. The system tracks user interactions through the booking funnel with custom GA4 events, providing detailed analytics with session and event deduplication.
 
+## Hybrid GTM + GA4 Configuration
+
+The plugin can load the Google Tag Manager container and the GA4 `gtag.js` script at the same time.  
+Events are sent directly to GA4 while also being pushed into the `dataLayer` so that GTM can trigger additional tags.
+
+```javascript
+window.dataLayer = window.dataLayer || [];
+dataLayer.push({
+  event: 'time_selected',
+  selected_time: '20:00',
+  meal_type: 'cena'
+});
+```
+
+**Avoid duplicates:** if GA4 events are sent directly via `gtag()`, disable the GA4 configuration tag inside GTM or adjust trigger conditions to prevent the same hit from being fired twice.
+
 ## Funnel Events
 
 ### 1. **Form View** (`form_view`)
