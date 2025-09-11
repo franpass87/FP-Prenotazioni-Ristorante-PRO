@@ -407,23 +407,35 @@ jQuery(function($) {
     if (datePickerInitPromise) return datePickerInitPromise;
 
     datePickerInitPromise = new Promise((resolve) => {
-      // Small delay to ensure DOM is ready and flatpickr is available
-      setTimeout(() => {
-        if (typeof flatpickr !== 'undefined') {
-          initializeFlatpickr();
-        } else {
-          rbfLog.error('Flatpickr not available despite being enqueued');
-          // Fallback to basic HTML5 date input
+      const init = () => {
+        initializeFlatpickr();
+        if (fp && typeof fp.open === 'function') {
+          fp.open();
+        }
+        resolve();
+        datePickerInitPromise = null;
+      };
+
+      if (typeof flatpickr !== 'undefined') {
+        init();
+      } else {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/flatpickr';
+        script.async = true;
+        script.onload = init;
+        script.onerror = () => {
+          rbfLog.error('Flatpickr failed to load from CDN');
           if (el.dateInput.length) {
             el.dateInput.attr('type', 'date');
             const today = new Date();
             const minDate = new Date(today.getTime() + rbfData.minAdvanceMinutes * 60 * 1000);
             el.dateInput.attr('min', minDate.toISOString().split('T')[0]);
           }
-        }
-        resolve();
-        datePickerInitPromise = null;
-      }, 50);
+          resolve();
+          datePickerInitPromise = null;
+        };
+        document.head.appendChild(script);
+      }
     });
 
     return datePickerInitPromise;
