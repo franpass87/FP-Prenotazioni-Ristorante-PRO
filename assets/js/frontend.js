@@ -55,6 +55,7 @@ jQuery(function($) {
   };
 
   let fp = null;
+  let datePickerInitPromise = null;
   let iti = null;
   let currentStep = 1;
   let stepTimeouts = new Map(); // Track timeouts for each step element
@@ -402,12 +403,14 @@ jQuery(function($) {
    * Initialize flatpickr calendar (no lazy loading since it's enqueued as dependency)
    */
   function lazyLoadDatePicker() {
-    return new Promise((resolve) => {
+    if (fp) return Promise.resolve();
+    if (datePickerInitPromise) return datePickerInitPromise;
+
+    datePickerInitPromise = new Promise((resolve) => {
       // Small delay to ensure DOM is ready and flatpickr is available
       setTimeout(() => {
         if (typeof flatpickr !== 'undefined') {
           initializeFlatpickr();
-          resolve();
         } else {
           rbfLog.error('Flatpickr not available despite being enqueued');
           // Fallback to basic HTML5 date input
@@ -417,10 +420,13 @@ jQuery(function($) {
             const minDate = new Date(today.getTime() + rbfData.minAdvanceMinutes * 60 * 1000);
             el.dateInput.attr('min', minDate.toISOString().split('T')[0]);
           }
-          resolve();
         }
+        resolve();
+        datePickerInitPromise = null;
       }, 50);
     });
+
+    return datePickerInitPromise;
   }
 
   /**
@@ -1188,10 +1194,11 @@ jQuery(function($) {
   function resetSteps(fromStep) {
     if (fromStep <= 1) {
       hideStep(el.dateStep);
-      if (fp) { 
-        fp.clear(); 
-        fp.destroy(); 
-        fp = null; 
+      if (fp) {
+        fp.clear();
+        fp.destroy();
+        fp = null;
+        datePickerInitPromise = null;
       }
     }
     if (fromStep <= 2) hideStep(el.timeStep);
@@ -2481,6 +2488,13 @@ jQuery(function($) {
       document.getElementById('rbf_referrer').value = document.referrer || '';
     }
   })();
+
+  // Ensure calendar opens when date field gains focus or is clicked
+  el.dateInput.on('focus click', () => {
+    lazyLoadDatePicker().then(() => {
+      if (fp) fp.open();
+    });
+  });
 
   // Initialize autosave functionality
   initializeAutosave();
