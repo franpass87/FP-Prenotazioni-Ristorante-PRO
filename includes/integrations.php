@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) {
 /**
  * Print the GA4 gtag snippet only once.
  */
-function rbf_print_gtag($ga4_id) {
+function rbf_print_gtag($ga4_id, $send_page_view = true) {
     static $printed = false;
     if ($printed || empty($ga4_id)) {
         return;
@@ -26,7 +26,7 @@ function rbf_print_gtag($ga4_id) {
         window.dataLayer = window.dataLayer || [];
         function gtag(){ dataLayer.push(arguments); }
         gtag('js', new Date());
-        gtag('config', '<?php echo esc_js($ga4_id); ?>', { 'send_page_view': true });
+        gtag('config', '<?php echo esc_js($ga4_id); ?>', ['send_page_view' => <?php echo $send_page_view ? 'true' : 'false'; ?>]);
     </script>
     <?php
 }
@@ -42,8 +42,10 @@ function rbf_add_tracking_scripts_to_head() {
     $gtm_hybrid = ($options['gtm_hybrid'] ?? '') === 'yes';
     $meta_pixel_id = $options['meta_pixel_id'] ?? '';
 
+    $send_page_view = !$gtm_hybrid;
+
     if ($gtm_hybrid && $gtm_id) {
-        rbf_print_gtag($ga4_id);
+        rbf_print_gtag($ga4_id, $send_page_view);
         ?>
         <script>
             (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','<?php echo esc_js($gtm_id); ?>');
@@ -57,7 +59,7 @@ function rbf_add_tracking_scripts_to_head() {
         </script>
         <?php
     } elseif ($ga4_id) {
-        rbf_print_gtag($ga4_id);
+        rbf_print_gtag($ga4_id, $send_page_view);
     }
 
     if ($meta_pixel_id) { ?>
