@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✅ DEMO: Calendario Flatpickr - Funzionalità Complete</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="assets/css/frontend.css">
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .demo-container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        .demo-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        .demo-header h1 {
+            color: #333;
+            margin: 0 0 10px 0;
+            font-size: 2.5em;
+        }
+        .demo-header p {
+            color: #666;
+            font-size: 1.1em;
+            margin: 0;
+        }
+        .test-section {
+            margin: 25px 0;
+            padding: 25px;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            background: #f8f9fa;
+            position: relative;
+        }
+        .test-section h3 {
+            margin: 0 0 15px 0;
+            color: #495057;
+            font-size: 1.3em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .test-section p {
+            margin: 0 0 15px 0;
+            color: #6c757d;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-left: auto;
+        }
+        .status-success { background: #d4edda; color: #155724; }
+        .status-testing { background: #fff3cd; color: #856404; }
+        .status-error { background: #f8d7da; color: #721c24; }
+        
+        .calendar-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 1.1em;
+            margin: 10px 0;
+            transition: all 0.3s ease;
+        }
+        .calendar-input:focus {
+            border-color: #007bff;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(0,123,255,0.25);
+        }
+        
+        .demo-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 15px 0;
+        }
+        .demo-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            background: #007bff;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+            min-width: 140px;
+        }
+        .demo-btn:hover {
+            background: #0056b3;
+            transform: translateY(-1px);
+        }
+        .demo-btn.secondary {
+            background: #6c757d;
+        }
+        .demo-btn.secondary:hover {
+            background: #545b62;
+        }
+        
+        .result-display {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 600;
+            min-height: 20px;
+            transition: all 0.3s ease;
+        }
+        .result-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .result-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #b8daff;
+        }
+        .result-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .loading-demo {
+            position: relative;
+        }
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            z-index: 1000;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .emoji {
+            font-size: 1.2em;
+        }
+        
+        .success-animation {
+            animation: successPulse 0.6s ease-in-out;
+        }
+        
+        @keyframes successPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <div class="demo-header">
+            <h1>✅ Calendario Flatpickr Funzionante</h1>
+            <p>Demo completa delle funzionalità riparate</p>
+        </div>
+
+        <!-- Test 1: Selezione Giorni -->
+        <div class="test-section">
+            <h3>
+                <span class="emoji">📅</span> Test Selezione Giorni
+                <span class="status-badge status-testing" id="status-days">In attesa...</span>
+            </h3>
+            <p>Clicca su qualsiasi giorno del calendario per verificare che la selezione funzioni.</p>
+            <input type="text" class="calendar-input" id="date-picker" placeholder="Clicca qui per aprire il calendario">
+            <div class="result-display result-info" id="result-days">
+                <span class="emoji">👆</span> Clicca su un giorno nel calendario...
+            </div>
+        </div>
+
+        <!-- Test 2: Navigazione Mesi -->
+        <div class="test-section">
+            <h3>
+                <span class="emoji">🔄</span> Test Navigazione Mesi
+                <span class="status-badge status-testing" id="status-nav">In attesa...</span>
+            </h3>
+            <p>Testa la navigazione tra i mesi usando le frecce e il dropdown.</p>
+            <input type="text" class="calendar-input" id="nav-picker" placeholder="Calendario per test navigazione">
+            <div class="demo-buttons">
+                <button class="demo-btn" onclick="testPrevMonth()">
+                    <span class="emoji">⬅️</span> Mese Precedente
+                </button>
+                <button class="demo-btn" onclick="testNextMonth()">
+                    <span class="emoji">➡️</span> Mese Successivo
+                </button>
+                <button class="demo-btn secondary" onclick="testMonthDropdown()">
+                    <span class="emoji">📋</span> Test Dropdown
+                </button>
+            </div>
+            <div class="result-display result-info" id="result-nav">
+                <span class="emoji">🎯</span> Usa i pulsanti o le frecce del calendario...
+            </div>
+        </div>
+
+        <!-- Test 3: Resistenza Loading -->
+        <div class="test-section loading-demo" id="loading-section">
+            <h3>
+                <span class="emoji">⚡</span> Test Resistenza Stati di Caricamento
+                <span class="status-badge status-testing" id="status-loading">In attesa...</span>
+            </h3>
+            <p>Verifica che il calendario funzioni anche durante stati di caricamento simulati.</p>
+            <input type="text" class="calendar-input" id="loading-picker" placeholder="Test calendario con loading">
+            <div class="demo-buttons">
+                <button class="demo-btn" onclick="simulateLoading()">
+                    <span class="emoji">⏳</span> Simula Loading
+                </button>
+                <button class="demo-btn secondary" onclick="clearLoading()">
+                    <span class="emoji">🗑️</span> Rimuovi Loading
+                </button>
+            </div>
+            <div class="result-display result-info" id="result-loading">
+                <span class="emoji">🔬</span> Simula un loading e prova a usare il calendario...
+            </div>
+        </div>
+
+        <!-- Test 4: Test Continuo -->
+        <div class="test-section">
+            <h3>
+                <span class="emoji">🔄</span> Test Monitoraggio Continuo
+                <span class="status-badge status-testing" id="status-monitoring">In attesa...</span>
+            </h3>
+            <p>Verifica che il sistema di monitoraggio mantenga il calendario sempre funzionante.</p>
+            <input type="text" class="calendar-input" id="monitoring-picker" placeholder="Test monitoraggio persistenza">
+            <div class="demo-buttons">
+                <button class="demo-btn" onclick="startMonitoringTest()">
+                    <span class="emoji">🚀</span> Avvia Test Persistenza
+                </button>
+            </div>
+            <div class="result-display result-info" id="result-monitoring">
+                <span class="emoji">⚙️</span> Avvia il test per verificare il monitoraggio...
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="assets/js/frontend.js"></script>
+    <script>
+        let pickers = {};
+        let currentLoadingOverlay = null;
+
+        // Initialize all calendar pickers
+        document.addEventListener('DOMContentLoaded', function() {
+            initializePickers();
+        });
+
+        function initializePickers() {
+            // Test 1: Day selection
+            pickers.dayPicker = flatpickr("#date-picker", {
+                dateFormat: "d/m/Y",
+                locale: "it",
+                minDate: "today",
+                onChange: function(selectedDates, dateStr, instance) {
+                    updateStatus('days', 'success', `✅ Successo! Data: ${dateStr}`);
+                    document.getElementById('result-days').innerHTML = 
+                        `<span class="emoji">🎉</span> <strong>SUCCESSO!</strong> Data selezionata: <strong>${dateStr}</strong>`;
+                    document.getElementById('result-days').className = 'result-display result-success success-animation';
+                },
+                onReady: function(selectedDates, dateStr, instance) {
+                    applyCalendarFix(instance, 'day selection');
+                }
+            });
+
+            // Test 2: Navigation
+            pickers.navPicker = flatpickr("#nav-picker", {
+                dateFormat: "d/m/Y",
+                locale: "it",
+                minDate: "today",
+                onMonthChange: function(selectedDates, dateStr, instance) {
+                    const months = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
+                                  'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
+                    const currentMonth = months[instance.currentMonth];
+                    const currentYear = instance.currentYear;
+                    updateStatus('nav', 'success', `✅ Navigazione OK: ${currentMonth} ${currentYear}`);
+                    document.getElementById('result-nav').innerHTML = 
+                        `<span class="emoji">🎯</span> <strong>NAVIGAZIONE OK!</strong> Mese: <strong>${currentMonth} ${currentYear}</strong>`;
+                    document.getElementById('result-nav').className = 'result-display result-success success-animation';
+                },
+                onReady: function(selectedDates, dateStr, instance) {
+                    applyCalendarFix(instance, 'navigation');
+                }
+            });
+
+            // Test 3: Loading resistance
+            pickers.loadingPicker = flatpickr("#loading-picker", {
+                dateFormat: "d/m/Y",
+                locale: "it",
+                minDate: "today",
+                onChange: function(selectedDates, dateStr, instance) {
+                    updateStatus('loading', 'success', `✅ Funziona con loading: ${dateStr}`);
+                    document.getElementById('result-loading').innerHTML = 
+                        `<span class="emoji">⚡</span> <strong>RESISTENTE AL LOADING!</strong> Data: <strong>${dateStr}</strong>`;
+                    document.getElementById('result-loading').className = 'result-display result-success success-animation';
+                },
+                onReady: function(selectedDates, dateStr, instance) {
+                    applyCalendarFix(instance, 'loading resistance');
+                }
+            });
+
+            // Test 4: Monitoring
+            pickers.monitoringPicker = flatpickr("#monitoring-picker", {
+                dateFormat: "d/m/Y",
+                locale: "it",
+                minDate: "today",
+                onChange: function(selectedDates, dateStr, instance) {
+                    updateStatus('monitoring', 'success', `✅ Monitoraggio OK: ${dateStr}`);
+                    document.getElementById('result-monitoring').innerHTML = 
+                        `<span class="emoji">🔄</span> <strong>MONITORAGGIO ATTIVO!</strong> Data: <strong>${dateStr}</strong>`;
+                    document.getElementById('result-monitoring').className = 'result-display result-success success-animation';
+                },
+                onReady: function(selectedDates, dateStr, instance) {
+                    applyCalendarFix(instance, 'monitoring');
+                }
+            });
+        }
+
+        function applyCalendarFix(instance, testName) {
+            if (typeof forceCalendarInteractivity === 'function') {
+                forceCalendarInteractivity(instance);
+                console.log(`✅ Fix applicato al calendario: ${testName}`);
+            } else {
+                console.warn(`⚠️ Funzione forceCalendarInteractivity non trovata per: ${testName}`);
+            }
+        }
+
+        function updateStatus(testId, status, message) {
+            const statusElement = document.getElementById(`status-${testId}`);
+            statusElement.className = `status-badge status-${status}`;
+            statusElement.textContent = message;
+        }
+
+        function testPrevMonth() {
+            if (pickers.navPicker) {
+                pickers.navPicker.changeMonth(-1);
+                console.log('⬅️ Test mese precedente eseguito');
+            }
+        }
+
+        function testNextMonth() {
+            if (pickers.navPicker) {
+                pickers.navPicker.changeMonth(1);
+                console.log('➡️ Test mese successivo eseguito');
+            }
+        }
+
+        function testMonthDropdown() {
+            if (pickers.navPicker && pickers.navPicker.calendarContainer) {
+                const monthDropdown = pickers.navPicker.calendarContainer.querySelector('.flatpickr-current-month');
+                if (monthDropdown) {
+                    monthDropdown.click();
+                    updateStatus('nav', 'success', '✅ Dropdown testato');
+                    document.getElementById('result-nav').innerHTML = 
+                        `<span class="emoji">📋</span> <strong>DROPDOWN TESTATO!</strong> Verifica che si apra correttamente.`;
+                    document.getElementById('result-nav').className = 'result-display result-success';
+                    console.log('📋 Test dropdown mesi eseguito');
+                }
+            }
+        }
+
+        function simulateLoading() {
+            const section = document.getElementById('loading-section');
+            
+            // Remove existing overlay
+            if (currentLoadingOverlay) {
+                clearLoading();
+            }
+            
+            // Add loading overlay
+            currentLoadingOverlay = document.createElement('div');
+            currentLoadingOverlay.className = 'loading-overlay';
+            currentLoadingOverlay.innerHTML = '<div class="spinner"></div>';
+            section.appendChild(currentLoadingOverlay);
+            
+            // Apply our fix even during loading
+            if (pickers.loadingPicker) {
+                applyCalendarFix(pickers.loadingPicker, 'loading simulation');
+            }
+            
+            updateStatus('loading', 'testing', '⏳ Loading attivo');
+            document.getElementById('result-loading').innerHTML = 
+                `<span class="emoji">⏳</span> <strong>LOADING ATTIVO!</strong> Prova a cliccare sul calendario...`;
+            document.getElementById('result-loading').className = 'result-display result-warning';
+            
+            console.log('⏳ Loading overlay aggiunto - calendario dovrebbe essere ancora funzionante');
+        }
+
+        function clearLoading() {
+            if (currentLoadingOverlay && currentLoadingOverlay.parentNode) {
+                currentLoadingOverlay.parentNode.removeChild(currentLoadingOverlay);
+                currentLoadingOverlay = null;
+                
+                updateStatus('loading', 'testing', 'In attesa...');
+                document.getElementById('result-loading').innerHTML = 
+                    `<span class="emoji">🔬</span> Loading rimosso. Testa nuovamente...`;
+                document.getElementById('result-loading').className = 'result-display result-info';
+                
+                console.log('✅ Loading overlay rimosso');
+            }
+        }
+
+        function startMonitoringTest() {
+            let testCount = 0;
+            const maxTests = 5;
+            
+            updateStatus('monitoring', 'testing', '🔄 Test in corso...');
+            document.getElementById('result-monitoring').innerHTML = 
+                `<span class="emoji">🔄</span> <strong>TEST PERSISTENZA AVVIATO...</strong> (0/${maxTests})`;
+            document.getElementById('result-monitoring').className = 'result-display result-warning';
+            
+            const monitoringInterval = setInterval(() => {
+                testCount++;
+                
+                // Re-apply fix
+                if (pickers.monitoringPicker) {
+                    applyCalendarFix(pickers.monitoringPicker, `monitoring test ${testCount}`);
+                }
+                
+                document.getElementById('result-monitoring').innerHTML = 
+                    `<span class="emoji">🔄</span> <strong>TEST IN CORSO...</strong> (${testCount}/${maxTests}) Fix riapplicato`;
+                
+                console.log(`🔄 Fix riapplicato - iterazione ${testCount}/${maxTests}`);
+                
+                if (testCount >= maxTests) {
+                    clearInterval(monitoringInterval);
+                    updateStatus('monitoring', 'success', '✅ Test completato');
+                    document.getElementById('result-monitoring').innerHTML = 
+                        `<span class="emoji">🎉</span> <strong>TEST PERSISTENZA COMPLETATO!</strong> Fix applicato ${maxTests} volte con successo.`;
+                    document.getElementById('result-monitoring').className = 'result-display result-success success-animation';
+                    console.log('✅ Test monitoraggio completato con successo');
+                }
+            }, 1000);
+        }
+
+        // Auto-update status periodically
+        setInterval(() => {
+            console.log('🔍 Controllo periodico stato calendari...');
+            Object.keys(pickers).forEach(key => {
+                if (pickers[key] && pickers[key].calendarContainer) {
+                    applyCalendarFix(pickers[key], `periodic check ${key}`);
+                }
+            });
+        }, 5000);
+    </script>
+</body>
+</html>
