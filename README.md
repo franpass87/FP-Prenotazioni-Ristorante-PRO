@@ -144,7 +144,9 @@ Aperitivo: Buffer 10min + 3min/persona, Overbooking 15%
 - **Brevo**: API Key per automazioni email
 
 #### Gestione del Consenso Cookie
-Collega il tuo sistema di gestione dei cookie all'azione personalizzata `rbf_update_consent` per aggiornare lo stato del consenso analitico.
+Il plugin imposta inizialmente `analytics_storage` su `denied` nel `dataLayer`.
+Collega il tuo sistema di gestione dei cookie all'azione personalizzata `rbf_update_consent` 
+o richiama direttamente la funzione `rbf_update_consent($granted)` per aggiornare tale stato.
 
 ```php
 if ($user_grants_analytics) {
