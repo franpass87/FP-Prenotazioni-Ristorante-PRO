@@ -24,6 +24,9 @@
     --rbf-transition: all 0.3s ease;
     --rbf-focus-color: #0056b3; /* Darker blue for better focus contrast */
     --rbf-focus-outline: 2px solid var(--rbf-focus-color);
+    --rbf-input-padding: 14px 16px;
+    --rbf-input-height: 50px;
+    --rbf-tel-padding-left: 70px;
 }
 
 .rbf-form-container {
@@ -141,7 +144,7 @@
 .rbf-form textarea {
     box-sizing: border-box;
     width: 100%;
-    padding: 14px 16px;
+    padding: var(--rbf-input-padding);
     border: 2px solid var(--rbf-border);
     border-radius: var(--rbf-radius);
     font-size: 16px;
@@ -149,7 +152,7 @@
     color: var(--rbf-text);
     transition: var(--rbf-transition);
     font-family: inherit;
-    min-height: 50px;
+    min-height: var(--rbf-input-height);
 }
 
 .rbf-form input[type='text']:focus,
@@ -166,8 +169,6 @@
 .rbf-form textarea {
     min-height: 100px;
     resize: vertical;
-}
-    background: #fff;
 }
 
 .rbf-radio-group {
@@ -519,14 +520,14 @@
 
 /* Enhanced Input Field Integration */
 .iti input[type="tel"] {
-    padding-left: 100px !important;
+    padding-left: var(--rbf-tel-padding-left) !important;
     border-radius: 0 var(--rbf-radius) var(--rbf-radius) 0 !important;
     border: none !important;
     width: 100% !important;
     box-sizing: border-box !important;
     font-size: 16px;
     font-weight: 500;
-    min-height: 50px;
+    min-height: var(--rbf-input-height);
     background: white;
     color: var(--rbf-text);
     transition: none; /* Let the parent .iti handle transitions */
@@ -549,7 +550,7 @@
 }
 
 .iti--allow-dropdown input {
-    padding-left: 100px !important;
+    padding-left: var(--rbf-tel-padding-left) !important;
     border-radius: 0 var(--rbf-radius) var(--rbf-radius) 0 !important;
 }
 
@@ -596,9 +597,9 @@
     }
 
     .iti input[type="tel"] {
-        padding-left: 105px !important;
+        padding-left: var(--rbf-tel-padding-left) !important;
         font-size: 16px !important; /* Prevent iOS zoom */
-        min-height: 54px;
+        min-height: var(--rbf-input-height);
         border-radius: 0 var(--rbf-radius) var(--rbf-radius) 0 !important;
     }
     
@@ -692,6 +693,7 @@
 /* Ensure proper spacing when in fallback mode */
 .rbf-tel-fallback {
     padding-left: 30px !important;
+    min-height: var(--rbf-input-height);
 }
 
 /* Style individual consent labels to stack vertically */
