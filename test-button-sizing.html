@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Completo Dimensioni Bottoni - FP Prenotazioni</title>
+    <link rel="stylesheet" href="assets/css/frontend.css">
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: #f5f7fa; 
+        }
+        .test-container { 
+            max-width: 900px; 
+            margin: 0 auto; 
+        }
+        .test-section { 
+            background: white; 
+            margin: 20px 0; 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1); 
+        }
+        .test-form {
+            max-width: 100%;
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .success {
+            border-left: 4px solid #28a745;
+            background: #d4edda;
+            color: #155724;
+        }
+        .scenario {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+        .scenario h4 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        .viewport-info {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            color: #0277bd;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Test Completo Dimensioni Bottoni Uniformi</h1>
+        <p>Questo test verifica che i bottoni delle opzioni pasto abbiano dimensioni uniformi in tutti gli scenari.</p>
+        
+        <div class="viewport-info">
+            📱 Viewport attuale: <span id="viewport-size"></span>
+        </div>
+        
+        <div class="test-section success">
+            <h2>✅ Scenario 1: Bottoni con testi di lunghezza diversa</h2>
+            <div class="scenario">
+                <h4>Test: Pasti con nomi di lunghezza variabile</h4>
+                <div class="test-form">
+                    <div class="rbf-field-wrapper">
+                        <label>Scegli il pasto</label>
+                        <div class="rbf-radio-group" role="radiogroup">
+                            <input type="radio" name="meal_test1" id="b1" value="b">
+                            <label for="b1">B</label>
+                            <input type="radio" name="meal_test1" id="brunch1" value="brunch">
+                            <label for="brunch1">Brunch</label>
+                            <input type="radio" name="meal_test1" id="pranzo1" value="pranzo">
+                            <label for="pranzo1">Pranzo</label>
+                            <input type="radio" name="meal_test1" id="cena1" value="cena">
+                            <label for="cena1">Cena Romantica con Menu Degustazione</label>
+                        </div>
+                    </div>
+                </div>
+                <p><strong>Risultato atteso:</strong> Tutti i bottoni hanno la stessa larghezza nonostante i testi molto diversi.</p>
+            </div>
+        </div>
+
+        <div class="test-section success">
+            <h2>✅ Scenario 2: Configurazione tipica ristorante</h2>
+            <div class="scenario">
+                <h4>Test: Configurazione reale con 3 pasti</h4>
+                <div class="test-form">
+                    <div class="rbf-field-wrapper">
+                        <label>Scegli il pasto</label>
+                        <div class="rbf-radio-group" role="radiogroup">
+                            <input type="radio" name="meal_test2" id="brunch2" value="brunch">
+                            <label for="brunch2">Brunch</label>
+                            <input type="radio" name="meal_test2" id="pranzo2" value="pranzo">
+                            <label for="pranzo2">Pranzo</label>
+                            <input type="radio" name="meal_test2" id="aperitivo_cena2" value="aperitivo_cena">
+                            <label for="aperitivo_cena2">Aperitivo e Cena</label>
+                        </div>
+                    </div>
+                    
+                    <div class="rbf-field-wrapper">
+                        <label>Numero persone</label>
+                        <div class="rbf-people-selector">
+                            <button type="button">-</button>
+                            <input type="number" value="2" readonly>
+                            <button type="button">+</button>
+                        </div>
+                    </div>
+
+                    <div class="rbf-field-wrapper">
+                        <label>Nome</label>
+                        <input type="text" placeholder="Il tuo nome">
+                    </div>
+                </div>
+                <p><strong>Verifica:</strong> I bottoni pasto si allineano visivamente con i campi di input.</p>
+            </div>
+        </div>
+
+        <div class="test-section success">
+            <h2>✅ Scenario 3: Due opzioni (caso minimo)</h2>
+            <div class="scenario">
+                <h4>Test: Solo due opzioni pasto</h4>
+                <div class="test-form">
+                    <div class="rbf-field-wrapper">
+                        <label>Scegli il pasto</label>
+                        <div class="rbf-radio-group" role="radiogroup">
+                            <input type="radio" name="meal_test3" id="pranzo3" value="pranzo">
+                            <label for="pranzo3">Pranzo</label>
+                            <input type="radio" name="meal_test3" id="cena3" value="cena">
+                            <label for="cena3">Cena</label>
+                        </div>
+                    </div>
+                </div>
+                <p><strong>Verifica:</strong> Anche con solo due opzioni, mantengono larghezza uniforme.</p>
+            </div>
+        </div>
+
+        <div class="test-section success">
+            <h2>✅ Scenario 4: Molte opzioni (caso massimo)</h2>
+            <div class="scenario">
+                <h4>Test: Sei opzioni pasto</h4>
+                <div class="test-form">
+                    <div class="rbf-field-wrapper">
+                        <label>Scegli il pasto</label>
+                        <div class="rbf-radio-group" role="radiogroup">
+                            <input type="radio" name="meal_test4" id="colazione4" value="colazione">
+                            <label for="colazione4">Colazione</label>
+                            <input type="radio" name="meal_test4" id="brunch4" value="brunch">
+                            <label for="brunch4">Brunch</label>
+                            <input type="radio" name="meal_test4" id="pranzo4" value="pranzo">
+                            <label for="pranzo4">Pranzo</label>
+                            <input type="radio" name="meal_test4" id="aperitivo4" value="aperitivo">
+                            <label for="aperitivo4">Aperitivo</label>
+                            <input type="radio" name="meal_test4" id="cena4" value="cena">
+                            <label for="cena4">Cena</label>
+                            <input type="radio" name="meal_test4" id="dopocena4" value="dopocena">
+                            <label for="dopocena4">Dopocena</label>
+                        </div>
+                    </div>
+                </div>
+                <p><strong>Verifica:</strong> Il layout si adatta correttamente anche con molte opzioni, mantenendo l'uniformità.</p>
+            </div>
+        </div>
+
+        <div class="test-section success">
+            <h2>📱 Test Responsività</h2>
+            <p>Ridimensiona la finestra del browser per testare:</p>
+            <ul>
+                <li><strong>Mobile (< 375px):</strong> Bottoni in colonna singola, larghezza 100%</li>
+                <li><strong>Piccolo mobile (375px-479px):</strong> Bottoni su 2 colonne</li>
+                <li><strong>Mobile grande (480px-767px):</strong> Layout adattivo con minimo 160px</li>
+                <li><strong>Tablet (768px-1024px):</strong> Layout adattivo con minimo 200px</li>
+                <li><strong>Desktop (1025px+):</strong> Layout adattivo con minimo 220px</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Mostra informazioni viewport
+        function updateViewportInfo() {
+            const viewportSize = `${window.innerWidth}px × ${window.innerHeight}px`;
+            const sizeElement = document.getElementById('viewport-size');
+            if (sizeElement) {
+                sizeElement.textContent = viewportSize;
+            }
+        }
+        
+        updateViewportInfo();
+        window.addEventListener('resize', updateViewportInfo);
+        
+        // Simula interazioni per test visivo
+        document.addEventListener('DOMContentLoaded', function() {
+            const radioButtons = document.querySelectorAll('input[type="radio"]');
+            radioButtons.forEach(radio => {
+                radio.addEventListener('change', function() {
+                    console.log(`Selezionato: ${this.value} (gruppo: ${this.name})`);
+                });
+            });
+        });
+    </script>
+</body>
+</html>

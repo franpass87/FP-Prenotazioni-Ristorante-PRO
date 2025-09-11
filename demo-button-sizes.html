@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo Dimensioni Bottoni - FP Prenotazioni</title>
+    <link rel="stylesheet" href="assets/css/frontend.css">
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: #f5f7fa; 
+        }
+        .demo-container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+        }
+        .demo-section { 
+            background: white; 
+            margin: 20px 0; 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1); 
+        }
+        .demo-form {
+            max-width: 100%;
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .current-state {
+            border-left: 4px solid #dc3545;
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .fixed-state {
+            border-left: 4px solid #28a745;
+            background: #d4edda;
+            color: #155724;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <h1>Demo Problema Dimensioni Bottoni</h1>
+        <p>Questo dimostra il problema attuale e la soluzione proposta per standardizzare le dimensioni dei bottoni.</p>
+        
+        <div class="demo-section current-state">
+            <h2>🔴 Stato Attuale - Bottoni con dimensioni diverse</h2>
+            <div class="demo-form">
+                <div class="rbf-field-wrapper">
+                    <label>Scegli il pasto</label>
+                    <div class="rbf-radio-group" role="radiogroup">
+                        <input type="radio" name="meal1" id="brunch1" value="brunch">
+                        <label for="brunch1">Brunch</label>
+                        <input type="radio" name="meal1" id="pranzo1" value="pranzo">
+                        <label for="pranzo1">Pranzo</label>
+                        <input type="radio" name="meal1" id="aperitivo_cena1" value="aperitivo_cena">
+                        <label for="aperitivo_cena1">Aperitivo e Cena</label>
+                    </div>
+                </div>
+
+                <div class="rbf-field-wrapper">
+                    <label>Numero persone</label>
+                    <div class="rbf-people-selector">
+                        <button type="button">-</button>
+                        <input type="number" value="2" readonly>
+                        <button type="button">+</button>
+                    </div>
+                </div>
+
+                <div class="rbf-field-wrapper">
+                    <label>Nome</label>
+                    <input type="text" placeholder="Il tuo nome">
+                </div>
+
+                <button id="rbf-submit" type="submit">Prenota</button>
+            </div>
+            <p><strong>Problema:</strong> I bottoni delle opzioni pasto hanno larghezze diverse basate sul testo contenuto. "Brunch" è più stretto di "Aperitivo e Cena".</p>
+        </div>
+
+        <div class="demo-section fixed-state">
+            <h2>✅ Soluzione Implementata - Bottoni con larghezza uniforme</h2>
+            <div class="demo-form">
+                <div class="rbf-field-wrapper">
+                    <label>Scegli il pasto</label>
+                    <div class="rbf-radio-group" role="radiogroup">
+                        <input type="radio" name="meal2" id="brunch2" value="brunch">
+                        <label for="brunch2">Brunch</label>
+                        <input type="radio" name="meal2" id="pranzo2" value="pranzo">
+                        <label for="pranzo2">Pranzo</label>
+                        <input type="radio" name="meal2" id="aperitivo_cena2" value="aperitivo_cena">
+                        <label for="aperitivo_cena2">Aperitivo e Cena</label>
+                    </div>
+                </div>
+
+                <div class="rbf-field-wrapper">
+                    <label>Numero persone</label>
+                    <div class="rbf-people-selector">
+                        <button type="button">-</button>
+                        <input type="number" value="2" readonly>
+                        <button type="button">+</button>
+                    </div>
+                </div>
+
+                <div class="rbf-field-wrapper">
+                    <label>Nome</label>
+                    <input type="text" placeholder="Il tuo nome">
+                </div>
+
+                <button id="rbf-submit" type="submit">Prenota</button>
+            </div>
+            <p><strong>Soluzione implementata:</strong> Aumentata la larghezza minima dei bottoni pasto da 140px a 200px su desktop (220px su schermi grandi), garantendo una larghezza uniforme e migliore allineamento con i campi di input.</p>
+        </div>
+    </div>
+</body>
+</html>
