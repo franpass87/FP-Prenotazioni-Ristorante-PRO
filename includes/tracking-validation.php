@@ -232,28 +232,5 @@ function rbf_add_tracking_validation_page() {
     }
 }
 
-/**
- * Add tracking validation link to admin menu
- */
-add_action('admin_menu', 'rbf_add_tracking_validation_menu');
-function rbf_add_tracking_validation_menu() {
-    add_submenu_page(
-        'rbf_calendar',
-        'Tracking Validation',
-        'Tracking Validation',
-        'manage_options',
-        'rbf_tracking_validation',
-        'rbf_tracking_validation_page'
-    );
-}
-
-function rbf_tracking_validation_page() {
-    $nonce = wp_create_nonce('rbf_validate_tracking');
-    $validation_url = admin_url("admin.php?rbf_validate_tracking=1&nonce={$nonce}");
-    
-    echo "<div class='wrap'>";
-    echo "<h1>Tracking System Validation</h1>";
-    echo "<p>Click the button below to validate your tracking configuration and check for potential duplication issues.</p>";
-    echo "<p><a href='{$validation_url}' class='button button-primary' target='_blank'>Run Tracking Validation</a></p>";
-    echo "</div>";
-}
+// Note: Admin menu and page implementation is now in includes/admin.php
+// This file contains only the validation logic functions
