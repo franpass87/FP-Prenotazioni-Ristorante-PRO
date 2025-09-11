@@ -389,11 +389,19 @@ function rbf_generate_booking_ics($first_name, $last_name, $email, $date, $time,
 }
 
 /**
- * Trigger Brevo automation (simplified - only Brevo, no WordPress emails)
+ * Trigger Brevo automation with enhanced list segmentation
+ * 
+ * List segmentation is determined by both form language and phone prefix:
+ * - If phone prefix is Italian (+39) → Italian list (regardless of form language)
+ * - If phone prefix is NOT Italian but form is in Italian → Italian list  
+ * - If phone prefix is NOT Italian and form is in English → English list
+ * 
+ * @param string $lang The determined language for Brevo segmentation (already processed by booking handler)
  */
 function rbf_trigger_brevo_automation($first_name, $last_name, $email, $date, $time, $people, $notes, $lang, $tel, $marketing, $meal) {
     $options = rbf_get_settings();
     $api_key = $options['brevo_api'] ?? '';
+    // Note: $lang parameter already contains the segmentation result based on form language + phone prefix
     $list_id = $lang === 'en' ? ($options['brevo_list_en'] ?? '') : ($options['brevo_list_it'] ?? '');
 
     if (empty($api_key)) { rbf_handle_error('Brevo: API key non configurata.', 'brevo_config'); return; }
