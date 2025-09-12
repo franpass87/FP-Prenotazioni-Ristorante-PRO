@@ -80,6 +80,9 @@ function rbf_handle_booking_submission() {
         'rbf_gclid' => 'text',
         'rbf_fbclid' => 'text',
         'rbf_referrer' => 'text',
+        // Special occasion fields
+        'rbf_special_type' => 'text',
+        'rbf_special_label' => 'text',
         // Anti-bot fields
         'rbf_form_timestamp' => 'int',
         'rbf_website' => 'text'
@@ -255,6 +258,9 @@ function rbf_handle_booking_submission() {
             'rbf_brevo_lang' => $brevo_lang,
             'rbf_privacy' => $privacy,
             'rbf_marketing' => $marketing,
+            // Special occasion data
+            'rbf_special_type' => $sanitized_fields['rbf_special_type'] ?? '',
+            'rbf_special_label' => $sanitized_fields['rbf_special_label'] ?? '',
             // sorgente
             'rbf_source_bucket' => $src['bucket'],
             'rbf_source'        => $src['source'],
@@ -327,12 +333,18 @@ function rbf_handle_booking_submission() {
     // Notifiche e integrazioni
     // Admin notification email with failover
     if (function_exists('rbf_send_admin_notification_with_failover')) {
-        rbf_send_admin_notification_with_failover($first_name, $last_name, $email, $date, $time, $people, $notes, $tel, $meal, $post_id);
+        rbf_send_admin_notification_with_failover(
+            $first_name, $last_name, $email, $date, $time, $people, $notes, $tel, $meal, $post_id,
+            $sanitized_fields['rbf_special_type'] ?? '', $sanitized_fields['rbf_special_label'] ?? ''
+        );
     }
     
     // Customer Brevo automation with failover
     if (function_exists('rbf_send_customer_notification_with_failover')) {
-        rbf_send_customer_notification_with_failover($first_name, $last_name, $email, $date, $time, $people, $notes, $brevo_lang, $tel, $marketing, $meal, $post_id);
+        rbf_send_customer_notification_with_failover(
+            $first_name, $last_name, $email, $date, $time, $people, $notes, $brevo_lang, $tel, $marketing, $meal, $post_id,
+            $sanitized_fields['rbf_special_type'] ?? '', $sanitized_fields['rbf_special_label'] ?? ''
+        );
     }
 
     // Meta CAPI server-side (dedup con event_id) + bucket standard

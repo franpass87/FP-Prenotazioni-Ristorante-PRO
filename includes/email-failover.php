@@ -450,7 +450,7 @@ function rbf_get_email_failover_service() {
 /**
  * Send customer notification with failover
  */
-function rbf_send_customer_notification_with_failover($first_name, $last_name, $email, $date, $time, $people, $notes, $lang, $tel, $marketing, $meal, $booking_id = null) {
+function rbf_send_customer_notification_with_failover($first_name, $last_name, $email, $date, $time, $people, $notes, $lang, $tel, $marketing, $meal, $booking_id = null, $special_type = '', $special_label = '') {
     $service = rbf_get_email_failover_service();
     
     $notification_data = [
@@ -466,7 +466,9 @@ function rbf_send_customer_notification_with_failover($first_name, $last_name, $
         'lang' => $lang,
         'tel' => $tel,
         'marketing' => $marketing,
-        'meal' => $meal
+        'meal' => $meal,
+        'special_type' => $special_type,
+        'special_label' => $special_label
     ];
     
     return $service->send_notification($notification_data);
@@ -475,7 +477,7 @@ function rbf_send_customer_notification_with_failover($first_name, $last_name, $
 /**
  * Send admin notification with failover
  */
-function rbf_send_admin_notification_with_failover($first_name, $last_name, $email, $date, $time, $people, $notes, $tel, $meal, $booking_id = null) {
+function rbf_send_admin_notification_with_failover($first_name, $last_name, $email, $date, $time, $people, $notes, $tel, $meal, $booking_id = null, $special_type = '', $special_label = '') {
     $options = rbf_get_settings();
     $restaurant_email = $options['notification_email'];
     $webmaster_email = $options['webmaster_email'];
@@ -486,7 +488,13 @@ function rbf_send_admin_notification_with_failover($first_name, $last_name, $ema
     // Escape all user input for email subject (prevent header injection)
     $safe_first_name = rbf_escape_for_email($first_name, 'subject');
     $safe_last_name = rbf_escape_for_email($last_name, 'subject');
+    
+    // Modify subject for special occasions
     $subject = "Nuova Prenotazione dal Sito Web - {$safe_first_name} {$safe_last_name}";
+    if (!empty($special_label)) {
+        $safe_special_label = rbf_escape_for_email($special_label, 'subject');
+        $subject = "🎉 Prenotazione Speciale ({$safe_special_label}) - {$safe_first_name} {$safe_last_name}";
+    }
     
     $date_obj = date_create($date);
     $formatted_date = date_format($date_obj, 'd/m/Y');
@@ -500,12 +508,24 @@ function rbf_send_admin_notification_with_failover($first_name, $last_name, $ema
     $safe_time_html = rbf_escape_for_email($time, 'html');
     $safe_meal_html = rbf_escape_for_email($meal, 'html');
     $safe_people_html = rbf_escape_for_email($people, 'html');
+    
+    // Prepare special occasion section
+    $special_section = '';
+    if (!empty($special_label)) {
+        $safe_special_label_html = rbf_escape_for_email($special_label, 'html');
+        $special_section = "<div style='background:#fff3cd;border:2px solid #ffeaa7;padding:15px;margin:15px 0;border-radius:8px;'>" .
+                          "<strong style='color:#856404;font-size:16px;'>🎉 PRENOTAZIONE SPECIALE:</strong> " .
+                          "<span style='color:#856404;font-weight:bold;'>{$safe_special_label_html}</span></div>";
+    }
+
+    $email_title = !empty($special_label) ? "Prenotazione Speciale da {$site_name_for_body}" : "Nuova Prenotazione da {$site_name_for_body}";
 
     $html_body = <<<HTML
 <!DOCTYPE html><html><head><meta charset="UTF-8">
 <style>body{font-family:Arial,sans-serif;color:#333}.container{padding:20px;border:1px solid #ddd;max-width:600px;margin:auto}h2{color:#000}strong{color:#555}</style>
 </head><body><div class="container">
-<h2>Nuova Prenotazione da {$site_name_for_body}</h2>
+<h2>{$email_title}</h2>
+{$special_section}
 <ul>
   <li><strong>Cliente:</strong> {$safe_first_name_html} {$safe_last_name_html}</li>
   <li><strong>Email:</strong> {$safe_email_html}</li>
@@ -536,7 +556,9 @@ HTML;
         'people' => $people,
         'notes' => $notes,
         'tel' => $tel,
-        'meal' => $meal
+        'meal' => $meal,
+        'special_type' => $special_type,
+        'special_label' => $special_label
     ];
     
     return $service->send_notification($notification_data);

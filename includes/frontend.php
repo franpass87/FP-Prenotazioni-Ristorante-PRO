@@ -16,7 +16,29 @@ if (!defined('ABSPATH')) {
 add_action('wp_enqueue_scripts', 'rbf_enqueue_frontend_assets');
 function rbf_enqueue_frontend_assets() {
     global $post;
-    if (!is_singular() || !$post || !has_shortcode($post->post_content, 'ristorante_booking_form')) return;
+    if (!is_singular() || !$post) return;
+    
+    // Check for any booking form shortcode
+    $booking_shortcodes = [
+        'ristorante_booking_form',
+        'anniversary_booking_form',
+        'birthday_booking_form', 
+        'romantic_booking_form',
+        'celebration_booking_form',
+        'business_booking_form',
+        'proposal_booking_form',
+        'special_booking_form'
+    ];
+    
+    $has_booking_form = false;
+    foreach ($booking_shortcodes as $shortcode) {
+        if (has_shortcode($post->post_content, $shortcode)) {
+            $has_booking_form = true;
+            break;
+        }
+    }
+    
+    if (!$has_booking_form) return;
 
     $options = rbf_get_settings();
     $locale = rbf_current_lang(); // 'it' o 'en'
@@ -412,11 +434,31 @@ function rbf_render_booking_form($atts = []) {
     $atts = shortcode_atts([
         'accent_color' => '', // Allow accent color override
         'border_radius' => '', // Allow border radius override
+        'special_type' => '', // Special occasion type (anniversary, birthday, celebration, etc.)
+        'special_label' => '', // Custom label for the special occasion
     ], $atts);
     
     // Inject custom CSS if accent color is provided
     if (!empty($atts['accent_color'])) {
         rbf_inject_instance_css($atts);
+    }
+    
+    // Detect special occasion type from shortcode attributes or URL parameters
+    $special_type = '';
+    $special_label = '';
+    
+    // Priority: shortcode attribute > URL parameter
+    if (!empty($atts['special_type'])) {
+        $special_type = sanitize_key($atts['special_type']);
+        $special_label = !empty($atts['special_label']) ? sanitize_text_field($atts['special_label']) : '';
+    } elseif (!empty($_GET['special']) || !empty($_GET['booking_type'])) {
+        $special_type = sanitize_key($_GET['special'] ?? $_GET['booking_type'] ?? '');
+    }
+    
+    // Get predefined special occasion labels
+    $special_labels = rbf_get_special_occasion_labels();
+    if (empty($special_label) && !empty($special_type) && isset($special_labels[$special_type])) {
+        $special_label = $special_labels[$special_type];
     }
     
     ob_start(); ?>
@@ -436,6 +478,23 @@ function rbf_render_booking_form($atts = []) {
             <form id="rbf-form" class="rbf-form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" role="form" aria-label="<?php echo esc_attr(rbf_translate_string('Modulo di prenotazione ristorante')); ?>">
                 <input type="hidden" name="action" value="rbf_submit_booking">
                 <?php wp_nonce_field('rbf_booking','rbf_nonce'); ?>
+                
+                <?php if (!empty($special_type)) : ?>
+                    <input type="hidden" name="rbf_special_type" value="<?php echo esc_attr($special_type); ?>">
+                    <?php if (!empty($special_label)) : ?>
+                        <input type="hidden" name="rbf_special_label" value="<?php echo esc_attr($special_label); ?>">
+                    <?php endif; ?>
+                <?php endif; ?>
+                
+                <?php if (!empty($special_type) && !empty($special_label)) : ?>
+                    <div class="rbf-special-occasion-notice">
+                        <div class="rbf-special-icon">🎉</div>
+                        <div class="rbf-special-text">
+                            <strong><?php echo esc_html(rbf_translate_string('Prenotazione Speciale')); ?>:</strong>
+                            <?php echo esc_html($special_label); ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
                 
                 <!-- Progress Indicator -->
                 <div class="rbf-progress-indicator" role="progressbar" aria-valuenow="1" aria-valuemin="1" aria-valuemax="5" aria-label="<?php echo esc_attr(rbf_translate_string('Progresso prenotazione')); ?>" aria-describedby="progress-description">
@@ -864,3 +923,95 @@ function rbf_get_special_hours_for_date($date, $meal = null, $options = null) {
     
     return null;
 }
+
+/**
+ * Get predefined special occasion labels
+ * 
+ * @return array Associative array of special occasion types and their labels
+ */
+function rbf_get_special_occasion_labels() {
+    $labels = [
+        'anniversary' => rbf_translate_string('Anniversario'),
+        'birthday' => rbf_translate_string('Compleanno'),
+        'celebration' => rbf_translate_string('Celebrazione'),
+        'romantic' => rbf_translate_string('Cena Romantica'),
+        'business' => rbf_translate_string('Cena di Lavoro'),
+        'family' => rbf_translate_string('Riunione Famiglia'),
+        'graduation' => rbf_translate_string('Laurea'),
+        'engagement' => rbf_translate_string('Fidanzamento'),
+        'proposal' => rbf_translate_string('Proposta di Matrimonio'),
+        'wedding' => rbf_translate_string('Matrimonio'),
+        'holiday' => rbf_translate_string('Festività'),
+        'special' => rbf_translate_string('Occasione Speciale')
+    ];
+    
+    // Allow filtering for customization
+    return apply_filters('rbf_special_occasion_labels', $labels);
+}
+
+/**
+ * Additional shortcodes for common special occasions
+ */
+
+// Anniversary booking form
+add_shortcode('anniversary_booking_form', function($atts = []) {
+    $atts['special_type'] = 'anniversary';
+    if (empty($atts['special_label'])) {
+        $atts['special_label'] = rbf_translate_string('Anniversario');
+    }
+    return rbf_render_booking_form($atts);
+});
+
+// Birthday booking form
+add_shortcode('birthday_booking_form', function($atts = []) {
+    $atts['special_type'] = 'birthday';
+    if (empty($atts['special_label'])) {
+        $atts['special_label'] = rbf_translate_string('Compleanno');
+    }
+    return rbf_render_booking_form($atts);
+});
+
+// Romantic dinner booking form  
+add_shortcode('romantic_booking_form', function($atts = []) {
+    $atts['special_type'] = 'romantic';
+    if (empty($atts['special_label'])) {
+        $atts['special_label'] = rbf_translate_string('Cena Romantica');
+    }
+    return rbf_render_booking_form($atts);
+});
+
+// Celebration booking form
+add_shortcode('celebration_booking_form', function($atts = []) {
+    $atts['special_type'] = 'celebration';
+    if (empty($atts['special_label'])) {
+        $atts['special_label'] = rbf_translate_string('Celebrazione');
+    }
+    return rbf_render_booking_form($atts);
+});
+
+// Business dinner booking form
+add_shortcode('business_booking_form', function($atts = []) {
+    $atts['special_type'] = 'business';
+    if (empty($atts['special_label'])) {
+        $atts['special_label'] = rbf_translate_string('Cena di Lavoro');
+    }
+    return rbf_render_booking_form($atts);
+});
+
+// Proposal booking form
+add_shortcode('proposal_booking_form', function($atts = []) {
+    $atts['special_type'] = 'proposal';
+    if (empty($atts['special_label'])) {
+        $atts['special_label'] = rbf_translate_string('Proposta di Matrimonio');
+    }
+    return rbf_render_booking_form($atts);
+});
+
+// Generic special occasion booking form
+add_shortcode('special_booking_form', function($atts = []) {
+    $atts['special_type'] = 'special';
+    if (empty($atts['special_label'])) {
+        $atts['special_label'] = rbf_translate_string('Occasione Speciale');
+    }
+    return rbf_render_booking_form($atts);
+});
