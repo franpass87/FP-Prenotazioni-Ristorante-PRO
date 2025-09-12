@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎨 DEMO: Giornate Speciali a Tema - Sistema Colorazioni</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .demo-container { 
+            max-width: 1000px; 
+            margin: 0 auto; 
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        .demo-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        .demo-header h1 {
+            color: #333;
+            margin: 0 0 10px 0;
+            font-size: 2.5em;
+        }
+        .demo-header p {
+            color: #666;
+            font-size: 1.1em;
+            margin: 0;
+        }
+        .success-badge {
+            background: #d4edda;
+            color: #155724;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-top: 10px;
+            display: inline-block;
+        }
+        
+        .color-demo {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .color-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            text-align: center;
+            border-left: 6px solid;
+            position: relative;
+            overflow: hidden;
+        }
+        .color-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            opacity: 0.3;
+        }
+        .color-card.closure { 
+            border-left-color: #dc3545; 
+        }
+        .color-card.closure::before { background: #dc3545; }
+        .color-card.holiday { 
+            border-left-color: #fd7e14; 
+        }
+        .color-card.holiday::before { background: #fd7e14; }
+        .color-card.special { 
+            border-left-color: #20c997; 
+        }
+        .color-card.special::before { background: #20c997; }
+        .color-card.extended { 
+            border-left-color: #0d6efd; 
+        }
+        .color-card.extended::before { background: #0d6efd; }
+        
+        .color-indicator {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin: 0 auto 15px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            position: relative;
+        }
+        .color-indicator::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.9);
+        }
+        .color-indicator.closure { background: #dc3545; }
+        .color-indicator.holiday { background: #fd7e14; }
+        .color-indicator.special { background: #20c997; }
+        .color-indicator.extended { background: #0d6efd; }
+        
+        .calendar-mockup {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 30px 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            margin: 20px 0;
+        }
+        
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .calendar-day:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .calendar-day.has-exception {
+            color: white;
+            font-weight: bold;
+        }
+        
+        .calendar-day.has-exception::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.9);
+        }
+        
+        .calendar-day.closure { background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); }
+        .calendar-day.holiday { background: linear-gradient(135deg, #fd7e14 0%, #e55a00 100%); }
+        .calendar-day.special { background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%); }
+        .calendar-day.extended { background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%); }
+        
+        .calendar-header {
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        
+        .calendar-weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        
+        .calendar-weekday {
+            text-align: center;
+            font-weight: bold;
+            color: #666;
+            font-size: 12px;
+            padding: 8px;
+        }
+        
+        .legend {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+            font-size: 14px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .feature-section {
+            margin: 40px 0;
+            padding: 30px;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+        }
+        .feature-section h3 {
+            margin: 0 0 20px 0;
+            color: #333;
+            border-bottom: 3px solid #007cba;
+            padding-bottom: 10px;
+            font-size: 1.5em;
+        }
+        
+        .highlight-box {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            border: 2px solid #c3e6cb;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 5px solid #155724;
+        }
+        
+        .highlight-box strong {
+            color: #155724;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin: 30px 0;
+        }
+        
+        .info-card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            border-top: 4px solid #007cba;
+        }
+        
+        .code-example {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            margin: 15px 0;
+            overflow-x: auto;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        
+        .example-colors {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+        
+        .example-color {
+            padding: 8px 12px;
+            border-radius: 6px;
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+            text-align: center;
+            min-width: 80px;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <div class="demo-header">
+            <h1>🎨 Giornate Speciali a Tema</h1>
+            <p>Sistema di colorazioni per eventi speciali nel calendario delle prenotazioni</p>
+            <div class="success-badge">✅ Funzionalità Già Implementata e Attiva</div>
+        </div>
+
+        <div class="highlight-box">
+            <strong>🎯 RISPOSTA ALLA TUA DOMANDA:</strong><br>
+            Sì! Il plugin include già un sistema completo per le giornate speciali a tema. 
+            Le colorazioni arancione e blu che vedi sono dovute a questo sistema che permette di configurare:
+            <strong>festività (arancione), eventi speciali (verde), orari estesi (blu) e chiusure (rosso)</strong>.
+        </div>
+
+        <div class="feature-section">
+            <h3>🎨 Sistema di Colorazioni Disponibili</h3>
+            
+            <div class="color-demo">
+                <div class="color-card closure">
+                    <div class="color-indicator closure"></div>
+                    <h4>🔴 Chiusure</h4>
+                    <p><strong>Rosso #dc3545</strong></p>
+                    <p>Chiusure straordinarie, ferie, manutenzione</p>
+                    <div class="example-colors">
+                        <div class="example-color" style="background: #dc3545;">CHIUSO</div>
+                    </div>
+                </div>
+                
+                <div class="color-card holiday">
+                    <div class="color-indicator holiday"></div>
+                    <h4>🟠 Festività</h4>
+                    <p><strong>Arancione #fd7e14</strong></p>
+                    <p>Natale, Capodanno, festività nazionali</p>
+                    <div class="example-colors">
+                        <div class="example-color" style="background: #fd7e14;">FESTIVO</div>
+                    </div>
+                </div>
+                
+                <div class="color-card special">
+                    <div class="color-indicator special"></div>
+                    <h4>🟢 Eventi Speciali</h4>
+                    <p><strong>Verde #20c997</strong></p>
+                    <p>San Valentino, menu a tema, eventi speciali</p>
+                    <div class="example-colors">
+                        <div class="example-color" style="background: #20c997;">SPECIALE</div>
+                    </div>
+                </div>
+                
+                <div class="color-card extended">
+                    <div class="color-indicator extended"></div>
+                    <h4>🔵 Orari Estesi</h4>
+                    <p><strong>Blu #0d6efd</strong></p>
+                    <p>Capodanno, celebrazioni, orari prolungati</p>
+                    <div class="example-colors">
+                        <div class="example-color" style="background: #0d6efd;">ESTESO</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="feature-section">
+            <h3>📅 Esempio Calendario con Colorazioni</h3>
+            <p>Ecco come appaiono le giornate speciali nel calendario delle prenotazioni:</p>
+            
+            <div class="calendar-mockup">
+                <div class="calendar-header">Dicembre 2024</div>
+                
+                <div class="calendar-weekdays">
+                    <div class="calendar-weekday">Dom</div>
+                    <div class="calendar-weekday">Lun</div>
+                    <div class="calendar-weekday">Mar</div>
+                    <div class="calendar-weekday">Mer</div>
+                    <div class="calendar-weekday">Gio</div>
+                    <div class="calendar-weekday">Ven</div>
+                    <div class="calendar-weekday">Sab</div>
+                </div>
+                
+                <div class="calendar-grid">
+                    <div class="calendar-day">1</div>
+                    <div class="calendar-day">2</div>
+                    <div class="calendar-day">3</div>
+                    <div class="calendar-day">4</div>
+                    <div class="calendar-day">5</div>
+                    <div class="calendar-day">6</div>
+                    <div class="calendar-day">7</div>
+                    <div class="calendar-day">8</div>
+                    <div class="calendar-day">9</div>
+                    <div class="calendar-day">10</div>
+                    <div class="calendar-day">11</div>
+                    <div class="calendar-day">12</div>
+                    <div class="calendar-day">13</div>
+                    <div class="calendar-day special has-exception">14</div>
+                    <div class="calendar-day">15</div>
+                    <div class="calendar-day">16</div>
+                    <div class="calendar-day">17</div>
+                    <div class="calendar-day">18</div>
+                    <div class="calendar-day">19</div>
+                    <div class="calendar-day">20</div>
+                    <div class="calendar-day">21</div>
+                    <div class="calendar-day">22</div>
+                    <div class="calendar-day">23</div>
+                    <div class="calendar-day holiday has-exception">24</div>
+                    <div class="calendar-day holiday has-exception">25</div>
+                    <div class="calendar-day holiday has-exception">26</div>
+                    <div class="calendar-day">27</div>
+                    <div class="calendar-day">28</div>
+                    <div class="calendar-day">29</div>
+                    <div class="calendar-day">30</div>
+                    <div class="calendar-day extended has-exception">31</div>
+                </div>
+                
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-dot" style="background: #20c997;"></div>
+                        <span>14 Dic - Evento Speciale</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot" style="background: #fd7e14;"></div>
+                        <span>24-26 Dic - Festività Natalizie</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot" style="background: #0d6efd;"></div>
+                        <span>31 Dic - Orari Estesi</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="feature-section">
+            <h3>⚙️ Come Configurare le Giornate Speciali</h3>
+            
+            <div class="info-grid">
+                <div class="info-card">
+                    <h4>📍 Dove Trovare la Funzione</h4>
+                    <ol>
+                        <li>Accedi al pannello WordPress</li>
+                        <li>Vai su <strong>Prenotazioni → Impostazioni</strong></li>
+                        <li>Scorri fino a <strong>"Eccezioni Calendario"</strong></li>
+                        <li>Usa il form visuale per aggiungere eventi</li>
+                    </ol>
+                </div>
+                
+                <div class="info-card">
+                    <h4>💾 Formato Dati</h4>
+                    <div class="code-example">
+Data|Tipo|Orari|Descrizione
+
+2024-12-25|holiday||Natale
+2024-02-14|special|18:00,19:00,20:00|San Valentino
+2024-12-31|extended|19:00-02:00|Capodanno</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="feature-section">
+            <h3>🎯 Esempi Pratici di Configurazione</h3>
+            
+            <div class="info-grid">
+                <div class="info-card">
+                    <h4>🎄 Periodo Natalizio</h4>
+                    <div class="code-example">
+2024-12-24|holiday||Vigilia di Natale
+2024-12-25|holiday||Natale  
+2024-12-26|holiday||Santo Stefano</div>
+                    <p>Le date appariranno in <strong style="color: #fd7e14;">arancione</strong> e non accetteranno prenotazioni.</p>
+                </div>
+                
+                <div class="info-card">
+                    <h4>💕 San Valentino</h4>
+                    <div class="code-example">
+2024-02-14|special|18:00,19:00,20:00,21:00|Menu romantico</div>
+                    <p>La data apparirà in <strong style="color: #20c997;">verde</strong> con orari personalizzati.</p>
+                </div>
+                
+                <div class="info-card">
+                    <h4>🎊 Capodanno</h4>
+                    <div class="code-example">
+2024-12-31|extended|19:00-02:00|Cenone di Capodanno</div>
+                    <p>La data apparirà in <strong style="color: #0d6efd;">blu</strong> con orari estesi oltre mezzanotte.</p>
+                </div>
+                
+                <div class="info-card">
+                    <h4>🏖️ Chiusure</h4>
+                    <div class="code-example">
+2024-08-15|closure||Chiusura ferragosto</div>
+                    <p>La data apparirà in <strong style="color: #dc3545;">rosso</strong> e sarà completamente chiusa.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="highlight-box" style="text-align: center;">
+            <h3>✅ Conclusione</h3>
+            <p><strong>Il sistema di giornate speciali a tema è già completamente implementato!</strong></p>
+            <p>Le colorazioni arancione e blu che vedi sono esattamente questo sistema in funzione.</p>
+            <p>Vai su <strong>Prenotazioni → Impostazioni → Eccezioni Calendario</strong> per configurare le tue giornate speciali.</p>
+        </div>
+    </div>
+
+    <script>
+        // Aggiungi interattività ai giorni del calendario
+        document.querySelectorAll('.calendar-day.has-exception').forEach(day => {
+            day.addEventListener('click', function() {
+                const dayNumber = this.textContent;
+                let eventType = '';
+                let description = '';
+                
+                if (this.classList.contains('special')) {
+                    eventType = 'Evento Speciale (Verde)';
+                    description = 'Giornata con menu o eventi speciali';
+                } else if (this.classList.contains('holiday')) {
+                    eventType = 'Festività (Arancione)';
+                    description = 'Giornata festiva - chiuso al pubblico';
+                } else if (this.classList.contains('extended')) {
+                    eventType = 'Orari Estesi (Blu)';
+                    description = 'Giornata con orari prolungati';
+                }
+                
+                alert(`🎨 Giorno ${dayNumber} Dicembre\n\nTipo: ${eventType}\nDescrizione: ${description}\n\n✅ Questo è un esempio di come funziona il sistema di colorazioni!`);
+            });
+        });
+    </script>
+</body>
+</html>
