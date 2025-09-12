@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Funzionalità Calendario</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .test-header {
+            background: #28a745;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+        
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+        
+        .test-results {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .meal-selection {
+            margin-bottom: 20px;
+        }
+        
+        .meal-options {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        
+        .meal-option {
+            padding: 10px 20px;
+            border: 2px solid #dee2e6;
+            border-radius: 5px;
+            cursor: pointer;
+            background: white;
+            transition: all 0.3s ease;
+        }
+        
+        .meal-option:hover {
+            border-color: #007bff;
+        }
+        
+        .meal-option.selected {
+            border-color: #007bff;
+            background: #e3f2fd;
+        }
+        
+        .date-section {
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .date-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #dee2e6;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        
+        .date-input:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        
+        /* Calendar styling from the main CSS */
+        .flatpickr-day.rbf-availability-available {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%) !important;
+            border-left: 3px solid #16a34a !important;
+            color: #15803d !important;
+        }
+
+        .flatpickr-day.rbf-availability-limited {
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%) !important;
+            border-left: 3px solid #d97706 !important;
+            color: #b45309 !important;
+        }
+
+        .flatpickr-day.rbf-availability-full {
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%) !important;
+            border-left: 3px solid #dc2626 !important;
+            color: #dc2626 !important;
+        }
+
+        .flatpickr-day.flatpickr-disabled,
+        .flatpickr-day[aria-disabled="true"],
+        .flatpickr-day.unavailable {
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%) !important;
+            border-left: 3px solid #dc2626 !important;
+            color: #dc2626 !important;
+            pointer-events: none !important;
+            cursor: not-allowed !important;
+        }
+        
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+        
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 5px;
+        }
+        
+        .log-entry.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .log-entry.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .log-entry.info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="test-header">
+            <h1>🗓️ Test Funzionalità Calendario</h1>
+            <p>Verifica che il calendario si apra e permetta la selezione dei giorni</p>
+        </div>
+        
+        <div class="test-section">
+            <h3>1️⃣ Selezione Pasto</h3>
+            <p>Seleziona un pasto per testare l'apertura automatica del calendario:</p>
+            
+            <div class="meal-selection">
+                <div class="meal-options">
+                    <div class="meal-option" data-meal="brunch">🥞 Brunch</div>
+                    <div class="meal-option" data-meal="pranzo">🍝 Pranzo</div>
+                    <div class="meal-option" data-meal="aperitivo_cena">🍷 Aperitivo e Cena</div>
+                </div>
+            </div>
+            
+            <div class="date-section">
+                <h4>2️⃣ Selezione Data</h4>
+                <p>Il calendario dovrebbe aprirsi automaticamente dopo la selezione del pasto. Puoi anche cliccare sul campo data:</p>
+                <input type="text" id="date-picker" class="date-input" placeholder="Clicca per aprire il calendario" readonly>
+            </div>
+        </div>
+        
+        <div id="test-results" class="test-results" style="display: none;"></div>
+        
+        <div class="log" id="test-log">
+            <div class="log-entry info">[INFO] Test inizializzato</div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/it.js"></script>
+    <script>
+        let fp = null;
+        let testLog = [];
+        
+        function logTest(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}`;
+            testLog.push({ message: logEntry, type });
+            
+            const logContainer = document.getElementById('test-log');
+            const logDiv = document.createElement('div');
+            logDiv.className = `log-entry ${type}`;
+            logDiv.textContent = logEntry;
+            logContainer.appendChild(logDiv);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            
+            console.log(logEntry);
+        }
+        
+        function showResults(success, message) {
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.className = `test-results ${success ? 'success' : 'error'}`;
+            resultsDiv.textContent = message;
+            resultsDiv.style.display = 'block';
+        }
+        
+        function initializeFlatpickr() {
+            if (fp) {
+                fp.destroy();
+            }
+            
+            logTest('Inizializzazione Flatpickr...', 'info');
+            
+            try {
+                fp = flatpickr('#date-picker', {
+                    altInput: true,
+                    altFormat: 'd-m-Y',
+                    dateFormat: 'Y-m-d',
+                    minDate: 'today',
+                    locale: 'it',
+                    enableTime: false,
+                    inline: false,
+                    static: false,
+                    onChange: function(selectedDates, dateStr) {
+                        if (selectedDates.length > 0) {
+                            logTest(`✅ Data selezionata: ${selectedDates[0].toLocaleDateString('it-IT')}`, 'success');
+                            showResults(true, `✅ SUCCESSO! Data selezionata: ${selectedDates[0].toLocaleDateString('it-IT')}`);
+                        }
+                    },
+                    onOpen: function() {
+                        logTest('✅ Calendario aperto correttamente', 'success');
+                    },
+                    onClose: function() {
+                        logTest('ℹ️ Calendario chiuso', 'info');
+                    },
+                    onReady: function() {
+                        logTest('✅ Flatpickr inizializzato e pronto', 'success');
+                    },
+                    onDayCreate: function(dObj, dStr, fp, dayElem) {
+                        // Simula colori diversi per i giorni
+                        const day = dayElem.dateObj.getDay();
+                        const date = dayElem.dateObj.getDate();
+                        
+                        if (date % 4 === 0) {
+                            dayElem.classList.add('rbf-availability-available');
+                        } else if (date % 4 === 1) {
+                            dayElem.classList.add('rbf-availability-limited');
+                        } else if (date % 4 === 2) {
+                            dayElem.classList.add('rbf-availability-full');
+                        }
+                        
+                        // Assicura che i giorni siano cliccabili
+                        if (!dayElem.classList.contains('flatpickr-disabled')) {
+                            dayElem.style.pointerEvents = 'auto';
+                            dayElem.style.cursor = 'pointer';
+                        }
+                    }
+                });
+                
+                logTest('✅ Flatpickr creato con successo', 'success');
+                return true;
+                
+            } catch (error) {
+                logTest(`❌ Errore nell'inizializzazione Flatpickr: ${error.message}`, 'error');
+                showResults(false, `❌ ERRORE: ${error.message}`);
+                return false;
+            }
+        }
+        
+        function testCalendarOpening() {
+            if (!fp) {
+                logTest('❌ Flatpickr non inizializzato', 'error');
+                return false;
+            }
+            
+            try {
+                logTest('🔧 Test apertura calendario...', 'info');
+                fp.open();
+                
+                // Verifica se il calendario è effettivamente aperto
+                setTimeout(() => {
+                    if (fp.isOpen) {
+                        logTest('✅ Calendario aperto con successo', 'success');
+                        showResults(true, '✅ SUCCESSO! Il calendario si apre correttamente e permette la selezione dei giorni');
+                    } else {
+                        logTest('❌ Calendario non si è aperto', 'error');
+                        showResults(false, '❌ ERRORE: Il calendario non si apre');
+                    }
+                }, 100);
+                
+                return true;
+            } catch (error) {
+                logTest(`❌ Errore nell'apertura del calendario: ${error.message}`, 'error');
+                showResults(false, `❌ ERRORE: ${error.message}`);
+                return false;
+            }
+        }
+        
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            logTest('✅ DOM caricato', 'success');
+            
+            // Meal selection
+            document.querySelectorAll('.meal-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    // Remove previous selection
+                    document.querySelectorAll('.meal-option').forEach(opt => opt.classList.remove('selected'));
+                    
+                    // Select current option
+                    this.classList.add('selected');
+                    const selectedMeal = this.dataset.meal;
+                    
+                    logTest(`🍽️ Pasto selezionato: ${this.textContent}`, 'info');
+                    
+                    // Show date section
+                    document.querySelector('.date-section').style.display = 'block';
+                    
+                    // Initialize flatpickr
+                    if (initializeFlatpickr()) {
+                        // Test automatic opening
+                        setTimeout(() => {
+                            testCalendarOpening();
+                        }, 100);
+                    }
+                });
+            });
+            
+            // Manual date input click
+            document.getElementById('date-picker').addEventListener('click', function() {
+                logTest('🖱️ Click manuale sul campo data', 'info');
+                if (fp) {
+                    testCalendarOpening();
+                } else {
+                    logTest('⚠️ Flatpickr non ancora inizializzato, seleziona prima un pasto', 'error');
+                }
+            });
+        });
+        
+        // Test automatico dopo 1 secondo
+        setTimeout(() => {
+            logTest('🚀 Inizio test automatico...', 'info');
+            // Simula selezione pasto automatica
+            document.querySelector('.meal-option[data-meal="pranzo"]').click();
+        }, 1000);
+    </script>
+</body>
+</html>

@@ -9,6 +9,8 @@ validate-booking-flow.php
 # Demo files (testing only)
 skeleton-demo.html
 tooltip-demo.html
+calendar-test.html
+simple-calendar-test.html
 
 # Temporary files
 *.tmp

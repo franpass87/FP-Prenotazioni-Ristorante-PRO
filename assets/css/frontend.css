@@ -1500,20 +1500,20 @@
     }
 }
 
-/* Calendar availability colors */
+/* Calendar availability colors - Much lighter as requested */
 .flatpickr-day.rbf-availability-available {
-    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%) !important;
-    border-left: 3px solid #28a745 !important;
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%) !important;
+    border-left: 3px solid #16a34a !important;
 }
 
 .flatpickr-day.rbf-availability-limited {
-    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%) !important;
-    border-left: 3px solid #ffc107 !important;
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%) !important;
+    border-left: 3px solid #f59e0b !important;
 }
 
 .flatpickr-day.rbf-availability-full {
-    background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%) !important;
-    border-left: 3px solid #dc3545 !important;
+    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%) !important;
+    border-left: 3px solid #dc2626 !important;
 }
 
 /* Availability tooltip styling */
@@ -1698,6 +1698,21 @@
 
 /* Ensure disabled days remain disabled but everything else works */
 .flatpickr-calendar .flatpickr-day.flatpickr-disabled {
+    pointer-events: none !important;
+    cursor: not-allowed !important;
+    /* Add red styling for unavailable/closed days as requested */
+    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%) !important;
+    border-left: 3px solid #dc2626 !important;
+    color: #dc2626 !important;
+}
+
+/* Additional styling for unavailable days that might have different classes */
+.flatpickr-day.flatpickr-disabled,
+.flatpickr-day[aria-disabled="true"],
+.flatpickr-day.unavailable {
+    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%) !important;
+    border-left: 3px solid #dc2626 !important;
+    color: #dc2626 !important;
     pointer-events: none !important;
     cursor: not-allowed !important;
 }
