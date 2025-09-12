@@ -11,6 +11,8 @@ skeleton-demo.html
 tooltip-demo.html
 calendar-test.html
 simple-calendar-test.html
+test-telephone-height-analysis.html
+test-height-fix-verification.html
 
 # Temporary files
 *.tmp
