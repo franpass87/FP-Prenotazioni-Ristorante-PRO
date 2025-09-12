@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test: Form Prenotazioni Occasioni Speciali</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .test-section {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .test-section h2 {
+            color: #333;
+            border-bottom: 2px solid #007cba;
+            padding-bottom: 10px;
+        }
+        
+        .shortcode {
+            background: #f8f8f8;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+            margin: 10px 0;
+        }
+        
+        .expected-result {
+            background: #e7f3ff;
+            padding: 15px;
+            border-left: 4px solid #007cba;
+            margin: 10px 0;
+        }
+        
+        .test-status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .pending {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Form Prenotazioni Occasioni Speciali</h1>
+    
+    <div class="test-section">
+        <h2>Test 1: Shortcode Anniversario</h2>
+        <div class="shortcode">[anniversary_booking_form]</div>
+        <div class="expected-result">
+            <strong>Risultato atteso:</strong>
+            <ul>
+                <li>Form di prenotazione standard</li>
+                <li>Banner giallo "🎉 Prenotazione Speciale: Anniversario"</li>
+                <li>Campo hidden "rbf_special_type" = "anniversary"</li>
+                <li>Campo hidden "rbf_special_label" = "Anniversario"</li>
+            </ul>
+        </div>
+        <div class="test-status pending">⏳ Da testare su WordPress</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 2: Shortcode Personalizzato</h2>
+        <div class="shortcode">[ristorante_booking_form special_type="anniversary" special_label="25° Anniversario di Matrimonio"]</div>
+        <div class="expected-result">
+            <strong>Risultato atteso:</strong>
+            <ul>
+                <li>Form di prenotazione standard</li>
+                <li>Banner giallo "🎉 Prenotazione Speciale: 25° Anniversario di Matrimonio"</li>
+                <li>Campo hidden "rbf_special_type" = "anniversary"</li>
+                <li>Campo hidden "rbf_special_label" = "25° Anniversario di Matrimonio"</li>
+            </ul>
+        </div>
+        <div class="test-status pending">⏳ Da testare su WordPress</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 3: Parametro URL</h2>
+        <div class="shortcode">[ristorante_booking_form]</div>
+        <p><strong>URL di test:</strong> <code>?special=birthday</code></p>
+        <div class="expected-result">
+            <strong>Risultato atteso:</strong>
+            <ul>
+                <li>Form di prenotazione standard</li>
+                <li>Banner giallo "🎉 Prenotazione Speciale: Compleanno"</li>
+                <li>Campo hidden "rbf_special_type" = "birthday"</li>
+                <li>Campo hidden "rbf_special_label" = "Compleanno"</li>
+            </ul>
+        </div>
+        <div class="test-status pending">⏳ Da testare su WordPress</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 4: Form Normale (Controllo)</h2>
+        <div class="shortcode">[ristorante_booking_form]</div>
+        <p><strong>URL normale:</strong> Senza parametri speciali</p>
+        <div class="expected-result">
+            <strong>Risultato atteso:</strong>
+            <ul>
+                <li>Form di prenotazione standard normale</li>
+                <li>Nessun banner speciale</li>
+                <li>Nessun campo hidden per occasioni speciali</li>
+                <li>Funzionamento identico a prima</li>
+            </ul>
+        </div>
+        <div class="test-status pending">⏳ Da testare su WordPress</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 5: Prenotazione di Test</h2>
+        <p>Effettuare una prenotazione di test con uno dei form speciali e verificare:</p>
+        <div class="expected-result">
+            <strong>Email amministratore attesa:</strong>
+            <ul>
+                <li><strong>Oggetto:</strong> "🎉 Prenotazione Speciale (Anniversario) - Nome Cliente"</li>
+                <li><strong>Contenuto:</strong> Banner giallo evidenziato con "🎉 PRENOTAZIONE SPECIALE: Anniversario"</li>
+                <li><strong>Resto:</strong> Informazioni prenotazione normali</li>
+            </ul>
+        </div>
+        <div class="expected-result">
+            <strong>Database atteso:</strong>
+            <ul>
+                <li>Post type "rbf_booking" creato normalmente</li>
+                <li>Meta field "rbf_special_type" = "anniversary"</li>
+                <li>Meta field "rbf_special_label" = "Anniversario"</li>
+            </ul>
+        </div>
+        <div class="test-status pending">⏳ Da testare con prenotazione reale</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>🎯 Lista Controllo Implementazione</h2>
+        <div class="test-status success">✅ Frontend: Shortcode e parametri URL implementati</div>
+        <div class="test-status success">✅ CSS: Styling banner occasioni speciali aggiunto</div>
+        <div class="test-status success">✅ Backend: Gestione dati occasioni speciali nel booking handler</div>
+        <div class="test-status success">✅ Email: Notifiche personalizzate amministratore implementate</div>
+        <div class="test-status success">✅ Database: Metadati occasioni speciali salvati</div>
+        <div class="test-status success">✅ Sicurezza: Sanitizzazione e validazione implementate</div>
+        <div class="test-status success">✅ Compatibilità: Retrocompatibilità mantenuta</div>
+        <div class="test-status success">✅ Assets: Enqueue JS/CSS aggiornato per tutti i shortcode</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>📋 Checklist Test WordPress</h2>
+        <ol>
+            <li>Installare/aggiornare il plugin con le modifiche</li>
+            <li>Creare una pagina di test con i vari shortcode</li>
+            <li>Verificare che i CSS e JS si caricano correttamente</li>
+            <li>Controllare che i banner delle occasioni speciali appaiano</li>
+            <li>Effettuare prenotazioni di test e verificare le email</li>
+            <li>Controllare che i metadati vengano salvati nel database</li>
+            <li>Testare sia con shortcode che con parametri URL</li>
+            <li>Verificare che i form normali continuino a funzionare</li>
+        </ol>
+    </div>
+</body>
+</html>
