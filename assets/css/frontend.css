@@ -347,7 +347,7 @@
     background: white;
     border: 2px solid var(--rbf-border);
     transition: all 0.3s ease;
-    min-height: var(--rbf-input-height);
+    height: var(--rbf-input-height); /* Fixed height instead of min-height */
     overflow: hidden; /* Ensures clean edges */
 }
 
@@ -357,13 +357,29 @@
     transform: translateY(-1px);
 }
 
+/* Enhanced hover effect for seamless integration */
+.iti:hover:not(:focus-within) {
+    border-color: var(--rbf-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
+}
+
+.iti:hover .iti__flag-container {
+    background: var(--rbf-primary);
+    border-right-color: var(--rbf-primary);
+}
+
+.iti:hover .iti__selected-flag {
+    color: white;
+}
+
 /* Unified Flag Container - Seamless Integration */
 .iti__flag-container {
     position: absolute;
-    top: 2px;
-    bottom: 2px;
-    left: 2px;
-    width: 65px; /* Reduced width for better proportion */
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 72px; /* Increased width for better proportion with larger flags */
     background: var(--rbf-bg-light);
     border-right: 1px solid var(--rbf-border);
     border-radius: calc(var(--rbf-radius) - 2px) 0 0 calc(var(--rbf-radius) - 2px);
@@ -403,24 +419,38 @@
     outline-offset: -2px;
 }
 
-/* Simplified Flag Design with Better Default Sprites */
+/* Enhanced Flag Design with Better Visibility */
 .iti__flag {
-    width: 16px;
-    height: 12px;
+    width: 20px;
+    height: 15px;
     background-image: url('https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.19/img/flags.png');
     background-repeat: no-repeat;
-    background-size: 16px 2652px; /* Correct sprite dimensions */
+    background-size: 20px 3315px; /* Adjusted sprite dimensions for larger size */
     flex-shrink: 0;
     margin: 0;
-    border: 1px solid rgba(0,0,0,0.1);
-    border-radius: 2px;
+    border: 1px solid rgba(0,0,0,0.15);
+    border-radius: 3px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    transition: all 0.2s ease;
 }
 
-/* Use high-DPI flags for retina displays */
+/* Enhanced high-DPI flags for retina displays */
 @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
     .iti__flag, .iti__country .iti__flag {
         background-image: url('https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.19/img/flags@2x.png');
-        background-size: 16px 2652px;
+        background-size: 20px 3315px; /* Maintain proper aspect ratio for 2x images */
+    }
+}
+
+/* Enhanced retina flags for mobile */
+@media (-webkit-min-device-pixel-ratio: 2) and (max-width: 768px), 
+       (min-resolution: 192dpi) and (max-width: 768px) {
+    .iti__flag {
+        background-size: 32px 5304px; /* Mobile retina flags */
+    }
+    
+    .iti__country .iti__flag {
+        background-size: 34px 5635px; /* Mobile dropdown retina flags */
     }
 }
 
@@ -492,14 +522,15 @@
 /* Enhanced Flag in Dropdown */
 .iti__country .iti__flag {
     /* Match dropdown flags with selected flag size */
-    width: 16px;
-    height: 12px;
+    width: 22px;
+    height: 17px;
     margin: 0;
     background-image: url('https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.19/img/flags.png');
     background-repeat: no-repeat;
-    background-size: 16px 2652px;
-    border: 1px solid rgba(0,0,0,0.1);
-    border-radius: 2px;
+    background-size: 22px 3647px; /* Slightly larger for dropdown */
+    border: 1px solid rgba(0,0,0,0.15);
+    border-radius: 3px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .iti__country-name {
@@ -529,20 +560,20 @@
 
 /* Unified Input Field - Seamless Integration */
 .iti input[type="tel"] {
-    padding-left: 75px !important; /* Adjusted for new flag container width */
+    padding-left: 82px !important; /* Adjusted for new flag container width */
     border-radius: 0 calc(var(--rbf-radius) - 2px) calc(var(--rbf-radius) - 2px) 0 !important;
     border: none !important;
     width: 100% !important;
     box-sizing: border-box !important;
     font-size: 16px;
     font-weight: 500;
-    min-height: calc(var(--rbf-input-height) - 4px);
+    height: 100%; /* Use full height of container */
     background: white;
     color: var(--rbf-text);
     padding-right: 16px !important;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-    margin: 2px 2px 2px 0;
+    padding-top: 14px !important; /* Consistent vertical padding */
+    padding-bottom: 14px !important; /* Consistent vertical padding */
+    margin: 0; /* Remove margin to align perfectly */
 }
 
 .iti input[type="tel"]:focus {
@@ -567,12 +598,16 @@
 }
 
 .iti--allow-dropdown input {
-    padding-left: 75px !important; /* Match with new flag container width */
+    padding-left: 82px !important; /* Match with new flag container width */
     border-radius: 0 calc(var(--rbf-radius) - 2px) calc(var(--rbf-radius) - 2px) 0 !important;
 }
 
 /* Mobile Responsive Design - Simplified and Clean */
 @media (max-width: 768px) {
+    .iti {
+        height: 56px; /* Increased height for mobile */
+    }
+    
     .iti__country-list {
         max-height: 200px;
         width: 280px !important;
@@ -592,7 +627,7 @@
     }
     
     .iti__selected-flag {
-        min-height: 56px;
+        height: 56px; /* Fixed height instead of min-height */
         width: 95px;
         display: flex;
         align-items: center;
@@ -606,25 +641,32 @@
     }
 
     .iti input[type="tel"] {
-        padding-left: var(--rbf-tel-padding-left) !important;
+        padding-left: 105px !important; /* Increased for wider mobile flag container */
         font-size: 16px !important; /* Prevent iOS zoom */
-        min-height: var(--rbf-input-height);
+        height: 56px; /* Fixed height to match container */
         border-radius: 0 var(--rbf-radius) var(--rbf-radius) 0 !important;
+        padding-top: 16px !important; /* Consistent mobile vertical padding */
+        padding-bottom: 16px !important; /* Consistent mobile vertical padding */
     }
     
     /* Enhanced Mobile Flag Design */
     .iti__flag {
-        width: 28px;
-        height: 21px;
+        width: 32px;
+        height: 24px;
         margin-right: 8px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.1);
-        border-radius: 3px;
+        background-size: 32px 5304px; /* Adjusted for larger mobile flags */
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(0,0,0,0.2);
+        border-radius: 4px;
     }
     
     .iti__country .iti__flag {
-        width: 30px;
-        height: 22px;
+        width: 34px;
+        height: 26px;
         margin-right: 16px;
+        background-size: 34px 5635px; /* Slightly larger for dropdown on mobile */
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.1);
+        border-radius: 4px;
     }
     
     .iti__arrow {
