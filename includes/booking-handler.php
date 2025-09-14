@@ -1,6 +1,6 @@
 <?php
 /**
- * Booking submission handler for Restaurant Booking Plugin
+ * Booking submission handler for FP Prenotazioni Ristorante
  * 
  * @package FP_Prenotazioni_Ristorante_PRO
  */

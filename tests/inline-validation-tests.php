@@ -1,6 +1,6 @@
 <?php
 /**
- * Inline Validation Tests for Restaurant Booking Plugin
+ * Inline Validation Tests for FP Prenotazioni Ristorante
  * 
  * Tests the inline validation functionality including:
  * - Required field indicators

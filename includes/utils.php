@@ -1,6 +1,6 @@
 <?php
 /**
- * Utility functions for Restaurant Booking Plugin
+ * Utility functions for FP Prenotazioni Ristorante
  * 
  * @package FP_Prenotazioni_Ristorante_PRO
  */

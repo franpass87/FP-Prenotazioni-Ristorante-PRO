@@ -1,6 +1,6 @@
 <?php
 /**
- * Optimistic Locking functionality for Restaurant Booking Plugin
+ * Optimistic Locking functionality for FP Prenotazioni Ristorante
  * Prevents race conditions on last available slot bookings
  * 
  * @package FP_Prenotazioni_Ristorante_PRO

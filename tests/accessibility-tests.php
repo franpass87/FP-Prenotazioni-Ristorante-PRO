@@ -1,6 +1,6 @@
 <?php
 /**
- * Accessibility Tests for Restaurant Booking Plugin
+ * Accessibility Tests for FP Prenotazioni Ristorante
  * Tests keyboard navigation, ARIA compliance, and color contrast
  */
 

@@ -1,6 +1,6 @@
 <?php
 /**
- * Table Management functionality for Restaurant Booking Plugin
+ * Table Management functionality for FP Prenotazioni Ristorante
  * 
  * @package FP_Prenotazioni_Ristorante_PRO
  */

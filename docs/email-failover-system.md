@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Email Failover System provides robust email notification reliability for the Restaurant Booking Plugin by implementing a two-tier email delivery architecture with automatic failover capabilities.
+The Email Failover System provides robust email notification reliability for the FP Prenotazioni Ristorante by implementing a two-tier email delivery architecture with automatic failover capabilities.
 
 ## Architecture
 

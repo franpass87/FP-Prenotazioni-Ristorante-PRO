@@ -1,6 +1,6 @@
 <?php
 /**
- * Email Failover System for Restaurant Booking Plugin
+ * Email Failover System for FP Prenotazioni Ristorante
  * Provides reliable email delivery with Brevo fallback to wp_mail
  * 
  * @package FP_Prenotazioni_Ristorante_PRO

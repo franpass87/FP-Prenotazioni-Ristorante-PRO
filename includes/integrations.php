@@ -1,6 +1,6 @@
 <?php
 /**
- * Third-party integrations for Restaurant Booking Plugin
+ * Third-party integrations for FP Prenotazioni Ristorante
  * (Tracking, Brevo automation only - no WordPress emails)
  * 
  * @package FP_Prenotazioni_Ristorante_PRO

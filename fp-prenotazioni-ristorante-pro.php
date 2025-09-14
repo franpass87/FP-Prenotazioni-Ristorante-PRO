@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: Prenotazioni Ristorante Completo (Flatpickr, lingua dinamica)
+ * Plugin Name: FP Prenotazioni Ristorante
  * Description: Prenotazioni con calendario Flatpickr IT/EN, gestione capienza per servizio, notifiche email (con CC), Brevo sempre e GA4/Meta (bucket standard), con supporto ai limiti temporali minimi.
  * Version:     1.5
  * Author:      Francesco Passeri
