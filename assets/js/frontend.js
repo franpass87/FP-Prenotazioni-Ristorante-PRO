@@ -980,10 +980,13 @@ jQuery(function($) {
         setTimeout(() => {
           lazyLoadDatePicker().then(() => {
             removeSkeleton($step);
-            // CRITICAL FIX: Extra safety check to ensure calendar is interactive
+            // CRITICAL FIX: Extra safety check to ensure calendar is interactive and opens
             setTimeout(() => {
               if (fp) {
                 forceCalendarInteractivity(fp);
+                if (!fp.isOpen) {
+                  fp.open();
+                }
                 rbfLog.log('Calendar fully enabled and interactive after lazy load');
               }
             }, 200);
@@ -1249,10 +1252,6 @@ jQuery(function($) {
     // Show date step for any meal selection without scrolling
     // The flatpickr will be lazy loaded when the step is shown by showStepWithoutScroll
     showStepWithoutScroll(el.dateStep, 2);
-
-    lazyLoadDatePicker().then(() => {
-      if (fp && !fp.isOpen) fp.open();
-    });
 
     // Update availability data for the selected meal (after calendar loads)
     setTimeout(() => {
