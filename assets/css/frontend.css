@@ -1336,6 +1336,68 @@
     }
 }
 
+/* Enhanced fallback telephone input with prefix support */
+.rbf-tel-wrapper {
+    position: relative;
+    display: flex;
+    border: 2px solid var(--rbf-border);
+    border-radius: var(--rbf-radius);
+    overflow: hidden;
+    background: white;
+    transition: var(--rbf-transition);
+}
+
+.rbf-tel-wrapper:focus-within {
+    border-color: var(--rbf-primary);
+    box-shadow: 0 0 0 3px rgba(44, 90, 160, 0.15);
+}
+
+.rbf-tel-prefix {
+    background: var(--rbf-primary);
+    color: white;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    font-weight: 600;
+    font-size: 14px;
+    border-right: 1px solid var(--rbf-border);
+    white-space: nowrap;
+}
+
+.rbf-tel-wrapper input {
+    border: none !important;
+    box-shadow: none !important;
+    margin: 0;
+    padding: var(--rbf-input-padding);
+    flex: 1;
+    background: transparent;
+}
+
+.rbf-tel-wrapper input:focus {
+    outline: none;
+    box-shadow: none !important;
+}
+
+.rbf-tel-wrapper input.rbf-invalid {
+    background: rgba(220, 53, 69, 0.1);
+}
+
+/* Enhanced date input fallback */
+.rbf-date-fallback {
+    position: relative;
+}
+
+.rbf-date-fallback::before {
+    content: "📅";
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+    pointer-events: none;
+    font-size: 18px;
+}
+
 /* Fallback styling when intlTelInput fails */
 .rbf-tel-fallback {
     background-color: #fff3cd !important;
