@@ -164,6 +164,42 @@ function rbf_get_valid_meal_ids() {
 }
 
 /**
+ * Determine if restaurant is open for a given date and meal.
+ * Encapsulates weekday and closed-date/range checks.
+ *
+ * @param string $date Date in Y-m-d format
+ * @param string $meal Meal identifier (currently unused but reserved for future logic)
+ * @return bool True if restaurant is open, false if closed
+ */
+function rbf_is_restaurant_open($date, $meal) {
+    $options = rbf_get_settings();
+
+    // Check day of week availability
+    $day_of_week = date('w', strtotime($date));
+    $day_keys = ['sun','mon','tue','wed','thu','fri','sat'];
+    $day_key = $day_keys[$day_of_week];
+
+    if (($options["open_{$day_key}"] ?? 'no') !== 'yes') {
+        return false;
+    }
+
+    // Check specific closed dates and ranges
+    $closed_specific = rbf_get_closed_specific($options);
+
+    if (in_array($date, $closed_specific['singles'], true)) {
+        return false;
+    }
+
+    foreach ($closed_specific['ranges'] as $range) {
+        if ($date >= $range['from'] && $date <= $range['to']) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/**
  * WordPress timezone compatibility function
  */
 if (!function_exists('rbf_wp_timezone')) {

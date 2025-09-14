@@ -107,31 +107,10 @@ function rbf_handle_booking_submission() {
         return;
     }
 
-    // Validate that the date is not in the closed dates list
-    $options = rbf_get_settings();
-    
-    // Check if restaurant is open on this day of the week
-    $day_of_week = date('w', strtotime($date));
-    $day_keys = ['sun','mon','tue','wed','thu','fri','sat'];
-    $day_key = $day_keys[$day_of_week];
-
-    if (($options["open_{$day_key}"] ?? 'no') !== 'yes') {
-        rbf_handle_error(rbf_translate_string('Il ristorante è chiuso in questo giorno della settimana.'), 'closed_day_validation', $redirect_url . $anchor);
+    // Validate that the restaurant is open for the selected date
+    if (!rbf_is_restaurant_open($date, $meal)) {
+        rbf_handle_error(rbf_translate_string('Il ristorante è chiuso nella data selezionata.'), 'restaurant_closed', $redirect_url . $anchor);
         return;
-    }
-
-    // Check specific closed dates
-    $closed_specific = rbf_get_closed_specific($options);
-    if (in_array($date, $closed_specific['singles'], true)) {
-        rbf_handle_error(rbf_translate_string('Il ristorante è chiuso nella data selezionata.'), 'closed_date_validation', $redirect_url . $anchor);
-        return;
-    }
-    
-    foreach ($closed_specific['ranges'] as $range) {
-        if ($date >= $range['from'] && $date <= $range['to']) {
-            rbf_handle_error(rbf_translate_string('Il ristorante è chiuso nella data selezionata.'), 'closed_date_range_validation', $redirect_url . $anchor);
-            return;
-        }
     }
     
     // Validate time data format
@@ -469,32 +448,14 @@ function rbf_ajax_get_availability_callback() {
 
     // Get settings
     $options = rbf_get_settings();
-    
-    // Step 1: Check if restaurant is open on this day of the week
-    $day_of_week = date('w', strtotime($date));
-    $day_keys = ['sun','mon','tue','wed','thu','fri','sat'];
-    $day_key = $day_keys[$day_of_week];
 
-    if (($options["open_{$day_key}"] ?? 'no') !== 'yes') {
+    // Ensure restaurant is open for requested date
+    if (!rbf_is_restaurant_open($date, $meal)) {
         wp_send_json_success([]);
         return;
     }
 
-    // Step 2: Check specific closed dates
-    $closed_specific = rbf_get_closed_specific($options);
-    if (in_array($date, $closed_specific['singles'], true)) {
-        wp_send_json_success([]);
-        return;
-    }
-    
-    foreach ($closed_specific['ranges'] as $range) {
-        if ($date >= $range['from'] && $date <= $range['to']) {
-            wp_send_json_success([]);
-            return;
-        }
-    }
-
-    // Step 3: Get configured time slots for this meal, considering special exceptions
+    // Step 2: Get configured time slots for this meal, considering special exceptions
     $special_hours = rbf_get_special_hours_for_date($date, $meal, $options);
     $times = [];
     
