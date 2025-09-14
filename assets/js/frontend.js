@@ -404,7 +404,7 @@ jQuery(function($) {
   }
 
   /**
-   * Initialize flatpickr calendar (no lazy loading since it's enqueued as dependency)
+   * Initialize calendar with fallback support
    */
   function lazyLoadDatePicker() {
     if (fp) return Promise.resolve();
@@ -420,24 +420,59 @@ jQuery(function($) {
         datePickerInitPromise = null;
       };
 
+      const initFallback = () => {
+        rbfLog.warn('Flatpickr not available, using HTML5 date input fallback');
+        if (el.dateInput.length) {
+          // Enhanced HTML5 date input fallback
+          el.dateInput.attr('type', 'date');
+          
+          // Set minimum date based on advance time requirements
+          const today = new Date();
+          const minDate = new Date(today.getTime() + (rbfData.minAdvanceMinutes || 60) * 60 * 1000);
+          el.dateInput.attr('min', minDate.toISOString().split('T')[0]);
+          
+          // Set maximum date (e.g., 6 months in advance)
+          const maxDate = new Date(today.getTime() + (rbfData.maxAdvanceMinutes || 259200) * 60 * 1000);
+          el.dateInput.attr('max', maxDate.toISOString().split('T')[0]);
+          
+          // Add event listener for date changes
+          el.dateInput.on('change', function() {
+            const selectedDate = this.value;
+            if (selectedDate) {
+              rbfLog.log('Date selected via HTML5 input: ' + selectedDate);
+              // Trigger time slot loading
+              loadTimeSlots();
+            }
+          });
+          
+          // Improve styling for fallback date input
+          el.dateInput.addClass('rbf-date-fallback');
+        }
+        resolve();
+        datePickerInitPromise = null;
+      };
+
       if (typeof flatpickr !== 'undefined') {
         init();
       } else {
+        // Try to load Flatpickr with enhanced error handling
         const script = document.createElement('script');
         script.src = 'https://cdn.jsdelivr.net/npm/flatpickr';
         script.async = true;
         script.onload = init;
-        script.onerror = () => {
-          rbfLog.error('Flatpickr failed to load from CDN');
-          if (el.dateInput.length) {
-            el.dateInput.attr('type', 'date');
-            const today = new Date();
-            const minDate = new Date(today.getTime() + rbfData.minAdvanceMinutes * 60 * 1000);
-            el.dateInput.attr('min', minDate.toISOString().split('T')[0]);
-          }
-          resolve();
-          datePickerInitPromise = null;
+        script.onerror = initFallback;
+        
+        // Set a timeout for loading
+        const loadTimeout = setTimeout(() => {
+          rbfLog.warn('Flatpickr loading timeout, using fallback');
+          initFallback();
+        }, 5000);
+        
+        script.onload = () => {
+          clearTimeout(loadTimeout);
+          init();
         };
+        
         document.head.appendChild(script);
       }
     });
@@ -790,30 +825,67 @@ jQuery(function($) {
   }
 
   /**
-   * Lazy load international telephone input
+   * Enhanced international telephone input with robust fallback
    */
   function lazyLoadTelInput() {
     return new Promise((resolve) => {
+      const setupFallback = () => {
+        rbfLog.warn('intl-tel-input not available, setting up enhanced fallback');
+        if (el.telInput.length) {
+          // Enhanced fallback phone input
+          el.telInput.addClass('rbf-tel-fallback');
+          el.telInput.attr('type', 'tel');
+          el.telInput.attr('placeholder', rbfData.labels.phonePlaceholder || '+39 000 000 0000');
+          
+          // Add country code selector as a prefix
+          const wrapper = $('<div class="rbf-tel-wrapper"></div>');
+          const prefix = $('<div class="rbf-tel-prefix">🇮🇹 +39</div>');
+          
+          el.telInput.wrap(wrapper);
+          el.telInput.before(prefix);
+          
+          // Set default country code
+          if ($('#rbf_country_code').length === 0) {
+            $('<input type="hidden" id="rbf_country_code" name="rbf_country_code" value="it">').insertAfter(el.telInput);
+          } else {
+            $('#rbf_country_code').val('it');
+          }
+          
+          // Enhanced validation for fallback
+          el.telInput.on('input', function() {
+            const value = $(this).val();
+            // Basic Italian phone number validation
+            const isValid = /^[\d\s\-\+\(\)]{6,}$/.test(value);
+            $(this).toggleClass('rbf-invalid', !isValid && value.length > 0);
+          });
+          
+          rbfLog.log('Enhanced fallback phone input configured');
+        }
+        resolve();
+      };
+
       if (typeof intlTelInput === 'undefined') {
-        // If intlTelInput is not loaded, try to load it
+        // Try to load intl-tel-input with timeout
         const script = document.createElement('script');
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/19.2.16/js/intlTelInput.min.js';
+        script.async = true;
+        
+        const loadTimeout = setTimeout(() => {
+          rbfLog.warn('intl-tel-input loading timeout, using fallback');
+          setupFallback();
+        }, 5000);
+        
         script.onload = () => {
+          clearTimeout(loadTimeout);
           initializeTelInput();
           resolve();
         };
+        
         script.onerror = () => {
-          rbfLog.warn('Could not load intl-tel-input, using fallback telephone input');
-          // Setup basic telephone input fallback
-          if (el.telInput.length) {
-            el.telInput.addClass('rbf-tel-fallback');
-            el.telInput.attr('placeholder', rbfData.labels.phonePlaceholder || 'Phone number');
-            el.telInput.attr('type', 'tel');
-            // Set default country code to IT
-            $('#rbf_country_code').val('it');
-          }
-          resolve();
+          clearTimeout(loadTimeout);
+          setupFallback();
         };
+        
         document.head.appendChild(script);
       } else {
         initializeTelInput();
