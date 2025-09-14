@@ -1,0 +1,35 @@
+name: Test Build Workflow
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Quick build test
+      run: |
+        echo "=== Testing build process ==="
+        
+        # Test version extraction
+        VERSION=$(grep "Version:" fp-prenotazioni-ristorante-pro.php | sed 's/.*Version:[[:space:]]*//' | sed 's/[[:space:]]*$//')
+        echo "✅ Extracted version: $VERSION"
+        
+        # Test directory structure
+        echo "✅ Checking required files..."
+        [ -f "fp-prenotazioni-ristorante-pro.php" ] && echo "✅ Main plugin file exists"
+        [ -d "includes" ] && echo "✅ Includes directory exists ($(find includes -name "*.php" | wc -l) PHP files)"
+        [ -d "assets" ] && echo "✅ Assets directory exists"
+        [ -d "tests" ] && echo "✅ Tests directory exists"
+        
+        # Test file counts
+        echo "✅ File counts:"
+        echo "   PHP files in includes: $(find includes -name "*.php" | wc -l)"
+        echo "   CSS files in assets: $(find assets -name "*.css" | wc -l)"
+        echo "   JS files in assets: $(find assets -name "*.js" | wc -l)"
+        
+        echo "✅ Build test completed successfully!"

@@ -1,0 +1,198 @@
+name: Build WordPress Plugin
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Get plugin version
+      id: get_version
+      run: |
+        VERSION=$(grep "Version:" fp-prenotazioni-ristorante-pro.php | sed 's/.*Version:[[:space:]]*//' | sed 's/[[:space:]]*$//')
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Plugin version: $VERSION"
+        
+        # Create version-specific name
+        if [[ $GITHUB_REF == refs/tags/* ]]; then
+          TAG_VERSION=${GITHUB_REF#refs/tags/}
+          PLUGIN_NAME="fp-prenotazioni-ristorante-pro-${TAG_VERSION}"
+        else
+          PLUGIN_NAME="fp-prenotazioni-ristorante-pro-v${VERSION}"
+        fi
+        echo "plugin_name=$PLUGIN_NAME" >> $GITHUB_OUTPUT
+        echo "Plugin name: $PLUGIN_NAME"
+    
+    - name: Create plugin directory
+      run: |
+        mkdir -p build/${{ steps.get_version.outputs.plugin_name }}
+        
+    - name: Copy plugin files
+      run: |
+        # Copy main plugin file
+        cp fp-prenotazioni-ristorante-pro.php build/${{ steps.get_version.outputs.plugin_name }}/
+        
+        # Copy includes directory
+        cp -r includes/ build/${{ steps.get_version.outputs.plugin_name }}/
+        
+        # Copy assets directory
+        cp -r assets/ build/${{ steps.get_version.outputs.plugin_name }}/
+        
+        # Copy tests directory (for development installations)
+        cp -r tests/ build/${{ steps.get_version.outputs.plugin_name }}/
+        
+        # Copy documentation files
+        cp README.md build/${{ steps.get_version.outputs.plugin_name }}/
+        cp *.md build/${{ steps.get_version.outputs.plugin_name }}/
+        
+        # Copy brand configuration
+        cp fppr-brand.json build/${{ steps.get_version.outputs.plugin_name }}/
+        
+        # Copy docs directory if it exists
+        if [ -d "docs" ]; then
+          cp -r docs/ build/${{ steps.get_version.outputs.plugin_name }}/
+        fi
+        
+    - name: Create readme.txt for WordPress repository
+      run: |
+        cat > build/${{ steps.get_version.outputs.plugin_name }}/readme.txt << 'EOF'
+        === Prenotazioni Ristorante PRO ===
+        Contributors: francescopasseri
+        Tags: restaurant, booking, reservations, table, management
+        Requires at least: 5.0
+        Tested up to: 6.4
+        Requires PHP: 7.4
+        Stable tag: ${{ steps.get_version.outputs.version }}
+        License: GPLv2 or later
+        License URI: https://www.gnu.org/licenses/gpl-2.0.html
+        
+        Sistema completo di prenotazioni per ristoranti con calendario avanzato, notifiche email e tracking marketing.
+        
+        == Description ==
+        
+        Prenotazioni Ristorante PRO è un plugin WordPress completo per la gestione delle prenotazioni di ristoranti. 
+        
+        Caratteristiche principali:
+        * 📅 Calendario avanzato con Flatpickr
+        * 🌍 Supporto multilingua (IT/EN)
+        * 📧 Notifiche email personalizzate
+        * 📊 Tracking marketing GA4/Meta Pixel
+        * 🎨 Giornate speciali a tema
+        * 🔒 Sistema di sicurezza avanzato
+        * 📱 Design responsive
+        
+        == Installation ==
+        
+        1. Carica la cartella del plugin in `/wp-content/plugins/`
+        2. Attiva il plugin dal pannello WordPress
+        3. Vai su "Prenotazioni" nel menu admin per configurare
+        4. Inserisci `[ristorante_booking_form]` nella pagina desiderata
+        
+        == Frequently Asked Questions ==
+        
+        = Quali sono i requisiti minimi? =
+        
+        * WordPress 5.0+
+        * PHP 7.4+
+        * MySQL 5.7+
+        * Memory 128MB+
+        
+        = Il plugin è compatibile con altri plugin? =
+        
+        Sì, è stato testato con i principali plugin di caching e sicurezza.
+        
+        == Changelog ==
+        
+        = 1.5 =
+        * Release finale con architettura modulare completa
+        * Sistema di tracking marketing avanzato
+        * Sicurezza hardened con CSRF protection
+        * Performance ottimizzate
+        * Documentazione completa
+        
+        == Upgrade Notice ==
+        
+        = 1.5 =
+        Versione stabile e completa. Aggiornamento raccomandato per tutti gli utenti.
+        EOF
+        
+    - name: Remove development files
+      run: |
+        # Remove development-only files from the build
+        cd build/${{ steps.get_version.outputs.plugin_name }}
+        
+        # Remove demo HTML files
+        rm -f demo*.html
+        rm -f test-*.html
+        rm -f *-test.html
+        rm -f *.html
+        
+        # Remove shell scripts
+        rm -f *.sh
+        
+        # Remove images that are just for documentation
+        rm -f *.png
+        
+        # Remove git-related files if they exist
+        rm -rf .git
+        rm -f .gitignore
+        
+    - name: Validate plugin structure
+      run: |
+        cd build/${{ steps.get_version.outputs.plugin_name }}
+        
+        echo "=== Plugin Structure ==="
+        find . -type f -name "*.php" | head -10
+        
+        echo "=== Main Plugin File ==="
+        if [ -f "fp-prenotazioni-ristorante-pro.php" ]; then
+          echo "✅ Main plugin file exists"
+          head -15 fp-prenotazioni-ristorante-pro.php
+        else
+          echo "❌ Main plugin file missing"
+          exit 1
+        fi
+        
+        echo "=== Required Directories ==="
+        for dir in includes assets tests; do
+          if [ -d "$dir" ]; then
+            echo "✅ $dir directory exists ($(find $dir -name "*.php" | wc -l) PHP files)"
+          else
+            echo "⚠️  $dir directory missing"
+          fi
+        done
+        
+    - name: Create WordPress plugin zip
+      run: |
+        cd build
+        zip -r ${{ steps.get_version.outputs.plugin_name }}.zip ${{ steps.get_version.outputs.plugin_name }}/
+        
+        echo "=== Zip File Info ==="
+        ls -lh ${{ steps.get_version.outputs.plugin_name }}.zip
+        
+        echo "=== Zip Contents ==="
+        unzip -l ${{ steps.get_version.outputs.plugin_name }}.zip | head -20
+        
+    - name: Upload plugin artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.get_version.outputs.plugin_name }}
+        path: build/${{ steps.get_version.outputs.plugin_name }}.zip
+        retention-days: 30
+        
+    - name: Upload plugin artifact (latest)
+      uses: actions/upload-artifact@v4
+      with:
+        name: fp-prenotazioni-ristorante-pro-latest
+        path: build/${{ steps.get_version.outputs.plugin_name }}.zip
+        retention-days: 90

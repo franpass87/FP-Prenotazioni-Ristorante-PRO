@@ -119,10 +119,29 @@ fp-prenotazioni-ristorante-pro/
 
 ## 📋 Installazione
 
-1. **Upload**: Carica la cartella del plugin in `/wp-content/plugins/`
+### 🚀 Download Automatico (Raccomandato)
+
+Il repository include **GitHub Actions workflows** per build automatici:
+
+1. **Release Ufficiali**: Vai su [Releases](../../releases) e scarica l'ultimo `.zip`
+2. **Build Latest**: Vai su [Actions](../../actions/workflows/build-wordpress-plugin.yml) e scarica l'artifact `fp-prenotazioni-ristorante-pro-latest`
+
+### 📦 Installazione WordPress
+
+1. **Upload**: Carica il file `.zip` in **Plugin > Aggiungi nuovo > Carica plugin**
 2. **Attivazione**: Attiva il plugin dal pannello WordPress
 3. **Configurazione**: Vai su "Prenotazioni" nel menu admin
 4. **Shortcode**: Inserisci `[ristorante_booking_form]` nella pagina desiderata
+
+### 🔧 Build Manuale
+
+Se preferisci compilare manualmente:
+```bash
+git clone https://github.com/franpass87/FP-Prenotazioni-Ristorante-PRO.git
+# Carica la cartella del plugin in `/wp-content/plugins/`
+```
+
+> 📚 **Documentazione Build**: Vedi [GITHUB_ACTIONS_WORKFLOWS.md](GITHUB_ACTIONS_WORKFLOWS.md) per dettagli sui workflows automatici
 
 ## ⚙️ Configurazione
 

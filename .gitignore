@@ -27,3 +27,12 @@ test-height-fix-verification.html
 
 # macOS
 .DS_Store
+
+# Build artifacts
+build/
+*.zip
+fp-prenotazioni-ristorante-pro-v*.zip
+fp-prenotazioni-ristorante-pro-latest.zip
+
+# GitHub Actions
+.github/workflows/test-results/
