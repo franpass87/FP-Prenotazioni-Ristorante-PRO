@@ -1,6 +1,6 @@
 <?php
 /**
- * AI-powered alternative booking suggestions for Restaurant Booking Plugin
+ * AI-powered alternative booking suggestions for FP Prenotazioni Ristorante
  * 
  * @package FP_Prenotazioni_Ristorante_PRO
  */

@@ -1,6 +1,6 @@
 <?php
 /**
- * Frontend functionality for Restaurant Booking Plugin
+ * Frontend functionality for FP Prenotazioni Ristorante
  * 
  * @package FP_Prenotazioni_Ristorante_PRO
  */

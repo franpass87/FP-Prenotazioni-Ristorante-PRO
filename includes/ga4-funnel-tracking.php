@@ -1,6 +1,6 @@
 <?php
 /**
- * GA4 Funnel Tracking for Restaurant Booking Plugin
+ * GA4 Funnel Tracking for FP Prenotazioni Ristorante
  * 
  * Implements comprehensive funnel tracking with custom GA4 events,
  * session/event ID generation for deduplication, and error tracking.

@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Restaurant Booking Plugin includes comprehensive anti-bot protection to prevent automated spam submissions while maintaining a seamless experience for legitimate users. The system uses multiple detection methods and conditional challenges to ensure security without compromising usability.
+The FP Prenotazioni Ristorante includes comprehensive anti-bot protection to prevent automated spam submissions while maintaining a seamless experience for legitimate users. The system uses multiple detection methods and conditional challenges to ensure security without compromising usability.
 
 ## Protection Mechanisms
 

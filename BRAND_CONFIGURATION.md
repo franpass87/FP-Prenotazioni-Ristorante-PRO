@@ -1,6 +1,6 @@
 # FPPR Brand Configuration System
 
-This document explains how to customize the accent color and brand styling for the Restaurant Booking Plugin across multiple sites or brands.
+This document explains how to customize the accent color and brand styling for the FP Prenotazioni Ristorante across multiple sites or brands.
 
 ## Overview
 
