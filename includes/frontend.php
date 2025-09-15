@@ -71,8 +71,11 @@ function rbf_enqueue_frontend_assets() {
     // Giorni chiusi
     $closed_days_map = ['sun'=>0,'mon'=>1,'tue'=>2,'wed'=>3,'thu'=>4,'fri'=>5,'sat'=>6];
     $closed_days = [];
-    foreach ($closed_days_map as $key=>$day_index) {
-        if (($options["open_{$key}"] ?? 'yes') !== 'yes') $closed_days[] = $day_index;
+    foreach ($closed_days_map as $key => $day_index) {
+        $is_open = $options["open_{$key}"] ?? 'yes';
+        if ($is_open === 'no') {
+            $closed_days[] = $day_index;
+        }
     }
     $closed_specific = rbf_get_closed_specific($options);
 
@@ -80,11 +83,13 @@ function rbf_enqueue_frontend_assets() {
     $active_meals = rbf_get_active_meals();
     $meal_tooltips = [];
     $meal_availability = [];
+    $valid_day_keys = array_keys($closed_days_map);
     foreach ($active_meals as $meal) {
         if (!empty($meal['tooltip'])) {
             $meal_tooltips[$meal['id']] = rbf_translate_string($meal['tooltip']);
         }
-        $meal_availability[$meal['id']] = $meal['available_days'] ?? [];
+        $available = $meal['available_days'] ?? [];
+        $meal_availability[$meal['id']] = array_values(array_intersect($valid_day_keys, $available));
     }
 
     wp_localize_script('rbf-frontend-js', 'rbfData', [
