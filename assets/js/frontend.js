@@ -702,6 +702,7 @@ jQuery(function($) {
           }
         }
       }
+    };
     
     // Set max date if configured
     if (shouldApplyMaxAdvanceLimit) {
@@ -948,23 +949,18 @@ jQuery(function($) {
       const stepId = $step.attr('id');
       const isDateStep = stepId === 'step-date';
 
-      if (isDateStep && fp === null) {
-        // Reinitialize the calendar to restore interactivity when revisiting the date step
-        lazyLoadDatePicker().then(() => {
-          if (fp && typeof fp.open === 'function') {
-            fp.open();
-          }
-        });
-      }
-
-      if (isDateStep && $step.attr('data-skeleton') === 'true') {
-        // Show skeleton initially, then lazy load date picker
+      if (isDateStep && ($step.attr('data-skeleton') === 'true' || fp === null)) {
+        // Handle both skeleton loading and calendar reinitialization in a single call
         setTimeout(() => {
           lazyLoadDatePicker().then(() => {
-            removeSkeleton($step);
-            // CRITICAL FIX: Extra safety check to ensure calendar is interactive and opens
+            // Remove skeleton if present
+            if ($step.attr('data-skeleton') === 'true') {
+              removeSkeleton($step);
+            }
+            
+            // Ensure calendar opens properly
             setTimeout(() => {
-              if (fp) {
+              if (fp && typeof fp.open === 'function') {
                 if (!fp.isOpen) {
                   fp.open();
                 }
