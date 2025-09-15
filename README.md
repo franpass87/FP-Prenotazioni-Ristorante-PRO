@@ -145,6 +145,8 @@ git clone https://github.com/franpass87/FP-Prenotazioni-Ristorante-PRO.git
 
 ## ⚙️ Configurazione
 
+> ⚠️ **Importante / Important:** dopo l'installazione non sono presenti pasti preconfigurati. Vai in **Prenotazioni → Impostazioni → Configurazione Pasti** e crea manualmente i servizi (es. Pranzo, Cena, Aperitivo) prima di utilizzare il modulo di prenotazione: il form frontend mostrerà le opzioni solo dopo aver salvato almeno un pasto attivo.
+
 ### Sistema di Prenotazione Semplificato
 
 Il plugin utilizza un sistema di prenotazione semplificato e intuitivo:

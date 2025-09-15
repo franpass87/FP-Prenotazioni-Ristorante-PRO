@@ -4,6 +4,8 @@
 
 Questo sistema permette di configurare in modo completamente flessibile i pasti disponibili per le prenotazioni. La configurazione personalizzata è l'unico metodo supportato, permettendo la massima flessibilità per ogni tipo di ristorante.
 
+> ⚠️ Dopo l'installazione la lista dei pasti è vuota: il proprietario del sito deve creare manualmente ogni servizio disponibile. Il modulo di prenotazione mostrerà le opzioni solo dopo aver salvato e attivato almeno un pasto.
+
 ## Caratteristiche
 
 ### 🎛️ Configurazione Flessibile
@@ -35,7 +37,7 @@ Per ogni pasto puoi configurare:
 3. Il sistema di configurazione personalizzata è sempre attivo
 
 ### 2. Configurare i Pasti
-1. Modifica i pasti esistenti o usa "Aggiungi Pasto" per crearne di nuovi
+1. All'avvio la lista è vuota: usa "Aggiungi Pasto" per creare i servizi del tuo locale (es. Pranzo, Cena, Degustazione)
 2. Per ogni pasto configura:
    - **Attivo**: Spunta per attivare il pasto
    - **ID**: Identificatore univoco (es: `pranzo`, `cena_speciale`)
@@ -111,9 +113,10 @@ Pasto 3: Cena Degustazione
 ## Note Tecniche
 
 - Il sistema mantiene piena compatibilità con le prenotazioni esistenti
-- I nuovi pasti appaiono automaticamente nel frontend di prenotazione  
+- I nuovi pasti appaiono automaticamente nel frontend di prenotazione
 - La validazione impedisce prenotazioni per pasti non disponibili nel giorno selezionato
 - Il sistema di capacità e analytics è completamente integrato
 - Tutte le traduzioni italiano/inglese sono supportate
 - La configurazione personalizzata è l'unico metodo supportato per la massima flessibilità
+- Il modulo frontend resta inattivo finché non è attivo almeno un pasto personalizzato
 - Il sistema è predisposto per future estensioni (nuovi campi, regole, automazioni)
