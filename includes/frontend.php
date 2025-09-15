@@ -1128,7 +1128,7 @@ function rbf_ajax_get_availability() {
         
         if (empty($available_times)) {
             wp_send_json_success([
-                'times' => [],
+                'available_times' => [],
                 'message' => rbf_translate_string('Nessun orario disponibile per questa data')
             ]);
             return;
@@ -1140,19 +1140,15 @@ function rbf_ajax_get_availability() {
             $time = $time_data['time'];
             $display = $time_data['display'] ?? $time;
             
-            // Get remaining capacity for this specific time slot
-            $remaining_capacity = rbf_get_remaining_capacity($date, $meal);
-            
             $formatted_times[] = [
-                'value' => $time . '|' . $meal, // Format expected by frontend
-                'text' => $display,
-                'time' => $time,
-                'remaining' => $remaining_capacity
+                'time' => $display,
+                'slot' => $meal, // The meal/slot identifier
+                'remaining' => rbf_get_remaining_capacity($date, $meal)
             ];
         }
         
         wp_send_json_success([
-            'times' => $formatted_times,
+            'available_times' => $formatted_times,
             'message' => ''
         ]);
         
