@@ -2163,7 +2163,7 @@ jQuery(function($) {
 
     // Restore focus when closing dropdowns
     $(document).on('click', function(e) {
-      if (!$(e.target).closest('.iti').length && lastFocusedElement) {
+      if (!$(e.target).closest('.iti, .flatpickr-calendar').length && lastFocusedElement) {
         // Country dropdown closed
         if ($('.iti__country-list:visible').length === 0) {
           setTimeout(() => {
