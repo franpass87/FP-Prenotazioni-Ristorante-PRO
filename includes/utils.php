@@ -987,6 +987,36 @@ function rbf_get_utm_analytics($days = 30) {
 }
 
 /**
+ * Recursively sanitize data structures using sanitize_text_field for strings.
+ * Numeric values are preserved as proper int or float types.
+ *
+ * @param mixed $data Data to sanitize.
+ * @return mixed Sanitized data with preserved numeric types.
+ */
+function rbf_recursive_sanitize($data) {
+    if (is_array($data)) {
+        foreach ($data as $key => $value) {
+            $data[$key] = rbf_recursive_sanitize($value);
+        }
+        return $data;
+    }
+
+    if (is_string($data)) {
+        $sanitized = sanitize_text_field($data);
+        if (is_numeric($sanitized)) {
+            return strpos($sanitized, '.') !== false ? (float) $sanitized : (int) $sanitized;
+        }
+        return $sanitized;
+    }
+
+    if (is_numeric($data)) {
+        return $data + 0; // Cast to int or float as needed
+    }
+
+    return $data;
+}
+
+/**
  * Enhanced centralized input sanitization helper with security improvements
  * Reduces repetitive sanitize_text_field calls across the codebase and prevents injection attacks
  */
