@@ -497,6 +497,14 @@ Usa gli strumenti integrati di debug:
 3. **GA4 DebugView**: Verifica eventi in tempo reale
 4. **Facebook Events Manager**: Controlla duplicazione Pixel/CAPI
 
+### Logging di Debug
+
+Utilizza la funzione `rbf_log($message)` per registrare messaggi diagnostici.
+La funzione invia il messaggio a `error_log` solo quando `WP_DEBUG` è attivo oppure
+quando il flag `RBF_FORCE_LOG` è definito e impostato a `true` (ad es. nel `wp-config.php`).
+In questo modo i log possono essere abilitati anche in produzione senza modificare
+la configurazione globale di WordPress.
+
 ## 📋 Changelog
 
 ### Version 1.5

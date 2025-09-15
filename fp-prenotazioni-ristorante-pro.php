@@ -20,6 +20,9 @@ define('RBF_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('RBF_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('RBF_VERSION', '1.5');
 
+// Load utilities early for logging support
+require_once RBF_PLUGIN_DIR . 'includes/utils.php';
+
 /**
  * Clear all transients used by the plugin.
  */
@@ -45,9 +48,9 @@ function rbf_clear_transients() {
             )
         );
         
-        // Log cleanup for debugging if WP_DEBUG is enabled
-        if (WP_DEBUG && $deleted > 0) {
-            error_log("RBF Plugin: Cleared {$deleted} transients matching pattern: {$pattern}");
+        // Log cleanup for debugging
+        if ($deleted > 0) {
+            rbf_log("RBF Plugin: Cleared {$deleted} transients matching pattern: {$pattern}");
         }
     }
 
@@ -59,8 +62,8 @@ function rbf_clear_transients() {
         )
     );
     
-    if (WP_DEBUG && $deleted_avail > 0) {
-        error_log("RBF Plugin: Cleared {$deleted_avail} availability transients");
+    if ($deleted_avail > 0) {
+        rbf_log("RBF Plugin: Cleared {$deleted_avail} availability transients");
     }
 
     if (function_exists('wp_cache_flush')) {

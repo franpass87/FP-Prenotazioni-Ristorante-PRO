@@ -177,7 +177,7 @@ echo "Fallback Rate: " . $health['fallback_rate'] . "%";
    ```php
    $test_email = wp_mail('test@example.com', 'Test', 'Test message');
    if (!$test_email) {
-       error_log('wp_mail failed: ' . print_r(error_get_last(), true));
+       rbf_log('wp_mail failed: ' . print_r(error_get_last(), true));
    }
    ```
 
