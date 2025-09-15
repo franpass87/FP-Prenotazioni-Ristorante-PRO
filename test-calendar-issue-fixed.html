@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Fixed Calendar Issue</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="assets/css/frontend.css">
+    <style>
+        body { 
+            padding: 20px; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+        }
+        .test-container { 
+            max-width: 900px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 30px; 
+            border-radius: 15px; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1); 
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        .step { 
+            display: none; 
+            padding: 25px; 
+            margin: 20px 0; 
+            border: 2px solid #e9ecef; 
+            border-radius: 12px;
+            background: #f8f9fa;
+        }
+        .step.active { 
+            display: block; 
+            border-color: #007bff;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,123,255,0.15);
+        }
+        .radio-group { margin: 20px 0; }
+        .radio-group label { 
+            display: flex;
+            align-items: center;
+            margin: 12px 0; 
+            padding: 15px; 
+            background: #e9ecef; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        .radio-group label:hover { 
+            background: #dee2e6; 
+            transform: translateY(-1px);
+        }
+        .radio-group input[type="radio"]:checked + span { 
+            font-weight: bold; 
+            color: #007bff;
+        }
+        .radio-group input[type="radio"]:checked + span::parent {
+            border-color: #007bff;
+            background: #e7f3ff;
+        }
+        .radio-group input[type="radio"] {
+            margin-right: 12px;
+            transform: scale(1.2);
+        }
+        #test-log { 
+            background: #f8f9fa; 
+            border: 2px solid #dee2e6; 
+            padding: 20px; 
+            font-family: 'Courier New', monospace; 
+            font-size: 13px; 
+            margin: 25px 0; 
+            max-height: 400px; 
+            overflow-y: auto; 
+            border-radius: 8px;
+            white-space: pre-wrap;
+        }
+        .status { 
+            padding: 20px; 
+            margin: 20px 0; 
+            border-radius: 10px; 
+            font-weight: 600;
+            border: 2px solid;
+        }
+        .status.success { 
+            background: #d4edda; 
+            border-color: #c3e6cb; 
+            color: #155724; 
+        }
+        .status.error { 
+            background: #f8d7da; 
+            border-color: #f5c6cb; 
+            color: #721c24; 
+        }
+        .status.info { 
+            background: #d1ecf1; 
+            border-color: #bee5eb; 
+            color: #0c5460; 
+        }
+        .skeleton-placeholder {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            height: 40px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        .date-input-container {
+            position: relative;
+            margin: 20px 0;
+        }
+        #rbf-date {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        #rbf-date:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0,123,255,0.25);
+        }
+        .fix-highlights {
+            background: #fff3cd;
+            border: 2px solid #ffeaa7;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .fix-highlights h4 {
+            color: #856404;
+            margin-top: 0;
+        }
+        .emoji {
+            font-size: 1.2em;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="header">
+            <h1>🔧 Test Calendar Fix Completo</h1>
+            <p><strong>Issue risolto:</strong> "continua non visualizzarsi il calendario dopo aver cliccato il meal"</p>
+        </div>
+        
+        <div class="fix-highlights">
+            <h4><span class="emoji">🎯</span>Fix Implementato</h4>
+            <p><strong>Problema:</strong> Race condition tra due chiamate a <code>lazyLoadDatePicker()</code></p>
+            <p><strong>Soluzione:</strong> Unificata la logica in una singola condizione per evitare chiamate duplicate</p>
+        </div>
+        
+        <div id="test-status" class="status info">
+            <span class="emoji">📋</span> Seleziona un pasto per testare se il calendario si apre automaticamente
+        </div>
+        
+        <div id="test-log"></div>
+        
+        <!-- Simulate the exact booking form structure -->
+        <div id="rbf-form">
+            <!-- Step 1: Meal Selection -->
+            <div class="step active" id="step-meal">
+                <h3><span class="emoji">🍽️</span>Step 1: Scegli il pasto</h3>
+                <div class="radio-group">
+                    <label><input type="radio" name="rbf_meal" value="brunch"> <span>🥐 Brunch (9:00-12:00)</span></label>
+                    <label><input type="radio" name="rbf_meal" value="pranzo"> <span>🍝 Pranzo (12:00-15:00)</span></label>
+                    <label><input type="radio" name="rbf_meal" value="aperitivo_cena"> <span>🍷 Aperitivo e Cena (18:00-23:00)</span></label>
+                </div>
+            </div>
+            
+            <!-- Step 2: Date Selection -->
+            <div class="step" id="step-date" data-skeleton="true">
+                <h3><span class="emoji">📅</span>Step 2: Scegli la data</h3>
+                <div class="skeleton-placeholder" style="display: block;">
+                    Loading calendar...
+                </div>
+                <div class="date-input-container">
+                    <input type="text" id="rbf-date" name="rbf_data" placeholder="Seleziona una data" readonly>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mock globals to match the actual plugin environment
+        window.rbfDebug = true;
+        window.rbfData = {
+            labels: { 
+                loading: 'Caricamento...',
+                special: 'Evento Speciale',
+                extended: 'Orari Estesi', 
+                holiday: 'Festività',
+                closure: 'Chiusura'
+            },
+            minAdvanceMinutes: 120,
+            locale: 'it'
+        };
+        
+        // Variables exactly as in frontend.js
+        let fp = null;
+        let datePickerInitPromise = null;
+        let stepTimeouts = new Map();
+        
+        // DOM element cache like frontend.js
+        const el = {
+            mealRadios: $('input[name="rbf_meal"]'),
+            dateStep: $('#step-date'),
+            dateInput: $('#rbf-date')
+        };
+        
+        // Enhanced logging
+        function log(message, level = 'info') {
+            const logDiv = document.getElementById('test-log');
+            const time = new Date().toLocaleTimeString();
+            const icons = {
+                info: '🔵',
+                success: '✅', 
+                warn: '⚠️',
+                error: '❌',
+                calendar: '📅'
+            };
+            const icon = icons[level] || icons.info;
+            logDiv.innerHTML += `[${time}] ${icon} ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(`Test: ${message}`);
+        }
+        
+        function updateTestStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('test-status');
+            statusDiv.className = 'status ' + type;
+            statusDiv.innerHTML = message;
+        }
+        
+        // rbfLog mock
+        const rbfLog = {
+            log: (msg) => log(`[RBF] ${msg}`, 'info'),
+            warn: (msg) => log(`[RBF] ${msg}`, 'warn'),
+            error: (msg) => log(`[RBF] ${msg}`, 'error')
+        };
+        
+        // Exact formatLocalISO function from frontend.js
+        function formatLocalISO(date) {
+            return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+                .toISOString()
+                .split('T')[0];
+        }
+        
+        // FIXED showStepWithoutScroll function - exactly as implemented in the fix
+        function showStepWithoutScroll($step, stepNumber) {
+            log(`showStepWithoutScroll called for step ${stepNumber}`);
+            
+            if (stepTimeouts.has($step[0])) {
+                clearTimeout(stepTimeouts.get($step[0]));
+                stepTimeouts.delete($step[0]);
+            }
+            
+            if ($step.hasClass('active')) {
+                log('Step already active, returning');
+                return;
+            }
+            
+            $step.addClass('active').show();
+            log(`Step ${stepNumber} marked as active and visible`);
+            
+            const timeout = setTimeout(() => {
+                const stepId = $step.attr('id');
+                const isDateStep = stepId === 'step-date';
+                
+                log(`Processing step: ${stepId}, isDateStep: ${isDateStep}`);
+                log(`data-skeleton: ${$step.attr('data-skeleton')}, fp: ${fp ? 'exists' : 'null'}`);
+                
+                // FIXED: Single unified condition to prevent race conditions
+                if (isDateStep && ($step.attr('data-skeleton') === 'true' || fp === null)) {
+                    log('🔧 FIXED: Single calendar initialization call (no more race condition)', 'success');
+                    
+                    setTimeout(() => {
+                        lazyLoadDatePicker().then(() => {
+                            // Remove skeleton if present
+                            if ($step.attr('data-skeleton') === 'true') {
+                                log('Removing skeleton...', 'calendar');
+                                removeSkeleton($step);
+                            }
+                            
+                            // Ensure calendar opens properly
+                            setTimeout(() => {
+                                if (fp && typeof fp.open === 'function') {
+                                    if (!fp.isOpen) {
+                                        log('Opening calendar...', 'calendar');
+                                        fp.open();
+                                        updateTestStatus('✅ SUCCESS: Calendar opened automatically after meal selection!', 'success');
+                                    } else {
+                                        log('Calendar already open', 'calendar');
+                                    }
+                                    rbfLog.log('Calendar fully enabled and interactive after lazy load');
+                                }
+                            }, 200);
+                        });
+                    }, 100);
+                }
+            }, 100);
+            
+            stepTimeouts.set($step[0], timeout);
+        }
+        
+        // removeSkeleton function
+        function removeSkeleton($step) {
+            log('Removing skeleton elements...', 'calendar');
+            $step.removeAttr('data-skeleton');
+            $step.find('.skeleton-placeholder').fadeOut(300, function() {
+                $(this).remove();
+                log('Skeleton removal completed', 'success');
+            });
+        }
+        
+        // lazyLoadDatePicker function - simplified for testing
+        function lazyLoadDatePicker() {
+            log('lazyLoadDatePicker() called', 'calendar');
+            
+            if (fp) {
+                log('Calendar already exists, opening...', 'calendar');
+                if (typeof fp.open === 'function') {
+                    fp.open();
+                }
+                return Promise.resolve();
+            }
+            
+            if (datePickerInitPromise) {
+                log('Calendar initialization already in progress...', 'calendar');
+                return datePickerInitPromise;
+            }
+            
+            datePickerInitPromise = new Promise((resolve) => {
+                log('Starting Flatpickr initialization...', 'calendar');
+                
+                try {
+                    fp = flatpickr('#rbf-date', {
+                        dateFormat: 'Y-m-d',
+                        altInput: true,
+                        altFormat: 'd-m-Y',
+                        minDate: 'today',
+                        locale: 'it',
+                        inline: false,
+                        onReady: function(selectedDates, dateStr, instance) {
+                            log('✅ Calendar ready event triggered', 'success');
+                        },
+                        onOpen: function(selectedDates, dateStr, instance) {
+                            log('🎉 Calendar opened successfully!', 'success');
+                        },
+                        onChange: function(selectedDates, dateStr, instance) {
+                            log(`📅 Date selected: ${dateStr}`, 'calendar');
+                        }
+                    });
+                    
+                    if (fp) {
+                        log('✅ Flatpickr instance created successfully', 'success');
+                        window.flatpickrInstance = fp; // For debugging
+                        
+                        // Try to open immediately
+                        if (typeof fp.open === 'function') {
+                            log('Attempting to open calendar immediately...', 'calendar');
+                            fp.open();
+                        }
+                    } else {
+                        log('❌ ERROR: Flatpickr instance is null!', 'error');
+                    }
+                    
+                } catch (error) {
+                    log(`❌ ERROR in calendar initialization: ${error.message}`, 'error');
+                }
+                
+                resolve();
+                datePickerInitPromise = null;
+            });
+            
+            return datePickerInitPromise;
+        }
+        
+        // Initialize test when ready
+        $(document).ready(function() {
+            log('🚀 Test page ready, setting up event handlers...', 'success');
+            
+            // Handle meal selection exactly like frontend.js
+            el.mealRadios.on('change', function() {
+                const selectedMeal = this.value;
+                log(`🍽️ Meal selected: ${selectedMeal}`, 'info');
+                updateTestStatus(`📋 Pasto "${selectedMeal}" selezionato, inizializzazione calendario...`, 'info');
+                
+                // Hide all steps
+                $('.step').removeClass('active');
+                
+                // Show date step (this should trigger calendar initialization)
+                log('Calling showStepWithoutScroll for date step...', 'info');
+                showStepWithoutScroll(el.dateStep, 2);
+            });
+            
+            log('✅ Test initialized successfully. Select a meal to test the fix.', 'success');
+            updateTestStatus('📋 Ready to test. Select a meal to verify calendar opens automatically.', 'info');
+        });
+    </script>
+</body>
+</html>
