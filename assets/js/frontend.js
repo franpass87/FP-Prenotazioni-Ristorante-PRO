@@ -310,61 +310,7 @@ jQuery(function($) {
   }
 
   /**
-   * CRITICAL FIX: Force calendar to be fully interactive
-   * This function ensures the calendar can never be blocked by loading states
-   */
-  function forceCalendarInteractivity(calendarInstance) {
-    if (!calendarInstance || !calendarInstance.calendarContainer) {
-      return;
-    }
-    
-    const calendar = calendarInstance.calendarContainer;
-    
-    // Remove any blocking classes
-    calendar.classList.remove('rbf-component-loading', 'rbf-loading');
-    
-    // Force pointer events
-    calendar.style.pointerEvents = 'auto';
-    calendar.style.zIndex = '1100';
-    calendar.style.position = 'relative';
-    
-    // Ensure all calendar elements are interactive
-    const allCalendarElements = calendar.querySelectorAll('*');
-    allCalendarElements.forEach(element => {
-      if (!element.classList.contains('flatpickr-disabled')) {
-        element.style.pointerEvents = 'auto';
-      }
-    });
-    
-    // Force calendar days to be clickable
-    const days = calendar.querySelectorAll('.flatpickr-day:not(.flatpickr-disabled)');
-    days.forEach(day => {
-      day.style.pointerEvents = 'auto';
-      day.style.cursor = 'pointer';
-      day.style.position = 'relative';
-      day.style.zIndex = '1';
-      day.setAttribute('tabindex', '0');
-    });
-    
-    // Force navigation elements to be clickable
-    const navElements = calendar.querySelectorAll(
-      '.flatpickr-months, .flatpickr-prev-month, .flatpickr-next-month, ' +
-      '.flatpickr-current-month, .numInputWrapper, .flatpickr-monthDropdown-months'
-    );
-    navElements.forEach(element => {
-      element.style.pointerEvents = 'auto';
-      element.style.zIndex = '2';
-    });
-    
-    // Remove any loading overlays that might exist
-    const loadingOverlays = calendar.querySelectorAll('.rbf-loading-overlay');
-    loadingOverlays.forEach(overlay => overlay.remove());
-    
-    rbfLog.log('Calendar interactivity forcefully enabled');
-  }
-
-  /**
-   * Remove skeleton and show actual content with fade-in, ensuring full interactivity
+   * Remove skeleton and show actual content with fade-in
    */
   function removeSkeleton($step) {
     const $skeletonElements = $step.find('[aria-hidden="true"]');
@@ -394,7 +340,6 @@ jQuery(function($) {
 
           // CRITICAL FIX: Force calendar interactivity
           if (fp) {
-            forceCalendarInteractivity(fp);
           }
           
           rbfLog.log('Calendar skeleton removed and interactivity forcefully enabled');
@@ -611,104 +556,63 @@ jQuery(function($) {
   }
 
   /**
-   * Initialize flatpickr after ensuring it's loaded
+   * Initialize flatpickr with simplified, working configuration
    */
   function initializeFlatpickr() {
     const flatpickrConfig = {
+      // Basic configuration - keep it simple
       altInput: true,
       altFormat: 'd-m-Y',
       dateFormat: 'Y-m-d',
       minDate: new Date(new Date().getTime() + rbfData.minAdvanceMinutes * 60 * 1000),
       locale: (rbfData.locale === 'it') ? 'it' : 'default',
-      // Enable month/year selection dropdown
+      // Standard flatpickr settings
       enableTime: false,
       noCalendar: false,
-      // Allow month dropdown to stay open
-      static: false,
-      // Ensure calendar stays open when navigating months
-      inline: false,
-      // Enable month/year dropdowns for better navigation
+      // Enable month/year dropdowns for proper navigation
+      enableMonthDropdown: true,
+      enableYearDropdown: true,
+      shorthandCurrentMonth: false,
       showMonths: 1,
+      // Simplified disable function - only disable clearly closed days
       disable: [function(date) {
-        const selectedMeal = el.mealRadios.filter(':checked').val();
+        const dateStr = formatLocalISO(date);
         const day = date.getDay();
 
-        // Convert JavaScript day (0=Sunday, 1=Monday...) to our day key format
-        const dayMapping = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-        const dayKey = dayMapping[day];
-        const dateStr = formatLocalISO(date);
-
-        // Check for exceptions before anything else
+        // Only check for explicit closures and holidays
         if (rbfData.exceptions) {
           for (let exception of rbfData.exceptions) {
             if (exception.date === dateStr) {
-              // Closures and holidays always disable the day
+              // Only disable for closures and holidays
               if (exception.type === 'closure' || exception.type === 'holiday') {
                 return true;
-              }
-              // Special events or extended hours override other rules
-              if (exception.type === 'special' || exception.type === 'extended') {
-                return false;
               }
             }
           }
         }
 
-        // Then check meal availability for the selected meal
-        if (
-          rbfData.mealAvailability &&
-          Array.isArray(rbfData.mealAvailability[selectedMeal]) &&
-          rbfData.mealAvailability[selectedMeal].length > 0
-        ) {
-          const availableDays = rbfData.mealAvailability[selectedMeal];
-          if (!availableDays.includes(dayKey)) {
-            return true; // Disable this day for this meal
+        // Check basic closed days and dates
+        if (rbfData.closedDays && rbfData.closedDays.includes(day)) return true;
+        if (rbfData.closedSingles && rbfData.closedSingles.includes(dateStr)) return true;
+        
+        // Check closed ranges
+        if (rbfData.closedRanges) {
+          for (let range of rbfData.closedRanges) {
+            if (dateStr >= range.from && dateStr <= range.to) return true;
           }
         }
-
-        // Finally apply global closed day/date logic
-        if (rbfData.closedDays.includes(day)) return true;
-        if (rbfData.closedSingles.includes(dateStr)) return true;
-        for (let range of rbfData.closedRanges) {
-          if (dateStr >= range.from && dateStr <= range.to) return true;
-        }
+        
+        // Default: allow all other days
         return false;
       }],
       onChange: onDateChange,
-      onOpen: function(selectedDates, dateStr, instance) {
-        // CRITICAL FIX: Force calendar interactivity on open
-        forceCalendarInteractivity(instance);
-        
-        rbfLog.log('Calendar opened and interactivity ensured');
-      },
       onReady: function(selectedDates, dateStr, instance) {
-        // CRITICAL FIX: Force calendar interactivity when ready
-        forceCalendarInteractivity(instance);
-        
-        rbfLog.log('Flatpickr calendar initialized and fully interactive');
+        rbfLog.log('Flatpickr calendar initialized successfully');
       },
       onDayCreate: function(dObj, dStr, fp, dayElem) {
         const dateStr = formatLocalISO(dayElem.dateObj);
         
-        // CRITICAL FIX: Ensure day is clickable if not disabled
-        if (!dayElem.classList.contains('flatpickr-disabled')) {
-          dayElem.style.pointerEvents = 'auto';
-          dayElem.style.cursor = 'pointer';
-          dayElem.style.position = 'relative';
-          dayElem.style.zIndex = '1';
-          dayElem.setAttribute('tabindex', '0');
-          // Remove any loading classes that might be inherited
-          dayElem.classList.remove('rbf-component-loading', 'rbf-loading');
-        }
-        
-        // Add availability coloring
-        if (availabilityData[dateStr]) {
-          const status = availabilityData[dateStr];
-          dayElem.classList.add('rbf-availability-' + status.level);
-          addAvailabilityTooltip(dayElem, status);
-        }
-        
-        // Check for exceptions and add visual indicators
+        // Keep only essential styling for special event colors
         if (rbfData.exceptions) {
           for (let exception of rbfData.exceptions) {
             if (exception.date === dateStr) {
@@ -716,7 +620,7 @@ jQuery(function($) {
               indicator.className = 'rbf-exception-indicator rbf-exception-' + exception.type;
               indicator.title = exception.description || exception.type;
               
-              // Style the indicator based on exception type
+              // Simple color coding for special dates
               const styles = {
                 'special': { background: '#20c997', title: 'Evento Speciale' },
                 'extended': { background: '#0d6efd', title: 'Orari Estesi' },
@@ -747,27 +651,9 @@ jQuery(function($) {
             }
           }
         }
-      },
-      onMonthChange: function(selectedDates, dateStr, instance) {
-        // Fetch availability data when month changes
-        const selectedMeal = el.mealRadios.filter(':checked').val();
-        if (selectedMeal) {
-          const viewDate = instance.currentMonth;
-          const startDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
-          const endDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
-          
-          fetchAvailabilityData(
-            formatLocalISO(startDate),
-            formatLocalISO(endDate),
-            selectedMeal
-          ).then(() => {
-            // Redraw calendar to apply new availability colors
-            instance.redraw();
-          });
-        }
       }
-    };
     
+    // Set max date if configured
     if (rbfData.maxAdvanceMinutes > 0) {
       flatpickrConfig.maxDate = new Date(new Date().getTime() + rbfData.maxAdvanceMinutes * 60 * 1000);
     }
@@ -778,46 +664,8 @@ jQuery(function($) {
       fp = null;
     }
     
+    // Create the flatpickr instance
     fp = flatpickr(el.dateInput[0], flatpickrConfig);
-    
-    // CRITICAL FIX: Ensure calendar is immediately interactive after creation
-    if (fp && fp.calendarContainer) {
-      // Force interactivity immediately
-      forceCalendarInteractivity(fp);
-      
-      // Set up a periodic check to ensure calendar stays interactive
-      const interactivityChecker = setInterval(() => {
-        if (fp && fp.calendarContainer) {
-          forceCalendarInteractivity(fp);
-        } else {
-          clearInterval(interactivityChecker);
-        }
-      }, 500); // Check every 500ms
-      
-      // Clear the checker after 10 seconds (should be enough for any initialization)
-      setTimeout(() => {
-        clearInterval(interactivityChecker);
-        rbfLog.log('Calendar interactivity checker stopped');
-      }, 10000);
-    }
-    
-    // Fetch initial availability data for current month
-    if (selectedMeal) {
-      const now = new Date();
-      const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-      const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      
-      fetchAvailabilityData(
-        formatLocalISO(startDate),
-        formatLocalISO(endDate),
-        selectedMeal
-      ).then(() => {
-        // Redraw calendar to apply availability colors
-        if (fp) {
-          fp.redraw();
-        }
-      });
-    }
     
     // Show exception legend if there are exceptions
     if (rbfData.exceptions && rbfData.exceptions.length > 0) {
@@ -975,7 +823,6 @@ jQuery(function($) {
             // CRITICAL FIX: Extra safety check to ensure calendar is interactive
             setTimeout(() => {
               if (fp) {
-                forceCalendarInteractivity(fp);
                 rbfLog.log('Calendar fully enabled and interactive after lazy load');
               }
             }, 200);
@@ -1058,7 +905,6 @@ jQuery(function($) {
             // CRITICAL FIX: Extra safety check to ensure calendar is interactive and opens
             setTimeout(() => {
               if (fp) {
-                forceCalendarInteractivity(fp);
                 if (!fp.isOpen) {
                   fp.open();
                 }
@@ -1376,23 +1222,6 @@ jQuery(function($) {
     
     // Show loading state for time selection
     showComponentLoading(el.timeStep[0], rbfData.labels.loading + ' orari...');
-    
-    // CRITICAL FIX: Ensure calendar remains interactive during loading
-    if (fp && fp.calendarContainer) {
-      forceCalendarInteractivity(fp);
-      
-      // Set up monitoring to keep calendar interactive during AJAX
-      const keepCalendarInteractive = setInterval(() => {
-        if (fp && fp.calendarContainer) {
-          forceCalendarInteractivity(fp);
-        }
-      }, 100);
-      
-      // Stop monitoring after a reasonable time
-      setTimeout(() => {
-        clearInterval(keepCalendarInteractive);
-      }, 5000);
-    }
     
     el.timeSelect.html(`<option value="">${rbfData.labels.loading}</option>`).prop('disabled', true);
     el.timeSelect.addClass('rbf-loading');
