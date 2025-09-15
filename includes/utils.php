@@ -59,64 +59,8 @@ function rbf_get_default_settings() {
  * Get default custom meals configuration
  */
 function rbf_get_default_custom_meals() {
-    return [
-        [
-            'id' => 'pranzo',
-            'name' => 'Pranzo',
-            'capacity' => 30,
-            'time_slots' => '12:00,12:30,13:00,13:30,14:00',
-            'price' => 35.00,
-            'enabled' => true,
-            'tooltip' => 'Di Domenica il servizio è Brunch con menù alla carta.',
-            'available_days' => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
-            'buffer_time_minutes' => 15,
-            'buffer_time_per_person' => 5,
-            'overbooking_limit' => 10,
-            'slot_duration_minutes' => 60
-        ],
-        [
-            'id' => 'aperitivo',
-            'name' => 'Aperitivo',
-            'capacity' => 25,
-            'time_slots' => '17:00,17:30,18:00',
-            'price' => 15.00,
-            'enabled' => true,
-            'tooltip' => '',
-            'available_days' => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'],
-            'buffer_time_minutes' => 10,
-            'buffer_time_per_person' => 3,
-            'overbooking_limit' => 15,
-            'slot_duration_minutes' => 75
-        ],
-        [
-            'id' => 'cena',
-            'name' => 'Cena',
-            'capacity' => 40,
-            'time_slots' => '19:00,19:30,20:00,20:30',
-            'price' => 50.00,
-            'enabled' => true,
-            'tooltip' => '',
-            'available_days' => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'],
-            'buffer_time_minutes' => 20,
-            'buffer_time_per_person' => 5,
-            'overbooking_limit' => 5,
-            'slot_duration_minutes' => 90
-        ],
-        [
-            'id' => 'brunch',
-            'name' => 'Brunch',
-            'capacity' => 30,
-            'time_slots' => '12:00,12:30,13:00,13:30',
-            'price' => 35.00,
-            'enabled' => true,
-            'tooltip' => 'Disponibile solo la domenica con menù speciale.',
-            'available_days' => ['sun'],
-            'buffer_time_minutes' => 15,
-            'buffer_time_per_person' => 5,
-            'overbooking_limit' => 10,
-            'slot_duration_minutes' => 60
-        ]
-    ];
+    // No restaurant-specific meals are preloaded by default. Site owners must configure their own services.
+    return [];
 }
 
 /**

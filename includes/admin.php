@@ -474,6 +474,9 @@ function rbf_settings_page_html() {
                         <div id="custom-meals-container">
                             <?php
                             $custom_meals = $options['custom_meals'] ?? rbf_get_default_custom_meals();
+                            if (!is_array($custom_meals)) {
+                                $custom_meals = [];
+                            }
                             $day_labels = [
                                 'mon' => rbf_translate_string('Lunedì'),
                                 'tue' => rbf_translate_string('Martedì'),
@@ -483,7 +486,21 @@ function rbf_settings_page_html() {
                                 'sat' => rbf_translate_string('Sabato'),
                                 'sun' => rbf_translate_string('Domenica')
                             ];
-                            
+
+                            ?>
+                            <div class="notice notice-info inline" style="margin: 0 0 15px 0;">
+                                <p><?php echo esc_html(rbf_translate_string('Importante: dopo l\'installazione non sono presenti pasti preconfigurati. Configura i servizi del tuo ristorante utilizzando "Aggiungi Pasto" e salva le modifiche per renderli disponibili nel form.')); ?></p>
+                            </div>
+                            <?php
+
+                            if (empty($custom_meals)) {
+                                ?>
+                                <div class="notice notice-warning inline" style="margin: 0 0 15px 0;">
+                                    <p><?php echo esc_html(rbf_translate_string('Nessun pasto è attualmente configurato. Il modulo di prenotazione rimane inattivo finché non aggiungi e attivi almeno un pasto personalizzato.')); ?></p>
+                                </div>
+                                <?php
+                            }
+
                             foreach ($custom_meals as $index => $meal) {
                                 ?>
                                 <div class="custom-meal-item" style="border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; background: #f9f9f9;">
