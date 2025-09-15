@@ -292,7 +292,7 @@ function rbf_render_customer_booking_management() {
     $date = get_post_meta($booking_id, 'rbf_data', true);
     $time = get_post_meta($booking_id, 'rbf_time', true);
     $people = get_post_meta($booking_id, 'rbf_persone', true);
-    $meal = get_post_meta($booking_id, 'rbf_orario', true);
+    $meal = get_post_meta($booking_id, 'rbf_meal', true) ?: get_post_meta($booking_id, 'rbf_orario', true);
     $notes = get_post_meta($booking_id, 'rbf_allergie', true);
     $status = get_post_meta($booking_id, 'rbf_booking_status', true) ?: 'pending';
     $created = get_post_meta($booking_id, 'rbf_booking_created', true);
@@ -818,7 +818,7 @@ function rbf_get_remaining_capacity($date, $slot) {
          FROM {$wpdb->posts} p
          INNER JOIN {$wpdb->postmeta} pm_people ON p.ID = pm_people.post_id AND pm_people.meta_key = 'rbf_persone'
          INNER JOIN {$wpdb->postmeta} pm_date ON p.ID = pm_date.post_id AND pm_date.meta_key = 'rbf_data'
-         INNER JOIN {$wpdb->postmeta} pm_slot ON p.ID = pm_slot.post_id AND pm_slot.meta_key = 'rbf_orario'
+         INNER JOIN {$wpdb->postmeta} pm_slot ON p.ID = pm_slot.post_id AND pm_slot.meta_key = 'rbf_meal'
          WHERE p.post_type = 'rbf_booking' AND p.post_status = 'publish'
          AND pm_date.meta_value = %s AND pm_slot.meta_value = %s",
         $date, $slot

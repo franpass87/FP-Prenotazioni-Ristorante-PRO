@@ -133,7 +133,7 @@ function rbf_add_booking_tracking_script() {
             // Get all meta in single call for performance
             $meta = get_post_meta($booking_id);
             $value = $meta['rbf_valore_tot'][0] ?? 0;
-            $meal = $meta['rbf_orario'][0] ?? 'pranzo';
+            $meal = $meta['rbf_meal'][0] ?? ($meta['rbf_orario'][0] ?? 'pranzo');
             $people = $meta['rbf_persone'][0] ?? 1;
             $bucket = $meta['rbf_source_bucket'][0] ?? 'organic';
             $gclid = $meta['rbf_gclid'][0] ?? '';
