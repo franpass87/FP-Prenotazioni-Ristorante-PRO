@@ -163,16 +163,54 @@ function test_rbf_default_max_advance_alignment() {
     return true;
 }
 
+/**
+ * Ensure the frontend handles missing or invalid maxAdvanceMinutes values gracefully.
+ */
+function test_rbf_max_advance_resilience() {
+    echo "Testing max advance resilience logic...\n";
+
+    $js_file = RBF_PLUGIN_DIR . 'assets/js/frontend.js';
+    if (!file_exists($js_file)) {
+        echo "❌ Frontend JS file not found\n";
+        return false;
+    }
+
+    $js_content = file_get_contents($js_file);
+
+    $checks = [
+        "const DEFAULT_MAX_ADVANCE_MINUTES" => 'Default fallback constant defined',
+        "Number(rbfData.maxAdvanceMinutes)" => 'Parsing maxAdvanceMinutes via Number()',
+        "Number.isFinite(parsedMaxAdvanceMinutes)" => 'Finite validation check present',
+        "const maxAdvanceMinutes =" => 'Sanitized maxAdvanceMinutes constant defined',
+        "rbfLog.warn('maxAdvanceMinutes not provided" => 'Warning logged when maxAdvanceMinutes missing',
+        "rbfLog.warn('Invalid maxAdvanceMinutes value" => 'Warning logged when maxAdvanceMinutes invalid',
+        "new Date(today.getTime() + maxAdvanceMinutes * 60 * 1000)" => 'Fallback applied to HTML date input',
+        "flatpickrConfig.maxDate = new Date(new Date().getTime() + maxAdvanceMinutes * 60 * 1000)" => 'Fallback applied to Flatpickr config'
+    ];
+
+    foreach ($checks as $needle => $description) {
+        if (strpos($js_content, $needle) === false) {
+            echo "❌ Missing resilience check: {$description}\n";
+            return false;
+        }
+        echo "✓ {$description}\n";
+    }
+
+    echo "✅ Frontend handles missing/malformed maxAdvanceMinutes!\n\n";
+    return true;
+}
+
 if (defined('RBF_PLUGIN_DIR')) {
     echo "Running Default Settings Regression Tests...\n";
     echo "==========================================\n\n";
 
-    $result = test_rbf_default_max_advance_alignment();
+    $alignment = test_rbf_default_max_advance_alignment();
+    $resilience = test_rbf_max_advance_resilience();
 
-    if ($result) {
+    if ($alignment && $resilience) {
         echo "🎉 All regression checks passed!\n";
     } else {
-        echo "❌ Regression detected in default settings alignment.\n";
+        echo "❌ Regression detected in default settings alignment or resilience handling.\n";
     }
 }
 
