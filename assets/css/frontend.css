@@ -1849,11 +1849,45 @@
     padding: 5px;
     border-radius: 50%;
     transition: background-color 0.2s;
+    color: white !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
 
 .flatpickr-calendar .flatpickr-prev-month:hover,
 .flatpickr-calendar .flatpickr-next-month:hover {
     background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Ensure arrow SVGs are visible */
+.flatpickr-calendar .flatpickr-prev-month svg,
+.flatpickr-calendar .flatpickr-next-month svg {
+    fill: white !important;
+    width: 16px;
+    height: 16px;
+    visibility: visible !important;
+    opacity: 1 !important;
+    display: block !important;
+}
+
+/* Alternative arrow styling for text-based arrows */
+.flatpickr-calendar .flatpickr-prev-month:before,
+.flatpickr-calendar .flatpickr-next-month:before {
+    color: white !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Force visibility of all arrow elements */
+.flatpickr-calendar .flatpickr-prev-month *,
+.flatpickr-calendar .flatpickr-next-month * {
+    color: white !important;
+    fill: white !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 /* Month display with dropdowns */
@@ -1885,11 +1919,21 @@
     cursor: pointer;
     transition: all 0.2s ease;
     position: relative;
+    border: 1px solid transparent;
 }
 
-.flatpickr-calendar .flatpickr-day:hover {
-    background: var(--rbf-primary-light);
-    color: white;
+/* Ensure non-disabled days have clear hover states */
+.flatpickr-calendar .flatpickr-day:not(.flatpickr-disabled):hover {
+    background: var(--rbf-primary-light) !important;
+    color: white !important;
+    border-color: var(--rbf-primary-light) !important;
+}
+
+/* Ensure non-disabled days are clearly clickable */
+.flatpickr-calendar .flatpickr-day:not(.flatpickr-disabled) {
+    cursor: pointer !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
 }
 
 .flatpickr-calendar .flatpickr-day.selected {

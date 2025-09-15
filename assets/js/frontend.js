@@ -408,9 +408,8 @@ jQuery(function($) {
     datePickerInitPromise = new Promise((resolve) => {
       const init = () => {
         initializeFlatpickr();
-        if (fp && typeof fp.open === 'function') {
-          fp.open();
-        }
+        // Don't automatically open calendar - let user click to open
+        // This prevents interference with navigation and date selection
         resolve();
         datePickerInitPromise = null;
       };
@@ -958,12 +957,9 @@ jQuery(function($) {
               removeSkeleton($step);
             }
             
-            // Ensure calendar opens properly
+            // Ensure calendar is ready for user interaction (don't auto-open)
             setTimeout(() => {
-              if (fp && typeof fp.open === 'function') {
-                if (!fp.isOpen) {
-                  fp.open();
-                }
+              if (fp) {
                 rbfLog.log('Calendar fully enabled and interactive after lazy load');
               }
             }, 200);
@@ -1238,7 +1234,8 @@ jQuery(function($) {
     // Update availability data for the selected meal (after calendar loads)
     setTimeout(() => {
       if (fp && selectedMeal) {
-        const viewDate = fp.currentMonth;
+        // Get the current view date - use fp.now or fallback to current date
+        const viewDate = fp.now || new Date();
         const startDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
         const endDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
         
@@ -2476,7 +2473,12 @@ jQuery(function($) {
   // Ensure calendar opens when date field gains focus or is clicked
   el.dateInput.on('focus click', () => {
     lazyLoadDatePicker().then(() => {
-      if (fp) fp.open();
+      // Small delay to ensure proper initialization before opening
+      setTimeout(() => {
+        if (fp && !fp.isOpen) {
+          fp.open();
+        }
+      }, 50);
     });
   });
 
