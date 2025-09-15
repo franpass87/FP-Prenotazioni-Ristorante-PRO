@@ -164,8 +164,8 @@ function rbf_ajax_track_ga4_event() {
         return;
     }
     
-    // Sanitize event parameters
-    $sanitized_params = array_map('sanitize_text_field', $event_params);
+    // Sanitize event parameters recursively preserving numeric types
+    $sanitized_params = rbf_recursive_sanitize($event_params);
     
     // Send to GA4 Measurement Protocol if API secret is configured
     $config = rbf_get_ga4_config();
