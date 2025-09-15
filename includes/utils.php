@@ -11,6 +11,18 @@ if (!defined('ABSPATH')) {
 }
 
 /**
+ * Conditional debug logger for the plugin.
+ * Logs messages only when WP_DEBUG or RBF_FORCE_LOG is enabled.
+ *
+ * @param string $message Message to log.
+ */
+function rbf_log($message) {
+    if ((defined('WP_DEBUG') && WP_DEBUG) || (defined('RBF_FORCE_LOG') && RBF_FORCE_LOG)) {
+        error_log($message);
+    }
+}
+
+/**
  * Get default plugin settings
  */
 function rbf_get_default_settings() {
@@ -223,9 +235,7 @@ if (!function_exists('rbf_wp_timezone')) {
             return new DateTimeZone(sprintf('%s%02d:%02d', $sign, abs($hours), $minutes));
         } catch (Exception $e) {
             // Log the error if debugging is enabled
-            if (WP_DEBUG) {
-                error_log('RBF Plugin: Timezone creation failed: ' . $e->getMessage());
-            }
+            rbf_log('RBF Plugin: Timezone creation failed: ' . $e->getMessage());
             // Fallback to UTC on any error
             return new DateTimeZone('UTC');
         }
@@ -758,10 +768,8 @@ function rbf_validate_date($date) {
  */
 function rbf_handle_error($message, $context = 'general', $redirect_url = null) {
     // Log error for debugging
-    if (WP_DEBUG) {
-        error_log("RBF Error [{$context}]: {$message}");
-    }
-    
+    rbf_log("RBF Error [{$context}]: {$message}");
+
     // Fire action for error tracking
     do_action('rbf_error_logged', $message, $context);
     
@@ -1314,7 +1322,7 @@ function rbf_load_brand_json() {
     
     $config = json_decode($json_content, true);
     if (json_last_error() !== JSON_ERROR_NONE) {
-        error_log('FPPR Brand Config: Invalid JSON in ' . $json_file);
+        rbf_log('FPPR Brand Config: Invalid JSON in ' . $json_file);
         return false;
     }
     
@@ -1816,7 +1824,7 @@ function rbf_verify_recaptcha($token, $action = 'booking_submit') {
     ]);
     
     if (is_wp_error($response)) {
-        error_log('reCAPTCHA verification failed: ' . $response->get_error_message());
+        rbf_log('reCAPTCHA verification failed: ' . $response->get_error_message());
         return [
             'success' => true, // Allow on API failure to avoid blocking legitimate users
             'score' => 0.5,

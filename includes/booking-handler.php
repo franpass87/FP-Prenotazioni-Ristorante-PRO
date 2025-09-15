@@ -27,7 +27,7 @@ function rbf_validate_request($post, $redirect_url, $anchor) {
     // Anti-bot validation
     $bot_detected = rbf_detect_bot_submission($post);
     if ($bot_detected['is_bot']) {
-        error_log("RBF Bot Detection: " . $bot_detected['reason'] . " - IP: " . $_SERVER['REMOTE_ADDR']);
+        rbf_log("RBF Bot Detection: " . $bot_detected['reason'] . " - IP: " . $_SERVER['REMOTE_ADDR']);
 
         if ($bot_detected['severity'] === 'high') {
             $options = rbf_get_settings();
@@ -36,11 +36,11 @@ function rbf_validate_request($post, $redirect_url, $anchor) {
             if ($recaptcha_configured && !empty($post['g-recaptcha-response'])) {
                 $recaptcha_result = rbf_verify_recaptcha($post['g-recaptcha-response']);
                 if (!$recaptcha_result['success']) {
-                    error_log("RBF reCAPTCHA Failed: " . $recaptcha_result['reason'] . " - IP: " . $_SERVER['REMOTE_ADDR']);
+                    rbf_log("RBF reCAPTCHA Failed: " . $recaptcha_result['reason'] . " - IP: " . $_SERVER['REMOTE_ADDR']);
                     rbf_handle_error(rbf_translate_string('Verifica di sicurezza fallita. Per favore riprova.'), 'recaptcha_failed', $redirect_url . $anchor);
                     return false;
                 }
-                error_log("RBF Bot detected but reCAPTCHA passed - allowing submission");
+                rbf_log("RBF Bot detected but reCAPTCHA passed - allowing submission");
             } else {
                 rbf_handle_error(rbf_translate_string('Rilevata attività sospetta. Per favore riprova.'), 'bot_detected', $redirect_url . $anchor);
                 return false;
