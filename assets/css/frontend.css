@@ -1825,7 +1825,7 @@
 .flatpickr-calendar {
     pointer-events: auto !important;
     z-index: 1100 !important;
-    position: relative !important;
+    position: absolute !important;
 }
 
 /* Ensure calendar NEVER gets disabled by loading states */
