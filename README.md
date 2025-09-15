@@ -550,6 +550,18 @@ la configurazione globale di WordPress.
 - Debug logging basic con WP_DEBUG
 - Marketing tracking semplificato
 
+## 🔄 Aggiornamento intl-tel-input
+
+Quando aggiorni la libreria `intl-tel-input`, assicurati che anche la copia locale di `utils.js` resti sincronizzata.
+
+1. 📦 **Recupera la nuova versione**: visita <https://github.com/jackocnr/intl-tel-input/releases> e annota il numero di versione da adottare.
+2. ⬇️ **Scarica il file aggiornato**: recupera `build/js/utils.js` dalla release scelta (ad es. tramite `curl -L -o assets/js/vendor/intl-tel-input-utils.js https://raw.githubusercontent.com/jackocnr/intl-tel-input/vXX.XX.XX/build/js/utils.js`).
+3. ♻️ **Sostituisci la copia locale**: sovrascrivi `assets/js/vendor/intl-tel-input-utils.js` con il file scaricato.
+4. 🛠️ **Aggiorna i riferimenti di versione**: sincronizza gli handle in `includes/frontend.php` (versione degli enqueue) e l'eventuale fallback in `assets/js/frontend.js`.
+5. ✅ **Verifica**: svuota la cache di WordPress/CDN e controlla che la form telefoni funzioni correttamente sia in IT che EN.
+
+> Suggerimento: se aggiorni anche i file JS/CSS principali della libreria, copia le nuove risorse nel plugin o aggiorna gli URL CDN in modo coerente.
+
 ## 📞 Supporto
 
 Per supporto tecnico e sviluppi personalizzati, contattare Francesco Passeri.
