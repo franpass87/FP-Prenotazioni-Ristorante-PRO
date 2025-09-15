@@ -71,9 +71,11 @@ function rbf_enqueue_frontend_assets() {
     // Giorni chiusi
     $closed_days_map = ['sun'=>0,'mon'=>1,'tue'=>2,'wed'=>3,'thu'=>4,'fri'=>5,'sat'=>6];
     $closed_days = [];
+    $open_values = ['yes', '1', 'true', 'on'];
     foreach ($closed_days_map as $key => $day_index) {
-        $is_open = $options["open_{$key}"] ?? 'yes';
-        if ($is_open === 'no') {
+        $is_open_raw = $options["open_{$key}"] ?? 'yes';
+        $is_open = in_array(strtolower((string)$is_open_raw), $open_values, true);
+        if (!$is_open) {
             $closed_days[] = $day_index;
         }
     }
