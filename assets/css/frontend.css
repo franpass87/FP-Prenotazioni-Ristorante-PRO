@@ -1874,6 +1874,22 @@
     z-index: 2 !important;
 }
 
+/* Ensure navigation icons and month selector are visible */
+.flatpickr-calendar .flatpickr-prev-month,
+.flatpickr-calendar .flatpickr-next-month,
+.flatpickr-calendar .flatpickr-monthDropdown-months {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    fill: currentColor !important;
+}
+
+/* Allow month dropdown to expand as needed */
+.flatpickr-calendar .flatpickr-monthDropdown-months {
+    width: auto !important;
+    white-space: nowrap !important;
+}
+
 /* NEVER allow loading overlays on calendar */
 .flatpickr-calendar .rbf-loading-overlay,
 .flatpickr-calendar::after,
