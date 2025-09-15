@@ -633,13 +633,29 @@ jQuery(function($) {
       showMonths: 1,
       disable: [function(date) {
         const day = date.getDay();
-        
+
         // Convert JavaScript day (0=Sunday, 1=Monday...) to our day key format
         const dayMapping = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
         const dayKey = dayMapping[day];
         const dateStr = formatLocalISO(date);
-        
-        // Check if this meal is available on this day
+
+        // Check for exceptions before anything else
+        if (rbfData.exceptions) {
+          for (let exception of rbfData.exceptions) {
+            if (exception.date === dateStr) {
+              // Closures and holidays always disable the day
+              if (exception.type === 'closure' || exception.type === 'holiday') {
+                return true;
+              }
+              // Special events or extended hours override other rules
+              if (exception.type === 'special' || exception.type === 'extended') {
+                return false;
+              }
+            }
+          }
+        }
+
+        // Then check meal availability for the selected meal
         if (
           rbfData.mealAvailability &&
           Array.isArray(rbfData.mealAvailability[selectedMeal]) &&
@@ -650,24 +666,8 @@ jQuery(function($) {
             return true; // Disable this day for this meal
           }
         }
-        
-        // Check for exceptions first
-        if (rbfData.exceptions) {
-          for (let exception of rbfData.exceptions) {
-            if (exception.date === dateStr) {
-              // Only disable if it's a closure or holiday
-              if (exception.type === 'closure' || exception.type === 'holiday') {
-                return true;
-              }
-              // Special events and extended hours are allowed
-              if (exception.type === 'special' || exception.type === 'extended') {
-                return false;
-              }
-            }
-          }
-        }
-        
-        // Apply regular closed day/date logic
+
+        // Finally apply global closed day/date logic
         if (rbfData.closedDays.includes(day)) return true;
         if (rbfData.closedSingles.includes(dateStr)) return true;
         for (let range of rbfData.closedRanges) {
