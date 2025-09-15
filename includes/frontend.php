@@ -1031,3 +1031,133 @@ add_shortcode('special_booking_form', function($atts = []) {
     }
     return rbf_render_booking_form($atts);
 });
+
+/**
+ * AJAX handler for calendar availability data
+ */
+add_action('wp_ajax_rbf_get_calendar_availability', 'rbf_ajax_get_calendar_availability');
+add_action('wp_ajax_nopriv_rbf_get_calendar_availability', 'rbf_ajax_get_calendar_availability');
+
+function rbf_ajax_get_calendar_availability() {
+    // Verify nonce
+    if (!isset($_POST['_ajax_nonce']) || !wp_verify_nonce($_POST['_ajax_nonce'], 'rbf_ajax_nonce')) {
+        wp_send_json_error(['message' => 'Security check failed']);
+        return;
+    }
+    
+    $start_date = sanitize_text_field($_POST['start_date'] ?? '');
+    $end_date = sanitize_text_field($_POST['end_date'] ?? '');
+    $meal = sanitize_text_field($_POST['meal'] ?? '');
+    
+    if (empty($start_date) || empty($end_date) || empty($meal)) {
+        wp_send_json_error(['message' => 'Missing required parameters']);
+        return;
+    }
+    
+    // Validate date format
+    if (!DateTime::createFromFormat('Y-m-d', $start_date) || !DateTime::createFromFormat('Y-m-d', $end_date)) {
+        wp_send_json_error(['message' => 'Invalid date format']);
+        return;
+    }
+    
+    $availability_data = [];
+    
+    try {
+        // Generate availability data for each date in the range
+        $current_date = new DateTime($start_date);
+        $end_date_obj = new DateTime($end_date);
+        
+        while ($current_date <= $end_date_obj) {
+            $date_str = $current_date->format('Y-m-d');
+            
+            // Check if meal is available on this day
+            if (rbf_is_meal_available_on_day($meal, $date_str)) {
+                $availability_status = rbf_get_availability_status($date_str, $meal);
+                $availability_data[$date_str] = $availability_status;
+            }
+            
+            $current_date->modify('+1 day');
+        }
+        
+        wp_send_json_success($availability_data);
+        
+    } catch (Exception $e) {
+        rbf_log('Calendar availability error: ' . $e->getMessage());
+        wp_send_json_error(['message' => 'Error fetching availability data']);
+    }
+}
+
+/**
+ * AJAX handler for time slot availability
+ */
+add_action('wp_ajax_rbf_get_availability', 'rbf_ajax_get_availability');
+add_action('wp_ajax_nopriv_rbf_get_availability', 'rbf_ajax_get_availability');
+
+function rbf_ajax_get_availability() {
+    // Verify nonce
+    if (!isset($_POST['_ajax_nonce']) || !wp_verify_nonce($_POST['_ajax_nonce'], 'rbf_ajax_nonce')) {
+        wp_send_json_error(['message' => 'Security check failed']);
+        return;
+    }
+    
+    $date = sanitize_text_field($_POST['date'] ?? '');
+    $meal = sanitize_text_field($_POST['meal'] ?? '');
+    
+    if (empty($date) || empty($meal)) {
+        wp_send_json_error(['message' => 'Missing required parameters']);
+        return;
+    }
+    
+    // Validate date format
+    if (!DateTime::createFromFormat('Y-m-d', $date)) {
+        wp_send_json_error(['message' => 'Invalid date format']);
+        return;
+    }
+    
+    try {
+        // Check if meal is available on this day
+        if (!rbf_is_meal_available_on_day($meal, $date)) {
+            wp_send_json_error(['message' => rbf_translate_string('Servizio non disponibile per questa data')]);
+            return;
+        }
+        
+        // Get available time slots for the date and meal
+        // Use default people count of 2 for availability check
+        $people_count = 2;
+        $available_times = rbf_get_available_time_slots($date, $meal, $people_count);
+        
+        if (empty($available_times)) {
+            wp_send_json_success([
+                'times' => [],
+                'message' => rbf_translate_string('Nessun orario disponibile per questa data')
+            ]);
+            return;
+        }
+        
+        // Format times for the frontend
+        $formatted_times = [];
+        foreach ($available_times as $time_data) {
+            $time = $time_data['time'];
+            $display = $time_data['display'] ?? $time;
+            
+            // Get remaining capacity for this specific time slot
+            $remaining_capacity = rbf_get_remaining_capacity($date, $meal);
+            
+            $formatted_times[] = [
+                'value' => $time . '|' . $meal, // Format expected by frontend
+                'text' => $display,
+                'time' => $time,
+                'remaining' => $remaining_capacity
+            ];
+        }
+        
+        wp_send_json_success([
+            'times' => $formatted_times,
+            'message' => ''
+        ]);
+        
+    } catch (Exception $e) {
+        rbf_log('Time availability error: ' . $e->getMessage());
+        wp_send_json_error(['message' => 'Error fetching time availability']);
+    }
+}
