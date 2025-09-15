@@ -40,7 +40,8 @@ function rbf_enqueue_frontend_assets() {
     
     if (!$has_booking_form) return;
 
-    $options = rbf_get_settings();
+    $default_settings = rbf_get_default_settings();
+    $options = wp_parse_args(rbf_get_settings(), $default_settings);
     $locale = rbf_current_lang(); // 'it' o 'en'
 
     // Flatpickr
@@ -103,7 +104,7 @@ function rbf_enqueue_frontend_assets() {
         'closedRanges' => $closed_specific['ranges'],
         'exceptions' => $closed_specific['exceptions'],
         'minAdvanceMinutes' => absint($options['min_advance_minutes'] ?? 0),
-        'maxAdvanceMinutes' => absint($options['max_advance_minutes'] ?? 10080),
+        'maxAdvanceMinutes' => absint($options['max_advance_minutes'] ?? $default_settings['max_advance_minutes']),
         'utilsScript' => 'https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/19.2.16/js/utils.js',
         'mealTooltips' => $meal_tooltips,
         'mealAvailability' => $meal_availability,
