@@ -15,30 +15,38 @@ if (!defined('ABSPATH')) {
 
 /**
  * Generate unique session ID for funnel tracking
- * Uses browser fingerprinting and server session for consistency
+ * Stores the ID in a cookie for consistency across requests
  */
 function rbf_generate_session_id() {
-    // Check if we already have a session ID in the current session
-    if (isset($_SESSION['rbf_session_id'])) {
-        return $_SESSION['rbf_session_id'];
+    // Return existing cookie value if available
+    if (!empty($_COOKIE['rbf_session_id'])) {
+        return sanitize_key($_COOKIE['rbf_session_id']);
     }
-    
-    // Start session if not already started
-    if (session_status() === PHP_SESSION_NONE) {
-        session_start();
+
+    // Generate new session ID using random bytes
+    try {
+        $session_id = 'rbf_' . bin2hex(random_bytes(8));
+    } catch (Exception $e) {
+        // Fallback in case random_bytes isn't available
+        $session_id = 'rbf_' . substr(md5(uniqid('', true)), 0, 16);
     }
-    
-    // Generate new session ID based on various factors
-    $factors = [
-        session_id(),
-        $_SERVER['HTTP_USER_AGENT'] ?? '',
-        $_SERVER['REMOTE_ADDR'] ?? '',
-        time()
-    ];
-    
-    $session_id = 'rbf_' . substr(md5(implode('|', $factors)), 0, 16);
-    $_SESSION['rbf_session_id'] = $session_id;
-    
+
+    // Store in cookie for 30 minutes
+    if (!headers_sent()) {
+        setcookie(
+            'rbf_session_id',
+            $session_id,
+            time() + 1800,
+            COOKIEPATH,
+            COOKIE_DOMAIN,
+            is_ssl(),
+            true
+        );
+    }
+
+    // Make the cookie available immediately in this request
+    $_COOKIE['rbf_session_id'] = $session_id;
+
     return $session_id;
 }
 
