@@ -935,21 +935,22 @@ function rbf_get_utm_analytics($days = 30) {
     
     // Get source bucket distribution
     $bucket_stats = $wpdb->get_results($wpdb->prepare("
-        SELECT 
+        SELECT
             pm_bucket.meta_value as bucket,
             COUNT(*) as count,
             AVG(pm_people.meta_value) as avg_people,
-            SUM(CASE 
-                WHEN pm_meal.meta_value = 'pranzo' THEN pm_people.meta_value * 35
-                WHEN pm_meal.meta_value = 'cena' THEN pm_people.meta_value * 50
-                WHEN pm_meal.meta_value = 'aperitivo' THEN pm_people.meta_value * 15
+            SUM(CASE
+                WHEN COALESCE(pm_meal.meta_value, pm_meal_legacy.meta_value) = 'pranzo' THEN pm_people.meta_value * 35
+                WHEN COALESCE(pm_meal.meta_value, pm_meal_legacy.meta_value) = 'cena' THEN pm_people.meta_value * 50
+                WHEN COALESCE(pm_meal.meta_value, pm_meal_legacy.meta_value) = 'aperitivo' THEN pm_people.meta_value * 15
                 ELSE 0
             END) as estimated_revenue
         FROM {$wpdb->posts} p
         LEFT JOIN {$wpdb->postmeta} pm_bucket ON (p.ID = pm_bucket.post_id AND pm_bucket.meta_key = 'rbf_source_bucket')
         LEFT JOIN {$wpdb->postmeta} pm_people ON (p.ID = pm_people.post_id AND pm_people.meta_key = 'rbf_persone')
-        LEFT JOIN {$wpdb->postmeta} pm_meal ON (p.ID = pm_meal.post_id AND pm_meal.meta_key = 'rbf_orario')
-        WHERE p.post_type = 'rbf_booking' 
+        LEFT JOIN {$wpdb->postmeta} pm_meal ON (p.ID = pm_meal.post_id AND pm_meal.meta_key = 'rbf_meal')
+        LEFT JOIN {$wpdb->postmeta} pm_meal_legacy ON (p.ID = pm_meal_legacy.post_id AND pm_meal_legacy.meta_key = 'rbf_orario')
+        WHERE p.post_type = 'rbf_booking'
         AND p.post_status = 'publish'
         AND p.post_date >= %s
         GROUP BY pm_bucket.meta_value
@@ -1554,7 +1555,7 @@ function rbf_calculate_occupancy_percentage($date, $meal_id) {
          FROM {$wpdb->posts} p
          INNER JOIN {$wpdb->postmeta} pm_people ON p.ID = pm_people.post_id AND pm_people.meta_key = 'rbf_persone'
          INNER JOIN {$wpdb->postmeta} pm_date ON p.ID = pm_date.post_id AND pm_date.meta_key = 'rbf_data'
-         INNER JOIN {$wpdb->postmeta} pm_slot ON p.ID = pm_slot.post_id AND pm_slot.meta_key = 'rbf_orario'
+         INNER JOIN {$wpdb->postmeta} pm_slot ON p.ID = pm_slot.post_id AND pm_slot.meta_key = 'rbf_meal'
          WHERE p.post_type = 'rbf_booking' AND p.post_status = 'publish'
          AND pm_date.meta_value = %s AND pm_slot.meta_value = %s",
         $date, $meal_id

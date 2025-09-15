@@ -280,8 +280,8 @@ function rbf_create_booking_post($data, $redirect_url, $anchor) {
         'post_status' => 'publish',
         'meta_input'  => [
             'rbf_data'          => $date,
-            'rbf_meal'          => $slot,
-            'rbf_orario'        => $slot,
+            'rbf_meal'          => $meal,
+            'rbf_orario'        => $time,
             'rbf_time'          => $time,
             'rbf_persone'       => $people,
             'rbf_nome'          => $first_name,

@@ -1065,7 +1065,7 @@ function rbf_get_bookings_for_calendar_callback() {
         $phone = $meta['rbf_tel'][0] ?? '';
         $notes = $meta['rbf_allergie'][0] ?? '';
         $status = $meta['rbf_booking_status'][0] ?? 'confirmed';
-        $meal = $meta['rbf_orario'][0] ?? '';
+        $meal = $meta['rbf_meal'][0] ?? ($meta['rbf_orario'][0] ?? '');
         
         $title = $booking->post_title . ' (' . $people . ' persone)';
         
@@ -1131,7 +1131,7 @@ function rbf_update_booking_status_callback() {
     // Handle optimistic locking for cancellations
     if ($status === 'cancelled') {
         $date = get_post_meta($booking_id, 'rbf_data', true);
-        $slot = get_post_meta($booking_id, 'rbf_orario', true);
+        $slot = get_post_meta($booking_id, 'rbf_meal', true) ?: get_post_meta($booking_id, 'rbf_orario', true);
         $people = get_post_meta($booking_id, 'rbf_persone', true);
         
         if ($date && $slot && $people) {
@@ -1270,7 +1270,8 @@ function rbf_add_booking_page_html() {
             'post_status' => 'publish',
             'meta_input' => [
                 'rbf_data' => $date,
-                'rbf_orario' => $meal,
+                'rbf_meal' => $meal,
+                'rbf_orario' => $time,
                 'rbf_time' => $time,
                 'rbf_persone' => $people,
                 'rbf_nome' => $first_name,
@@ -1868,7 +1869,7 @@ function rbf_handle_export_request($start_date, $end_date, $format, $status_filt
                 pm_date.meta_value as booking_date,
                 pm_time.meta_value as booking_time,
                 pm_people.meta_value as people,
-                pm_meal.meta_value as meal,
+                COALESCE(pm_meal.meta_value, pm_meal_legacy.meta_value) as meal,
                 pm_status.meta_value as status,
                 pm_first_name.meta_value as first_name,
                 pm_last_name.meta_value as last_name,
@@ -1889,7 +1890,8 @@ function rbf_handle_export_request($start_date, $end_date, $format, $status_filt
          INNER JOIN {$wpdb->postmeta} pm_date ON p.ID = pm_date.post_id AND pm_date.meta_key = 'rbf_data'
          LEFT JOIN {$wpdb->postmeta} pm_time ON p.ID = pm_time.post_id AND pm_time.meta_key = 'rbf_time'
          LEFT JOIN {$wpdb->postmeta} pm_people ON p.ID = pm_people.post_id AND pm_people.meta_key = 'rbf_persone'
-         LEFT JOIN {$wpdb->postmeta} pm_meal ON p.ID = pm_meal.post_id AND pm_meal.meta_key = 'rbf_orario'
+         LEFT JOIN {$wpdb->postmeta} pm_meal ON p.ID = pm_meal.post_id AND pm_meal.meta_key = 'rbf_meal'
+         LEFT JOIN {$wpdb->postmeta} pm_meal_legacy ON p.ID = pm_meal_legacy.post_id AND pm_meal_legacy.meta_key = 'rbf_orario'
          LEFT JOIN {$wpdb->postmeta} pm_status ON p.ID = pm_status.post_id AND pm_status.meta_key = 'rbf_booking_status'
          LEFT JOIN {$wpdb->postmeta} pm_first_name ON p.ID = pm_first_name.post_id AND pm_first_name.meta_key = 'rbf_nome'
          LEFT JOIN {$wpdb->postmeta} pm_last_name ON p.ID = pm_last_name.post_id AND pm_last_name.meta_key = 'rbf_cognome'
@@ -3015,7 +3017,7 @@ function rbf_move_booking_callback() {
     // Get current booking data
     $old_date = get_post_meta($booking_id, 'rbf_data', true);
     $old_time = get_post_meta($booking_id, 'rbf_time', true);
-    $meal = get_post_meta($booking_id, 'rbf_orario', true);
+    $meal = get_post_meta($booking_id, 'rbf_meal', true) ?: get_post_meta($booking_id, 'rbf_orario', true);
     $people = intval(get_post_meta($booking_id, 'rbf_persone', true));
     
     // Validate new date and time format
@@ -3101,7 +3103,7 @@ function rbf_get_weekly_staff_bookings_callback() {
         $first_name = $meta['rbf_nome'][0] ?? '';
         $last_name = $meta['rbf_cognome'][0] ?? '';
         $status = $meta['rbf_booking_status'][0] ?? 'confirmed';
-        $meal = $meta['rbf_orario'][0] ?? '';
+        $meal = $meta['rbf_meal'][0] ?? ($meta['rbf_orario'][0] ?? '');
         
         $title = trim($first_name . ' ' . $last_name) . ' (' . $people . 'p)';
         
