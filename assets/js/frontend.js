@@ -898,7 +898,7 @@ jQuery(function($) {
       const stepId = $step.attr('id');
       
       if (stepId === 'step-date' && fp === null) {
-        // Reinitialize the calendar to maintain the previous forceCalendarInteractivity safeguards
+        // Reinitialize the calendar to restore interactivity when revisiting the date step
         lazyLoadDatePicker().then(() => {
           if (fp && typeof fp.open === 'function') {
             fp.open();
