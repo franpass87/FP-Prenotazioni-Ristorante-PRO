@@ -1819,83 +1819,93 @@
     cursor: pointer;
 }
 
-/* CRITICAL FIX: Ensure calendar is always fully interactive */
+/* Simplified Calendar Styling - Clean and Functional */
 
-/* Fix calendar container - must be interactive at all times */
+/* Basic calendar container styling */
 .flatpickr-calendar {
-    pointer-events: auto !important;
-    z-index: 1100 !important;
-    position: absolute !important;
+    font-family: inherit;
+    background: white;
+    border: 1px solid var(--rbf-border);
+    border-radius: var(--rbf-radius);
+    box-shadow: var(--rbf-shadow);
+    z-index: 1100;
 }
 
-/* Ensure calendar NEVER gets disabled by loading states */
-.flatpickr-calendar,
-.flatpickr-calendar * {
-    pointer-events: auto !important;
+/* Ensure month navigation works properly */
+.flatpickr-calendar .flatpickr-months {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px;
+    background: var(--rbf-primary);
+    color: white;
+    border-radius: var(--rbf-radius) var(--rbf-radius) 0 0;
 }
 
-/* Force calendar days to be clickable */
+/* Navigation arrows */
+.flatpickr-calendar .flatpickr-prev-month,
+.flatpickr-calendar .flatpickr-next-month {
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+
+.flatpickr-calendar .flatpickr-prev-month:hover,
+.flatpickr-calendar .flatpickr-next-month:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Month display with dropdowns */
+.flatpickr-calendar .flatpickr-current-month {
+    display: flex;
+    align-items: center;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+/* Ensure dropdowns are visible and functional */
+.flatpickr-calendar .flatpickr-monthDropdown-months,
+.flatpickr-calendar .numInputWrapper {
+    color: white;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+}
+
+.flatpickr-calendar .flatpickr-monthDropdown-months:focus,
+.flatpickr-calendar .numInputWrapper input:focus {
+    outline: 2px solid rgba(255, 255, 255, 0.5);
+    outline-offset: 2px;
+}
+
+/* Calendar days basic styling */
 .flatpickr-calendar .flatpickr-day {
-    pointer-events: auto !important;
-    cursor: pointer !important;
-    position: relative !important;
-    z-index: 1 !important;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
 }
 
-/* Ensure disabled days remain disabled but everything else works */
+.flatpickr-calendar .flatpickr-day:hover {
+    background: var(--rbf-primary-light);
+    color: white;
+}
+
+.flatpickr-calendar .flatpickr-day.selected {
+    background: var(--rbf-primary);
+    color: white;
+}
+
+.flatpickr-calendar .flatpickr-day.today {
+    border: 2px solid var(--rbf-primary);
+}
+
+/* Disabled days styling */
 .flatpickr-calendar .flatpickr-day.flatpickr-disabled {
-    pointer-events: none !important;
-    cursor: not-allowed !important;
-    /* Add red styling for unavailable/closed days as requested */
-    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%) !important;
-    border-left: 3px solid #dc2626 !important;
-    color: #dc2626 !important;
-}
-
-/* Additional styling for unavailable days that might have different classes */
-.flatpickr-day.flatpickr-disabled,
-.flatpickr-day[aria-disabled="true"],
-.flatpickr-day.unavailable {
-    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%) !important;
-    border-left: 3px solid #dc2626 !important;
-    color: #dc2626 !important;
-    pointer-events: none !important;
-    cursor: not-allowed !important;
-}
-
-/* Navigation elements must be clickable */
-.flatpickr-calendar .flatpickr-months,
-.flatpickr-calendar .flatpickr-prev-month,
-.flatpickr-calendar .flatpickr-next-month,
-.flatpickr-calendar .flatpickr-current-month,
-.flatpickr-calendar .numInputWrapper,
-.flatpickr-calendar .flatpickr-monthDropdown-months {
-    pointer-events: auto !important;
-    z-index: 2 !important;
-}
-
-/* Ensure navigation icons and month selector are visible */
-.flatpickr-calendar .flatpickr-prev-month,
-.flatpickr-calendar .flatpickr-next-month,
-.flatpickr-calendar .flatpickr-current-month,
-.flatpickr-calendar .flatpickr-monthDropdown-months {
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-}
-
-/* Ensure SVG icons inherit text color */
-.flatpickr-calendar .flatpickr-prev-month svg,
-.flatpickr-calendar .flatpickr-next-month svg,
-.flatpickr-calendar .flatpickr-current-month svg {
-    fill: currentColor !important;
-}
-
-/* Allow month dropdown to expand as needed */
-.flatpickr-calendar .flatpickr-monthDropdown-months {
-    width: auto !important;
-    min-width: 80px !important;
-    white-space: nowrap !important;
+    background: #f8f9fa;
+    color: #adb5bd;
+    cursor: not-allowed;
 }
 
 /* NEVER allow loading overlays on calendar */
