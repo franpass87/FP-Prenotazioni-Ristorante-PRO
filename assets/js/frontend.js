@@ -897,6 +897,15 @@ jQuery(function($) {
       // Handle skeleton loading for specific steps (same as showStep but without scrolling)
       const stepId = $step.attr('id');
       
+      if (stepId === 'step-date' && fp === null) {
+        // Reinitialize the calendar to maintain the previous forceCalendarInteractivity safeguards
+        lazyLoadDatePicker().then(() => {
+          if (fp && typeof fp.open === 'function') {
+            fp.open();
+          }
+        });
+      }
+
       if (stepId === 'step-date' && $step.attr('data-skeleton') === 'true') {
         // Show skeleton initially, then lazy load date picker
         setTimeout(() => {
