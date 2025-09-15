@@ -33,6 +33,23 @@ jQuery(function($) {
   const form = $('#rbf-form');
   if (!form.length) return;
 
+  const DEFAULT_MAX_ADVANCE_MINUTES = 259200;
+  const parsedMaxAdvanceMinutes = Number(rbfData.maxAdvanceMinutes);
+  const hasFiniteMaxAdvanceMinutes = Number.isFinite(parsedMaxAdvanceMinutes);
+  const hasPositiveMaxAdvanceMinutes = hasFiniteMaxAdvanceMinutes && parsedMaxAdvanceMinutes > 0;
+  const maxAdvanceMinutes = hasPositiveMaxAdvanceMinutes ? parsedMaxAdvanceMinutes : DEFAULT_MAX_ADVANCE_MINUTES;
+  const shouldApplyMaxAdvanceLimit = hasPositiveMaxAdvanceMinutes;
+
+  if (!hasPositiveMaxAdvanceMinutes) {
+    if (hasFiniteMaxAdvanceMinutes && parsedMaxAdvanceMinutes === 0) {
+      rbfLog.log('maxAdvanceMinutes set to 0, no maximum advance limit applied');
+    } else if (typeof rbfData.maxAdvanceMinutes === 'undefined' || rbfData.maxAdvanceMinutes === null || rbfData.maxAdvanceMinutes === '') {
+      rbfLog.warn('maxAdvanceMinutes not provided, using default of ' + DEFAULT_MAX_ADVANCE_MINUTES + ' minutes');
+    } else {
+      rbfLog.warn('Invalid maxAdvanceMinutes value (' + rbfData.maxAdvanceMinutes + '), using default of ' + DEFAULT_MAX_ADVANCE_MINUTES + ' minutes');
+    }
+  }
+
   // Cache DOM elements
   const el = {
     mealRadios: form.find('input[name="rbf_meal"]'),
@@ -410,7 +427,7 @@ jQuery(function($) {
           el.dateInput.attr('min', minDate.toISOString().split('T')[0]);
           
           // Set maximum date (e.g., 6 months in advance)
-          const maxDate = new Date(today.getTime() + (rbfData.maxAdvanceMinutes || 259200) * 60 * 1000);
+          const maxDate = new Date(today.getTime() + maxAdvanceMinutes * 60 * 1000);
           el.dateInput.attr('max', maxDate.toISOString().split('T')[0]);
           
           // Add event listener for date changes
@@ -687,8 +704,8 @@ jQuery(function($) {
       }
     
     // Set max date if configured
-    if (rbfData.maxAdvanceMinutes > 0) {
-      flatpickrConfig.maxDate = new Date(new Date().getTime() + rbfData.maxAdvanceMinutes * 60 * 1000);
+    if (shouldApplyMaxAdvanceLimit) {
+      flatpickrConfig.maxDate = new Date(new Date().getTime() + maxAdvanceMinutes * 60 * 1000);
     }
     
     // Destroy existing instance if it exists
