@@ -1238,7 +1238,8 @@ jQuery(function($) {
     // Update availability data for the selected meal (after calendar loads)
     setTimeout(() => {
       if (fp && selectedMeal) {
-        const viewDate = fp.currentMonth;
+        // Get the current view date - use fp.now or fallback to current date
+        const viewDate = fp.now || new Date();
         const startDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
         const endDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
         
