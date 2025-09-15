@@ -640,7 +640,11 @@ jQuery(function($) {
         const dateStr = formatLocalISO(date);
         
         // Check if this meal is available on this day
-        if (rbfData.mealAvailability && rbfData.mealAvailability[selectedMeal]) {
+        if (
+          rbfData.mealAvailability &&
+          Array.isArray(rbfData.mealAvailability[selectedMeal]) &&
+          rbfData.mealAvailability[selectedMeal].length > 0
+        ) {
           const availableDays = rbfData.mealAvailability[selectedMeal];
           if (!availableDays.includes(dayKey)) {
             return true; // Disable this day for this meal
