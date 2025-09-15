@@ -1877,16 +1877,24 @@
 /* Ensure navigation icons and month selector are visible */
 .flatpickr-calendar .flatpickr-prev-month,
 .flatpickr-calendar .flatpickr-next-month,
+.flatpickr-calendar .flatpickr-current-month,
 .flatpickr-calendar .flatpickr-monthDropdown-months {
     display: block !important;
     visibility: visible !important;
     opacity: 1 !important;
+}
+
+/* Ensure SVG icons inherit text color */
+.flatpickr-calendar .flatpickr-prev-month svg,
+.flatpickr-calendar .flatpickr-next-month svg,
+.flatpickr-calendar .flatpickr-current-month svg {
     fill: currentColor !important;
 }
 
 /* Allow month dropdown to expand as needed */
 .flatpickr-calendar .flatpickr-monthDropdown-months {
     width: auto !important;
+    min-width: 80px !important;
     white-space: nowrap !important;
 }
 
