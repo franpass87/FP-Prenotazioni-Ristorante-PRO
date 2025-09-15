@@ -31,6 +31,6 @@ Simplified logic based only on phone prefix:
 - `docs/BREVO_SEGMENTATION_ENHANCEMENT.md` - Updated documentation
 
 ## Implementation Details
-The enhancement was implemented in the `rbf_handle_booking_submission()` function where the `$brevo_lang` variable is determined. The new logic uses only the phone prefix for segmentation, making the system simpler and more predictable.
+The enhancement is implemented in the `rbf_validate_request()` helper, where the `$brevo_lang` variable is determined. The new logic uses only the phone prefix for segmentation, making the system simpler and more predictable.
 
 This ensures clear segmentation based on phone country codes, with all non-Italian phone numbers directed to the English list.
