@@ -58,7 +58,15 @@ function rbf_enqueue_frontend_assets() {
     // intl-tel-input - Updated to latest stable version for enhanced flag support and reliability
     wp_enqueue_style('rbf-intl-tel-input-css','https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/19.2.16/css/intlTelInput.css',[], '19.2.16');
     wp_enqueue_script('rbf-intl-tel-input','https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/19.2.16/js/intlTelInput.min.js',[], '19.2.16', true);
+    wp_enqueue_script(
+        'rbf-intl-tel-input-utils',
+        plugin_dir_url(dirname(__FILE__)) . 'assets/js/vendor/intl-tel-input-utils.js',
+        ['rbf-intl-tel-input'],
+        '19.2.16',
+        true
+    );
     $deps[] = 'rbf-intl-tel-input';
+    $deps[] = 'rbf-intl-tel-input-utils';
 
     // Frontend styles
     wp_enqueue_style('rbf-frontend-css', plugin_dir_url(dirname(__FILE__)) . 'assets/css/frontend.css', ['rbf-flatpickr-css'], rbf_get_asset_version());
@@ -105,7 +113,7 @@ function rbf_enqueue_frontend_assets() {
         'exceptions' => $closed_specific['exceptions'],
         'minAdvanceMinutes' => absint($options['min_advance_minutes'] ?? 0),
         'maxAdvanceMinutes' => absint($options['max_advance_minutes'] ?? $default_settings['max_advance_minutes']),
-        'utilsScript' => 'https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/19.2.16/js/utils.js',
+        'utilsScript' => plugin_dir_url(dirname(__FILE__)) . 'assets/js/vendor/intl-tel-input-utils.js',
         'mealTooltips' => $meal_tooltips,
         'mealAvailability' => $meal_availability,
         'labels' => [
