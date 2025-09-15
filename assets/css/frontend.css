@@ -1850,6 +1850,11 @@
     border-radius: 50%;
     transition: background-color 0.2s;
     color: white !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
 
 .flatpickr-calendar .flatpickr-prev-month:hover,
@@ -1863,12 +1868,26 @@
     fill: white !important;
     width: 16px;
     height: 16px;
+    visibility: visible !important;
+    opacity: 1 !important;
+    display: block !important;
 }
 
 /* Alternative arrow styling for text-based arrows */
 .flatpickr-calendar .flatpickr-prev-month:before,
 .flatpickr-calendar .flatpickr-next-month:before {
     color: white !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Force visibility of all arrow elements */
+.flatpickr-calendar .flatpickr-prev-month *,
+.flatpickr-calendar .flatpickr-next-month * {
+    color: white !important;
+    fill: white !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 /* Month display with dropdowns */
