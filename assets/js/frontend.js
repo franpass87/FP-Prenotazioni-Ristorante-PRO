@@ -340,12 +340,45 @@ jQuery(function($) {
 
           // CRITICAL FIX: Force calendar interactivity
           if (fp) {
+            forceCalendarInteractivity(fp);
           }
           
           rbfLog.log('Calendar skeleton removed and interactivity forcefully enabled');
         }, 100);
       }
     });
+  }
+
+  /**
+   * Force Flatpickr calendar interactivity by removing blocking styles
+   */
+  function forceCalendarInteractivity(calendarInstance) {
+    if (!calendarInstance || !calendarInstance.calendarContainer) return;
+
+    const calendar = calendarInstance.calendarContainer;
+
+    calendar.classList.remove('rbf-component-loading', 'rbf-loading');
+    calendar.style.pointerEvents = 'auto';
+    calendar.style.removeProperty('opacity');
+    calendar.style.removeProperty('filter');
+
+    const interactiveSelectors = [
+      '.flatpickr-day',
+      '.flatpickr-prev-month',
+      '.flatpickr-next-month',
+      '.flatpickr-current-month',
+      '.flatpickr-monthDropdown-months',
+      '.numInputWrapper'
+    ].join(', ');
+
+    calendar.querySelectorAll(interactiveSelectors).forEach((element) => {
+      if (!element.classList.contains('flatpickr-disabled')) {
+        element.style.pointerEvents = 'auto';
+        element.style.cursor = 'pointer';
+      }
+    });
+
+    calendar.querySelectorAll('.rbf-loading-overlay').forEach((overlay) => overlay.remove());
   }
 
   /**
@@ -896,8 +929,9 @@ jQuery(function($) {
     const timeout = setTimeout(() => {
       // Handle skeleton loading for specific steps (same as showStep but without scrolling)
       const stepId = $step.attr('id');
-      
-      if (stepId === 'step-date' && fp === null) {
+      const isDateStep = stepId === 'step-date';
+
+      if (isDateStep && fp === null) {
         // Reinitialize the calendar to restore interactivity when revisiting the date step
         lazyLoadDatePicker().then(() => {
           if (fp && typeof fp.open === 'function') {
@@ -906,7 +940,7 @@ jQuery(function($) {
         });
       }
 
-      if (stepId === 'step-date' && $step.attr('data-skeleton') === 'true') {
+      if (isDateStep && $step.attr('data-skeleton') === 'true') {
         // Show skeleton initially, then lazy load date picker
         setTimeout(() => {
           lazyLoadDatePicker().then(() => {
