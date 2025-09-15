@@ -58,27 +58,30 @@ function rbf_validate_request($post, $redirect_url, $anchor) {
 
     // Sanitize form input
     $sanitized_fields = rbf_sanitize_input_fields($post, [
-        'rbf_meal' => 'text',
-        'rbf_data' => 'text',
-        'rbf_orario' => 'text',
-        'rbf_persone' => 'int',
-        'rbf_nome' => 'name',
-        'rbf_cognome' => 'name',
-        'rbf_allergie' => 'textarea',
-        'rbf_lang' => 'text',
-        'rbf_country_code' => 'text',
-        'rbf_utm_source' => 'text',
-        'rbf_utm_medium' => 'text',
-        'rbf_utm_campaign' => 'text',
-        'rbf_gclid' => 'text',
-        'rbf_fbclid' => 'text',
-        'rbf_referrer' => 'text',
+        'rbf_meal'           => 'text',
+        'rbf_data'           => 'text',
+        'rbf_orario'         => 'text',
+        'rbf_persone'        => 'int',
+        'rbf_nome'           => 'name',
+        'rbf_cognome'        => 'name',
+        'rbf_allergie'       => 'textarea',
+        'rbf_lang'           => 'text',
+        'rbf_country_code'   => 'text',
+        'rbf_utm_source'     => 'text',
+        'rbf_utm_medium'     => 'text',
+        'rbf_utm_campaign'   => 'text',
+        'rbf_gclid'          => 'text',
+        'rbf_fbclid'         => 'text',
+        'rbf_referrer'       => 'text',
         // Special occasion fields
-        'rbf_special_type' => 'text',
-        'rbf_special_label' => 'text',
+        'rbf_special_type'   => 'text',
+        'rbf_special_label'  => 'text',
         // Anti-bot fields
         'rbf_form_timestamp' => 'int',
-        'rbf_website' => 'text'
+        'rbf_website'        => 'text',
+        // Consent fields
+        'rbf_privacy'        => 'text',
+        'rbf_marketing'      => 'text'
     ]);
 
     $meal = $sanitized_fields['rbf_meal'];
@@ -126,8 +129,10 @@ function rbf_validate_request($post, $redirect_url, $anchor) {
     // Determine Brevo list based on phone prefix only
     $brevo_lang = ($country_code === 'it') ? 'it' : 'en';
 
-    $privacy = (isset($post['rbf_privacy']) && $post['rbf_privacy']==='yes') ? 'yes' : 'no';
-    $marketing = (isset($post['rbf_marketing']) && $post['rbf_marketing']==='yes') ? 'yes' : 'no';
+    $privacy_raw   = $sanitized_fields['rbf_privacy'] ?? 'no';
+    $privacy   = ($privacy_raw === 'yes' || $privacy_raw === 'no') ? $privacy_raw : 'no';
+    $marketing_raw = $sanitized_fields['rbf_marketing'] ?? 'no';
+    $marketing = ($marketing_raw === 'yes' || $marketing_raw === 'no') ? $marketing_raw : 'no';
 
     // Sorgente & UTM dal form
     $utm_source   = $sanitized_fields['rbf_utm_source'] ?? '';
