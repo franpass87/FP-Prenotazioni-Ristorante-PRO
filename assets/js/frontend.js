@@ -614,8 +614,6 @@ jQuery(function($) {
    * Initialize flatpickr after ensuring it's loaded
    */
   function initializeFlatpickr() {
-    const selectedMeal = el.mealRadios.filter(':checked').val();
-    
     const flatpickrConfig = {
       altInput: true,
       altFormat: 'd-m-Y',
@@ -632,6 +630,7 @@ jQuery(function($) {
       // Enable month/year dropdowns for better navigation
       showMonths: 1,
       disable: [function(date) {
+        const selectedMeal = el.mealRadios.filter(':checked').val();
         const day = date.getDay();
 
         // Convert JavaScript day (0=Sunday, 1=Monday...) to our day key format
@@ -1328,6 +1327,11 @@ jQuery(function($) {
     // Show date step for any meal selection without scrolling
     // The flatpickr will be lazy loaded when the step is shown by showStepWithoutScroll
     showStepWithoutScroll(el.dateStep, 2);
+
+    // Re-evaluate disabled dates for the newly selected meal
+    if (fp) {
+      fp.redraw();
+    }
 
     // Update availability data for the selected meal (after calendar loads)
     setTimeout(() => {
