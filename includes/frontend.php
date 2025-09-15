@@ -107,6 +107,7 @@ function rbf_enqueue_frontend_assets() {
         'ajaxUrl' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('rbf_ajax_nonce'),
         'locale' => $locale, // it/en
+        'debug' => defined('WP_DEBUG') && WP_DEBUG, // Enable debug mode if WP_DEBUG is on
         'closedDays' => $closed_days,
         'closedSingles' => $closed_specific['singles'],
         'closedRanges' => $closed_specific['ranges'],
@@ -187,6 +188,13 @@ function rbf_enqueue_frontend_assets() {
             'noNotes' => rbf_translate_string('Nessuna nota inserita'),
             'cancel' => rbf_translate_string('Annulla'),
             'confirmBooking' => rbf_translate_string('Conferma Prenotazione'),
+            // Enhanced error messages for better UX
+            'errorRefresh' => rbf_translate_string('Errore di connessione. Aggiorna la pagina e riprova.'),
+            'errorGeneric' => rbf_translate_string('Si è verificato un errore. Riprova tra qualche istante.'),
+            'errorNetwork' => rbf_translate_string('Problema di connessione. Controlla la tua connessione internet.'),
+            'loadingCalendar' => rbf_translate_string('Caricamento calendario...'),
+            'loadingTimes' => rbf_translate_string('Caricamento orari...'),
+            'refreshing' => rbf_translate_string('Aggiornamento...'),
             'submittingBooking' => rbf_translate_string('Invio prenotazione in corso...'),
         ],
     ]);
@@ -1031,3 +1039,316 @@ add_shortcode('special_booking_form', function($atts = []) {
     }
     return rbf_render_booking_form($atts);
 });
+
+/**
+ * AJAX handler for calendar availability data
+ */
+add_action('wp_ajax_rbf_get_calendar_availability', 'rbf_ajax_get_calendar_availability');
+add_action('wp_ajax_nopriv_rbf_get_calendar_availability', 'rbf_ajax_get_calendar_availability');
+
+function rbf_ajax_get_calendar_availability() {
+    // Verify nonce
+    if (!isset($_POST['_ajax_nonce']) || !wp_verify_nonce($_POST['_ajax_nonce'], 'rbf_ajax_nonce')) {
+        wp_send_json_error([
+            'message' => rbf_translate_string('Controllo di sicurezza fallito'),
+            'code' => 'nonce_failed'
+        ]);
+        return;
+    }
+    
+    $start_date = sanitize_text_field($_POST['start_date'] ?? '');
+    $end_date = sanitize_text_field($_POST['end_date'] ?? '');
+    $meal = sanitize_text_field($_POST['meal'] ?? '');
+    
+    if (empty($start_date) || empty($end_date) || empty($meal)) {
+        wp_send_json_error([
+            'message' => rbf_translate_string('Parametri mancanti'),
+            'code' => 'missing_params'
+        ]);
+        return;
+    }
+    
+    // Validate date format
+    if (!DateTime::createFromFormat('Y-m-d', $start_date) || !DateTime::createFromFormat('Y-m-d', $end_date)) {
+        wp_send_json_error([
+            'message' => rbf_translate_string('Formato data non valido'),
+            'code' => 'invalid_date_format'
+        ]);
+        return;
+    }
+    
+    // Check for reasonable date range (max 3 months)
+    $start_date_obj = new DateTime($start_date);
+    $end_date_obj = new DateTime($end_date);
+    $date_diff = $start_date_obj->diff($end_date_obj);
+    
+    if ($date_diff->days > 90) {
+        wp_send_json_error([
+            'message' => rbf_translate_string('Intervallo di date troppo ampio'),
+            'code' => 'date_range_too_wide'
+        ]);
+        return;
+    }
+    
+    // Check for cache first
+    $cache_key = 'rbf_cal_avail_' . md5($start_date . $end_date . $meal);
+    $cached_data = get_transient($cache_key);
+    
+    if ($cached_data !== false) {
+        wp_send_json_success($cached_data);
+        return;
+    }
+    
+    $availability_data = [];
+    
+    try {
+        // Generate availability data for each date in the range
+        $current_date = new DateTime($start_date);
+        
+        while ($current_date <= $end_date_obj) {
+            $date_str = $current_date->format('Y-m-d');
+            
+            // Check if meal is available on this day
+            if (rbf_is_meal_available_on_day($meal, $date_str)) {
+                $availability_status = rbf_get_availability_status($date_str, $meal);
+                $availability_data[$date_str] = $availability_status;
+            }
+            
+            $current_date->modify('+1 day');
+        }
+        
+        // Cache results for 10 minutes
+        set_transient($cache_key, $availability_data, 10 * MINUTE_IN_SECONDS);
+        
+        wp_send_json_success($availability_data);
+        
+    } catch (Exception $e) {
+        rbf_log('Calendar availability error: ' . $e->getMessage());
+        wp_send_json_error([
+            'message' => rbf_translate_string('Errore nel caricamento della disponibilità'),
+            'code' => 'availability_error'
+        ]);
+    }
+}
+
+/**
+ * AJAX handler for time slot availability
+ */
+add_action('wp_ajax_rbf_get_availability', 'rbf_ajax_get_availability');
+add_action('wp_ajax_nopriv_rbf_get_availability', 'rbf_ajax_get_availability');
+
+function rbf_ajax_get_availability() {
+    // Verify nonce
+    if (!isset($_POST['_ajax_nonce']) || !wp_verify_nonce($_POST['_ajax_nonce'], 'rbf_ajax_nonce')) {
+        wp_send_json_error([
+            'message' => rbf_translate_string('Controllo di sicurezza fallito'),
+            'code' => 'nonce_failed'
+        ]);
+        return;
+    }
+    
+    $date = sanitize_text_field($_POST['date'] ?? '');
+    $meal = sanitize_text_field($_POST['meal'] ?? '');
+    $people = absint($_POST['people'] ?? 2); // Accept people count for better accuracy
+    
+    if (empty($date) || empty($meal)) {
+        wp_send_json_error([
+            'message' => rbf_translate_string('Parametri mancanti'),
+            'code' => 'missing_params'
+        ]);
+        return;
+    }
+    
+    // Validate date format
+    $date_obj = DateTime::createFromFormat('Y-m-d', $date);
+    if (!$date_obj) {
+        wp_send_json_error([
+            'message' => rbf_translate_string('Formato data non valido'),
+            'code' => 'invalid_date_format'
+        ]);
+        return;
+    }
+    
+    // Check if date is not in the past
+    $today = new DateTime('now', rbf_wp_timezone());
+    $today->setTime(0, 0, 0);
+    
+    if ($date_obj < $today) {
+        wp_send_json_error([
+            'message' => rbf_translate_string('Non è possibile prenotare per date passate'),
+            'code' => 'date_in_past'
+        ]);
+        return;
+    }
+    
+    // Check for cache first
+    $cache_key = 'rbf_times_' . md5($date . $meal . $people);
+    $cached_data = get_transient($cache_key);
+    
+    if ($cached_data !== false) {
+        wp_send_json_success($cached_data);
+        return;
+    }
+    
+    try {
+        // Check if meal is available on this day
+        if (!rbf_is_meal_available_on_day($meal, $date)) {
+            wp_send_json_error([
+                'message' => rbf_translate_string('Servizio non disponibile per questa data'),
+                'code' => 'meal_not_available'
+            ]);
+            return;
+        }
+        
+        // Get available time slots for the date and meal
+        $available_times = rbf_get_available_time_slots($date, $meal, $people);
+        
+        if (empty($available_times)) {
+            $response_data = [
+                'available_times' => [],
+                'message' => rbf_translate_string('Nessun orario disponibile per questa data')
+            ];
+            
+            // Cache negative results for a shorter time (5 minutes)
+            set_transient($cache_key, $response_data, 5 * MINUTE_IN_SECONDS);
+            
+            wp_send_json_success($response_data);
+            return;
+        }
+        
+        // Format times for the frontend
+        $formatted_times = [];
+        $remaining_capacity = rbf_get_remaining_capacity($date, $meal);
+        
+        foreach ($available_times as $time_data) {
+            $time = $time_data['time'];
+            $display = $time_data['display'] ?? $time;
+            
+            $formatted_times[] = [
+                'time' => $display,
+                'slot' => $meal, // The meal/slot identifier
+                'remaining' => $remaining_capacity,
+                'value' => $time // Add raw time value for form submission
+            ];
+        }
+        
+        $response_data = [
+            'available_times' => $formatted_times,
+            'message' => '',
+            'total_capacity' => $remaining_capacity,
+            'requested_people' => $people
+        ];
+        
+        // Cache positive results for 5 minutes
+        set_transient($cache_key, $response_data, 5 * MINUTE_IN_SECONDS);
+        
+        wp_send_json_success($response_data);
+        
+    } catch (Exception $e) {
+        rbf_log('Time availability error: ' . $e->getMessage());
+        wp_send_json_error([
+            'message' => rbf_translate_string('Errore nel caricamento degli orari disponibili'),
+            'code' => 'time_availability_error'
+        ]);
+    }
+}
+
+/**
+ * Clear calendar cache when bookings are modified
+ */
+function rbf_clear_calendar_cache($date = null, $meal = null) {
+    global $wpdb;
+    
+    if ($date && $meal) {
+        // Clear specific cache entries
+        $cache_patterns = [
+            'rbf_cal_avail_' . md5($date . '%' . $meal),
+            'rbf_times_' . md5($date . $meal . '%'),
+            'rbf_avail_' . $date . '_' . $meal
+        ];
+        
+        foreach ($cache_patterns as $pattern) {
+            $wpdb->query($wpdb->prepare(
+                "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",
+                '_transient_' . str_replace('%', '%%', $pattern) . '%'
+            ));
+        }
+    } else {
+        // Clear all calendar-related caches
+        $wpdb->query(
+            "DELETE FROM {$wpdb->options} 
+             WHERE option_name LIKE '_transient_rbf_cal_avail_%' 
+             OR option_name LIKE '_transient_rbf_times_%'
+             OR option_name LIKE '_transient_rbf_avail_%'"
+        );
+    }
+}
+
+// Hook into booking creation/modification to clear cache
+add_action('rbf_booking_created', function($booking_id) {
+    $date = get_post_meta($booking_id, 'rbf_data', true);
+    $meal = get_post_meta($booking_id, 'rbf_meal', true);
+    if ($date && $meal) {
+        rbf_clear_calendar_cache($date, $meal);
+    }
+});
+
+add_action('rbf_booking_status_changed', function($booking_id, $new_status, $old_status) {
+    $date = get_post_meta($booking_id, 'rbf_data', true);
+    $meal = get_post_meta($booking_id, 'rbf_meal', true);
+    if ($date && $meal) {
+        rbf_clear_calendar_cache($date, $meal);
+    }
+}, 10, 3);
+
+/**
+ * AJAX handler to refresh calendar data (for real-time updates)
+ */
+add_action('wp_ajax_rbf_refresh_calendar', 'rbf_ajax_refresh_calendar');
+add_action('wp_ajax_nopriv_rbf_refresh_calendar', 'rbf_ajax_refresh_calendar');
+
+function rbf_ajax_refresh_calendar() {
+    // Verify nonce
+    if (!isset($_POST['_ajax_nonce']) || !wp_verify_nonce($_POST['_ajax_nonce'], 'rbf_ajax_nonce')) {
+        wp_send_json_error([
+            'message' => rbf_translate_string('Controllo di sicurezza fallito'),
+            'code' => 'nonce_failed'
+        ]);
+        return;
+    }
+    
+    $date = sanitize_text_field($_POST['date'] ?? '');
+    $meal = sanitize_text_field($_POST['meal'] ?? '');
+    
+    if (empty($date) || empty($meal)) {
+        wp_send_json_error([
+            'message' => rbf_translate_string('Parametri mancanti'),
+            'code' => 'missing_params'
+        ]);
+        return;
+    }
+    
+    try {
+        // Clear cache for this specific date/meal combination
+        rbf_clear_calendar_cache($date, $meal);
+        
+        // Get fresh availability data
+        $availability_status = rbf_get_availability_status($date, $meal);
+        $remaining_capacity = rbf_get_remaining_capacity($date, $meal);
+        
+        wp_send_json_success([
+            'availability' => $availability_status,
+            'remaining_capacity' => $remaining_capacity,
+            'date' => $date,
+            'meal' => $meal,
+            'refreshed_at' => current_time('c')
+        ]);
+        
+    } catch (Exception $e) {
+        rbf_log('Calendar refresh error: ' . $e->getMessage());
+        wp_send_json_error([
+            'message' => rbf_translate_string('Errore nell\'aggiornamento del calendario'),
+            'code' => 'refresh_error'
+        ]);
+    }
+}
