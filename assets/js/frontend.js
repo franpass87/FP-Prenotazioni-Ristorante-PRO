@@ -520,6 +520,13 @@ jQuery(function($) {
     rbfLog.log('Setting up enhanced HTML5 date input fallback...');
     
     try {
+      // Ensure the input has the correct id for accessibility
+      if (!el.dateInput.attr('id')) {
+        const originalId = el.dateInput.attr('data-original-id') || 'rbf-date';
+        el.dateInput.attr('id', originalId);
+        rbfLog.log('📋 Restored id attribute for accessibility: ' + originalId);
+      }
+      
       // Convert to HTML5 date input
       el.dateInput.attr('type', 'date');
       el.dateInput.removeAttr('readonly');
@@ -767,6 +774,20 @@ jQuery(function($) {
         onReady: function(selectedDates, dateStr, instance) {
           rbfLog.log('✅ Enhanced calendar initialized successfully');
           
+          // Fix accessibility issue: ensure the alternate input has the correct id
+          if (instance.altInput) {
+            // Transfer the id from the original input to the alternate input
+            const originalId = instance.input.id;
+            if (originalId) {
+              instance.altInput.id = originalId;
+              // Remove id from original input to avoid duplicates
+              instance.input.removeAttribute('id');
+              // Set a data attribute on the original for reference
+              instance.input.setAttribute('data-original-id', originalId);
+              rbfLog.log('📋 Fixed accessibility: transferred id to alternate input');
+            }
+          }
+          
           // Debug rbfData structure for troubleshooting
           if (rbfData.debug || (typeof WP_DEBUG !== 'undefined' && WP_DEBUG)) {
             rbfLog.log('📊 rbfData structure:', {
@@ -849,6 +870,15 @@ jQuery(function($) {
       // Clean up any existing calendar instance
       if (fp) {
         try {
+          // Restore the id to the original input before destroying
+          if (fp.altInput && fp.input) {
+            const originalId = fp.input.getAttribute('data-original-id');
+            if (originalId) {
+              fp.input.id = originalId;
+              fp.altInput.removeAttribute('id');
+              rbfLog.log('📋 Restored id to original input before cleanup');
+            }
+          }
           fp.destroy();
         } catch (error) {
           rbfLog.warn('Error destroying previous calendar instance');
@@ -1588,6 +1618,19 @@ jQuery(function($) {
       hideStep(el.dateStep);
       if (fp) {
         fp.clear();
+        // Restore the id to the original input before destroying
+        try {
+          if (fp.altInput && fp.input) {
+            const originalId = fp.input.getAttribute('data-original-id');
+            if (originalId) {
+              fp.input.id = originalId;
+              fp.altInput.removeAttribute('id');
+              rbfLog.log('📋 Restored id to original input in resetSteps');
+            }
+          }
+        } catch (error) {
+          rbfLog.warn('Error restoring id in resetSteps: ' + error.message);
+        }
         fp.destroy();
         fp = null;
         datePickerInitPromise = null;
@@ -1690,6 +1733,19 @@ jQuery(function($) {
     try {
       // Destroy existing instance
       if (fp) {
+        // Restore the id to the original input before destroying
+        try {
+          if (fp.altInput && fp.input) {
+            const originalId = fp.input.getAttribute('data-original-id');
+            if (originalId) {
+              fp.input.id = originalId;
+              fp.altInput.removeAttribute('id');
+              rbfLog.log('📋 Restored id to original input in reinitializeCalendar');
+            }
+          }
+        } catch (error) {
+          rbfLog.warn('Error restoring id in reinitializeCalendar: ' + error.message);
+        }
         fp.destroy();
         fp = null;
       }
