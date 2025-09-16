@@ -18,7 +18,8 @@ jQuery(function($) {
       }
     },
     log: function(message) {
-      if (window.console && window.console.log && (window.rbfDebug || false)) {
+      // Only log in debug mode or when explicitly enabled
+      if (window.console && window.console.log && (window.rbfDebug || (rbfData && rbfData.debug))) {
         console.log('RBF: ' + message);
       }
     }
@@ -29,6 +30,9 @@ jQuery(function($) {
     rbfLog.error('Essential data not loaded - booking form cannot function');
     return;
   }
+
+  // Set debug mode based on configuration
+  const isDebugMode = (rbfData && rbfData.debug) || window.rbfDebug || false;
 
   const form = $('#rbf-form');
   if (!form.length) return;
@@ -730,7 +734,7 @@ jQuery(function($) {
     const useEmergencyMode = window.rbfForceEmergencyMode || false;
     
     if (useEmergencyMode) {
-      console.log('RBF: Using emergency mode - minimal restrictions');
+      rbfLog.log('Using emergency mode - minimal restrictions');
       initializeEmergencyCalendar();
       return;
     }
@@ -757,22 +761,22 @@ jQuery(function($) {
           try {
             // EMERGENCY: If rbfData is not available, allow all dates
             if (!rbfData || typeof rbfData !== 'object') {
-              console.warn('RBF EMERGENCY: rbfData not available, allowing all dates');
+              rbfLog.warn('rbfData not available, allowing all dates');
               return false;
             }
 
             const result = isDateDisabled(date);
             
-            // DEBUG: Log decisions for troubleshooting
-            if (rbfData.debug && window.rbfDebugCount < 5) {
-              console.log(`RBF DEBUG: Date ${formatLocalISO(date)} -> ${result ? 'DISABLED' : 'ENABLED'}`);
+            // DEBUG: Log decisions for troubleshooting (only first few)
+            if (rbfData.debug && (window.rbfDebugCount || 0) < 3) {
+              rbfLog.log(`Date ${formatLocalISO(date)} -> ${result ? 'DISABLED' : 'ENABLED'}`);
               window.rbfDebugCount = (window.rbfDebugCount || 0) + 1;
             }
             
             return result;
             
           } catch (error) {
-            console.error('RBF EMERGENCY: Calendar disable function error:', error);
+            rbfLog.error('Calendar disable function error: ' + error.message);
             // EMERGENCY: On any error, ALWAYS allow the date to prevent all dates being disabled
             return false;
           }
@@ -915,7 +919,6 @@ jQuery(function($) {
       
     } catch (error) {
       rbfLog.error(`Failed to create calendar: ${error.message}`);
-      console.error('Calendar creation error details:', error);
       
       // Clear the failed instance
       fp = null;
@@ -933,7 +936,7 @@ jQuery(function($) {
    * Used when the main calendar fails
    */
   function initializeEmergencyCalendar() {
-    console.log('RBF EMERGENCY: Initializing emergency calendar with minimal restrictions');
+    rbfLog.log('Initializing emergency calendar with minimal restrictions');
     
     const emergencyConfig = {
       altInput: true,
@@ -950,7 +953,7 @@ jQuery(function($) {
       onChange: onDateChange,
       
       onReady: function(selectedDates, dateStr, instance) {
-        console.log('✅ EMERGENCY calendar initialized - all dates should be available');
+        rbfLog.log('Emergency calendar initialized - all dates should be available');
         
         setTimeout(() => {
           forceCalendarInteractivity(instance);
@@ -972,14 +975,14 @@ jQuery(function($) {
       fp = flatpickr(el.dateInput[0], emergencyConfig);
       
       if (fp) {
-        console.log('✅ EMERGENCY Flatpickr instance created successfully');
+        rbfLog.log('Emergency Flatpickr instance created successfully');
         window.rbfCalendarInstance = fp;
       } else {
         throw new Error('Emergency flatpickr instance creation failed');
       }
       
     } catch (error) {
-      console.error('RBF EMERGENCY: Even emergency calendar failed:', error);
+      rbfLog.error('Emergency calendar failed: ' + error.message);
       // Fallback to HTML5 date input
       setupFallbackDateInput();
     }
@@ -994,16 +997,15 @@ jQuery(function($) {
       const dateStr = formatLocalISO(date);
       const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
       
-      // EMERGENCY: Log first few checks in detail
-      if (window.rbfDetailedDebugCount === undefined) {
+      // DEBUG: Log first few checks in detail (only in debug mode)
+      if (rbfData.debug && window.rbfDetailedDebugCount === undefined) {
         window.rbfDetailedDebugCount = 0;
       }
-      if (window.rbfDetailedDebugCount < 5) {
-        console.log(`RBF DETAILED DEBUG ${window.rbfDetailedDebugCount}:`);
-        console.log(`  Date: ${dateStr}, Day: ${dayOfWeek}`);
-        console.log(`  rbfData.closedDays:`, rbfData.closedDays);
-        console.log(`  rbfData.closedSingles:`, rbfData.closedSingles);
-        console.log(`  rbfData.mealAvailability:`, rbfData.mealAvailability);
+      if (rbfData.debug && window.rbfDetailedDebugCount < 3) {
+        rbfLog.log(`DETAILED DEBUG ${window.rbfDetailedDebugCount}:`);
+        rbfLog.log(`  Date: ${dateStr}, Day: ${dayOfWeek}`);
+        rbfLog.log(`  rbfData.closedDays: ${JSON.stringify(rbfData.closedDays)}`);
+        rbfLog.log(`  rbfData.closedSingles: ${JSON.stringify(rbfData.closedSingles)}`);
         window.rbfDetailedDebugCount++;
       }
       
@@ -1020,7 +1022,7 @@ jQuery(function($) {
       if (rbfData.closedDays && Array.isArray(rbfData.closedDays) && rbfData.closedDays.length > 0) {
         if (rbfData.closedDays.includes(dayOfWeek)) {
           window.rbfDisabledCount++;
-          console.log(`Date ${dateStr} disabled: restaurant closed on day ${dayOfWeek}`);
+          if (rbfData.debug) rbfLog.log(`Date ${dateStr} disabled: restaurant closed on day ${dayOfWeek}`);
           return true;
         }
       }
@@ -1029,7 +1031,7 @@ jQuery(function($) {
       if (rbfData.closedSingles && Array.isArray(rbfData.closedSingles) && rbfData.closedSingles.length > 0) {
         if (rbfData.closedSingles.includes(dateStr)) {
           window.rbfDisabledCount++;
-          console.log(`Date ${dateStr} disabled: specific closure date`);
+          if (rbfData.debug) rbfLog.log(`Date ${dateStr} disabled: specific closure date`);
           return true;
         }
       }
@@ -1040,7 +1042,7 @@ jQuery(function($) {
           if (range && range.from && range.to) {
             if (dateStr >= range.from && dateStr <= range.to) {
               window.rbfDisabledCount++;
-              console.log(`Date ${dateStr} disabled: within closed range ${range.from} to ${range.to}`);
+              if (rbfData.debug) rbfLog.log(`Date ${dateStr} disabled: within closed range ${range.from} to ${range.to}`);
               return true;
             }
           }
@@ -1049,13 +1051,13 @@ jQuery(function($) {
       
       // EMERGENCY CHECK: If too many dates are being disabled, switch to emergency mode
       if (window.rbfTotalCount > 20 && (window.rbfDisabledCount / window.rbfTotalCount) > 0.8) {
-        console.error('RBF EMERGENCY: Too many dates disabled, switching to emergency mode');
+        rbfLog.error('Too many dates disabled, switching to emergency mode');
         window.rbfEmergencyMode = true;
       }
       
       // EMERGENCY MODE: Allow all dates if we're in emergency mode
       if (window.rbfEmergencyMode) {
-        console.log(`Date ${dateStr} allowed: EMERGENCY MODE ACTIVE`);
+        if (rbfData.debug) rbfLog.log(`Date ${dateStr} allowed: EMERGENCY MODE ACTIVE`);
         return false;
       }
       
@@ -1065,7 +1067,7 @@ jQuery(function($) {
           if (exception && exception.date === dateStr) {
             if (exception.type === 'closure' || exception.type === 'holiday') {
               window.rbfDisabledCount++;
-              console.log(`Date ${dateStr} disabled: ${exception.type} exception`);
+              if (rbfData.debug) rbfLog.log(`Date ${dateStr} disabled: ${exception.type} exception`);
               return true;
             }
           }
@@ -1076,17 +1078,11 @@ jQuery(function($) {
       // TODO: Re-enable once core calendar is working
       
       // DEFAULT: Allow the date
-      console.log(`Date ${dateStr} allowed: no restrictions apply`);
+      if (rbfData.debug) rbfLog.log(`Date ${dateStr} allowed: no restrictions apply`);
       return false;
       
     } catch (error) {
-      console.error('RBF EMERGENCY: Error in isDateDisabled:', error);
-      console.error('RBF EMERGENCY: Error details:', {
-        date: date,
-        dateStr: formatLocalISO(date),
-        error: error.message,
-        stack: error.stack
-      });
+      rbfLog.error('Error in isDateDisabled: ' + error.message);
       // EMERGENCY: Always allow date on error
       return false;
     }
@@ -3364,8 +3360,8 @@ jQuery(function($) {
     }
   };
 
-  // Add a console helper for users
-  if (rbfData.debug || (typeof WP_DEBUG !== 'undefined' && WP_DEBUG)) {
+  // Add a console helper for users (only in debug mode)
+  if (isDebugMode || (typeof WP_DEBUG !== 'undefined' && WP_DEBUG)) {
     console.log('🎯 RBF Calendar Debug Tools Available:');
     console.log('  - rbfCalendar.refresh() - Refresh the calendar');
     console.log('  - rbfCalendar.reinitialize() - Completely reinitialize the calendar');  
@@ -3381,9 +3377,9 @@ jQuery(function($) {
     console.log('  - rbfCalendar.disableAllRestrictions() - Remove ALL restrictions');
   }
   
-  // ALWAYS show emergency commands if calendar seems broken
+  // ONLY show emergency commands if calendar seems broken and debug is enabled
   setTimeout(() => {
-    if (window.rbfEmergencyMode || (window.rbfDisabledCount > 10 && window.rbfTotalCount > 0)) {
+    if (isDebugMode && (window.rbfEmergencyMode || (window.rbfDisabledCount > 10 && window.rbfTotalCount > 0))) {
       console.log('');
       console.log('🚨 RBF EMERGENCY: Calendar dates may be disabled. Try these commands:');
       console.log('  rbfCalendar.emergencyFix() - Apply all fixes at once');
