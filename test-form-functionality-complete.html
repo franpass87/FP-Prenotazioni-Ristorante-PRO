@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧪 Test Completo Funzionalità Form - FP Prenotazioni</title>
+    
+    <!-- Flatpickr CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    
+    <!-- intl-tel-input CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/19.2.16/css/intlTelInput.css">
+    
+    <!-- Frontend CSS -->
+    <link rel="stylesheet" href="assets/css/frontend.css">
+    
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: #f5f7fa; 
+        }
+        .demo-container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+        }
+        .test-section {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .status-banner {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+        }
+        .status-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .status-warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+        .status-error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .test-results {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        .test-result {
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .test-result:last-child {
+            border-bottom: none;
+        }
+        .test-pass { color: #28a745; }
+        .test-fail { color: #dc3545; }
+        .test-button {
+            background: var(--rbf-primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        .test-button:hover {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <h1>🧪 Test Completo Funzionalità Form</h1>
+        
+        <div id="test-status" class="status-banner status-warning">
+            ⏳ Inizializzazione test in corso...
+        </div>
+        
+        <div class="test-section">
+            <h2>🔧 Test Automatici</h2>
+            <button class="test-button" onclick="runAllTests()">Esegui Tutti i Test</button>
+            <button class="test-button" onclick="runFormValidationTests()">Test Validazione Form</button>
+            <button class="test-button" onclick="runDependencyTests()">Test Dipendenze</button>
+            <button class="test-button" onclick="runAccessibilityTests()">Test Accessibilità</button>
+            
+            <div id="test-results" class="test-results" style="display: none;">
+                <h3>📊 Risultati Test</h3>
+                <div id="test-output"></div>
+            </div>
+        </div>
+
+        <div class="rbf-form-container">
+            <div id="rbf-message-anchor"></div>
+            
+            <form id="rbf-form" class="rbf-form" method="post" action="#" role="form" aria-label="Modulo di prenotazione ristorante">
+                <h2 style="text-align: center; color: var(--rbf-primary); margin-bottom: 2rem;">
+                    🍽️ Prenota il tuo tavolo
+                </h2>
+                
+                <!-- Progress Indicator -->
+                <div class="rbf-progress-indicator" role="progressbar" aria-valuenow="1" aria-valuemin="1" aria-valuemax="5" aria-label="Progresso prenotazione">
+                    <div class="rbf-progress-step active" data-step="1">1</div>
+                    <div class="rbf-progress-step" data-step="2">2</div>
+                    <div class="rbf-progress-step" data-step="3">3</div>
+                    <div class="rbf-progress-step" data-step="4">4</div>
+                    <div class="rbf-progress-step" data-step="5">5</div>
+                </div>
+
+                <!-- Step 1: Meal Selection -->
+                <div id="step-meal" class="rbf-step active" role="group" aria-labelledby="meal-label">
+                    <div class="rbf-field-wrapper">
+                        <label id="meal-label">Scegli il pasto <span class="rbf-required-indicator">*</span></label>
+                        <div class="rbf-radio-group" role="radiogroup" aria-labelledby="meal-label" aria-required="true">
+                            <input type="radio" name="rbf_meal" value="brunch" id="rbf_meal_brunch" required>
+                            <label for="rbf_meal_brunch">Brunch</label>
+                            <input type="radio" name="rbf_meal" value="pranzo" id="rbf_meal_pranzo">
+                            <label for="rbf_meal_pranzo">Pranzo</label>
+                            <input type="radio" name="rbf_meal" value="aperitivo_cena" id="rbf_meal_aperitivo_cena">
+                            <label for="rbf_meal_aperitivo_cena">Aperitivo e Cena</label>
+                        </div>
+                        <div id="rbf-meal-error" class="rbf-field-error"></div>
+                        <p id="rbf-meal-notice" style="display:none;" role="status" aria-live="polite"></p>
+                    </div>
+                </div>
+
+                <!-- Step 2: Date Selection -->
+                <div id="step-date" class="rbf-step" style="display:none;" role="group" aria-labelledby="date-label">
+                    <div class="rbf-field-wrapper">
+                        <label id="date-label" for="rbf-date">Data <span class="rbf-required-indicator">*</span></label>
+                        <input id="rbf-date" name="rbf_data" readonly="readonly" required aria-describedby="date-help" 
+                               role="combobox" aria-expanded="false" aria-haspopup="grid" 
+                               aria-label="Seleziona data prenotazione" placeholder="Clicca per selezionare una data">
+                        <div id="rbf-date-error" class="rbf-field-error"></div>
+                        <small id="date-help" class="rbf-help-text">Seleziona una data dal calendario</small>
+                    </div>
+                </div>
+
+                <!-- Step 3: Time Selection -->
+                <div id="step-time" class="rbf-step" style="display:none;" role="group" aria-labelledby="time-label">
+                    <div class="rbf-field-wrapper">
+                        <label id="time-label" for="rbf-time">Orario <span class="rbf-required-indicator">*</span></label>
+                        <select id="rbf-time" name="rbf_orario" required disabled aria-describedby="time-help">
+                            <option value="">Prima scegli la data</option>
+                        </select>
+                        <div id="rbf-time-error" class="rbf-field-error"></div>
+                        <small id="time-help" class="rbf-help-text">Seleziona un orario disponibile</small>
+                    </div>
+                </div>
+
+                <!-- Step 4: People Selector -->
+                <div id="step-people" class="rbf-step" style="display:none;" role="group" aria-labelledby="people-label">
+                    <div class="rbf-field-wrapper">
+                        <label id="people-label">Numero di persone <span class="rbf-required-indicator">*</span></label>
+                        <div class="rbf-people-selector" role="group" aria-labelledby="people-label">
+                            <button type="button" id="rbf-people-minus" class="rbf-people-btn" aria-label="Riduci numero persone">-</button>
+                            <input type="number" id="rbf-people" name="rbf_persone" value="2" min="1" max="20" readonly 
+                                   aria-label="Numero di persone" aria-describedby="people-help">
+                            <button type="button" id="rbf-people-plus" class="rbf-people-btn" aria-label="Aumenta numero persone">+</button>
+                        </div>
+                        <div id="rbf-people-error" class="rbf-field-error"></div>
+                        <small id="people-help" class="rbf-help-text">Usa i pulsanti + e - per modificare</small>
+                    </div>
+                </div>
+
+                <!-- Step 5: Contact Details -->
+                <div id="step-details" class="rbf-step" style="display:none;" role="group" aria-labelledby="details-label">
+                    <h3 id="details-label">Dati personali</h3>
+                    
+                    <div class="rbf-field-wrapper">
+                        <label for="rbf-nome">Nome <span class="rbf-required-indicator">*</span></label>
+                        <input type="text" id="rbf-nome" name="rbf_nome" placeholder="Il tuo nome" required aria-describedby="nome-help">
+                        <div id="rbf-nome-error" class="rbf-field-error"></div>
+                        <small id="nome-help" class="rbf-help-text">Inserisci il tuo nome</small>
+                    </div>
+                    
+                    <div class="rbf-field-wrapper">
+                        <label for="rbf-cognome">Cognome <span class="rbf-required-indicator">*</span></label>
+                        <input type="text" id="rbf-cognome" name="rbf_cognome" placeholder="Il tuo cognome" required aria-describedby="cognome-help">
+                        <div id="rbf-cognome-error" class="rbf-field-error"></div>
+                        <small id="cognome-help" class="rbf-help-text">Inserisci il tuo cognome</small>
+                    </div>
+                    
+                    <div class="rbf-field-wrapper">
+                        <label for="rbf-email">Email <span class="rbf-required-indicator">*</span></label>
+                        <input type="email" id="rbf-email" name="rbf_email" placeholder="la-tua-email@esempio.com" required aria-describedby="email-help">
+                        <div id="rbf-email-error" class="rbf-field-error"></div>
+                        <small id="email-help" class="rbf-help-text">Inserisci una email valida</small>
+                    </div>
+                    
+                    <div class="rbf-field-wrapper">
+                        <label for="rbf-tel">Telefono <span class="rbf-required-indicator">*</span></label>
+                        <input type="tel" id="rbf-tel" name="rbf_telefono" placeholder="Il tuo numero di telefono" required aria-describedby="tel-help">
+                        <div id="rbf-tel-error" class="rbf-field-error"></div>
+                        <small id="tel-help" class="rbf-help-text">Inserisci il tuo numero di telefono</small>
+                    </div>
+                    
+                    <div class="rbf-field-wrapper">
+                        <label for="rbf-note">Note (opzionale)</label>
+                        <textarea id="rbf-note" name="rbf_note" placeholder="Eventuali richieste speciali..." rows="3" aria-describedby="note-help"></textarea>
+                        <small id="note-help" class="rbf-help-text">Aggiungi eventuali richieste speciali (opzionale)</small>
+                    </div>
+                </div>
+
+                <!-- Privacy Consent -->
+                <div class="rbf-checkbox-group">
+                    <label for="rbf-privacy">
+                        <input type="checkbox" id="rbf-privacy" name="rbf_privacy" required>
+                        <span>Accetto la <a href="#" target="_blank">Privacy Policy</a> <span class="rbf-required-indicator">*</span></span>
+                    </label>
+                </div>
+
+                <!-- Marketing Consent (optional) -->
+                <div class="rbf-checkbox-group">
+                    <label for="rbf-marketing">
+                        <input type="checkbox" id="rbf-marketing" name="rbf_marketing">
+                        <span>Accetto di ricevere comunicazioni promozionali (opzionale)</span>
+                    </label>
+                </div>
+
+                <!-- Submit Button -->
+                <button id="rbf-submit" type="submit" class="rbf-submit-btn" disabled>
+                    Conferma Prenotazione
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    
+    <!-- Flatpickr -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/it.js"></script>
+    
+    <!-- intl-tel-input -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/19.2.16/js/intlTelInput.min.js"></script>
+    <script src="assets/js/vendor/intl-tel-input-utils.js"></script>
+
+    <script>
+        // Mock rbfData object for testing
+        window.rbfData = {
+            ajaxUrl: '#',
+            nonce: 'test_nonce',
+            maxAdvanceMinutes: 7200,
+            closedDays: [0], // Sunday closed
+            closedSpecific: [],
+            mealTooltips: {
+                brunch: 'Dalle 10:00 alle 12:00',
+                pranzo: 'Dalle 12:00 alle 15:00',
+                aperitivo_cena: 'Dalle 18:00 alle 23:00'
+            },
+            mealAvailability: {
+                brunch: {mon: true, tue: true, wed: true, thu: true, fri: true, sat: true, sun: false},
+                pranzo: {mon: true, tue: true, wed: true, thu: true, fri: true, sat: true, sun: false},
+                aperitivo_cena: {mon: true, tue: true, wed: true, thu: true, fri: true, sat: true, sun: false}
+            },
+            locale: 'it',
+            translations: {
+                'Seleziona una data': 'Seleziona una data',
+                'Scegli un orario': 'Scegli un orario',
+                'Non ci sono orari disponibili per questa data': 'Non ci sono orari disponibili per questa data'
+            }
+        };
+
+        // Test functions
+        const testResults = [];
+        let testsRunning = false;
+
+        function updateTestStatus(message, type = 'warning') {
+            const statusElement = document.getElementById('test-status');
+            statusElement.className = `status-banner status-${type}`;
+            statusElement.innerHTML = message;
+        }
+
+        function addTestResult(test, passed, message = '') {
+            testResults.push({
+                test: test,
+                passed: passed,
+                message: message
+            });
+        }
+
+        function displayTestResults() {
+            const resultsContainer = document.getElementById('test-results');
+            const outputContainer = document.getElementById('test-output');
+            
+            let passedTests = testResults.filter(r => r.passed).length;
+            let totalTests = testResults.length;
+            let successRate = totalTests > 0 ? Math.round((passedTests / totalTests) * 100) : 0;
+            
+            let output = `<div class="test-result"><strong>Risultati: ${passedTests}/${totalTests} test passati (${successRate}%)</strong></div>`;
+            
+            testResults.forEach(result => {
+                const statusClass = result.passed ? 'test-pass' : 'test-fail';
+                const statusIcon = result.passed ? '✅' : '❌';
+                output += `<div class="test-result ${statusClass}">${statusIcon} ${result.test}${result.message ? ': ' + result.message : ''}</div>`;
+            });
+            
+            outputContainer.innerHTML = output;
+            resultsContainer.style.display = 'block';
+            
+            if (successRate >= 80) {
+                updateTestStatus(`✅ Test completati con successo (${successRate}% di successo)`, 'success');
+            } else if (successRate >= 50) {
+                updateTestStatus(`⚠️ Test completati con problemi minori (${successRate}% di successo)`, 'warning');
+            } else {
+                updateTestStatus(`❌ Test completati con problemi critici (${successRate}% di successo)`, 'error');
+            }
+        }
+
+        function runDependencyTests() {
+            if (testsRunning) return;
+            testsRunning = true;
+            testResults.length = 0;
+            
+            updateTestStatus('⏳ Eseguendo test dipendenze...', 'warning');
+            
+            // Test jQuery
+            addTestResult('jQuery disponibile', typeof $ !== 'undefined' && typeof jQuery !== 'undefined');
+            
+            // Test Flatpickr
+            addTestResult('Flatpickr disponibile', typeof flatpickr !== 'undefined');
+            
+            // Test intl-tel-input
+            addTestResult('intl-tel-input disponibile', typeof intlTelInput !== 'undefined');
+            
+            // Test rbfData
+            addTestResult('rbfData configurato', typeof rbfData !== 'undefined' && rbfData.ajaxUrl);
+            
+            displayTestResults();
+            testsRunning = false;
+        }
+
+        function runFormValidationTests() {
+            if (testsRunning) return;
+            testsRunning = true;
+            
+            updateTestStatus('⏳ Eseguendo test validazione form...', 'warning');
+            
+            // Test form elements exist
+            addTestResult('Form principale presente', document.getElementById('rbf-form') !== null);
+            addTestResult('Radio buttons pasto presenti', document.querySelectorAll('input[name="rbf_meal"]').length > 0);
+            addTestResult('Campo data presente', document.getElementById('rbf-date') !== null);
+            addTestResult('Campo orario presente', document.getElementById('rbf-time') !== null);
+            addTestResult('Selettore persone presente', document.getElementById('rbf-people') !== null);
+            addTestResult('Campi contatto presenti', 
+                document.getElementById('rbf-nome') && 
+                document.getElementById('rbf-email') && 
+                document.getElementById('rbf-tel'));
+            addTestResult('Checkbox privacy presente', document.getElementById('rbf-privacy') !== null);
+            addTestResult('Pulsante submit presente', document.getElementById('rbf-submit') !== null);
+            
+            displayTestResults();
+            testsRunning = false;
+        }
+
+        function runAccessibilityTests() {
+            if (testsRunning) return;
+            testsRunning = true;
+            
+            updateTestStatus('⏳ Eseguendo test accessibilità...', 'warning');
+            
+            // Test ARIA labels
+            addTestResult('Form ha aria-label', document.getElementById('rbf-form').hasAttribute('aria-label'));
+            addTestResult('Progress indicator ha role progressbar', 
+                document.querySelector('.rbf-progress-indicator').getAttribute('role') === 'progressbar');
+            addTestResult('Radio group ha role radiogroup', 
+                document.querySelector('.rbf-radio-group').getAttribute('role') === 'radiogroup');
+            addTestResult('Campi required hanno aria-required o required', 
+                document.querySelectorAll('input[required], input[aria-required="true"]').length > 0);
+            
+            // Test labels
+            const inputs = document.querySelectorAll('input, select, textarea');
+            let allInputsHaveLabels = true;
+            inputs.forEach(input => {
+                if (input.type !== 'hidden' && input.type !== 'submit') {
+                    const hasLabel = document.querySelector(`label[for="${input.id}"]`) !== null;
+                    if (!hasLabel) allInputsHaveLabels = false;
+                }
+            });
+            addTestResult('Tutti i campi hanno label associate', allInputsHaveLabels);
+            
+            displayTestResults();
+            testsRunning = false;
+        }
+
+        function runAllTests() {
+            if (testsRunning) return;
+            
+            testResults.length = 0;
+            updateTestStatus('⏳ Eseguendo tutti i test...', 'warning');
+            
+            // Run all test categories
+            setTimeout(() => {
+                runDependencyTests();
+                setTimeout(() => {
+                    runFormValidationTests();
+                    setTimeout(() => {
+                        runAccessibilityTests();
+                    }, 100);
+                }, 100);
+            }, 100);
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            updateTestStatus('✅ Pagina inizializzata - Pronto per i test', 'success');
+            
+            // Auto-run dependency tests on load
+            setTimeout(runDependencyTests, 500);
+        });
+    </script>
+
+    <!-- Load frontend.js if available -->
+    <script src="assets/js/frontend.js" onerror="console.warn('Frontend.js not loaded - using fallback functionality')"></script>
+    
+    <script>
+        // Fallback functionality if frontend.js doesn't load
+        $(document).ready(function() {
+            // People selector fallback
+            $('#rbf-people-minus').on('click', function() {
+                const input = $('#rbf-people');
+                const current = parseInt(input.val());
+                if (current > 1) {
+                    input.val(current - 1);
+                    if (current - 1 === 1) {
+                        $(this).prop('disabled', true);
+                    }
+                }
+            });
+
+            $('#rbf-people-plus').on('click', function() {
+                const input = $('#rbf-people');
+                const current = parseInt(input.val());
+                if (current < 20) {
+                    input.val(current + 1);
+                    $('#rbf-people-minus').prop('disabled', false);
+                }
+            });
+
+            // Meal selection change
+            $('input[name="rbf_meal"]').on('change', function() {
+                console.log('Pasto selezionato:', this.value);
+            });
+
+            // Form submission
+            $('#rbf-form').on('submit', function(e) {
+                e.preventDefault();
+                alert('Demo: Prenotazione simulata con successo!\n\nDati raccolti:\n' + 
+                      'Pasto: ' + $('input[name="rbf_meal"]:checked').val() + '\n' +
+                      'Data: ' + $('#rbf-date').val() + '\n' +
+                      'Orario: ' + $('#rbf-time').val() + '\n' +
+                      'Persone: ' + $('#rbf-people').val() + '\n' +
+                      'Nome: ' + $('#rbf-nome').val() + '\n' +
+                      'Email: ' + $('#rbf-email').val());
+            });
+
+            // Initialize Flatpickr if available
+            if (typeof flatpickr !== 'undefined') {
+                flatpickr('#rbf-date', {
+                    locale: 'it',
+                    dateFormat: 'Y-m-d',
+                    minDate: 'today',
+                    disable: [
+                        function(date) {
+                            // Disable Sundays (day 0)
+                            return (date.getDay() === 0);
+                        }
+                    ],
+                    onChange: function(selectedDates, dateStr) {
+                        if (dateStr) {
+                            // Mock time slots
+                            const timeSelect = $('#rbf-time');
+                            timeSelect.prop('disabled', false);
+                            timeSelect.html(`
+                                <option value="">Scegli un orario...</option>
+                                <option value="11:00">11:00</option>
+                                <option value="11:30">11:30</option>
+                                <option value="12:00">12:00</option>
+                                <option value="12:30">12:30</option>
+                                <option value="13:00">13:00</option>
+                                <option value="19:00">19:00</option>
+                                <option value="19:30">19:30</option>
+                                <option value="20:00">20:00</option>
+                            `);
+                        }
+                    }
+                });
+            }
+
+            // Initialize intl-tel-input if available
+            if (typeof intlTelInput !== 'undefined') {
+                const telInput = document.querySelector('#rbf-tel');
+                if (telInput) {
+                    intlTelInput(telInput, {
+                        initialCountry: 'it',
+                        preferredCountries: ['it', 'fr', 'de', 'es'],
+                        utilsScript: 'assets/js/vendor/intl-tel-input-utils.js'
+                    });
+                }
+            }
+        });
+    </script>
+</body>
+</html>
