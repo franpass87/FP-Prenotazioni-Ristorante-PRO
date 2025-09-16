@@ -1966,22 +1966,40 @@ function initializeBookingForm($) {
       return; 
     }
     
+    // Enhanced validation: Check if a meal is selected first
+    const selectedMeal = el.mealRadios.filter(':checked').val();
+    if (!selectedMeal) {
+      // Show helpful message and prevent date selection
+      el.mealNotice.show().text('Seleziona prima un pasto per vedere gli orari disponibili.');
+      announceToScreenReader('Seleziona prima un pasto per continuare.');
+      
+      // Reset the date selection visually but allow the user to see the message
+      if (fp && fp.clear) {
+        setTimeout(() => {
+          fp.clear();
+        }, 100);
+      }
+      return;
+    }
+    
     resetSteps(2);
     
     // Remove any existing suggestions when date changes
     $('.rbf-suggestions-container').remove();
     
     const date = selectedDates[0];
-    const selectedMeal = el.mealRadios.filter(':checked').val();
-    
     const dateString = formatLocalISO(date);
     showStepWithoutScroll(el.timeStep, 3);
     
-    // Show loading state for time selection
-    showComponentLoading(el.timeStep[0], rbfData.labels.loading + ' orari...');
+    // Enhanced loading state for time selection with progress indication
+    showComponentLoading(el.timeStep[0], rbfData.labels.loading + ' orari disponibili...');
     
     el.timeSelect.html(`<option value="">${rbfData.labels.loading}</option>`).prop('disabled', true);
     el.timeSelect.addClass('rbf-loading');
+    
+    // Add visual progress indicator to time select
+    const progressText = '⏳ Caricamento orari in corso...';
+    el.timeSelect.find('option').first().text(progressText);
 
     // Get available times via AJAX
     $.post(rbfData.ajaxUrl, {
@@ -2030,7 +2048,19 @@ function initializeBookingForm($) {
 
           if (availableCount > 0) {
             el.timeSelect.prop('disabled', false);
-            announceToScreenReader(`${availableCount} orari disponibili caricati`);
+            
+            // Enhanced success feedback
+            const successMessage = `✅ ${availableCount} orari disponibili caricati per ${selectedMeal}`;
+            announceToScreenReader(successMessage);
+            
+            // Show brief success indication (optional visual feedback)
+            if (rbfData.debug) {
+              console.log('RBF: Time slots loaded successfully', {
+                meal: selectedMeal,
+                date: dateString,
+                count: availableCount
+              });
+            }
           } else {
             el.timeSelect.html('');
             el.timeSelect.append(new Option(rbfData.labels.noTime, ''));
@@ -2093,10 +2123,43 @@ function initializeBookingForm($) {
       // Handle AJAX errors
       el.timeSelect.removeClass('rbf-loading');
       el.timeSelect.html('');
+      
+      // Enhanced error handling with specific messages
+      let errorMessage = 'Errore nel caricamento degli orari. Riprova.';
+      
+      if (xhr.responseJSON && xhr.responseJSON.data) {
+        const errorData = xhr.responseJSON.data;
+        switch (errorData.code) {
+          case 'meal_not_configured':
+            errorMessage = 'Il servizio selezionato non è configurato. Contatta il ristorante.';
+            break;
+          case 'date_in_past':
+            errorMessage = 'Non è possibile prenotare per date passate.';
+            break;
+          case 'missing_params':
+            errorMessage = 'Parametri mancanti. Riprova selezionando data e pasto.';
+            break;
+          case 'meal_not_available':
+            errorMessage = 'Il servizio non è disponibile per questa data.';
+            break;
+          default:
+            errorMessage = errorData.message || errorMessage;
+        }
+      }
+      
       el.timeSelect.append(new Option(rbfData.labels.noTime, ''));
       
       // Show user-friendly error message
-      announceToScreenReader('Errore nel caricamento degli orari. Riprova.');
+      announceToScreenReader(errorMessage);
+      
+      // Log error for debugging (only if debug mode is enabled)
+      if (rbfData.debug) {
+        console.error('RBF Time Loading Error:', {
+          status: status,
+          error: error,
+          response: xhr.responseJSON
+        });
+      }
     });
   }
 
