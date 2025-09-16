@@ -1,9 +1,68 @@
 /**
  * Frontend JavaScript for Restaurant Booking Plugin
+ * Enhanced with resource loading monitoring and jQuery dependency handling
  */
 
-jQuery(function($) {
+// Enhanced jQuery wrapper with fallback and resource monitoring
+(function(window, document) {
   'use strict';
+
+  // Resource loading monitoring
+  function monitorResourceLoading() {
+    if (window.rbfResourceErrors && window.rbfResourceErrors.length > 0) {
+      console.warn('RBF: Detected resource loading errors:', window.rbfResourceErrors);
+      
+      // Check for critical missing resources
+      const missingFlatpickr = window.rbfResourceErrors.some(err => 
+        err.src && (err.src.includes('flatpickr') || err.src.includes('jsdelivr')));
+      const missingIntlTel = window.rbfResourceErrors.some(err => 
+        err.src && (err.src.includes('intl-tel-input') || err.src.includes('cdnjs')));
+      
+      if (missingFlatpickr) {
+        console.warn('RBF: Flatpickr failed to load from CDN - fallback mode will be used');
+      }
+      if (missingIntlTel) {
+        console.warn('RBF: International Telephone Input failed to load from CDN - using standard input');
+      }
+    }
+  }
+
+  // Enhanced jQuery availability check
+  function initializeWithJQuery() {
+    if (typeof window.jQuery === 'undefined') {
+      console.error('RBF: jQuery is not available - booking form cannot function');
+      
+      // Show user-friendly error message
+      const forms = document.querySelectorAll('#rbf-form');
+      forms.forEach(form => {
+        const errorDiv = document.createElement('div');
+        errorDiv.style.cssText = 'background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; padding: 15px; border-radius: 8px; margin: 20px 0;';
+        errorDiv.innerHTML = '<strong>Errore:</strong> Sistema di prenotazione temporaneamente non disponibile. Riprova più tardi o contattaci direttamente.';
+        form.insertBefore(errorDiv, form.firstChild);
+      });
+      return;
+    }
+
+    // Monitor resource loading
+    monitorResourceLoading();
+
+    // Initialize with jQuery
+    window.jQuery(function($) {
+      initializeBookingForm($);
+    });
+  }
+
+  // Wait for DOM and then check jQuery availability
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeWithJQuery);
+  } else {
+    initializeWithJQuery();
+  }
+
+})(window, document);
+
+// Main initialization function
+function initializeBookingForm($) {
   
   // Safe console logging wrapper for production
   const rbfLog = {
@@ -3388,4 +3447,102 @@ jQuery(function($) {
     }
   }, 5000);
 
-});
+  // Missing function implementations that are referenced in the code
+  
+  /**
+   * Handle date change from calendar or fallback input
+   */
+  function onDateChange(selectedDates) {
+    const dateValue = selectedDates && selectedDates.length > 0 ? 
+      formatLocalISO(selectedDates[0]) : 
+      el.dateInput.val();
+
+    if (dateValue) {
+      rbfLog.log('Date changed to: ' + dateValue);
+      resetSteps(2);
+      showStepWithoutScroll(el.timeStep, 3);
+      el.timeSelect.html('<option value="">' + ((rbfData && rbfData.labels && rbfData.labels.loading) || 'Caricamento...') + '</option>');
+      el.timeSelect.prop('disabled', true);
+      
+      const selectedMeal = el.mealRadios.filter(':checked').val();
+      if (selectedMeal) {
+        loadAvailableTimes(dateValue, selectedMeal);
+      }
+    }
+  }
+
+  /**
+   * Initialize international telephone input
+   */
+  function initializeTelInput() {
+    if (iti || !el.telInput.length) return;
+
+    try {
+      if (typeof intlTelInput !== 'undefined') {
+        iti = intlTelInput(el.telInput[0], {
+          initialCountry: 'it',
+          preferredCountries: ['it', 'us', 'gb'],
+          separateDialCode: true,
+          formatOnDisplay: true,
+          autoHideDialCode: false,
+          nationalMode: false,
+          utilsScript: (rbfData && rbfData.utilsScript) || ''
+        });
+        
+        rbfLog.log('International telephone input initialized');
+      } else {
+        rbfLog.warn('intlTelInput not available, using fallback');
+      }
+    } catch (error) {
+      rbfLog.error('Failed to initialize international telephone input: ' + error.message);
+    }
+  }
+
+  /**
+   * Reset steps after a specific step number
+   */
+  function resetSteps(afterStep) {
+    const steps = [
+      { step: el.timeStep, number: 3 },
+      { step: el.peopleStep, number: 4 },
+      { step: el.detailsStep, number: 5 }
+    ];
+
+    steps.forEach(({ step, number }) => {
+      if (number > afterStep) {
+        step.removeClass('active').hide();
+        
+        // Reset specific step content
+        if (number === 3) {
+          el.timeSelect.html('').prop('disabled', true);
+        } else if (number === 4) {
+          el.peopleInput.val(1);
+          updatePeopleButtons();
+        } else if (number === 5) {
+          el.detailsInputs.val('');
+          el.privacyCheckbox.prop('checked', false);
+          el.marketingCheckbox.prop('checked', false);
+          el.submitButton.prop('disabled', true).hide();
+        }
+      }
+    });
+  }
+
+  /**
+   * Reinitialize calendar (used by debug functions)
+   */
+  function reinitializeCalendar() {
+    if (fp) {
+      try {
+        fp.destroy();
+      } catch (error) {
+        rbfLog.warn('Error destroying calendar during reinitialize');
+      }
+      fp = null;
+    }
+    
+    datePickerInitPromise = null;
+    lazyLoadDatePicker();
+  }
+
+} // End of initializeBookingForm function

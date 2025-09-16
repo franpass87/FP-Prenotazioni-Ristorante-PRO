@@ -44,29 +44,72 @@ function rbf_enqueue_frontend_assets() {
     $options = wp_parse_args(rbf_get_settings(), $default_settings);
     $locale = rbf_current_lang(); // 'it' o 'en'
 
-    // Flatpickr
-    wp_enqueue_style('rbf-flatpickr-css', 'https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css', [], '4.6.9');
-    wp_enqueue_script('rbf-flatpickr', 'https://cdn.jsdelivr.net/npm/flatpickr', [], '4.6.9', true);
-    $deps = ['jquery','rbf-flatpickr'];
-
-    // Carica SOLO la locale italiana (EN è default)
-    if ($locale === 'it') {
-        wp_enqueue_script('rbf-flatpickr-locale-it', 'https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/it.js', ['rbf-flatpickr'], '4.6.9', true);
-        $deps[] = 'rbf-flatpickr-locale-it';
+    // Enhanced resource loading with error handling
+    
+    // Add client-side resource error monitoring
+    if (!is_admin()) {
+        add_action('wp_head', function() {
+            echo '<script>
+            window.rbfResourceErrors = [];
+            window.addEventListener("error", function(e) {
+                if (e.target.tagName === "SCRIPT" || e.target.tagName === "LINK") {
+                    window.rbfResourceErrors.push({
+                        src: e.target.src || e.target.href,
+                        type: e.target.tagName,
+                        error: "Failed to load"
+                    });
+                    if (window.console && window.console.warn) {
+                        console.warn("RBF: Resource failed to load:", e.target.src || e.target.href);
+                    }
+                }
+            }, true);
+            </script>';
+        }, 1);
     }
 
-    // intl-tel-input - Updated to latest stable version for enhanced flag support and reliability
-    wp_enqueue_style('rbf-intl-tel-input-css','https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/19.2.16/css/intlTelInput.css',[], '19.2.16');
-    wp_enqueue_script('rbf-intl-tel-input','https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/19.2.16/js/intlTelInput.min.js',[], '19.2.16', true);
-    wp_enqueue_script(
-        'rbf-intl-tel-input-utils',
-        plugin_dir_url(dirname(__FILE__)) . 'assets/js/vendor/intl-tel-input-utils.js',
-        ['rbf-intl-tel-input'],
-        '19.2.16',
-        true
-    );
-    $deps[] = 'rbf-intl-tel-input';
-    $deps[] = 'rbf-intl-tel-input-utils';
+    // Flatpickr with enhanced error handling
+    $flatpickr_loaded = false;
+    try {
+        wp_enqueue_style('rbf-flatpickr-css', 'https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css', [], '4.6.9');
+        wp_enqueue_script('rbf-flatpickr', 'https://cdn.jsdelivr.net/npm/flatpickr', [], '4.6.9', true);
+        $flatpickr_loaded = true;
+    } catch (Exception $e) {
+        error_log('RBF: Failed to enqueue Flatpickr: ' . $e->getMessage());
+    }
+    
+    $deps = ['jquery'];
+    if ($flatpickr_loaded) {
+        $deps[] = 'rbf-flatpickr';
+    }
+
+    // Carica SOLO la locale italiana (EN è default)
+    if ($locale === 'it' && $flatpickr_loaded) {
+        try {
+            wp_enqueue_script('rbf-flatpickr-locale-it', 'https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/it.js', ['rbf-flatpickr'], '4.6.9', true);
+            $deps[] = 'rbf-flatpickr-locale-it';
+        } catch (Exception $e) {
+            error_log('RBF: Failed to enqueue Flatpickr Italian locale: ' . $e->getMessage());
+        }
+    }
+
+    // intl-tel-input with enhanced error handling
+    $intl_tel_loaded = false;
+    try {
+        wp_enqueue_style('rbf-intl-tel-input-css','https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/19.2.16/css/intlTelInput.css',[], '19.2.16');
+        wp_enqueue_script('rbf-intl-tel-input','https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/19.2.16/js/intlTelInput.min.js',[], '19.2.16', true);
+        wp_enqueue_script(
+            'rbf-intl-tel-input-utils',
+            plugin_dir_url(dirname(__FILE__)) . 'assets/js/vendor/intl-tel-input-utils.js',
+            ['rbf-intl-tel-input'],
+            '19.2.16',
+            true
+        );
+        $intl_tel_loaded = true;
+        $deps[] = 'rbf-intl-tel-input';
+        $deps[] = 'rbf-intl-tel-input-utils';
+    } catch (Exception $e) {
+        error_log('RBF: Failed to enqueue International Telephone Input: ' . $e->getMessage());
+    }
 
     // Frontend styles
     wp_enqueue_style('rbf-frontend-css', plugin_dir_url(dirname(__FILE__)) . 'assets/css/frontend.css', ['rbf-flatpickr-css'], rbf_get_asset_version());
