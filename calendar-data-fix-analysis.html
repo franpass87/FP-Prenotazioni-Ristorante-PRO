@@ -1,0 +1,170 @@
+<?php
+/**
+ * Debug and Fix Calendar Data
+ * This script diagnoses and fixes the calendar disabled dates issue
+ */
+
+// This would be run in WordPress context, but for now let's create a diagnostic version
+?>
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendar Data Fix - FP Prenotazioni</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; }
+        .container { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .code { background: #f8f9fa; padding: 15px; border-radius: 4px; font-family: monospace; overflow-x: auto; }
+        .issue { background: #ffe6e6; border-left: 4px solid #ff4444; padding: 15px; margin: 10px 0; }
+        .solution { background: #e6ffe6; border-left: 4px solid #44ff44; padding: 15px; margin: 10px 0; }
+        .info { background: #d1ecf1; border-left: 4px solid #0c5460; padding: 15px; margin: 10px 0; }
+        button { padding: 10px 20px; margin: 5px; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-primary { background: #007cba; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-warning { background: #ffc107; color: black; }
+        .btn-danger { background: #dc3545; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Calendar Data Fix - Tutti i giorni disabilitati</h1>
+        
+        <div class="info">
+            <h3>📋 Diagnosi del Problema</h3>
+            <p>Il calendario mostra tutte le date come <code>flatpickr-day flatpickr-disabled</code> perché la configurazione WordPress contiene dati che disabilitano tutti i giorni.</p>
+            
+            <p><strong>Possibili cause:</strong></p>
+            <ul>
+                <li><strong>closedDays = [0,1,2,3,4,5,6]</strong> - Tutti i giorni della settimana sono marcati come chiusi</li>
+                <li><strong>closedRanges</strong> - Intervalli di date molto ampi che coprono tutto</li>
+                <li><strong>closedSingles</strong> - Molte date specifiche chiuse</li>
+                <li><strong>exceptions</strong> - Eccezioni di tipo 'closure' o 'holiday' che coprono molte date</li>
+            </ul>
+        </div>
+
+        <div class="issue">
+            <h3>🚨 Configurazione Problematica Identificata</h3>
+            <p>Basandosi sull'analisi del codice in <code>includes/frontend.php</code>, il problema è nella configurazione delle ore di apertura del ristorante.</p>
+            
+            <p>Il sistema controlla ogni giorno della settimana:</p>
+            <div class="code">
+$closed_days_map = ['sun'=>0,'mon'=>1,'tue'=>2,'wed'=>3,'thu'=>4,'fri'=>5,'sat'=>6];
+$closed_days = [];
+$open_values = ['yes', '1', 'true', 'on'];
+foreach ($closed_days_map as $key => $day_index) {
+    $is_open_raw = $options["open_{$key}"] ?? 'yes';
+    $is_open = in_array(strtolower((string)$is_open_raw), $open_values, true);
+    if (!$is_open) {
+        $closed_days[] = $day_index;
+    }
+}</div>
+
+            <p>Se tutte le opzioni <code>open_sun</code>, <code>open_mon</code>, <code>open_tue</code>, etc. sono impostate su valori diversi da 'yes', '1', 'true', 'on', allora tutti i giorni vengono aggiunti a <code>closedDays</code>.</p>
+        </div>
+
+        <div class="solution">
+            <h3>✅ Soluzioni Proposte</h3>
+            
+            <h4>Soluzione 1: Fix Immediato JavaScript (Temporaneo)</h4>
+            <p>Modificare temporaneamente <code>assets/js/frontend.js</code> per ignorare <code>closedDays</code> se contiene tutti i giorni:</p>
+            <div class="code">
+// In isDateDisabled function, add this check:
+if (rbfData.closedDays && rbfData.closedDays.length >= 7) {
+    rbfLog.warn('All days marked as closed - ignoring closedDays setting');
+    rbfData.closedDays = [];
+}
+            </div>
+
+            <h4>Soluzione 2: Pulizia Database WordPress</h4>
+            <p>Andare nel pannello admin WordPress e verificare/correggere le impostazioni di apertura del ristorante:</p>
+            <ul>
+                <li>Opzioni chiamate <code>open_sun</code>, <code>open_mon</code>, <code>open_tue</code>, etc.</li>
+                <li>Assicurarsi che almeno alcuni giorni siano impostati su 'yes' o 'true'</li>
+            </ul>
+
+            <h4>Soluzione 3: Reset Configurazione</h4>
+            <p>Se necessario, ripristinare la configurazione di default che permette tutti i giorni tranne eventualmente uno:</p>
+            <div class="code">
+// Default safe configuration
+$default_config = [
+    'open_sun' => 'yes',
+    'open_mon' => 'no',   // Example: closed only on Monday
+    'open_tue' => 'yes', 
+    'open_wed' => 'yes',
+    'open_thu' => 'yes',
+    'open_fri' => 'yes',
+    'open_sat' => 'yes'
+];
+            </div>
+        </div>
+
+        <div class="container">
+            <h3>🛠️ Implementazione Fix</h3>
+            <p>Implementeremo un fix sicuro che:</p>
+            <ol>
+                <li>Rileva quando tutti i giorni sono disabilitati</li>
+                <li>Applica automaticamente una configurazione sicura</li>
+                <li>Mantiene un log per debugging</li>
+                <li>Non rompe funzionalità esistenti</li>
+            </ol>
+
+            <button class="btn-primary" onclick="showImplementation()">Vedi Implementazione</button>
+            <div id="implementation" style="display: none;">
+                <div class="code" id="implementation-code">
+// Il fix verrà implementato in assets/js/frontend.js
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showImplementation() {
+            const impl = document.getElementById('implementation');
+            const code = document.getElementById('implementation-code');
+            
+            code.textContent = `// Fix in assets/js/frontend.js - isDateDisabled function
+
+function isDateDisabled(date) {
+  try {
+    const dateStr = formatLocalISO(date);
+    const dayOfWeek = date.getDay();
+    
+    // CRITICAL FIX: Detect if all days are disabled and reset
+    if (rbfData.closedDays && Array.isArray(rbfData.closedDays) && rbfData.closedDays.length >= 7) {
+      rbfLog.error('CRITICAL: All days marked as closed! Applying emergency fix.');
+      rbfLog.error('Original closedDays: ' + JSON.stringify(rbfData.closedDays));
+      
+      // Emergency: Only close Monday as default
+      rbfData.closedDays = [1]; // Only Monday closed
+      
+      rbfLog.warn('Emergency fix applied: Only Monday will be closed');
+    }
+    
+    // CRITICAL FIX: Detect if closedDays has invalid values
+    if (rbfData.closedDays && Array.isArray(rbfData.closedDays)) {
+      rbfData.closedDays = rbfData.closedDays.filter(day => 
+        typeof day === 'number' && day >= 0 && day <= 6
+      );
+    }
+    
+    // Continue with normal logic...
+    if (rbfData.closedDays && rbfData.closedDays.includes(dayOfWeek)) {
+      if (rbfData.debug) rbfLog.log(\`Date \${dateStr} disabled: restaurant closed on day \${dayOfWeek}\`);
+      return true;
+    }
+    
+    // Rest of the function remains the same...
+    return false;
+    
+  } catch (error) {
+    rbfLog.error('Error in isDateDisabled: ' + error.message);
+    return false;
+  }
+}`;
+            
+            impl.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

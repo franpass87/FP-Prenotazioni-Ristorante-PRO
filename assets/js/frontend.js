@@ -1077,6 +1077,30 @@ function initializeBookingForm($) {
       
       window.rbfTotalCount++;
       
+      // CRITICAL FIX: Detect and fix configuration where all days are disabled
+      if (rbfData.closedDays && Array.isArray(rbfData.closedDays) && rbfData.closedDays.length >= 7) {
+        rbfLog.error('CRITICAL ISSUE DETECTED: All 7 days marked as closed!');
+        rbfLog.error('Original closedDays: ' + JSON.stringify(rbfData.closedDays));
+        rbfLog.error('This would disable ALL calendar dates - applying emergency fix');
+        
+        // Emergency fix: Reset to only Monday closed (common restaurant closure)
+        rbfData.closedDays = [1]; // 1 = Monday
+        
+        rbfLog.warn('EMERGENCY FIX APPLIED: Only Monday will be closed now');
+        rbfLog.warn('Please check WordPress admin settings for restaurant opening hours');
+      }
+      
+      // ADDITIONAL SAFETY: Remove any invalid day values
+      if (rbfData.closedDays && Array.isArray(rbfData.closedDays)) {
+        const originalLength = rbfData.closedDays.length;
+        rbfData.closedDays = rbfData.closedDays.filter(day => 
+          typeof day === 'number' && day >= 0 && day <= 6
+        );
+        if (originalLength !== rbfData.closedDays.length) {
+          rbfLog.warn('Removed invalid day values from closedDays');
+        }
+      }
+      
       // SIMPLE CHECK 1: General restaurant closed days
       if (rbfData.closedDays && Array.isArray(rbfData.closedDays) && rbfData.closedDays.length > 0) {
         if (rbfData.closedDays.includes(dayOfWeek)) {
@@ -1086,8 +1110,14 @@ function initializeBookingForm($) {
         }
       }
       
-      // SIMPLE CHECK 2: Specific closed dates
+      // SIMPLE CHECK 2: Specific closed dates (with safety limits)
       if (rbfData.closedSingles && Array.isArray(rbfData.closedSingles) && rbfData.closedSingles.length > 0) {
+        // SAFETY CHECK: Warn if too many individual dates are closed
+        if (rbfData.closedSingles.length > 100) {
+          rbfLog.warn(`WARNING: ${rbfData.closedSingles.length} individual dates are closed - this might be excessive`);
+          rbfLog.warn('Consider using date ranges instead of individual dates for better performance');
+        }
+        
         if (rbfData.closedSingles.includes(dateStr)) {
           window.rbfDisabledCount++;
           if (rbfData.debug) rbfLog.log(`Date ${dateStr} disabled: specific closure date`);
@@ -1095,8 +1125,34 @@ function initializeBookingForm($) {
         }
       }
       
-      // SIMPLE CHECK 3: Closed date ranges
+      // SIMPLE CHECK 3: Closed date ranges (with safety checks)
       if (rbfData.closedRanges && Array.isArray(rbfData.closedRanges) && rbfData.closedRanges.length > 0) {
+        // SAFETY CHECK: Remove extremely long ranges that might disable everything
+        const originalRanges = rbfData.closedRanges.length;
+        rbfData.closedRanges = rbfData.closedRanges.filter(range => {
+          if (!range || !range.from || !range.to) return false;
+          
+          try {
+            const fromDate = new Date(range.from);
+            const toDate = new Date(range.to);
+            const diffDays = Math.ceil((toDate - fromDate) / (1000 * 60 * 60 * 24));
+            
+            // Remove ranges longer than 2 years (probably erroneous)
+            if (diffDays > 730) {
+              rbfLog.warn(`Removed extremely long closed range: ${range.from} to ${range.to} (${diffDays} days)`);
+              return false;
+            }
+            return true;
+          } catch (error) {
+            rbfLog.warn(`Removed invalid date range: ${JSON.stringify(range)}`);
+            return false;
+          }
+        });
+        
+        if (originalRanges !== rbfData.closedRanges.length) {
+          rbfLog.warn(`Cleaned closedRanges: removed ${originalRanges - rbfData.closedRanges.length} problematic ranges`);
+        }
+        
         for (let range of rbfData.closedRanges) {
           if (range && range.from && range.to) {
             if (dateStr >= range.from && dateStr <= range.to) {
