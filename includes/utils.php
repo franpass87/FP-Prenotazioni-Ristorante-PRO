@@ -59,8 +59,33 @@ function rbf_get_default_settings() {
  * Get default custom meals configuration
  */
 function rbf_get_default_custom_meals() {
-    // No restaurant-specific meals are preloaded by default. Site owners must configure their own services.
-    return [];
+    // Provide basic meal configurations to ensure time loading works out of the box
+    return [
+        [
+            'id' => 'pranzo',
+            'name' => 'Pranzo',
+            'enabled' => true,
+            'time_slots' => '12:00,12:30,13:00,13:30',
+            'available_days' => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
+            'capacity' => 50
+        ],
+        [
+            'id' => 'aperitivo_cena',
+            'name' => 'Aperitivo & Cena',
+            'enabled' => true,
+            'time_slots' => '18:00,18:30,19:00,19:30,20:00,20:30,21:00',
+            'available_days' => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'],
+            'capacity' => 50
+        ],
+        [
+            'id' => 'brunch',
+            'name' => 'Brunch',
+            'enabled' => true,
+            'time_slots' => '10:00,10:30,11:00,11:30,12:00',
+            'available_days' => ['sat', 'sun'],
+            'capacity' => 30
+        ]
+    ];
 }
 
 /**

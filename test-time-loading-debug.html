@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Time Loading Issue</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .status.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .status.info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+            margin: 20px 0;
+        }
+        .form-group {
+            margin: 15px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        select, input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #005a87;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Time Loading Issue Test</h1>
+        <p>This test simulates the date selection and time loading process to identify the issue.</p>
+        
+        <div class="form-group">
+            <label for="meal-select">Select Meal:</label>
+            <select id="meal-select">
+                <option value="">Choose a meal...</option>
+                <option value="brunch">Brunch</option>
+                <option value="pranzo">Pranzo</option>
+                <option value="aperitivo_cena">Aperitivo & Cena</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="date-input">Select Date:</label>
+            <input type="date" id="date-input" min="">
+        </div>
+        
+        <div class="form-group">
+            <button onclick="testTimeLoading()" id="test-btn">🧪 Test Time Loading</button>
+        </div>
+        
+        <div id="status"></div>
+        <div id="log" class="log"></div>
+    </div>
+
+    <script>
+        // Mock rbfData similar to the actual plugin
+        window.rbfData = {
+            ajaxUrl: 'test-endpoint',  // We'll simulate this
+            nonce: 'test-nonce',
+            labels: {
+                loading: 'Caricamento',
+                chooseTime: 'Scegli un orario...',
+                noTime: 'Nessun orario disponibile'
+            }
+        };
+
+        let testLog = [];
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            testLog.push(`[${timestamp}] ${message}`);
+            document.getElementById('log').textContent = testLog.join('\n');
+            console.log('TEST:', message);
+        }
+
+        function updateStatus(message, type = 'info') {
+            const statusEl = document.getElementById('status');
+            statusEl.className = `status ${type}`;
+            statusEl.textContent = message;
+        }
+
+        function initializeTest() {
+            // Set minimum date to tomorrow
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            document.getElementById('date-input').min = tomorrow.toISOString().split('T')[0];
+            
+            log('Test initialized');
+            updateStatus('Ready to test time loading functionality', 'info');
+        }
+
+        function testTimeLoading() {
+            const meal = document.getElementById('meal-select').value;
+            const date = document.getElementById('date-input').value;
+            
+            if (!meal || !date) {
+                updateStatus('Please select both meal and date', 'error');
+                return;
+            }
+            
+            log(`Starting test with meal: ${meal}, date: ${date}`);
+            updateStatus('Testing time loading...', 'info');
+            
+            // Simulate the AJAX call from frontend.js
+            simulateAjaxCall(meal, date);
+        }
+
+        function simulateAjaxCall(meal, date) {
+            log('Simulating AJAX call to rbf_get_availability');
+            log(`POST data: action=rbf_get_availability, meal=${meal}, date=${date}`);
+            
+            // Simulate different scenarios that could occur
+            setTimeout(() => {
+                // Scenario 1: Check meal configuration issues
+                if (!checkMealConfiguration(meal)) {
+                    log('❌ Meal configuration issue detected');
+                    updateStatus('Issue: Meal not properly configured', 'error');
+                    return;
+                }
+                
+                // Scenario 2: Check date availability
+                if (!checkDateAvailability(meal, date)) {
+                    log('❌ Date not available for this meal');
+                    updateStatus('Issue: Meal not available on selected date', 'error');
+                    return;
+                }
+                
+                // Scenario 3: Check time slots configuration
+                const timeSlots = getTimeSlots(meal);
+                if (timeSlots.length === 0) {
+                    log('❌ No time slots configured for meal');
+                    updateStatus('Issue: No time slots configured for this meal', 'error');
+                    return;
+                }
+                
+                log(`✅ Found ${timeSlots.length} time slots: ${timeSlots.join(', ')}`);
+                updateStatus('✅ Time loading would succeed', 'success');
+                
+            }, 1000);
+        }
+
+        function checkMealConfiguration(meal) {
+            // Simulate checking if meal is properly configured
+            const mealConfigs = {
+                'brunch': {
+                    enabled: true,
+                    time_slots: '10:00,11:00,12:00',
+                    available_days: ['sat', 'sun']
+                },
+                'pranzo': {
+                    enabled: true,
+                    time_slots: '12:00,12:30,13:00,13:30',
+                    available_days: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+                },
+                'aperitivo_cena': {
+                    enabled: true,
+                    time_slots: '18:00,19:00,20:00,21:00',
+                    available_days: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+                }
+            };
+            
+            const config = mealConfigs[meal];
+            if (!config) {
+                log(`❌ No configuration found for meal: ${meal}`);
+                return false;
+            }
+            
+            if (!config.enabled) {
+                log(`❌ Meal ${meal} is not enabled`);
+                return false;
+            }
+            
+            if (!config.time_slots) {
+                log(`❌ No time slots configured for meal: ${meal}`);
+                return false;
+            }
+            
+            log(`✅ Meal configuration OK for ${meal}`);
+            return true;
+        }
+
+        function checkDateAvailability(meal, date) {
+            const dateObj = new Date(date);
+            const dayOfWeek = dateObj.getDay();
+            const dayMapping = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+            const dayKey = dayMapping[dayOfWeek];
+            
+            const mealAvailability = {
+                'brunch': ['sat', 'sun'],
+                'pranzo': ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
+                'aperitivo_cena': ['mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+            };
+            
+            const availableDays = mealAvailability[meal] || [];
+            const isAvailable = availableDays.includes(dayKey);
+            
+            log(`Date ${date} is ${dayKey}, meal ${meal} available on: ${availableDays.join(', ')}`);
+            log(`Availability check: ${isAvailable ? 'PASS' : 'FAIL'}`);
+            
+            return isAvailable;
+        }
+
+        function getTimeSlots(meal) {
+            const timeSlotConfigs = {
+                'brunch': ['10:00', '11:00', '12:00'],
+                'pranzo': ['12:00', '12:30', '13:00', '13:30'],
+                'aperitivo_cena': ['18:00', '19:00', '20:00', '21:00']
+            };
+            
+            return timeSlotConfigs[meal] || [];
+        }
+
+        // Initialize test when page loads
+        document.addEventListener('DOMContentLoaded', initializeTest);
+    </script>
+</body>
+</html>
