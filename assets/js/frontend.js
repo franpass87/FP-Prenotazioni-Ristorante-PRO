@@ -605,198 +605,288 @@ jQuery(function($) {
   }
 
   /**
-   * Initialize flatpickr with simplified, working configuration
+   * COMPLETELY RENEWED CALENDAR IMPLEMENTATION
+   * Simple, robust, and user-friendly calendar configuration
    */
   function initializeFlatpickr() {
+    // First, validate that we have the minimum required data
+    if (!rbfData) {
+      rbfLog.error('rbfData not available - cannot initialize calendar');
+      return;
+    }
+
+    rbfLog.log('Initializing renewed calendar system...');
+
     const flatpickrConfig = {
-      // Basic configuration - keep it simple
+      // Basic configuration - keep it simple and reliable
       altInput: true,
       altFormat: 'd-m-Y',
       dateFormat: 'Y-m-d',
-      minDate: new Date(new Date().getTime() + rbfData.minAdvanceMinutes * 60 * 1000),
+      minDate: 'today',
       locale: (rbfData.locale === 'it') ? 'it' : 'default',
-      // Standard flatpickr settings
+      
+      // Standard flatpickr settings for best user experience
       enableTime: false,
       noCalendar: false,
-      // Enable month/year dropdowns for proper navigation
       enableMonthDropdown: true,
       enableYearDropdown: true,
       shorthandCurrentMonth: false,
       showMonths: 1,
-      // Simplified disable function - only disable clearly closed days
+      
+      // COMPLETELY RENEWED DISABLE FUNCTION - Simple and robust
       disable: [function(date) {
         try {
-          const dateStr = formatLocalISO(date);
-          const day = date.getDay();
-
-          // Debug logging to identify the issue
-          if (rbfData.debug) {
-            rbfLog.log(`Checking date: ${dateStr} (day: ${day})`);
-          }
-
-          // Ensure rbfData exists and has expected structure
-          if (!rbfData || typeof rbfData !== 'object') {
-            rbfLog.warn('rbfData is not properly initialized, allowing all dates');
-            return false;
-          }
-
-          // Check meal availability for the currently selected meal
-          const selectedMeal = el.mealRadios.filter(':checked').val();
-          if (selectedMeal && rbfData.mealAvailability && rbfData.mealAvailability[selectedMeal]) {
-            const dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-            const currentDayName = dayNames[day];
-            
-            if (!rbfData.mealAvailability[selectedMeal].includes(currentDayName)) {
-              if (rbfData.debug) {
-                rbfLog.log(`Date ${dateStr} disabled: meal "${selectedMeal}" not available on ${currentDayName}`);
-              }
-              return true;
-            }
-          }
-
-          // Only check for explicit closures and holidays
-          if (rbfData.exceptions && Array.isArray(rbfData.exceptions)) {
-            for (let exception of rbfData.exceptions) {
-              if (exception && exception.date === dateStr) {
-                // Only disable for closures and holidays
-                if (exception.type === 'closure' || exception.type === 'holiday') {
-                  if (rbfData.debug) {
-                    rbfLog.log(`Date ${dateStr} disabled by exception: ${exception.type}`);
-                  }
-                  return true;
-                }
-              }
-            }
-          }
-
-          // Check basic closed days and dates
-          if (rbfData.closedDays && Array.isArray(rbfData.closedDays)) {
-            if (rbfData.closedDays.includes(day)) {
-              if (rbfData.debug) {
-                rbfLog.log(`Date ${dateStr} disabled by closedDays: day ${day} in ${JSON.stringify(rbfData.closedDays)}`);
-              }
-              return true;
-            }
-          }
-          
-          if (rbfData.closedSingles && Array.isArray(rbfData.closedSingles)) {
-            if (rbfData.closedSingles.includes(dateStr)) {
-              if (rbfData.debug) {
-                rbfLog.log(`Date ${dateStr} disabled by closedSingles`);
-              }
-              return true;
-            }
-          }
-          
-          // Check closed ranges
-          if (rbfData.closedRanges && Array.isArray(rbfData.closedRanges)) {
-            for (let range of rbfData.closedRanges) {
-              if (range && range.from && range.to && dateStr >= range.from && dateStr <= range.to) {
-                if (rbfData.debug) {
-                  rbfLog.log(`Date ${dateStr} disabled by range: ${range.from} to ${range.to}`);
-                }
-                return true;
-              }
-            }
-          }
-          
-          // Default: allow all other days
-          if (rbfData.debug) {
-            rbfLog.log(`Date ${dateStr} allowed`);
-          }
-          return false;
+          return isDateDisabled(date);
         } catch (error) {
-          rbfLog.error(`Error in disable function for date ${date}: ${error.message}`);
-          // On error, allow the date rather than disabling all dates
+          rbfLog.error(`Calendar disable function error: ${error.message}`);
+          // CRITICAL: On any error, allow the date to prevent all dates being disabled
           return false;
         }
       }],
+      
       onChange: onDateChange,
+      
       onReady: function(selectedDates, dateStr, instance) {
-        rbfLog.log('Flatpickr calendar initialized successfully');
+        rbfLog.log('✅ Renewed calendar initialized successfully');
         
-        // Debug rbfData structure to help diagnose issues
-        if (rbfData.debug) {
-          rbfLog.log('rbfData structure:', {
-            closedDays: rbfData.closedDays,
-            closedSingles: rbfData.closedSingles,
-            closedRanges: rbfData.closedRanges,
-            exceptions: rbfData.exceptions,
+        // Debug rbfData structure for troubleshooting
+        if (rbfData.debug || (typeof WP_DEBUG !== 'undefined' && WP_DEBUG)) {
+          rbfLog.log('📊 rbfData structure:', {
+            hasClosedDays: !!(rbfData.closedDays),
+            closedDaysCount: rbfData.closedDays ? rbfData.closedDays.length : 0,
+            hasClosedSingles: !!(rbfData.closedSingles),
+            closedSinglesCount: rbfData.closedSingles ? rbfData.closedSingles.length : 0,
+            hasClosedRanges: !!(rbfData.closedRanges),
+            closedRangesCount: rbfData.closedRanges ? rbfData.closedRanges.length : 0,
+            hasExceptions: !!(rbfData.exceptions),
             exceptionsCount: rbfData.exceptions ? rbfData.exceptions.length : 0,
-            mealAvailability: rbfData.mealAvailability
+            hasMealAvailability: !!(rbfData.mealAvailability),
+            availableMeals: rbfData.mealAvailability ? Object.keys(rbfData.mealAvailability) : []
           });
         }
         
-        // Force calendar interactivity after initialization
+        // Ensure calendar is fully interactive
         setTimeout(() => {
           forceCalendarInteractivity(instance);
+          rbfLog.log('🎯 Calendar forced to be interactive');
         }, 100);
       },
+      
       onDayCreate: function(dObj, dStr, fp, dayElem) {
-        const dateStr = formatLocalISO(dayElem.dateObj);
-        
-        // Keep only essential styling for special event colors
-        if (rbfData.exceptions) {
-          for (let exception of rbfData.exceptions) {
-            if (exception.date === dateStr) {
-              const indicator = document.createElement('div');
-              indicator.className = 'rbf-exception-indicator rbf-exception-' + exception.type;
-              indicator.title = exception.description || exception.type;
-              
-              // Simple color coding for special dates
-              const styles = {
-                'special': { background: '#20c997', title: 'Evento Speciale' },
-                'extended': { background: '#0d6efd', title: 'Orari Estesi' },
-                'holiday': { background: '#fd7e14', title: 'Festività' },
-                'closure': { background: '#dc3545', title: 'Chiusura' }
-              };
-              
-              const style = styles[exception.type] || styles.closure;
-              indicator.style.cssText = `
-                position: absolute;
-                top: 2px;
-                right: 2px;
-                width: 6px;
-                height: 6px;
-                border-radius: 50%;
-                background: ${style.background};
-                z-index: 1;
-                pointer-events: none;
-              `;
-              
-              if (!exception.description) {
-                indicator.title = rbfData.labels[style.title] || style.title;
-              }
-              
-              dayElem.style.position = 'relative';
-              dayElem.appendChild(indicator);
-              break;
-            }
-          }
+        // Add visual indicators for special dates (non-blocking)
+        try {
+          addDateIndicators(dayElem);
+        } catch (error) {
+          rbfLog.warn(`Visual indicator error for date: ${error.message}`);
+          // Continue without visual indicators rather than breaking the calendar
         }
       }
     };
     
-    // Set max date if configured
-    if (shouldApplyMaxAdvanceLimit) {
-      flatpickrConfig.maxDate = new Date(new Date().getTime() + maxAdvanceMinutes * 60 * 1000);
+    // Set reasonable max date (1 year from now if not specified)
+    const maxAdvanceMs = shouldApplyMaxAdvanceLimit ? 
+      maxAdvanceMinutes * 60 * 1000 : 
+      365 * 24 * 60 * 60 * 1000; // 1 year default
+    
+    flatpickrConfig.maxDate = new Date(new Date().getTime() + maxAdvanceMs);
+    
+    // Apply minimum advance time
+    if (rbfData.minAdvanceMinutes && rbfData.minAdvanceMinutes > 0) {
+      flatpickrConfig.minDate = new Date(new Date().getTime() + rbfData.minAdvanceMinutes * 60 * 1000);
     }
     
-    // Destroy existing instance if it exists
+    // Clean up any existing calendar instance
     if (fp) {
-      fp.destroy();
+      try {
+        fp.destroy();
+      } catch (error) {
+        rbfLog.warn('Error destroying previous calendar instance');
+      }
       fp = null;
     }
     
-    // Create the flatpickr instance
-    fp = flatpickr(el.dateInput[0], flatpickrConfig);
+    // Create the new flatpickr instance with error handling
+    try {
+      fp = flatpickr(el.dateInput[0], flatpickrConfig);
+      
+      if (fp) {
+        rbfLog.log('✅ Flatpickr instance created successfully');
+        
+        // Store reference globally for debugging
+        window.rbfCalendarInstance = fp;
+        
+        // Show exception legend if there are exceptions
+        if (rbfData.exceptions && rbfData.exceptions.length > 0) {
+          $('.rbf-exception-legend').show();
+        }
+      } else {
+        throw new Error('Flatpickr instance creation failed');
+      }
+      
+    } catch (error) {
+      rbfLog.error(`Failed to create calendar: ${error.message}`);
+      // Fallback to HTML5 date input
+      setupFallbackDateInput();
+    }
+  }
+
+  /**
+   * RENEWED DISABLE LOGIC - Simple, clear, and robust
+   * Each check is independent and well-documented
+   */
+  function isDateDisabled(date) {
+    const dateStr = formatLocalISO(date);
+    const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
     
-    // Show exception legend if there are exceptions
-    if (rbfData.exceptions && rbfData.exceptions.length > 0) {
-      $('.rbf-exception-legend').show();
+    // Debug logging (only if debug mode is on)
+    const debugMode = rbfData.debug || (typeof WP_DEBUG !== 'undefined' && WP_DEBUG);
+    if (debugMode) {
+      rbfLog.log(`🔍 Checking date: ${dateStr} (day: ${dayOfWeek})`);
     }
     
-    rbfLog.log('Flatpickr instance created successfully');
+    // 1. CHECK: General restaurant closed days (e.g., closed on Sundays)
+    if (rbfData.closedDays && Array.isArray(rbfData.closedDays) && rbfData.closedDays.length > 0) {
+      if (rbfData.closedDays.includes(dayOfWeek)) {
+        if (debugMode) {
+          rbfLog.log(`❌ Date ${dateStr} disabled: restaurant closed on day ${dayOfWeek}`);
+        }
+        return true;
+      }
+    }
+    
+    // 2. CHECK: Specific closed dates (e.g., maintenance days)
+    if (rbfData.closedSingles && Array.isArray(rbfData.closedSingles) && rbfData.closedSingles.length > 0) {
+      if (rbfData.closedSingles.includes(dateStr)) {
+        if (debugMode) {
+          rbfLog.log(`❌ Date ${dateStr} disabled: specific closure date`);
+        }
+        return true;
+      }
+    }
+    
+    // 3. CHECK: Closed date ranges (e.g., vacation periods)
+    if (rbfData.closedRanges && Array.isArray(rbfData.closedRanges) && rbfData.closedRanges.length > 0) {
+      for (let range of rbfData.closedRanges) {
+        if (range && range.from && range.to) {
+          if (dateStr >= range.from && dateStr <= range.to) {
+            if (debugMode) {
+              rbfLog.log(`❌ Date ${dateStr} disabled: within closed range ${range.from} to ${range.to}`);
+            }
+            return true;
+          }
+        }
+      }
+    }
+    
+    // 4. CHECK: Special exceptions (holidays, closures)
+    if (rbfData.exceptions && Array.isArray(rbfData.exceptions) && rbfData.exceptions.length > 0) {
+      for (let exception of rbfData.exceptions) {
+        if (exception && exception.date === dateStr) {
+          // Only disable for actual closures and holidays
+          if (exception.type === 'closure' || exception.type === 'holiday') {
+            if (debugMode) {
+              rbfLog.log(`❌ Date ${dateStr} disabled: ${exception.type} exception`);
+            }
+            return true;
+          }
+        }
+      }
+    }
+    
+    // 5. CHECK: Meal availability (only if a meal is selected)
+    const selectedMeal = el.mealRadios.filter(':checked').val();
+    if (selectedMeal && rbfData.mealAvailability && rbfData.mealAvailability[selectedMeal]) {
+      const dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+      const currentDayName = dayNames[dayOfWeek];
+      const availableDays = rbfData.mealAvailability[selectedMeal];
+      
+      if (Array.isArray(availableDays) && !availableDays.includes(currentDayName)) {
+        if (debugMode) {
+          rbfLog.log(`❌ Date ${dateStr} disabled: meal "${selectedMeal}" not available on ${currentDayName}`);
+        }
+        return true;
+      }
+    }
+    
+    // 6. DEFAULT: Allow the date if no restrictions apply
+    if (debugMode) {
+      rbfLog.log(`✅ Date ${dateStr} allowed`);
+    }
+    return false;
+  }
+
+  /**
+   * Add visual indicators to calendar days (non-blocking)
+   */
+  function addDateIndicators(dayElem) {
+    if (!dayElem || !dayElem.dateObj) return;
+    
+    const dateStr = formatLocalISO(dayElem.dateObj);
+    
+    // Only add indicators for exceptions, not for regular closed days
+    if (rbfData.exceptions && Array.isArray(rbfData.exceptions)) {
+      for (let exception of rbfData.exceptions) {
+        if (exception && exception.date === dateStr) {
+          const indicator = document.createElement('div');
+          indicator.className = 'rbf-exception-indicator rbf-exception-' + exception.type;
+          
+          // Simple color coding for different types
+          const colors = {
+            'special': '#20c997',
+            'extended': '#0d6efd', 
+            'holiday': '#fd7e14',
+            'closure': '#dc3545'
+          };
+          
+          const color = colors[exception.type] || colors.closure;
+          indicator.style.cssText = `
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: ${color};
+            z-index: 1;
+            pointer-events: none;
+          `;
+          
+          indicator.title = exception.description || exception.type;
+          dayElem.style.position = 'relative';
+          dayElem.appendChild(indicator);
+          break;
+        }
+      }
+    }
+  }
+
+  /**
+   * Fallback to HTML5 date input if flatpickr fails
+   */
+  function setupFallbackDateInput() {
+    rbfLog.warn('Setting up HTML5 date input fallback');
+    
+    el.dateInput.attr('type', 'date');
+    
+    // Set minimum date
+    const minDate = rbfData.minAdvanceMinutes ? 
+      new Date(new Date().getTime() + rbfData.minAdvanceMinutes * 60 * 1000) :
+      new Date();
+    el.dateInput.attr('min', minDate.toISOString().split('T')[0]);
+    
+    // Set maximum date (1 year from now)
+    const maxDate = new Date(new Date().getTime() + 365 * 24 * 60 * 60 * 1000);
+    el.dateInput.attr('max', maxDate.toISOString().split('T')[0]);
+    
+    // Add change handler
+    el.dateInput.on('change', function() {
+      if (this.value) {
+        rbfLog.log('Date selected via HTML5 input: ' + this.value);
+        onDateChange([new Date(this.value)]);
+      }
+    });
+    
+    rbfLog.log('HTML5 date input fallback configured');
   }
 
   /**
@@ -1280,7 +1370,7 @@ jQuery(function($) {
   }
 
   /**
-   * Handle meal selection change
+   * Handle meal selection change - RENEWED with complete calendar refresh
    */
   el.mealRadios.on('change', function() {
     resetSteps(1);
@@ -1290,6 +1380,7 @@ jQuery(function($) {
     $('.rbf-suggestions-container').remove();
     
     const selectedMeal = $(this).val();
+    rbfLog.log(`🍽️ Meal changed to: ${selectedMeal}`);
     
     // Show meal-specific tooltip if configured
     if (rbfData.mealTooltips && rbfData.mealTooltips[selectedMeal]) {
@@ -1297,35 +1388,127 @@ jQuery(function($) {
     }
     
     // Show date step for any meal selection without scrolling
-    // The flatpickr will be lazy loaded when the step is shown by showStepWithoutScroll
     showStepWithoutScroll(el.dateStep, 2);
 
-    // Re-evaluate disabled dates for the newly selected meal
+    // RENEWED: Complete calendar refresh when meal changes
+    refreshCalendarForMeal(selectedMeal);
+  });
+
+  /**
+   * RENEWED: Refresh calendar completely for meal changes
+   * This ensures that date availability is properly updated based on meal selection
+   */
+  function refreshCalendarForMeal(selectedMeal) {
+    rbfLog.log(`🔄 Refreshing calendar for meal: ${selectedMeal}`);
+    
+    // If calendar exists, refresh it
     if (fp) {
-      fp.redraw();
+      try {
+        // Store current selected date if any
+        const currentDate = fp.selectedDates.length > 0 ? fp.selectedDates[0] : null;
+        
+        // Clear selection first
+        fp.clear();
+        
+        // Force a complete redraw to re-evaluate all dates
+        fp.redraw();
+        
+        // If we had a selected date, check if it's still valid and reselect
+        if (currentDate) {
+          const isStillValid = !isDateDisabled(currentDate);
+          if (isStillValid) {
+            fp.setDate(currentDate);
+            rbfLog.log(`✅ Previous date ${formatLocalISO(currentDate)} is still valid for ${selectedMeal}`);
+          } else {
+            rbfLog.log(`❌ Previous date ${formatLocalISO(currentDate)} is no longer valid for ${selectedMeal}`);
+            // Clear the input value since the date is no longer valid
+            el.dateInput.val('');
+          }
+        }
+        
+        rbfLog.log(`✅ Calendar refreshed successfully for meal: ${selectedMeal}`);
+        
+      } catch (error) {
+        rbfLog.error(`Calendar refresh error: ${error.message}`);
+        // If refresh fails, reinitialize the calendar
+        reinitializeCalendar();
+      }
+    } else {
+      // If no calendar exists yet, it will be created when the date step is shown
+      rbfLog.log('📅 Calendar will be initialized when date step is shown');
     }
 
-    // Update availability data for the selected meal (after calendar loads)
-    setTimeout(() => {
-      if (fp && selectedMeal) {
-        // Get the current view date - use fp.now or fallback to current date
-        const viewDate = fp.now || new Date();
-        const startDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
-        const endDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
-        
-        fetchAvailabilityData(
-          formatLocalISO(startDate),
-          formatLocalISO(endDate),
-          selectedMeal
-        ).then(() => {
-          // Redraw calendar to apply new availability colors
-          if (fp) {
-            fp.redraw();
-          }
-        });
+    // Update availability data for the selected meal
+    if (selectedMeal) {
+      updateAvailabilityDataForMeal(selectedMeal);
+    }
+  }
+
+  /**
+   * RENEWED: Complete calendar reinitialization
+   * Used when refresh fails or major errors occur
+   */
+  function reinitializeCalendar() {
+    rbfLog.log('🔧 Reinitializing calendar completely...');
+    
+    try {
+      // Destroy existing instance
+      if (fp) {
+        fp.destroy();
+        fp = null;
       }
-    }, 500); // Increased delay to ensure calendar is fully loaded
-  });
+      
+      // Clear any cached data
+      datePickerInitPromise = null;
+      
+      // Reinitialize
+      lazyLoadDatePicker().then(() => {
+        rbfLog.log('✅ Calendar reinitialized successfully');
+        
+        // Ensure interactivity
+        setTimeout(() => {
+          if (fp) {
+            forceCalendarInteractivity(fp);
+          }
+        }, 100);
+      });
+      
+    } catch (error) {
+      rbfLog.error(`Calendar reinitialization failed: ${error.message}`);
+      // Fallback to HTML5 date input
+      setupFallbackDateInput();
+    }
+  }
+
+  /**
+   * Update availability data for specific meal
+   */
+  function updateAvailabilityDataForMeal(selectedMeal) {
+    if (!fp) return;
+    
+    try {
+      // Get the current view date - use fp.now or fallback to current date
+      const viewDate = fp.now || new Date();
+      const startDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+      const endDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
+      
+      fetchAvailabilityData(
+        formatLocalISO(startDate),
+        formatLocalISO(endDate),
+        selectedMeal
+      ).then(() => {
+        // Redraw calendar to apply new availability colors
+        if (fp) {
+          fp.redraw();
+          rbfLog.log(`📊 Availability data updated for meal: ${selectedMeal}`);
+        }
+      }).catch(error => {
+        rbfLog.warn(`Failed to update availability data: ${error.message}`);
+      });
+    } catch (error) {
+      rbfLog.warn(`Error updating availability data: ${error.message}`);
+    }
+  }
 
   /**
    * Handle date selection change
@@ -2667,6 +2850,82 @@ jQuery(function($) {
         announceToScreenReader(`Applicata alternativa: ${time} per ${meal} il ${date}`);
       }, 1000);
     }, 500);
+  }
+
+  /**
+   * GLOBAL CALENDAR MANAGEMENT FUNCTIONS
+   * Exposed for debugging and manual control
+   */
+  
+  // Expose calendar management functions globally for debugging
+  window.rbfCalendar = {
+    refresh: function() {
+      rbfLog.log('🔄 Manual calendar refresh requested');
+      if (fp) {
+        try {
+          fp.redraw();
+          rbfLog.log('✅ Calendar refreshed successfully');
+          return true;
+        } catch (error) {
+          rbfLog.error(`Manual refresh failed: ${error.message}`);
+          return false;
+        }
+      } else {
+        rbfLog.warn('No calendar instance to refresh');
+        return false;
+      }
+    },
+    
+    reinitialize: function() {
+      rbfLog.log('🔧 Manual calendar reinitialization requested');
+      reinitializeCalendar();
+    },
+    
+    getInstance: function() {
+      return fp;
+    },
+    
+    testDate: function(dateStr) {
+      if (!dateStr) {
+        rbfLog.error('Please provide a date string (YYYY-MM-DD)');
+        return;
+      }
+      
+      try {
+        const testDate = new Date(dateStr);
+        const isDisabled = isDateDisabled(testDate);
+        rbfLog.log(`📅 Test date ${dateStr}: ${isDisabled ? '❌ DISABLED' : '✅ ALLOWED'}`);
+        return !isDisabled;
+      } catch (error) {
+        rbfLog.error(`Error testing date: ${error.message}`);
+        return false;
+      }
+    },
+    
+    debugData: function() {
+      rbfLog.log('🔍 Current rbfData:', rbfData);
+      return rbfData;
+    },
+    
+    getCurrentSelection: function() {
+      const meal = el.mealRadios.filter(':checked').val();
+      const date = el.dateInput.val();
+      const time = el.timeSelect.val();
+      const people = el.peopleInput.val();
+      
+      rbfLog.log('📋 Current form state:', { meal, date, time, people });
+      return { meal, date, time, people };
+    }
+  };
+
+  // Add a console helper for users
+  if (rbfData.debug || (typeof WP_DEBUG !== 'undefined' && WP_DEBUG)) {
+    console.log('🎯 RBF Calendar Debug Tools Available:');
+    console.log('  - rbfCalendar.refresh() - Refresh the calendar');
+    console.log('  - rbfCalendar.reinitialize() - Completely reinitialize the calendar');  
+    console.log('  - rbfCalendar.testDate("2024-12-25") - Test if a date is allowed');
+    console.log('  - rbfCalendar.debugData() - Show current configuration data');
+    console.log('  - rbfCalendar.getCurrentSelection() - Show current form state');
   }
 
 });
