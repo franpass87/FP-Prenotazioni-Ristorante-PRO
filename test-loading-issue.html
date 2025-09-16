@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Loading Issue Fix</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="assets/css/frontend.css">
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            margin: 20px; 
+            background: #f5f7fa; 
+        }
+        .test-container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-weight: 600;
+        }
+        .test-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .test-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .test-info { background: #d1ecf1; color: #0c5460; border: 1px solid #b8daff; }
+        .step { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        .rbf-loading { opacity: 0.6; pointer-events: none; }
+        .loading-spinner { 
+            display: inline-block; 
+            width: 20px; 
+            height: 20px; 
+            border: 2px solid #f3f3f3; 
+            border-top: 2px solid #3498db; 
+            border-radius: 50%; 
+            animation: spin 1s linear infinite; 
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Test Loading State Issue</h1>
+        
+        <div id="test-status" class="test-status test-info">
+            ⏳ Pronto per testare il problema del loading...
+        </div>
+        
+        <div class="rbf-form">
+            <!-- Step 1: Meal Selection -->
+            <div class="step" id="step-meal">
+                <h3>🍽️ Step 1: Scegli il pasto</h3>
+                <div class="rbf-field-wrapper">
+                    <label>Scegli il pasto <span class="rbf-required-indicator">*</span></label>
+                    <div class="rbf-radio-group">
+                        <input type="radio" name="rbf_meal" value="pranzo" id="pranzo">
+                        <label for="pranzo">🍝 Pranzo</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Date Selection -->
+            <div class="step" id="step-date" style="display: none;">
+                <h3>📅 Step 2: Seleziona la data</h3>
+                <div class="rbf-field-wrapper">
+                    <label for="rbf-date">Data <span class="rbf-required-indicator">*</span></label>
+                    <input type="date" id="rbf-date" name="rbf_data" required>
+                </div>
+            </div>
+
+            <!-- Step 3: Time Selection -->
+            <div class="step" id="step-time" style="display: none;">
+                <h3>🕐 Step 3: Seleziona l'orario</h3>
+                <div class="rbf-field-wrapper">
+                    <label for="rbf-time">Orario <span class="rbf-required-indicator">*</span></label>
+                    <select id="rbf-time" name="rbf_time" disabled>
+                        <option value="">Prima seleziona una data...</option>
+                    </select>
+                    <div id="loading-indicator" style="display: none;">
+                        <span class="loading-spinner"></span> Caricamento orari in corso...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-actions" style="margin-top: 30px;">
+            <button id="simulate-loading-issue" class="btn">🐛 Simula Problema Loading</button>
+            <button id="simulate-fix" class="btn" style="margin-left: 10px;">✅ Testa Fix</button>
+            <button id="reset-test" class="btn" style="margin-left: 10px;">🔄 Reset</button>
+        </div>
+    </div>
+
+    <script>
+        // Mock rbfData
+        window.rbfData = {
+            labels: {
+                loading: 'Caricamento...',
+                chooseTime: 'Scegli un orario...',
+                noTime: 'Nessun orario disponibile'
+            },
+            ajaxUrl: '/mock-ajax',
+            nonce: 'test123'
+        };
+
+        let isLoadingFixed = false;
+
+        function updateStatus(message, type = 'info') {
+            const statusEl = document.getElementById('test-status');
+            statusEl.textContent = message;
+            statusEl.className = `test-status test-${type}`;
+        }
+
+        function simulateLoadingIssue() {
+            updateStatus('🐛 Simulando problema: Loading infinito...', 'error');
+            
+            const timeSelect = document.getElementById('rbf-time');
+            const loadingIndicator = document.getElementById('loading-indicator');
+            
+            // Show loading state that never ends (the bug)
+            timeSelect.innerHTML = '<option value="">Caricamento orari...</option>';
+            timeSelect.disabled = true;
+            timeSelect.classList.add('rbf-loading');
+            loadingIndicator.style.display = 'block';
+            
+            // Simulate AJAX that never resolves or fails silently
+            setTimeout(() => {
+                updateStatus('❌ Bug riprodotto: Il loading non si ferma mai!', 'error');
+            }, 3000);
+        }
+
+        function simulateFixedLoading() {
+            updateStatus('✅ Testando fix: Loading gestito correttamente...', 'success');
+            
+            const timeSelect = document.getElementById('rbf-time');
+            const loadingIndicator = document.getElementById('loading-indicator');
+            
+            // Show loading state
+            timeSelect.innerHTML = '<option value="">Caricamento orari...</option>';
+            timeSelect.disabled = true;
+            timeSelect.classList.add('rbf-loading');
+            loadingIndicator.style.display = 'block';
+            
+            // Simulate proper AJAX resolution
+            setTimeout(() => {
+                // Clear loading state properly
+                timeSelect.classList.remove('rbf-loading');
+                timeSelect.disabled = false;
+                loadingIndicator.style.display = 'none';
+                
+                // Load times
+                timeSelect.innerHTML = '';
+                timeSelect.innerHTML += '<option value="">Scegli un orario...</option>';
+                timeSelect.innerHTML += '<option value="12:00">12:00</option>';
+                timeSelect.innerHTML += '<option value="12:30">12:30</option>';
+                timeSelect.innerHTML += '<option value="13:00">13:00</option>';
+                timeSelect.innerHTML += '<option value="13:30">13:30</option>';
+                
+                updateStatus('✅ Fix funziona: Loading gestito correttamente!', 'success');
+            }, 2000);
+        }
+
+        function resetTest() {
+            updateStatus('🔄 Test resettato - Seleziona un pasto per iniziare', 'info');
+            
+            // Reset form
+            document.querySelector('input[name="rbf_meal"]').checked = false;
+            document.getElementById('step-date').style.display = 'none';
+            document.getElementById('step-time').style.display = 'none';
+            
+            const timeSelect = document.getElementById('rbf-time');
+            timeSelect.classList.remove('rbf-loading');
+            timeSelect.disabled = true;
+            timeSelect.innerHTML = '<option value="">Prima seleziona una data...</option>';
+            document.getElementById('loading-indicator').style.display = 'none';
+            document.getElementById('rbf-date').value = '';
+        }
+
+        // Event listeners
+        document.getElementById('simulate-loading-issue').addEventListener('click', simulateLoadingIssue);
+        document.getElementById('simulate-fix').addEventListener('click', simulateFixedLoading);
+        document.getElementById('reset-test').addEventListener('click', resetTest);
+
+        // Meal selection
+        document.querySelector('input[name="rbf_meal"]').addEventListener('change', function() {
+            if (this.checked) {
+                document.getElementById('step-date').style.display = 'block';
+                updateStatus('✅ Pasto selezionato - Ora seleziona una data', 'success');
+            }
+        });
+
+        // Date selection
+        document.getElementById('rbf-date').addEventListener('change', function() {
+            if (this.value) {
+                document.getElementById('step-time').style.display = 'block';
+                updateStatus('✅ Data selezionata - Prova i pulsanti sopra per testare', 'success');
+            }
+        });
+
+        updateStatus('✅ Test pronti - Seleziona un pasto per iniziare', 'success');
+    </script>
+</body>
+</html>

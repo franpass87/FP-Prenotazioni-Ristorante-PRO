@@ -141,6 +141,7 @@
 .rbf-form input[type='text'],
 .rbf-form input[type='email'],
 .rbf-form input[type='tel'],
+.rbf-form input[type='date'],
 .rbf-form select,
 .rbf-form textarea {
     box-sizing: border-box;
@@ -159,6 +160,7 @@
 .rbf-form input[type='text']:focus,
 .rbf-form input[type='email']:focus,
 .rbf-form input[type='tel']:focus,
+.rbf-form input[type='date']:focus,
 .rbf-form select:focus,
 .rbf-form textarea:focus {
     outline: none;
@@ -927,6 +929,7 @@
     .rbf-form input[type='text'],
     .rbf-form input[type='email'],
     .rbf-form input[type='tel'],
+    .rbf-form input[type='date'],
     .rbf-form select,
     .rbf-form textarea {
         padding: 14px 12px;
@@ -1135,6 +1138,7 @@
     .rbf-form input[type='text'],
     .rbf-form input[type='email'],
     .rbf-form input[type='tel'],
+    .rbf-form input[type='date'],
     .rbf-form select,
     .rbf-form textarea {
         font-size: 16px; /* Prevent zoom on iOS */
