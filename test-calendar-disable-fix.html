@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Calendar Fix - FP Prenotazioni</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background: #f5f5f5; 
+        }
+        .test-container { 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+            margin-bottom: 20px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { 
+            background: #d4edda; 
+            color: #155724; 
+            padding: 15px; 
+            border-radius: 5px; 
+            margin: 10px 0; 
+        }
+        .error { 
+            background: #f8d7da; 
+            color: #721c24; 
+            padding: 15px; 
+            border-radius: 5px; 
+            margin: 10px 0; 
+        }
+        .test-input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .test-button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-log {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🗓️ Test Calendar Fix</h1>
+        <p>This test verifies that the calendar disable function works correctly with various rbfData configurations.</p>
+        
+        <div class="success">
+            <strong>✅ Test Environment Ready</strong><br>
+            Testing the improved disable function with better error handling and debugging.
+        </div>
+        
+        <h3>Test Configuration</h3>
+        <label>
+            <strong>rbfData Test Mode:</strong>
+            <select id="test-mode" class="test-input">
+                <option value="empty">Empty rbfData (should allow all dates)</option>
+                <option value="normal">Normal configuration (open all days)</option>
+                <option value="some-closed">Some days closed (Sundays closed)</option>
+                <option value="single-closed">Single date closed (today)</option>
+                <option value="range-closed">Date range closed (next 3 days)</option>
+                <option value="exceptions">Exceptions with holidays</option>
+                <option value="invalid">Invalid/malformed rbfData</option>
+            </select>
+        </label>
+        
+        <button class="test-button" onclick="runDisableFunctionTest()">Test Disable Function</button>
+        <button class="test-button" onclick="clearLog()">Clear Log</button>
+        
+        <div id="test-results" class="test-log">
+            Ready to test calendar disable function...
+        </div>
+        
+        <h3>Date Input Test</h3>
+        <input type="text" id="test-date-input" class="test-input" placeholder="Click to open calendar (if flatpickr loads)">
+        <div id="flatpickr-status">Flatpickr status: Not loaded (CDN blocked)</div>
+    </div>
+
+    <script>
+        let testLog = [];
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
+            testLog.push(`[${timestamp}] ${prefix} ${message}`);
+            updateLog();
+        }
+        
+        function updateLog() {
+            document.getElementById('test-results').textContent = testLog.join('\n');
+            document.getElementById('test-results').scrollTop = document.getElementById('test-results').scrollHeight;
+        }
+        
+        function clearLog() {
+            testLog = [];
+            updateLog();
+        }
+        
+        // Simulate the improved formatLocalISO function
+        function formatLocalISO(date) {
+            return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+                .toISOString()
+                .split('T')[0];
+        }
+        
+        // Mock rbfLog for testing
+        const rbfLog = {
+            log: (msg, data) => log(`LOG: ${msg}${data ? ' ' + JSON.stringify(data) : ''}`),
+            warn: (msg) => log(`WARN: ${msg}`, 'error'),
+            error: (msg) => log(`ERROR: ${msg}`, 'error')
+        };
+        
+        // Generate different test configurations
+        function generateTestRbfData(mode) {
+            const today = new Date();
+            const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+            const dayAfter = new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000);
+            
+            switch (mode) {
+                case 'empty':
+                    return {};
+                    
+                case 'normal':
+                    return {
+                        debug: true,
+                        closedDays: [],
+                        closedSingles: [],
+                        closedRanges: [],
+                        exceptions: []
+                    };
+                    
+                case 'some-closed':
+                    return {
+                        debug: true,
+                        closedDays: [0], // Sunday closed
+                        closedSingles: [],
+                        closedRanges: [],
+                        exceptions: []
+                    };
+                    
+                case 'single-closed':
+                    return {
+                        debug: true,
+                        closedDays: [],
+                        closedSingles: [formatLocalISO(today)],
+                        closedRanges: [],
+                        exceptions: []
+                    };
+                    
+                case 'range-closed':
+                    return {
+                        debug: true,
+                        closedDays: [],
+                        closedSingles: [],
+                        closedRanges: [{
+                            from: formatLocalISO(tomorrow),
+                            to: formatLocalISO(dayAfter)
+                        }],
+                        exceptions: []
+                    };
+                    
+                case 'exceptions':
+                    return {
+                        debug: true,
+                        closedDays: [],
+                        closedSingles: [],
+                        closedRanges: [],
+                        exceptions: [{
+                            date: formatLocalISO(tomorrow),
+                            type: 'holiday',
+                            description: 'Test Holiday'
+                        }]
+                    };
+                    
+                case 'invalid':
+                    return {
+                        debug: true,
+                        closedDays: 'invalid', // Should be array
+                        closedSingles: null,
+                        closedRanges: 'not-array',
+                        exceptions: 'also-invalid'
+                    };
+                    
+                default:
+                    return {};
+            }
+        }
+        
+        // Improved disable function from the fix
+        function improvedDisableFunction(date, rbfData) {
+            try {
+                const dateStr = formatLocalISO(date);
+                const day = date.getDay();
+
+                // Debug logging to identify the issue
+                if (rbfData.debug) {
+                    rbfLog.log(`Checking date: ${dateStr} (day: ${day})`);
+                }
+
+                // Ensure rbfData exists and has expected structure
+                if (!rbfData || typeof rbfData !== 'object') {
+                    rbfLog.warn('rbfData is not properly initialized, allowing all dates');
+                    return false;
+                }
+
+                // Only check for explicit closures and holidays
+                if (rbfData.exceptions && Array.isArray(rbfData.exceptions)) {
+                    for (let exception of rbfData.exceptions) {
+                        if (exception && exception.date === dateStr) {
+                            // Only disable for closures and holidays
+                            if (exception.type === 'closure' || exception.type === 'holiday') {
+                                if (rbfData.debug) {
+                                    rbfLog.log(`Date ${dateStr} disabled by exception: ${exception.type}`);
+                                }
+                                return true;
+                            }
+                        }
+                    }
+                }
+
+                // Check basic closed days and dates
+                if (rbfData.closedDays && Array.isArray(rbfData.closedDays)) {
+                    if (rbfData.closedDays.includes(day)) {
+                        if (rbfData.debug) {
+                            rbfLog.log(`Date ${dateStr} disabled by closedDays: day ${day} in ${JSON.stringify(rbfData.closedDays)}`);
+                        }
+                        return true;
+                    }
+                }
+                
+                if (rbfData.closedSingles && Array.isArray(rbfData.closedSingles)) {
+                    if (rbfData.closedSingles.includes(dateStr)) {
+                        if (rbfData.debug) {
+                            rbfLog.log(`Date ${dateStr} disabled by closedSingles`);
+                        }
+                        return true;
+                    }
+                }
+                
+                // Check closed ranges
+                if (rbfData.closedRanges && Array.isArray(rbfData.closedRanges)) {
+                    for (let range of rbfData.closedRanges) {
+                        if (range && range.from && range.to && dateStr >= range.from && dateStr <= range.to) {
+                            if (rbfData.debug) {
+                                rbfLog.log(`Date ${dateStr} disabled by range: ${range.from} to ${range.to}`);
+                            }
+                            return true;
+                        }
+                    }
+                }
+                
+                // Default: allow all other days
+                if (rbfData.debug) {
+                    rbfLog.log(`Date ${dateStr} allowed`);
+                }
+                return false;
+            } catch (error) {
+                rbfLog.error(`Error in disable function for date ${date}: ${error.message}`);
+                // On error, allow the date rather than disabling all dates
+                return false;
+            }
+        }
+        
+        function runDisableFunctionTest() {
+            const mode = document.getElementById('test-mode').value;
+            const testRbfData = generateTestRbfData(mode);
+            
+            clearLog();
+            log(`Testing with mode: ${mode}`, 'success');
+            log(`rbfData: ${JSON.stringify(testRbfData, null, 2)}`);
+            
+            // Test several dates
+            const testDates = [];
+            const today = new Date();
+            for (let i = 0; i < 7; i++) {
+                testDates.push(new Date(today.getTime() + i * 24 * 60 * 60 * 1000));
+            }
+            
+            log('Testing dates:');
+            testDates.forEach((date, index) => {
+                const isDisabled = improvedDisableFunction(date, testRbfData);
+                const status = isDisabled ? 'DISABLED' : 'ALLOWED';
+                const dayName = date.toLocaleDateString('it-IT', { weekday: 'short' });
+                log(`Day ${index}: ${formatLocalISO(date)} (${dayName}) → ${status}`);
+            });
+            
+            log('Test completed!', 'success');
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            log('Test page loaded successfully', 'success');
+            
+            // Try to load flatpickr for additional testing
+            if (typeof flatpickr !== 'undefined') {
+                document.getElementById('flatpickr-status').textContent = 'Flatpickr status: Available';
+                // Could initialize real flatpickr here for testing
+            } else {
+                document.getElementById('flatpickr-status').textContent = 'Flatpickr status: Not available (CDN blocked)';
+            }
+        });
+    </script>
+</body>
+</html>

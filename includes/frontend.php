@@ -108,10 +108,10 @@ function rbf_enqueue_frontend_assets() {
         'nonce' => wp_create_nonce('rbf_ajax_nonce'),
         'locale' => $locale, // it/en
         'debug' => defined('WP_DEBUG') && WP_DEBUG, // Enable debug mode if WP_DEBUG is on
-        'closedDays' => $closed_days,
-        'closedSingles' => $closed_specific['singles'],
-        'closedRanges' => $closed_specific['ranges'],
-        'exceptions' => $closed_specific['exceptions'],
+        'closedDays' => is_array($closed_days) ? $closed_days : [],
+        'closedSingles' => is_array($closed_specific['singles']) ? $closed_specific['singles'] : [],
+        'closedRanges' => is_array($closed_specific['ranges']) ? $closed_specific['ranges'] : [],
+        'exceptions' => is_array($closed_specific['exceptions']) ? $closed_specific['exceptions'] : [],
         'minAdvanceMinutes' => absint($options['min_advance_minutes'] ?? 0),
         'maxAdvanceMinutes' => absint($options['max_advance_minutes'] ?? $default_settings['max_advance_minutes']),
         'utilsScript' => plugin_dir_url(dirname(__FILE__)) . 'assets/js/vendor/intl-tel-input-utils.js',
