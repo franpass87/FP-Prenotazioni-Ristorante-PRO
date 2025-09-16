@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Calendar Data - FP Prenotazioni</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 1000px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background: #f5f5f5; 
+        }
+        .debug-container { 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+            margin-bottom: 20px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .data-block {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+        .issue-highlight {
+            background-color: #ffe6e6;
+            border-left: 4px solid #ff4444;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        .solution-highlight {
+            background-color: #e6ffe6;
+            border-left: 4px solid #44ff44;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .status.warning { background: #fff3cd; color: #856404; }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.info { background: #d1ecf1; color: #0c5460; }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <div class="debug-container">
+        <h1>🔍 Debug Calendar Data - Tutti i giorni disabilitati</h1>
+        <p><strong>Obiettivo:</strong> Identificare perché tutte le date del calendario appaiono come <code>flatpickr-day flatpickr-disabled</code></p>
+        
+        <button onclick="debugRbfData()" style="padding: 10px 20px; background: #007cba; color: white; border: none; border-radius: 4px; cursor: pointer;">🔍 Debug rbfData</button>
+        <button onclick="testDateChecks()" style="padding: 10px 20px; background: #0073aa; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px;">📅 Test Date Checks</button>
+        <button onclick="simulateEmptyData()" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px;">✨ Test Empty Data</button>
+        
+        <div id="debug-output" class="data-block" style="min-height: 200px; margin-top: 20px;">
+            Clicca su "Debug rbfData" per iniziare l'analisi...
+        </div>
+    </div>
+
+    <script>
+        // Mock the rbfData to simulate what might be causing the issue
+        let mockRbfData = null;
+        
+        function debugRbfData() {
+            const output = document.getElementById('debug-output');
+            let debugInfo = '=== DEBUG RBFDATA ANALYSIS ===\n\n';
+            
+            // Check if rbfData exists in the real page
+            if (typeof window.rbfData !== 'undefined') {
+                debugInfo += '✅ rbfData found on page!\n';
+                debugInfo += `Full rbfData object:\n${JSON.stringify(window.rbfData, null, 2)}\n\n`;
+                
+                // Analyze each property that could disable dates
+                debugInfo += '=== ANALYSIS OF DISABLE CONDITIONS ===\n';
+                
+                debugInfo += `closedDays: ${JSON.stringify(window.rbfData.closedDays)} (array length: ${Array.isArray(window.rbfData.closedDays) ? window.rbfData.closedDays.length : 'not array'})\n`;
+                debugInfo += `closedSingles: ${JSON.stringify(window.rbfData.closedSingles)} (array length: ${Array.isArray(window.rbfData.closedSingles) ? window.rbfData.closedSingles.length : 'not array'})\n`;
+                debugInfo += `closedRanges: ${JSON.stringify(window.rbfData.closedRanges)} (array length: ${Array.isArray(window.rbfData.closedRanges) ? window.rbfData.closedRanges.length : 'not array'})\n`;
+                debugInfo += `exceptions: ${JSON.stringify(window.rbfData.exceptions)} (array length: ${Array.isArray(window.rbfData.exceptions) ? window.rbfData.exceptions.length : 'not array'})\n\n`;
+                
+                // Check for problematic patterns
+                debugInfo += '=== PROBLEMATIC PATTERNS ANALYSIS ===\n';
+                
+                if (Array.isArray(window.rbfData.closedDays) && window.rbfData.closedDays.length >= 7) {
+                    debugInfo += '🚨 ISSUE FOUND: closedDays includes all 7 days of the week!\n';
+                    debugInfo += `   closedDays contains: ${window.rbfData.closedDays.join(', ')}\n`;
+                    debugInfo += '   This would disable ALL days of the week!\n\n';
+                }
+                
+                if (Array.isArray(window.rbfData.closedRanges)) {
+                    for (let range of window.rbfData.closedRanges) {
+                        if (range && range.from && range.to) {
+                            const fromDate = new Date(range.from);
+                            const toDate = new Date(range.to);
+                            const diffDays = Math.ceil((toDate - fromDate) / (1000 * 60 * 60 * 24));
+                            if (diffDays > 365) {
+                                debugInfo += `🚨 ISSUE FOUND: Very long closed range detected!\n`;
+                                debugInfo += `   Range: ${range.from} to ${range.to} (${diffDays} days)\n`;
+                                debugInfo += '   This could disable many dates!\n\n';
+                            }
+                        }
+                    }
+                }
+                
+                mockRbfData = window.rbfData;
+            } else {
+                debugInfo += '❌ rbfData NOT found on page - this might be the issue!\n';
+                debugInfo += 'Either:\n';
+                debugInfo += '1. This debug page is not loaded in a WordPress context\n';
+                debugInfo += '2. The rbfData is not being properly localized\n';
+                debugInfo += '3. There is a JavaScript error preventing rbfData from loading\n\n';
+                
+                // Create mock data for testing
+                mockRbfData = {
+                    closedDays: [0, 1, 2, 3, 4, 5, 6], // This would close ALL days!
+                    closedSingles: [],
+                    closedRanges: [],
+                    exceptions: [],
+                    debug: true
+                };
+                debugInfo += 'Created mock rbfData for testing:\n';
+                debugInfo += JSON.stringify(mockRbfData, null, 2) + '\n\n';
+            }
+            
+            output.textContent = debugInfo;
+        }
+        
+        function testDateChecks() {
+            const output = document.getElementById('debug-output');
+            let debugInfo = '=== DATE DISABLE FUNCTION TEST ===\n\n';
+            
+            if (!mockRbfData) {
+                debugInfo += '❌ No rbfData available. Run "Debug rbfData" first.\n';
+                output.textContent = debugInfo;
+                return;
+            }
+            
+            // Simulate the formatLocalISO function
+            function formatLocalISO(date) {
+                return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+                    .toISOString()
+                    .split('T')[0];
+            }
+            
+            // Simulate the isDateDisabled function
+            function testIsDateDisabled(date, rbfData) {
+                const dateStr = formatLocalISO(date);
+                const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
+                
+                debugInfo += `\n--- Testing date: ${dateStr} (${date.toLocaleDateString('it-IT')}) ---\n`;
+                debugInfo += `Day of week: ${dayOfWeek} (0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat)\n`;
+                
+                // CHECK 1: General restaurant closed days
+                if (rbfData.closedDays && Array.isArray(rbfData.closedDays) && rbfData.closedDays.length > 0) {
+                    debugInfo += `Checking closedDays: ${JSON.stringify(rbfData.closedDays)}\n`;
+                    if (rbfData.closedDays.includes(dayOfWeek)) {
+                        debugInfo += `❌ DISABLED: Day ${dayOfWeek} is in closedDays\n`;
+                        return true;
+                    } else {
+                        debugInfo += `✅ PASSED: Day ${dayOfWeek} not in closedDays\n`;
+                    }
+                } else {
+                    debugInfo += `✅ PASSED: No closedDays defined\n`;
+                }
+                
+                // CHECK 2: Specific closed dates
+                if (rbfData.closedSingles && Array.isArray(rbfData.closedSingles) && rbfData.closedSingles.length > 0) {
+                    debugInfo += `Checking closedSingles: ${JSON.stringify(rbfData.closedSingles)}\n`;
+                    if (rbfData.closedSingles.includes(dateStr)) {
+                        debugInfo += `❌ DISABLED: Date ${dateStr} is in closedSingles\n`;
+                        return true;
+                    } else {
+                        debugInfo += `✅ PASSED: Date ${dateStr} not in closedSingles\n`;
+                    }
+                } else {
+                    debugInfo += `✅ PASSED: No closedSingles defined\n`;
+                }
+                
+                // CHECK 3: Closed date ranges
+                if (rbfData.closedRanges && Array.isArray(rbfData.closedRanges) && rbfData.closedRanges.length > 0) {
+                    debugInfo += `Checking closedRanges: ${JSON.stringify(rbfData.closedRanges)}\n`;
+                    for (let range of rbfData.closedRanges) {
+                        if (range && range.from && range.to) {
+                            if (dateStr >= range.from && dateStr <= range.to) {
+                                debugInfo += `❌ DISABLED: Date ${dateStr} is within range ${range.from} to ${range.to}\n`;
+                                return true;
+                            }
+                        }
+                    }
+                    debugInfo += `✅ PASSED: Date ${dateStr} not in any closedRanges\n`;
+                } else {
+                    debugInfo += `✅ PASSED: No closedRanges defined\n`;
+                }
+                
+                // CHECK 4: Special exceptions
+                if (rbfData.exceptions && Array.isArray(rbfData.exceptions) && rbfData.exceptions.length > 0) {
+                    debugInfo += `Checking exceptions: ${JSON.stringify(rbfData.exceptions)}\n`;
+                    for (let exception of rbfData.exceptions) {
+                        if (exception && exception.date === dateStr) {
+                            if (exception.type === 'closure' || exception.type === 'holiday') {
+                                debugInfo += `❌ DISABLED: Date ${dateStr} has ${exception.type} exception\n`;
+                                return true;
+                            }
+                        }
+                    }
+                    debugInfo += `✅ PASSED: No closure/holiday exceptions for ${dateStr}\n`;
+                } else {
+                    debugInfo += `✅ PASSED: No exceptions defined\n`;
+                }
+                
+                debugInfo += `✅ FINAL RESULT: Date ${dateStr} is ALLOWED\n`;
+                return false;
+            }
+            
+            // Test several dates
+            const today = new Date();
+            const dates = [];
+            for (let i = 0; i < 7; i++) {
+                const testDate = new Date(today.getTime() + i * 24 * 60 * 60 * 1000);
+                dates.push(testDate);
+            }
+            
+            let allDisabled = true;
+            for (let date of dates) {
+                const isDisabled = testIsDateDisabled(date, mockRbfData);
+                if (!isDisabled) {
+                    allDisabled = false;
+                }
+            }
+            
+            debugInfo += '\n=== SUMMARY ===\n';
+            if (allDisabled) {
+                debugInfo += '🚨 CRITICAL ISSUE: ALL tested dates are DISABLED!\n';
+                debugInfo += 'This explains why the calendar shows all dates as non-selectable.\n\n';
+                debugInfo += 'LIKELY CAUSE:\n';
+                if (mockRbfData.closedDays && mockRbfData.closedDays.length >= 7) {
+                    debugInfo += '- closedDays array contains all 7 days of the week\n';
+                    debugInfo += '- This means the restaurant is marked as closed every day\n';
+                    debugInfo += '- Check WordPress admin settings for opening hours\n';
+                }
+            } else {
+                debugInfo += '✅ Some dates are allowed - the issue might be elsewhere.\n';
+            }
+            
+            output.textContent = debugInfo;
+        }
+        
+        function simulateEmptyData() {
+            const output = document.getElementById('debug-output');
+            let debugInfo = '=== TESTING WITH EMPTY/NORMAL DATA ===\n\n';
+            
+            // Test with completely empty data (should allow all dates)
+            const emptyData = {
+                closedDays: [],
+                closedSingles: [],
+                closedRanges: [],
+                exceptions: [],
+                debug: true
+            };
+            
+            debugInfo += 'Testing with EMPTY data (should allow all dates):\n';
+            debugInfo += JSON.stringify(emptyData, null, 2) + '\n\n';
+            
+            // Test with normal restaurant data (closed on Mondays)
+            const normalData = {
+                closedDays: [1], // Only Monday closed
+                closedSingles: [],
+                closedRanges: [],
+                exceptions: [],
+                debug: true
+            };
+            
+            debugInfo += 'Testing with NORMAL data (only Monday closed):\n';
+            debugInfo += JSON.stringify(normalData, null, 2) + '\n\n';
+            
+            // Test today with both datasets
+            const today = new Date();
+            const dateStr = new Date(today.getTime() - today.getTimezoneOffset() * 60000)
+                .toISOString().split('T')[0];
+            const dayOfWeek = today.getDay();
+            
+            debugInfo += `Today: ${dateStr} (day ${dayOfWeek})\n\n`;
+            
+            // Test with empty data
+            debugInfo += 'With EMPTY data:\n';
+            if (emptyData.closedDays.includes(dayOfWeek)) {
+                debugInfo += '❌ Today would be DISABLED\n';
+            } else {
+                debugInfo += '✅ Today would be ALLOWED\n';
+            }
+            
+            // Test with normal data  
+            debugInfo += 'With NORMAL data:\n';
+            if (normalData.closedDays.includes(dayOfWeek)) {
+                debugInfo += '❌ Today would be DISABLED (Monday closure)\n';
+            } else {
+                debugInfo += '✅ Today would be ALLOWED\n';
+            }
+            
+            debugInfo += '\n=== RECOMMENDATION ===\n';
+            debugInfo += 'If the current rbfData has closedDays = [0,1,2,3,4,5,6], then:\n';
+            debugInfo += '1. Check WordPress admin settings for restaurant opening hours\n';
+            debugInfo += '2. Ensure at least some days are marked as "open"\n';
+            debugInfo += '3. Or temporarily clear the closedDays array to allow all dates\n';
+            
+            output.textContent = debugInfo;
+        }
+        
+        // Auto-run debug when page loads if rbfData is available
+        setTimeout(() => {
+            if (typeof window.rbfData !== 'undefined') {
+                debugRbfData();
+            }
+        }, 1000);
+    </script>
+</body>
+</html>
