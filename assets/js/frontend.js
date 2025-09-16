@@ -842,6 +842,9 @@ function initializeBookingForm($) {
         shorthandCurrentMonth: false,
         showMonths: 1,
         
+        // Position calendar relative to input field instead of bottom of page
+        static: true,
+        
         // ENHANCED DISABLE FUNCTION - Ultra-safe with comprehensive logging
         disable: [function(date) {
           try {
@@ -1032,6 +1035,9 @@ function initializeBookingForm($) {
       locale: (rbfData && rbfData.locale === 'it') ? 'it' : 'default',
       enableTime: false,
       noCalendar: false,
+      
+      // Position calendar relative to input field instead of bottom of page
+      static: true,
       
       // EMERGENCY: Allow all dates - no disable function
       // disable: [], // Commenting out completely to allow all dates
@@ -3377,6 +3383,8 @@ function initializeBookingForm($) {
         locale: (rbfData && rbfData.locale === 'it') ? 'it' : 'default',
         enableTime: false,
         noCalendar: false,
+        // Position calendar relative to input field instead of bottom of page
+        static: true,
         // NO DISABLE FUNCTION - all dates allowed
         onChange: onDateChange,
         onReady: function() {
