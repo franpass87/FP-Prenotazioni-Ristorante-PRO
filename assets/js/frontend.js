@@ -336,8 +336,11 @@ jQuery(function($) {
     $step.attr('data-skeleton', 'false');
     
     // Remove any loading classes that might prevent interaction
-    $step.removeClass('rbf-component-loading');
-    $contentElements.removeClass('rbf-component-loading');
+    $step.removeClass('rbf-component-loading rbf-loading');
+    $contentElements.removeClass('rbf-component-loading rbf-loading');
+    
+    // CRITICAL: Remove loading classes from parent elements too
+    $step.parents().removeClass('rbf-component-loading rbf-loading');
     
     // Hide skeleton with fade out
     $skeletonElements.fadeOut(200, function() {
@@ -350,17 +353,26 @@ jQuery(function($) {
           // Remove any remaining pointer-events restrictions
           $step.css('pointer-events', 'auto');
           $contentElements.css('pointer-events', 'auto');
+          
           // Ensure date input is enabled and interactive
           el.dateInput.prop('disabled', false);
           el.dateInput.css('pointer-events', 'auto');
           el.dateInput.parent().css('pointer-events', 'auto');
 
-          // CRITICAL FIX: Force calendar interactivity
+          // CRITICAL FIX: Force calendar interactivity aggressively
           if (fp) {
             forceCalendarInteractivity(fp);
+            
+            // Double-check after a brief delay
+            setTimeout(() => {
+              forceCalendarInteractivity(fp);
+            }, 200);
           }
           
-          rbfLog.log('Calendar skeleton removed and interactivity forcefully enabled');
+          // CRITICAL: Remove any loading overlays from the entire step
+          $step.find('.rbf-loading-overlay').remove();
+          
+          rbfLog.log('📅 Calendar skeleton removed and interactivity forcefully enabled');
         }, 100);
       }
     });
@@ -374,10 +386,27 @@ jQuery(function($) {
 
     const calendar = calendarInstance.calendarContainer;
 
+    // Remove loading classes from calendar and all parent elements
     calendar.classList.remove('rbf-component-loading', 'rbf-loading');
+    let parent = calendar.parentElement;
+    while (parent && parent !== document.body) {
+      parent.classList.remove('rbf-component-loading', 'rbf-loading');
+      parent = parent.parentElement;
+    }
+
+    // Force calendar container styles
     calendar.style.pointerEvents = 'auto';
-    calendar.style.removeProperty('opacity');
+    calendar.style.opacity = '1';
     calendar.style.removeProperty('filter');
+    calendar.style.position = 'relative';
+    calendar.style.zIndex = '1100';
+
+    // Force wrapper styles
+    const wrapper = calendar.closest('.flatpickr-wrapper');
+    if (wrapper) {
+      wrapper.style.pointerEvents = 'auto';
+      wrapper.style.opacity = '1';
+    }
 
     const interactiveSelectors = [
       '.flatpickr-day',
@@ -392,10 +421,22 @@ jQuery(function($) {
       if (!element.classList.contains('flatpickr-disabled')) {
         element.style.pointerEvents = 'auto';
         element.style.cursor = 'pointer';
+        element.style.position = 'relative';
+        element.style.zIndex = '1';
       }
     });
 
+    // Remove any loading overlays from calendar and parent elements
     calendar.querySelectorAll('.rbf-loading-overlay').forEach((overlay) => overlay.remove());
+    
+    // Also check parent elements for overlays
+    let currentElement = calendar;
+    while (currentElement && currentElement !== document.body) {
+      currentElement.querySelectorAll('.rbf-loading-overlay').forEach((overlay) => overlay.remove());
+      currentElement = currentElement.parentElement;
+    }
+
+    rbfLog.log('🎯 Calendar interactivity forced successfully');
   }
 
   /**
@@ -706,7 +747,33 @@ jQuery(function($) {
         console.log('RBF: Calendar ready. If you see all dates disabled, run: window.rbfForceEmergencyMode = true; then refresh the page.');
       },
       
+      onOpen: function(selectedDates, dateStr, instance) {
+        rbfLog.log('📅 Calendar opened - forcing interactivity');
+        
+        // CRITICAL: Force interactivity immediately when calendar opens
+        setTimeout(() => {
+          forceCalendarInteractivity(instance);
+        }, 50);
+        
+        // Double-check after a brief delay to handle any race conditions
+        setTimeout(() => {
+          forceCalendarInteractivity(instance);
+        }, 200);
+      },
+      
       onDayCreate: function(dObj, dStr, fp, dayElem) {
+        // CRITICAL: Ensure day is interactive if not disabled
+        if (!dayElem.classList.contains('flatpickr-disabled')) {
+          dayElem.style.pointerEvents = 'auto';
+          dayElem.style.cursor = 'pointer';
+          dayElem.style.position = 'relative';
+          dayElem.style.zIndex = '1';
+          dayElem.setAttribute('tabindex', '0');
+          
+          // Remove any problematic classes
+          dayElem.classList.remove('rbf-component-loading', 'rbf-loading');
+        }
+        
         // Add visual indicators for special dates (non-blocking)
         try {
           addDateIndicators(dayElem);
@@ -3066,6 +3133,84 @@ jQuery(function($) {
       
       rbfLog.log('📋 Current form state:', { meal, date, time, people });
       return { meal, date, time, people };
+    },
+    
+    // EMERGENCY: Force calendar interactivity 
+    forceInteractivity: function() {
+      rbfLog.log('🚨 EMERGENCY: Forcing calendar interactivity...');
+      
+      if (fp && fp.calendarContainer) {
+        forceCalendarInteractivity(fp);
+        rbfLog.log('✅ Calendar interactivity forced');
+        return true;
+      } else {
+        rbfLog.log('❌ No calendar instance found');
+        return false;
+      }
+    },
+    
+    // EMERGENCY: Clear all loading states
+    clearLoadingStates: function() {
+      rbfLog.log('🧹 EMERGENCY: Clearing all loading states...');
+      
+      // Remove loading classes from all elements
+      document.querySelectorAll('.rbf-component-loading, .rbf-loading').forEach(el => {
+        el.classList.remove('rbf-component-loading', 'rbf-loading');
+        el.style.pointerEvents = 'auto';
+        el.style.opacity = '1';
+      });
+      
+      // Remove loading overlays
+      document.querySelectorAll('.rbf-loading-overlay').forEach(el => el.remove());
+      
+      // Fix skeleton states
+      document.querySelectorAll('[data-skeleton="true"]').forEach(el => {
+        el.setAttribute('data-skeleton', 'false');
+        el.style.pointerEvents = 'auto';
+      });
+      
+      rbfLog.log('✅ Loading states cleared');
+    },
+    
+    // EMERGENCY: Nuclear option - fix everything
+    emergencyFix: function() {
+      rbfLog.log('🚨 EMERGENCY: Applying nuclear fix...');
+      
+      // Clear loading states
+      this.clearLoadingStates();
+      
+      // Force calendar interactivity
+      if (fp) {
+        this.forceInteractivity();
+        
+        // Extra aggressive fix
+        setTimeout(() => {
+          if (fp && fp.calendarContainer) {
+            const calendar = fp.calendarContainer;
+            calendar.style.pointerEvents = 'auto !important';
+            calendar.style.opacity = '1 !important';
+            calendar.style.zIndex = '9999';
+            
+            calendar.querySelectorAll('.flatpickr-day').forEach(day => {
+              if (!day.classList.contains('flatpickr-disabled')) {
+                day.style.pointerEvents = 'auto !important';
+                day.style.cursor = 'pointer !important';
+                day.style.backgroundColor = '';
+                day.style.color = '';
+              }
+            });
+          }
+        }, 100);
+      }
+      
+      // Activate emergency mode
+      window.rbfForceEmergencyMode = true;
+      window.rbfEmergencyMode = true;
+      
+      rbfLog.log('🚨 EMERGENCY FIX APPLIED - Calendar should now be interactive');
+      rbfLog.log('📋 Try clicking on calendar dates now');
+      
+      return 'Emergency fix applied. Try clicking calendar dates now.';
     }
   };
 
@@ -3078,7 +3223,10 @@ jQuery(function($) {
     console.log('  - rbfCalendar.debugData() - Show current configuration data');
     console.log('  - rbfCalendar.getCurrentSelection() - Show current form state');
     console.log('');
-    console.log('🚨 EMERGENCY TOOLS (if calendar shows all dates disabled):');
+    console.log('🚨 EMERGENCY TOOLS (if calendar dates are disabled/not clickable):');
+    console.log('  - rbfCalendar.emergencyFix() - Apply all fixes at once');
+    console.log('  - rbfCalendar.forceInteractivity() - Force calendar to be clickable');
+    console.log('  - rbfCalendar.clearLoadingStates() - Remove blocking loading states');
     console.log('  - rbfCalendar.activateEmergencyMode() - Switch to emergency mode');
     console.log('  - rbfCalendar.disableAllRestrictions() - Remove ALL restrictions');
   }
@@ -3087,9 +3235,10 @@ jQuery(function($) {
   setTimeout(() => {
     if (window.rbfEmergencyMode || (window.rbfDisabledCount > 10 && window.rbfTotalCount > 0)) {
       console.log('');
-      console.log('🚨 RBF EMERGENCY: Calendar may be broken. Try these commands:');
-      console.log('  rbfCalendar.activateEmergencyMode()');
-      console.log('  rbfCalendar.disableAllRestrictions()');
+      console.log('🚨 RBF EMERGENCY: Calendar dates may be disabled. Try these commands:');
+      console.log('  rbfCalendar.emergencyFix() - Apply all fixes at once');
+      console.log('  rbfCalendar.forceInteractivity() - Force calendar interactivity');
+      console.log('  rbfCalendar.clearLoadingStates() - Clear loading states');
     }
   }, 5000);
 

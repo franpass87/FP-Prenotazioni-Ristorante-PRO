@@ -1967,10 +1967,34 @@
     opacity: 1 !important;
 }
 
-/* Ensure calendar container parent doesn't block events */
+/* CRITICAL: Ensure calendar container parent doesn't block events */
 .flatpickr-wrapper,
-.flatpickr-wrapper * {
+.flatpickr-wrapper *,
+.flatpickr-calendar,
+.flatpickr-calendar * {
     pointer-events: auto !important;
+}
+
+/* CRITICAL: Prevent parent loading states from affecting calendar */
+.rbf-component-loading .flatpickr-calendar,
+.rbf-component-loading .flatpickr-wrapper,
+.rbf-loading .flatpickr-calendar,
+.rbf-loading .flatpickr-wrapper {
+    pointer-events: auto !important;
+    opacity: 1 !important;
+}
+
+/* CRITICAL: Ensure calendar days are always clickable when not disabled */
+.flatpickr-day:not(.flatpickr-disabled) {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+}
+
+/* CRITICAL: Prevent skeleton loading from affecting calendar */
+.rbf-step[data-skeleton="true"] .flatpickr-calendar,
+.rbf-step[data-skeleton="true"] .flatpickr-wrapper {
+    pointer-events: auto !important;
+    opacity: 1 !important;
 }
 
 /* Calendar day colors - use primary color instead of secondary */
