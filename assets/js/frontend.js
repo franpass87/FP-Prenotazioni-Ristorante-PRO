@@ -625,38 +625,112 @@ jQuery(function($) {
       showMonths: 1,
       // Simplified disable function - only disable clearly closed days
       disable: [function(date) {
-        const dateStr = formatLocalISO(date);
-        const day = date.getDay();
+        try {
+          const dateStr = formatLocalISO(date);
+          const day = date.getDay();
 
-        // Only check for explicit closures and holidays
-        if (rbfData.exceptions) {
-          for (let exception of rbfData.exceptions) {
-            if (exception.date === dateStr) {
-              // Only disable for closures and holidays
-              if (exception.type === 'closure' || exception.type === 'holiday') {
+          // Debug logging to identify the issue
+          if (rbfData.debug) {
+            rbfLog.log(`Checking date: ${dateStr} (day: ${day})`);
+          }
+
+          // Ensure rbfData exists and has expected structure
+          if (!rbfData || typeof rbfData !== 'object') {
+            rbfLog.warn('rbfData is not properly initialized, allowing all dates');
+            return false;
+          }
+
+          // Check meal availability for the currently selected meal
+          const selectedMeal = el.mealRadios.filter(':checked').val();
+          if (selectedMeal && rbfData.mealAvailability && rbfData.mealAvailability[selectedMeal]) {
+            const dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+            const currentDayName = dayNames[day];
+            
+            if (!rbfData.mealAvailability[selectedMeal].includes(currentDayName)) {
+              if (rbfData.debug) {
+                rbfLog.log(`Date ${dateStr} disabled: meal "${selectedMeal}" not available on ${currentDayName}`);
+              }
+              return true;
+            }
+          }
+
+          // Only check for explicit closures and holidays
+          if (rbfData.exceptions && Array.isArray(rbfData.exceptions)) {
+            for (let exception of rbfData.exceptions) {
+              if (exception && exception.date === dateStr) {
+                // Only disable for closures and holidays
+                if (exception.type === 'closure' || exception.type === 'holiday') {
+                  if (rbfData.debug) {
+                    rbfLog.log(`Date ${dateStr} disabled by exception: ${exception.type}`);
+                  }
+                  return true;
+                }
+              }
+            }
+          }
+
+          // Check basic closed days and dates
+          if (rbfData.closedDays && Array.isArray(rbfData.closedDays)) {
+            if (rbfData.closedDays.includes(day)) {
+              if (rbfData.debug) {
+                rbfLog.log(`Date ${dateStr} disabled by closedDays: day ${day} in ${JSON.stringify(rbfData.closedDays)}`);
+              }
+              return true;
+            }
+          }
+          
+          if (rbfData.closedSingles && Array.isArray(rbfData.closedSingles)) {
+            if (rbfData.closedSingles.includes(dateStr)) {
+              if (rbfData.debug) {
+                rbfLog.log(`Date ${dateStr} disabled by closedSingles`);
+              }
+              return true;
+            }
+          }
+          
+          // Check closed ranges
+          if (rbfData.closedRanges && Array.isArray(rbfData.closedRanges)) {
+            for (let range of rbfData.closedRanges) {
+              if (range && range.from && range.to && dateStr >= range.from && dateStr <= range.to) {
+                if (rbfData.debug) {
+                  rbfLog.log(`Date ${dateStr} disabled by range: ${range.from} to ${range.to}`);
+                }
                 return true;
               }
             }
           }
-        }
-
-        // Check basic closed days and dates
-        if (rbfData.closedDays && rbfData.closedDays.includes(day)) return true;
-        if (rbfData.closedSingles && rbfData.closedSingles.includes(dateStr)) return true;
-        
-        // Check closed ranges
-        if (rbfData.closedRanges) {
-          for (let range of rbfData.closedRanges) {
-            if (dateStr >= range.from && dateStr <= range.to) return true;
+          
+          // Default: allow all other days
+          if (rbfData.debug) {
+            rbfLog.log(`Date ${dateStr} allowed`);
           }
+          return false;
+        } catch (error) {
+          rbfLog.error(`Error in disable function for date ${date}: ${error.message}`);
+          // On error, allow the date rather than disabling all dates
+          return false;
         }
-        
-        // Default: allow all other days
-        return false;
       }],
       onChange: onDateChange,
       onReady: function(selectedDates, dateStr, instance) {
         rbfLog.log('Flatpickr calendar initialized successfully');
+        
+        // Debug rbfData structure to help diagnose issues
+        if (rbfData.debug) {
+          rbfLog.log('rbfData structure:', {
+            closedDays: rbfData.closedDays,
+            closedSingles: rbfData.closedSingles,
+            closedRanges: rbfData.closedRanges,
+            exceptions: rbfData.exceptions,
+            exceptionsCount: rbfData.exceptions ? rbfData.exceptions.length : 0,
+            mealAvailability: rbfData.mealAvailability
+          });
+        }
+        
+        // Force calendar interactivity after initialization
+        setTimeout(() => {
+          forceCalendarInteractivity(instance);
+        }, 100);
       },
       onDayCreate: function(dObj, dStr, fp, dayElem) {
         const dateStr = formatLocalISO(dayElem.dateObj);
