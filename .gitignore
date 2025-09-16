@@ -35,4 +35,5 @@ fp-prenotazioni-ristorante-pro-v*.zip
 fp-prenotazioni-ristorante-pro-latest.zip
 
 # GitHub Actions
-.github/workflows/test-results/
+.github/workflows/test-results/test-time-loading-debug.html
+verify-time-loading-fix.html
