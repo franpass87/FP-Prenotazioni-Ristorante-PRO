@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Calendar Positioning - FP Prenotazioni</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: #f5f7fa;
+            min-height: 200vh; /* Make page long to test positioning */
+        }
+        .test-container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-top: 100px; /* Add space at top */
+        }
+        .form-field {
+            margin: 20px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        .position-indicator {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #007cba;
+            color: white;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 14px;
+            z-index: 9999;
+        }
+        .test-content {
+            height: 150vh;
+            background: linear-gradient(to bottom, #e3f2fd, #bbdefb);
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #555;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+</head>
+<body>
+    <div class="position-indicator">
+        <div>Scroll position: <span id="scroll-pos">0</span>px</div>
+        <div>Calendar position: <span id="calendar-pos">Not opened</span></div>
+    </div>
+
+    <div class="test-container">
+        <h1>🗓️ Test Calendar Positioning Issue</h1>
+        <p><strong>Issue:</strong> Calendar opens at bottom of page instead of near input field</p>
+        
+        <div class="form-field">
+            <label for="test-date">📅 Select Date (Test Current Behavior):</label>
+            <input type="text" id="test-date" placeholder="Click to open calendar" readonly>
+        </div>
+        
+        <div class="form-field">
+            <label for="test-date-fixed">📅 Select Date (With Position Fix):</label>
+            <input type="text" id="test-date-fixed" placeholder="Click to open calendar" readonly>
+        </div>
+        
+        <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <h4>🧪 Test Instructions:</h4>
+            <ol>
+                <li>Scroll down a bit to move the input fields away from the top</li>
+                <li>Click on the first input field (current behavior)</li>
+                <li>Notice where the calendar appears - likely at the bottom of the page</li>
+                <li>Click on the second input field (with fix)</li>
+                <li>Notice the calendar should appear near the input field</li>
+            </ol>
+        </div>
+    </div>
+    
+    <div class="test-content">
+        📍 Scroll down and test calendar positioning above
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/it.js"></script>
+    <script>
+        // Update scroll position indicator
+        function updateScrollPosition() {
+            document.getElementById('scroll-pos').textContent = Math.round(window.scrollY);
+        }
+        
+        window.addEventListener('scroll', updateScrollPosition);
+        updateScrollPosition();
+
+        // Function to update calendar position in indicator
+        function updateCalendarPosition() {
+            const calendars = document.querySelectorAll('.flatpickr-calendar');
+            if (calendars.length > 0) {
+                const calendar = calendars[calendars.length - 1]; // Get the last one (most recent)
+                const rect = calendar.getBoundingClientRect();
+                document.getElementById('calendar-pos').textContent = 
+                    `Top: ${Math.round(rect.top + window.scrollY)}px`;
+            }
+        }
+
+        // Current behavior (problematic)
+        const currentCalendar = flatpickr("#test-date", {
+            altInput: true,
+            altFormat: 'd-m-Y',
+            dateFormat: 'Y-m-d',
+            minDate: 'today',
+            locale: 'it',
+            enableTime: false,
+            // No positioning configuration - defaults to body append
+            onOpen: function() {
+                console.log('Current behavior calendar opened');
+                setTimeout(updateCalendarPosition, 100);
+            }
+        });
+
+        // Fixed behavior (should position correctly)
+        const fixedCalendar = flatpickr("#test-date-fixed", {
+            altInput: true,
+            altFormat: 'd-m-Y', 
+            dateFormat: 'Y-m-d',
+            minDate: 'today',
+            locale: 'it',
+            enableTime: false,
+            // Position fix - use static positioning relative to input
+            static: true,
+            onOpen: function() {
+                console.log('Fixed behavior calendar opened');
+                setTimeout(updateCalendarPosition, 100);
+            }
+        });
+
+        // Log for debugging
+        console.log('Calendar positioning test initialized');
+        console.log('Current calendar:', currentCalendar);
+        console.log('Fixed calendar:', fixedCalendar);
+    </script>
+</body>
+</html>
