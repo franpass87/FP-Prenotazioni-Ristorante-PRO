@@ -2001,13 +2001,30 @@ function initializeBookingForm($) {
     const progressText = '⏳ Caricamento orari in corso...';
     el.timeSelect.find('option').first().text(progressText);
 
+    // Add timeout to prevent infinite loading (FIX for loading issue)
+    let loadingTimeout = setTimeout(function() {
+      // Force cleanup if AJAX takes too long
+      hideComponentLoading(el.timeStep[0]);
+      el.timeSelect.removeClass('rbf-loading');
+      el.timeSelect.html('');
+      el.timeSelect.append(new Option('Errore: timeout nel caricamento. Riprova.', ''));
+      el.timeSelect.prop('disabled', false);
+      rbfLog.warn('AJAX timeout: Loading took too long, forced cleanup');
+    }, 10000); // 10 second timeout
+
     // Get available times via AJAX
-    $.post(rbfData.ajaxUrl, {
-      action: 'rbf_get_availability',
-      _ajax_nonce: rbfData.nonce,
-      date: dateString,
-      meal: selectedMeal
-    }, function(response) {
+    const ajaxRequest = $.post({
+      url: rbfData.ajaxUrl,
+      data: {
+        action: 'rbf_get_availability',
+        _ajax_nonce: rbfData.nonce,
+        date: dateString,
+        meal: selectedMeal
+      },
+      timeout: 8000 // 8 second AJAX timeout
+    }).done(function(response) {
+      // Clear timeout since request completed
+      clearTimeout(loadingTimeout);
       // Hide loading state
       hideComponentLoading(el.timeStep[0]);
       
@@ -2117,6 +2134,9 @@ function initializeBookingForm($) {
         announceToScreenReader('Nessun orario disponibile per questa data');
       }
     }).fail(function(xhr, status, error) {
+      // Clear timeout since request completed (even with error)
+      clearTimeout(loadingTimeout);
+      
       // Hide loading state
       hideComponentLoading(el.timeStep[0]);
       
@@ -2159,6 +2179,16 @@ function initializeBookingForm($) {
           error: error,
           response: xhr.responseJSON
         });
+      }
+    }).always(function() {
+      // SAFETY: Always ensure loading state is cleared regardless of success/failure
+      clearTimeout(loadingTimeout);
+      hideComponentLoading(el.timeStep[0]);
+      el.timeSelect.removeClass('rbf-loading');
+      el.timeSelect.prop('disabled', false);
+      
+      if (rbfData.debug) {
+        console.log('RBF: Time loading AJAX completed (always handler)');
       }
     });
   }
