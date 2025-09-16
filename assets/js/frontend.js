@@ -426,6 +426,9 @@ function initializeBookingForm($) {
           if (fp) {
             forceCalendarInteractivity(fp);
             
+            // Start periodic checker to prevent regression
+            startInteractivityChecker(fp);
+            
             // Double-check after a brief delay
             setTimeout(() => {
               forceCalendarInteractivity(fp);
@@ -500,6 +503,30 @@ function initializeBookingForm($) {
     }
 
     rbfLog.log('🎯 Calendar interactivity forced successfully');
+  }
+
+  /**
+   * Start periodic interactivity checker to prevent regression
+   */
+  function startInteractivityChecker(calendarInstance) {
+    if (!calendarInstance) return;
+    
+    // Clear any existing checker
+    if (window.rbfInteractivityChecker) {
+      clearInterval(window.rbfInteractivityChecker);
+    }
+    
+    // Start periodic check every 2 seconds
+    var interactivityChecker = setInterval(function() {
+      if (calendarInstance && calendarInstance.calendarContainer) {
+        forceCalendarInteractivity(calendarInstance);
+      }
+    }, 2000);
+    
+    // Store reference for cleanup
+    window.rbfInteractivityChecker = interactivityChecker;
+    
+    rbfLog.log('🔄 Calendar interactivity checker started');
   }
 
   /**

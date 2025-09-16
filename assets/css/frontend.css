@@ -1967,6 +1967,7 @@
     opacity: 1 !important;
 }
 
+/* CRITICAL FIX: Ensure calendar is always fully interactive */
 /* CRITICAL: Ensure calendar container parent doesn't block events */
 .flatpickr-wrapper,
 .flatpickr-wrapper *,
