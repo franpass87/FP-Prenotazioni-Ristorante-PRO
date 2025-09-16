@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Calendar Issue - FP Prenotazioni</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background: #f5f5f5; 
+        }
+        .debug-container { 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+            margin-bottom: 20px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .code-block {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+        .issue-highlight {
+            background-color: #ffe6e6;
+            border-left: 4px solid #ff4444;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        .solution-highlight {
+            background-color: #e6ffe6;
+            border-left: 4px solid #44ff44;
+            padding: 10px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="debug-container">
+        <h1>🐛 Debug: Calendar Dates All Disabled Issue</h1>
+        <p><strong>Problema:</strong> Nel calendario tutte le date sono disabilitate (flatpickr-day flatpickr-disabled)</p>
+        
+        <div class="issue-highlight">
+            <h3>🔍 Analisi del Problema</h3>
+            <p>Il problema sembra essere nella funzione <code>disable</code> di flatpickr nel file <code>assets/js/frontend.js</code>.</p>
+        </div>
+        
+        <h3>📋 Codice Attuale della Funzione disable:</h3>
+        <div class="code-block">disable: [function(date) {
+  const dateStr = formatLocalISO(date);
+  const day = date.getDay();
+
+  // Only check for explicit closures and holidays
+  if (rbfData.exceptions) {
+    for (let exception of rbfData.exceptions) {
+      if (exception.date === dateStr) {
+        // Only disable for closures and holidays
+        if (exception.type === 'closure' || exception.type === 'holiday') {
+          return true;
+        }
+      }
+    }
+  }
+
+  // Check basic closed days and dates
+  if (rbfData.closedDays && rbfData.closedDays.includes(day)) return true;
+  if (rbfData.closedSingles && rbfData.closedSingles.includes(dateStr)) return true;
+  
+  // Check closed ranges
+  if (rbfData.closedRanges) {
+    for (let range of rbfData.closedRanges) {
+      if (dateStr >= range.from && dateStr <= range.to) return true;
+    }
+  }
+  
+  // Default: allow all other days
+  return false;
+}]</div>
+
+        <div class="issue-highlight">
+            <h3>🚨 Possibili Cause:</h3>
+            <ul>
+                <li><strong>rbfData non definito:</strong> Se rbfData non è inizializzato correttamente</li>
+                <li><strong>formatLocalISO problematico:</strong> Problemi con la formattazione delle date</li>
+                <li><strong>Configurazione rbfData errata:</strong> closedDays, closedSingles, o closedRanges contengono valori che disabilitano tutto</li>
+                <li><strong>Problema di timezone:</strong> formatLocalISO potrebbe causare problemi di fuso orario</li>
+            </ul>
+        </div>
+
+        <div class="solution-highlight">
+            <h3>✅ Soluzioni Proposte:</h3>
+            <ol>
+                <li><strong>Debug logging:</strong> Aggiungere console.log per vedere i valori di rbfData</li>
+                <li><strong>Semplificare la funzione disable:</strong> Temporaneamente restituire sempre false per testare</li>
+                <li><strong>Verificare formatLocalISO:</strong> Assicurarsi che formatti correttamente le date</li>
+                <li><strong>Controlli di sicurezza:</strong> Aggiungere controlli per undefined/null</li>
+            </ol>
+        </div>
+
+        <h3>🔧 Test Debug Function</h3>
+        <button onclick="debugCalendarIssue()">Debug Calendar Configuration</button>
+        <div id="debug-output" class="code-block" style="min-height: 100px; margin-top: 10px;"></div>
+    </div>
+
+    <script>
+        function debugCalendarIssue() {
+            const output = document.getElementById('debug-output');
+            let debugInfo = '';
+            
+            // Test 1: Check if formatLocalISO exists and works
+            debugInfo += '=== TEST 1: formatLocalISO Function ===\n';
+            try {
+                function formatLocalISO(date) {
+                    return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+                        .toISOString()
+                        .split('T')[0];
+                }
+                
+                const testDate = new Date();
+                const formatted = formatLocalISO(testDate);
+                debugInfo += `✅ formatLocalISO works: ${formatted}\n`;
+                debugInfo += `✅ Test date: ${testDate.toDateString()}\n`;
+            } catch (error) {
+                debugInfo += `❌ formatLocalISO error: ${error.message}\n`;
+            }
+            
+            // Test 2: Check if rbfData would be available
+            debugInfo += '\n=== TEST 2: rbfData Simulation ===\n';
+            const mockRbfData = {
+                closedDays: undefined,
+                closedSingles: undefined, 
+                closedRanges: undefined,
+                exceptions: undefined
+            };
+            
+            debugInfo += `Mock rbfData: ${JSON.stringify(mockRbfData, null, 2)}\n`;
+            
+            // Test 3: Test disable function logic
+            debugInfo += '\n=== TEST 3: Disable Function Logic ===\n';
+            function testDisableFunction(date, rbfData) {
+                const dateStr = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+                    .toISOString().split('T')[0];
+                const day = date.getDay();
+                
+                debugInfo += `Testing date: ${dateStr} (day: ${day})\n`;
+                
+                // Only check for explicit closures and holidays
+                if (rbfData.exceptions) {
+                    debugInfo += `Checking exceptions: ${rbfData.exceptions.length} items\n`;
+                    for (let exception of rbfData.exceptions) {
+                        if (exception.date === dateStr) {
+                            if (exception.type === 'closure' || exception.type === 'holiday') {
+                                debugInfo += `❌ Disabled by exception: ${exception.type}\n`;
+                                return true;
+                            }
+                        }
+                    }
+                } else {
+                    debugInfo += `No exceptions defined\n`;
+                }
+                
+                // Check basic closed days and dates
+                if (rbfData.closedDays && rbfData.closedDays.includes(day)) {
+                    debugInfo += `❌ Disabled by closedDays: day ${day} in ${rbfData.closedDays}\n`;
+                    return true;
+                }
+                if (rbfData.closedSingles && rbfData.closedSingles.includes(dateStr)) {
+                    debugInfo += `❌ Disabled by closedSingles: ${dateStr}\n`;
+                    return true;
+                }
+                
+                // Check closed ranges
+                if (rbfData.closedRanges) {
+                    debugInfo += `Checking closedRanges: ${rbfData.closedRanges.length} ranges\n`;
+                    for (let range of rbfData.closedRanges) {
+                        if (dateStr >= range.from && dateStr <= range.to) {
+                            debugInfo += `❌ Disabled by range: ${range.from} to ${range.to}\n`;
+                            return true;
+                        }
+                    }
+                } else {
+                    debugInfo += `No closed ranges defined\n`;
+                }
+                
+                debugInfo += `✅ Date allowed: ${dateStr}\n`;
+                return false;
+            }
+            
+            // Test several dates
+            const today = new Date();
+            const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+            const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+            
+            testDisableFunction(today, mockRbfData);
+            testDisableFunction(tomorrow, mockRbfData);  
+            testDisableFunction(nextWeek, mockRbfData);
+            
+            output.textContent = debugInfo;
+        }
+    </script>
+</body>
+</html>
