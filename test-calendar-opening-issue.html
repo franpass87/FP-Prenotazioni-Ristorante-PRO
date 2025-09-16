@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Calendar Opening Issue - FP Prenotazioni</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: #f5f7fa; 
+        }
+        .test-container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .test-status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        .test-success { background: #d4edda; color: #155724; }
+        .test-error { background: #f8d7da; color: #721c24; }
+        .test-info { background: #d1ecf1; color: #0c5460; }
+        .test-log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .form-step {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .form-step.hidden { display: none; }
+        .meal-radio {
+            margin: 10px;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .meal-radio input { margin-right: 10px; }
+        .date-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .date-input:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Test Calendar Opening Issue</h1>
+        <p><strong>Issue:</strong> "Ora il calendario non si apre più" (Calendar no longer opens)</p>
+        
+        <div id="test-status" class="test-status test-info">
+            ⏳ Click on a meal to test calendar opening...
+        </div>
+        
+        <!-- Simulated Form Steps -->
+        <div id="step-meal" class="form-step">
+            <h3>Step 1: Select Meal</h3>
+            <div class="meal-radio">
+                <input type="radio" name="meal" value="brunch" id="brunch">
+                <label for="brunch">🥐 Brunch</label>
+            </div>
+            <div class="meal-radio">
+                <input type="radio" name="meal" value="pranzo" id="pranzo">
+                <label for="pranzo">🍝 Pranzo</label>
+            </div>
+            <div class="meal-radio">
+                <input type="radio" name="meal" value="cena" id="cena">
+                <label for="cena">🍷 Cena</label>
+            </div>
+        </div>
+
+        <div id="step-date" class="form-step hidden">
+            <h3>Step 2: Select Date</h3>
+            <label for="date-input">Click here to open calendar:</label>
+            <input type="text" id="date-input" class="date-input" placeholder="Click to select date" readonly>
+            <div id="calendar-debug" style="margin-top: 10px; font-size: 12px; color: #666;"></div>
+        </div>
+        
+        <div id="test-log" class="test-log"></div>
+        
+        <div style="text-align: center; margin-top: 20px;">
+            <button onclick="runDiagnostics()" style="padding: 12px 24px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                🔍 Run Calendar Diagnostics
+            </button>
+            <button onclick="clearLogs()" style="padding: 12px 24px; background: #6c757d; color: white; border: none; border-radius: 8px; cursor: pointer; margin-left: 10px;">
+                🗑️ Clear Logs
+            </button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/it.js"></script>
+    
+    <script>
+        // Mock rbfData to simulate WordPress environment
+        window.rbfData = {
+            minAdvanceMinutes: 60,
+            maxAdvanceMinutes: 10080,
+            locale: 'it',
+            debug: true,
+            closedDays: [], // No closed days
+            closedSingles: [], // No specific closed dates
+            closedRanges: [], // No closed ranges
+            exceptions: [], // No exceptions
+            labels: {
+                loading: 'Caricamento...',
+                chooseTime: 'Scegli un orario...'
+            },
+            mealAvailability: {
+                brunch: ['sat', 'sun'],
+                pranzo: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
+                cena: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+            }
+        };
+        
+        let testLog = [];
+        let fp = null;
+        let datePickerInitPromise = null;
+        let selectedMeal = null;
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
+            testLog.push(logEntry);
+            updateTestLog();
+            
+            if (type === 'error') {
+                console.error('TEST:', message);
+            } else {
+                console.log('TEST:', message);
+            }
+        }
+        
+        function updateTestLog() {
+            const logElement = document.getElementById('test-log');
+            logElement.textContent = testLog.join('\n');
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        function updateTestStatus(message, type = 'info') {
+            const statusElement = document.getElementById('test-status');
+            statusElement.className = `test-status test-${type}`;
+            statusElement.innerHTML = message;
+        }
+        
+        function clearLogs() {
+            testLog = [];
+            updateTestLog();
+            updateTestStatus('📝 Logs cleared', 'info');
+        }
+        
+        // Key function from original code to test
+        function formatLocalISO(date) {
+            return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+                .toISOString()
+                .split('T')[0];
+        }
+        
+        // Simplified version of isDateDisabled for testing
+        function isDateDisabled(date) {
+            try {
+                const dateStr = formatLocalISO(date);
+                const dayOfWeek = date.getDay();
+                
+                log(`Testing date: ${dateStr} (day: ${dayOfWeek})`);
+                
+                // Check basic closed days
+                if (rbfData.closedDays && rbfData.closedDays.includes(dayOfWeek)) {
+                    log(`Date ${dateStr} disabled: restaurant closed on day ${dayOfWeek}`);
+                    return true;
+                }
+                
+                // Check specific closed dates
+                if (rbfData.closedSingles && rbfData.closedSingles.includes(dateStr)) {
+                    log(`Date ${dateStr} disabled: specific closure date`);
+                    return true;
+                }
+                
+                log(`Date ${dateStr} allowed: no restrictions apply`);
+                return false;
+                
+            } catch (error) {
+                log(`Error in isDateDisabled: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        function initializeFlatpickr() {
+            log('Initializing Flatpickr...');
+            
+            if (!rbfData) {
+                log('rbfData not available - cannot initialize calendar', 'error');
+                return;
+            }
+            
+            const dateInput = document.getElementById('date-input');
+            if (!dateInput) {
+                log('Date input not found', 'error');
+                return;
+            }
+            
+            try {
+                const flatpickrConfig = {
+                    altInput: true,
+                    altFormat: 'd-m-Y',
+                    dateFormat: 'Y-m-d',
+                    minDate: 'today',
+                    locale: 'it',
+                    enableTime: false,
+                    noCalendar: false,
+                    
+                    // Simplified disable function for testing
+                    disable: [function(date) {
+                        try {
+                            const result = isDateDisabled(date);
+                            return result;
+                        } catch (error) {
+                            log(`Calendar disable function error: ${error.message}`, 'error');
+                            return false; // Allow date on error
+                        }
+                    }],
+                    
+                    onChange: function(selectedDates) {
+                        if (selectedDates.length > 0) {
+                            const selectedDate = formatLocalISO(selectedDates[0]);
+                            log(`Date selected: ${selectedDate}`, 'success');
+                            updateTestStatus(`✅ Date selected: ${selectedDate}`, 'success');
+                        }
+                    },
+                    
+                    onReady: function(selectedDates, dateStr, instance) {
+                        log('✅ Calendar ready event triggered', 'success');
+                        updateCalendarDebugInfo(instance);
+                    },
+                    
+                    onOpen: function(selectedDates, dateStr, instance) {
+                        log('📅 Calendar opened successfully', 'success');
+                        updateTestStatus('✅ Calendar opened successfully!', 'success');
+                        updateCalendarDebugInfo(instance);
+                    },
+                    
+                    onClose: function(selectedDates, dateStr, instance) {
+                        log('📅 Calendar closed');
+                    },
+                    
+                    onDayCreate: function(dObj, dStr, fp, dayElem) {
+                        // Add debug info to calendar days
+                        if (!dayElem.classList.contains('flatpickr-disabled')) {
+                            dayElem.style.pointerEvents = 'auto';
+                            dayElem.style.cursor = 'pointer';
+                        }
+                    }
+                };
+                
+                // Create Flatpickr instance
+                fp = flatpickr(dateInput, flatpickrConfig);
+                
+                if (fp && fp.calendarContainer) {
+                    log('✅ Flatpickr instance created successfully', 'success');
+                    updateCalendarDebugInfo(fp);
+                    
+                    // Test opening the calendar immediately
+                    setTimeout(() => {
+                        if (fp && !fp.isOpen) {
+                            log('🔄 Attempting to open calendar automatically...');
+                            fp.open();
+                        }
+                    }, 100);
+                    
+                } else {
+                    throw new Error('Flatpickr instance creation failed');
+                }
+                
+            } catch (error) {
+                log(`Failed to create calendar: ${error.message}`, 'error');
+                updateTestStatus('❌ Calendar creation failed', 'error');
+                
+                // Try fallback to HTML5 date input
+                setupFallbackDateInput();
+            }
+        }
+        
+        function setupFallbackDateInput() {
+            log('Setting up HTML5 date input fallback...');
+            const dateInput = document.getElementById('date-input');
+            dateInput.type = 'date';
+            dateInput.removeAttribute('readonly');
+            
+            const today = new Date();
+            const minDate = new Date(today.getTime() + 60 * 60 * 1000); // 1 hour from now
+            dateInput.min = minDate.toISOString().split('T')[0];
+            
+            dateInput.addEventListener('change', function() {
+                if (this.value) {
+                    log(`Date selected via HTML5 input: ${this.value}`, 'success');
+                    updateTestStatus(`✅ Date selected (HTML5): ${this.value}`, 'success');
+                }
+            });
+            
+            log('✅ HTML5 date input fallback configured', 'success');
+        }
+        
+        function updateCalendarDebugInfo(instance) {
+            const debugDiv = document.getElementById('calendar-debug');
+            if (instance && instance.calendarContainer) {
+                const calendar = instance.calendarContainer;
+                const totalDays = calendar.querySelectorAll('.flatpickr-day').length;
+                const disabledDays = calendar.querySelectorAll('.flatpickr-day.flatpickr-disabled').length;
+                const enabledDays = totalDays - disabledDays;
+                
+                debugDiv.innerHTML = `
+                    📊 Calendar Info:<br>
+                    - Total days: ${totalDays}<br>
+                    - Enabled days: ${enabledDays}<br>
+                    - Disabled days: ${disabledDays}<br>
+                    - Calendar visible: ${calendar.style.display !== 'none'}<br>
+                    - Calendar open: ${instance.isOpen}
+                `;
+                
+                log(`Calendar debug: ${totalDays} total days, ${enabledDays} enabled, ${disabledDays} disabled`);
+            }
+        }
+        
+        function lazyLoadDatePicker() {
+            if (fp) {
+                log('Calendar already exists, resolving immediately');
+                return Promise.resolve();
+            }
+            
+            if (datePickerInitPromise) {
+                log('Calendar initialization already in progress');
+                return datePickerInitPromise;
+            }
+            
+            log('Starting lazy calendar initialization...');
+            
+            datePickerInitPromise = new Promise((resolve) => {
+                if (typeof flatpickr !== 'undefined') {
+                    log('Flatpickr library available, initializing...');
+                    initializeFlatpickr();
+                    resolve();
+                    datePickerInitPromise = null;
+                } else {
+                    log('Flatpickr library not available', 'error');
+                    setupFallbackDateInput();
+                    resolve();
+                    datePickerInitPromise = null;
+                }
+            });
+            
+            return datePickerInitPromise;
+        }
+        
+        function showDateStep() {
+            log('Showing date step...');
+            const dateStep = document.getElementById('step-date');
+            dateStep.classList.remove('hidden');
+            
+            // Initialize calendar after step is shown
+            setTimeout(() => {
+                lazyLoadDatePicker().then(() => {
+                    log('Calendar loaded, ready for interaction');
+                });
+            }, 100);
+        }
+        
+        function runDiagnostics() {
+            log('=== RUNNING CALENDAR DIAGNOSTICS ===');
+            
+            // Test 1: Check dependencies
+            log('1. Checking dependencies...');
+            log(`- jQuery available: ${typeof jQuery !== 'undefined'}`);
+            log(`- Flatpickr available: ${typeof flatpickr !== 'undefined'}`);
+            log(`- rbfData available: ${typeof rbfData !== 'undefined'}`);
+            
+            // Test 2: Check DOM elements
+            log('2. Checking DOM elements...');
+            const dateInput = document.getElementById('date-input');
+            log(`- Date input found: ${!!dateInput}`);
+            log(`- Date input type: ${dateInput ? dateInput.type : 'N/A'}`);
+            log(`- Date input readonly: ${dateInput ? dateInput.readOnly : 'N/A'}`);
+            
+            // Test 3: Check calendar instance
+            log('3. Checking calendar instance...');
+            log(`- Calendar instance exists: ${!!fp}`);
+            if (fp) {
+                log(`- Calendar container exists: ${!!fp.calendarContainer}`);
+                log(`- Calendar is open: ${fp.isOpen}`);
+                updateCalendarDebugInfo(fp);
+            }
+            
+            // Test 4: Try manual calendar opening
+            if (fp && !fp.isOpen) {
+                log('4. Attempting manual calendar open...');
+                try {
+                    fp.open();
+                    log('✅ Manual open successful');
+                } catch (error) {
+                    log(`❌ Manual open failed: ${error.message}`, 'error');
+                }
+            } else if (!fp) {
+                log('4. No calendar instance to test');
+            } else {
+                log('4. Calendar already open');
+            }
+            
+            log('=== DIAGNOSTICS COMPLETE ===');
+        }
+        
+        // Set up meal selection handlers
+        document.addEventListener('DOMContentLoaded', function() {
+            log('Page loaded, setting up event handlers...');
+            
+            // Meal selection handler
+            document.querySelectorAll('input[name="meal"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    selectedMeal = this.value;
+                    log(`Meal selected: ${selectedMeal}`);
+                    updateTestStatus(`📝 Meal selected: ${selectedMeal}. Date step will now appear.`, 'info');
+                    
+                    // Show date step
+                    showDateStep();
+                });
+            });
+            
+            // Date input event handlers (simulating the original code)
+            const dateInput = document.getElementById('date-input');
+            if (dateInput) {
+                dateInput.addEventListener('focus', function() {
+                    log('Date input focused - attempting to open calendar...');
+                    lazyLoadDatePicker().then(() => {
+                        setTimeout(() => {
+                            if (fp && !fp.isOpen) {
+                                log('Opening calendar on focus...');
+                                fp.open();
+                            }
+                        }, 50);
+                    });
+                });
+                
+                dateInput.addEventListener('click', function() {
+                    log('Date input clicked - attempting to open calendar...');
+                    lazyLoadDatePicker().then(() => {
+                        setTimeout(() => {
+                            if (fp && !fp.isOpen) {
+                                log('Opening calendar on click...');
+                                fp.open();
+                            }
+                        }, 50);
+                    });
+                });
+            }
+            
+            updateTestStatus('✅ Test ready - Select a meal to begin', 'success');
+        });
+    </script>
+</body>
+</html>

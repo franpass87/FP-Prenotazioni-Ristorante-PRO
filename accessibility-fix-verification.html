@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accessibility Fix Verification - Calendar Label</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: #f5f7fa; 
+        }
+        .test-container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .fix-banner {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+        }
+        .accessibility-check {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .form-step {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .form-step.hidden { display: none; }
+        .meal-radio {
+            margin: 10px;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .meal-radio:hover {
+            border-color: #007bff;
+        }
+        .meal-radio.selected {
+            border-color: #28a745;
+            background-color: #f8fff9;
+        }
+        .meal-radio input { margin-right: 10px; }
+        .date-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .date-input:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        .rbf-date-fallback {
+            background-color: #fff3cd;
+            border-color: #ffc107;
+        }
+        .test-log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .accessibility-status {
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-weight: 600;
+        }
+        .accessibility-status.good {
+            background: #d4edda;
+            color: #155724;
+        }
+        .accessibility-status.bad {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="fix-banner">
+            🔧 Accessibility Fix Applied!
+            <br><small>Fixed label association for Flatpickr alternate input</small>
+        </div>
+        
+        <h1>🎯 Label Association Fix Verification</h1>
+        <p><strong>Issue Fixed:</strong> "Incorrect use of &lt;label for=FORM_ELEMENT&gt;" accessibility error</p>
+        
+        <div class="accessibility-check">
+            <h4>🔍 Accessibility Check Status:</h4>
+            <div id="accessibility-status" class="accessibility-status">
+                📝 Select a meal to test the label association...
+            </div>
+            <p><strong>What this fix does:</strong></p>
+            <ul>
+                <li>✅ Transfers the <code>id</code> attribute from original input to Flatpickr's alternate input</li>
+                <li>✅ Preserves label association for accessibility tools</li>
+                <li>✅ Restores <code>id</code> when calendar is destroyed or fallback is used</li>
+                <li>✅ Eliminates browser console accessibility warnings</li>
+            </ul>
+        </div>
+        
+        <!-- Simulated Form -->
+        <div id="step-meal" class="form-step">
+            <h3>Step 1: Select Meal</h3>
+            <div class="meal-radio" data-meal="brunch">
+                <input type="radio" name="meal" value="brunch" id="brunch">
+                <label for="brunch">🥐 Brunch</label>
+            </div>
+            <div class="meal-radio" data-meal="pranzo">
+                <input type="radio" name="meal" value="pranzo" id="pranzo">
+                <label for="pranzo">🍝 Pranzo</label>
+            </div>
+            <div class="meal-radio" data-meal="cena">
+                <input type="radio" name="meal" value="cena" id="cena">
+                <label for="cena">🍷 Cena</label>
+            </div>
+        </div>
+
+        <div id="step-date" class="form-step hidden">
+            <h3>Step 2: Select Date</h3>
+            <label id="date-label" for="rbf-date">Data <span style="color: red;">*</span></label>
+            <input type="text" id="rbf-date" class="date-input" placeholder="Click to select date" readonly>
+            <small style="display: block; margin-top: 5px; color: #666;">
+                Seleziona una data dal calendario. Usa i tasti freccia per navigare, Invio per selezionare
+            </small>
+            <div id="label-status" style="margin-top: 10px; font-size: 14px;"></div>
+        </div>
+        
+        <div id="test-log" class="test-log">
+📋 Test log will appear here...
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px;">
+            <button onclick="checkAccessibility()" style="padding: 12px 24px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                🔍 Check Label Association
+            </button>
+            <button onclick="simulateFlatpickr()" style="padding: 12px 24px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; margin-left: 10px;">
+                📅 Simulate Flatpickr Init
+            </button>
+            <button onclick="simulateFallback()" style="padding: 12px 24px; background: #ffc107; color: #212529; border: none; border-radius: 8px; cursor: pointer; margin-left: 10px;">
+                📱 Simulate Fallback
+            </button>
+            <button onclick="clearLogs()" style="padding: 12px 24px; background: #6c757d; color: white; border: none; border-radius: 8px; cursor: pointer; margin-left: 10px;">
+                🗑️ Clear Logs
+            </button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/it.js"></script>
+    
+    <script>
+        let testLog = [];
+        let fp = null;
+        let selectedMeal = null;
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
+            testLog.push(logEntry);
+            updateTestLog();
+            console.log('TEST:', message);
+        }
+        
+        function updateTestLog() {
+            const logElement = document.getElementById('test-log');
+            logElement.textContent = testLog.join('\n');
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        function updateAccessibilityStatus(message, isGood) {
+            const statusElement = document.getElementById('accessibility-status');
+            statusElement.className = `accessibility-status ${isGood ? 'good' : 'bad'}`;
+            statusElement.innerHTML = message;
+        }
+        
+        function updateLabelStatus(message) {
+            const statusElement = document.getElementById('label-status');
+            statusElement.innerHTML = message;
+        }
+        
+        function clearLogs() {
+            testLog = [];
+            updateTestLog();
+            updateAccessibilityStatus('📝 Logs cleared - Select a meal to begin testing', true);
+        }
+        
+        function checkAccessibility() {
+            log('=== CHECKING LABEL ACCESSIBILITY ===');
+            
+            const label = document.getElementById('date-label');
+            const input = document.getElementById('rbf-date');
+            
+            if (!label) {
+                log('❌ Label element not found', 'error');
+                updateAccessibilityStatus('❌ Label element not found', false);
+                return;
+            }
+            
+            if (!input) {
+                log('❌ Input element not found', 'error');
+                updateAccessibilityStatus('❌ Input element not found', false);
+                return;
+            }
+            
+            const labelFor = label.getAttribute('for');
+            const inputId = input.id;
+            
+            log(`Label 'for' attribute: ${labelFor}`);
+            log(`Input 'id' attribute: ${inputId}`);
+            
+            if (labelFor === inputId && inputId === 'rbf-date') {
+                log('✅ Label association is correct!', 'success');
+                updateAccessibilityStatus('✅ Label association is correct!', true);
+                updateLabelStatus(`✅ Label for="${labelFor}" correctly matches input id="${inputId}"`);
+            } else {
+                log('❌ Label association is broken!', 'error');
+                updateAccessibilityStatus('❌ Label association is broken!', false);
+                updateLabelStatus(`❌ Mismatch: Label for="${labelFor}" vs Input id="${inputId}"`);
+            }
+            
+            // Check if there's an alternate input (Flatpickr)
+            const altInputs = document.querySelectorAll('input[class*="flatpickr"]');
+            if (altInputs.length > 0) {
+                log(`Found ${altInputs.length} Flatpickr alternate input(s)`);
+                altInputs.forEach((altInput, index) => {
+                    log(`Alt input ${index}: id="${altInput.id}", class="${altInput.className}"`);
+                    if (altInput.id === 'rbf-date') {
+                        log('✅ Alternate input has correct id!', 'success');
+                        updateLabelStatus(`✅ Flatpickr alternate input correctly has id="${altInput.id}"`);
+                    }
+                });
+            }
+            
+            log('=== ACCESSIBILITY CHECK COMPLETE ===');
+        }
+        
+        function simulateFlatpickr() {
+            log('=== SIMULATING FLATPICKR INITIALIZATION ===');
+            
+            const dateInput = document.getElementById('rbf-date');
+            
+            if (!dateInput) {
+                log('❌ Date input not found', 'error');
+                return;
+            }
+            
+            // Clean up existing instance
+            if (fp) {
+                log('Destroying existing Flatpickr instance...');
+                fp.destroy();
+                fp = null;
+            }
+            
+            try {
+                log('Creating Flatpickr with altInput: true...');
+                
+                fp = flatpickr(dateInput, {
+                    altInput: true,
+                    altFormat: 'd-m-Y',
+                    dateFormat: 'Y-m-d',
+                    minDate: 'today',
+                    locale: 'it',
+                    
+                    onReady: function(selectedDates, dateStr, instance) {
+                        log('📅 Flatpickr ready event triggered');
+                        
+                        // Apply the accessibility fix
+                        if (instance.altInput) {
+                            const originalId = instance.input.id;
+                            if (originalId) {
+                                log(`Transferring id "${originalId}" from original to alternate input...`);
+                                instance.altInput.id = originalId;
+                                instance.input.removeAttribute('id');
+                                instance.input.setAttribute('data-original-id', originalId);
+                                log('✅ Fixed accessibility: transferred id to alternate input', 'success');
+                            }
+                        }
+                        
+                        // Check accessibility after fix
+                        setTimeout(() => {
+                            checkAccessibility();
+                        }, 100);
+                    },
+                    
+                    onOpen: function() {
+                        log('📅 Calendar opened');
+                    },
+                    
+                    onChange: function(selectedDates) {
+                        if (selectedDates.length > 0) {
+                            const selectedDate = selectedDates[0].toLocaleDateString('it-IT');
+                            log(`Date selected: ${selectedDate}`, 'success');
+                        }
+                    }
+                });
+                
+                if (fp) {
+                    log('✅ Flatpickr initialized successfully', 'success');
+                    updateAccessibilityStatus('📅 Flatpickr initialized - checking accessibility...', true);
+                } else {
+                    throw new Error('Failed to create Flatpickr instance');
+                }
+                
+            } catch (error) {
+                log(`❌ Flatpickr initialization failed: ${error.message}`, 'error');
+                updateAccessibilityStatus('❌ Flatpickr initialization failed', false);
+            }
+            
+            log('=== FLATPICKR SIMULATION COMPLETE ===');
+        }
+        
+        function simulateFallback() {
+            log('=== SIMULATING HTML5 FALLBACK ===');
+            
+            // Clean up Flatpickr
+            if (fp) {
+                log('Cleaning up Flatpickr instance...');
+                
+                // Apply the cleanup fix
+                if (fp.altInput && fp.input) {
+                    const originalId = fp.input.getAttribute('data-original-id');
+                    if (originalId) {
+                        log(`Restoring id "${originalId}" to original input...`);
+                        fp.input.id = originalId;
+                        fp.altInput.removeAttribute('id');
+                        log('✅ Restored id to original input', 'success');
+                    }
+                }
+                
+                fp.destroy();
+                fp = null;
+            }
+            
+            // Set up HTML5 fallback
+            const dateInput = document.getElementById('rbf-date');
+            
+            if (!dateInput) {
+                log('❌ Date input not found', 'error');
+                return;
+            }
+            
+            log('Setting up HTML5 date input fallback...');
+            
+            // Ensure proper id for accessibility
+            if (!dateInput.id) {
+                dateInput.id = 'rbf-date';
+                log('📋 Restored id attribute for accessibility');
+            }
+            
+            dateInput.type = 'date';
+            dateInput.removeAttribute('readonly');
+            dateInput.classList.add('rbf-date-fallback');
+            
+            const today = new Date();
+            const minDate = new Date(today.getTime() + 60 * 60 * 1000);
+            dateInput.min = minDate.toISOString().split('T')[0];
+            
+            dateInput.addEventListener('change', function() {
+                if (this.value) {
+                    log(`Date selected via HTML5 input: ${this.value}`, 'success');
+                }
+            });
+            
+            log('✅ HTML5 fallback configured successfully', 'success');
+            updateAccessibilityStatus('📱 HTML5 fallback active - checking accessibility...', true);
+            
+            // Check accessibility after fallback setup
+            setTimeout(() => {
+                checkAccessibility();
+            }, 100);
+            
+            log('=== FALLBACK SIMULATION COMPLETE ===');
+        }
+        
+        function showDateStep() {
+            log('Showing date step...');
+            const dateStep = document.getElementById('step-date');
+            dateStep.classList.remove('hidden');
+        }
+        
+        // Set up the page
+        document.addEventListener('DOMContentLoaded', function() {
+            log('Accessibility fix verification page loaded');
+            
+            // Set up meal selection handlers
+            document.querySelectorAll('input[name="meal"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    selectedMeal = this.value;
+                    log(`Meal selected: ${selectedMeal}`);
+                    
+                    // Update visual feedback
+                    document.querySelectorAll('.meal-radio').forEach(div => {
+                        div.classList.remove('selected');
+                    });
+                    this.closest('.meal-radio').classList.add('selected');
+                    
+                    // Show date step
+                    showDateStep();
+                    
+                    updateAccessibilityStatus('📝 Date step shown - test calendar initialization and label association', true);
+                });
+            });
+            
+            updateAccessibilityStatus('✅ Test ready - Select a meal to begin', true);
+        });
+    </script>
+</body>
+</html>
