@@ -108,15 +108,21 @@ function rbf_enqueue_frontend_assets() {
         'nonce' => wp_create_nonce('rbf_ajax_nonce'),
         'locale' => $locale, // it/en
         'debug' => defined('WP_DEBUG') && WP_DEBUG, // Enable debug mode if WP_DEBUG is on
-        'closedDays' => is_array($closed_days) ? $closed_days : [],
-        'closedSingles' => is_array($closed_specific['singles']) ? $closed_specific['singles'] : [],
-        'closedRanges' => is_array($closed_specific['ranges']) ? $closed_specific['ranges'] : [],
-        'exceptions' => is_array($closed_specific['exceptions']) ? $closed_specific['exceptions'] : [],
-        'minAdvanceMinutes' => absint($options['min_advance_minutes'] ?? 0),
-        'maxAdvanceMinutes' => absint($options['max_advance_minutes'] ?? $default_settings['max_advance_minutes']),
+        
+        // RENEWED: Enhanced data validation to ensure arrays are always arrays
+        'closedDays' => rbf_ensure_array($closed_days),
+        'closedSingles' => rbf_ensure_array($closed_specific['singles'] ?? []),
+        'closedRanges' => rbf_ensure_array($closed_specific['ranges'] ?? []),
+        'exceptions' => rbf_ensure_array($closed_specific['exceptions'] ?? []),
+        
+        'minAdvanceMinutes' => max(0, absint($options['min_advance_minutes'] ?? 0)),
+        'maxAdvanceMinutes' => max(0, absint($options['max_advance_minutes'] ?? $default_settings['max_advance_minutes'])),
         'utilsScript' => plugin_dir_url(dirname(__FILE__)) . 'assets/js/vendor/intl-tel-input-utils.js',
-        'mealTooltips' => $meal_tooltips,
-        'mealAvailability' => $meal_availability,
+        
+        // RENEWED: Enhanced meal data validation
+        'mealTooltips' => rbf_ensure_array($meal_tooltips),
+        'mealAvailability' => rbf_ensure_meal_availability($meal_availability),
+        
         'labels' => [
             'loading' => rbf_translate_string('Caricamento...'),
             'chooseTime' => rbf_translate_string('Scegli un orario...'),
@@ -1351,4 +1357,46 @@ function rbf_ajax_refresh_calendar() {
             'code' => 'refresh_error'
         ]);
     }
+}
+
+/**
+ * RENEWED: Enhanced data validation helper functions
+ * Ensure calendar receives properly structured data
+ */
+
+/**
+ * Ensure a value is always an array
+ */
+function rbf_ensure_array($value) {
+    if (is_array($value)) {
+        return array_values($value); // Reindex to ensure numeric keys
+    }
+    if (is_string($value) && !empty($value)) {
+        return [$value];
+    }
+    return [];
+}
+
+/**
+ * Ensure meal availability data is properly structured
+ */
+function rbf_ensure_meal_availability($meal_availability) {
+    if (!is_array($meal_availability)) {
+        return [];
+    }
+    
+    $validated = [];
+    $valid_days = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+    
+    foreach ($meal_availability as $meal_id => $days) {
+        if (is_array($days)) {
+            // Filter to only valid day names and ensure array values
+            $validated[$meal_id] = array_values(array_intersect($days, $valid_days));
+        } else {
+            // Fallback: assume all days available if invalid data
+            $validated[$meal_id] = $valid_days;
+        }
+    }
+    
+    return $validated;
 }

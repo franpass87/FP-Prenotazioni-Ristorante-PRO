@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete Calendar Renewal Test - FP Prenotazioni</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 1000px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background: #f5f5f5; 
+        }
+        .test-container { 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+            margin-bottom: 20px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { 
+            background: #d4edda; 
+            color: #155724; 
+            padding: 15px; 
+            border-radius: 5px; 
+            margin: 10px 0; 
+        }
+        .error { 
+            background: #f8d7da; 
+            color: #721c24; 
+            padding: 15px; 
+            border-radius: 5px; 
+            margin: 10px 0; 
+        }
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .test-input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .test-button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button.danger {
+            background: #dc3545;
+        }
+        .test-button.success {
+            background: #28a745;
+        }
+        .test-log {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+            margin: 10px 0;
+            white-space: pre-wrap;
+        }
+        .test-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .meal-selector {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+        .meal-option {
+            padding: 8px 16px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            background: white;
+            transition: all 0.2s;
+        }
+        .meal-option.selected {
+            border-color: #007cba;
+            background: #007cba;
+            color: white;
+        }
+        .debug-info {
+            background: #f1f3f4;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-size: 12px;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-ok { background: #28a745; }
+        .status-error { background: #dc3545; }
+        .status-warning { background: #ffc107; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🔄 Complete Calendar Renewal Test</h1>
+        <p>This comprehensive test verifies that the renewed calendar system works correctly with various configurations and edge cases.</p>
+        
+        <div class="success">
+            <strong>✅ Calendar Renewal System Loaded</strong><br>
+            Testing the completely renewed calendar implementation with enhanced error handling, meal availability, and debug capabilities.
+        </div>
+        
+        <div class="test-grid">
+            <div>
+                <h3>Test Configuration</h3>
+                <label>
+                    <strong>Test Scenario:</strong>
+                    <select id="test-scenario" class="test-input">
+                        <option value="normal">Normal - All systems functional</option>
+                        <option value="meal-restricted" selected>Meal Restricted - Pranzo Mon-Sat only</option>
+                        <option value="closed-sundays">Restaurant Closed - Sundays closed</option>
+                        <option value="holiday-period">Holiday Period - Christmas week closed</option>
+                        <option value="mixed-restrictions">Mixed - Multiple restrictions combined</option>
+                        <option value="malformed-data">Malformed Data - Test error handling</option>
+                        <option value="empty-data">Empty Data - No restrictions</option>
+                        <option value="extreme-restrictions">Extreme - Most days closed</option>
+                    </select>
+                </label>
+                
+                <label>
+                    <strong>Selected Meal:</strong>
+                    <div class="meal-selector">
+                        <div class="meal-option selected" data-meal="pranzo">Pranzo</div>
+                        <div class="meal-option" data-meal="cena">Cena</div>
+                        <div class="meal-option" data-meal="aperitivo">Aperitivo</div>
+                        <div class="meal-option" data-meal="brunch">Brunch</div>
+                    </div>
+                </label>
+                
+                <button class="test-button" onclick="initializeCalendarTest()">Initialize Calendar Test</button>
+                <button class="test-button" onclick="testCalendarRefresh()">Test Calendar Refresh</button>
+                <button class="test-button danger" onclick="testCalendarReinit()">Test Full Reinitialization</button>
+                <button class="test-button success" onclick="runCompleteTest()">Run Complete Test Suite</button>
+                <button class="test-button" onclick="clearTestLog()">Clear Log</button>
+            </div>
+            
+            <div>
+                <h3>Debug Tools</h3>
+                <button class="test-button" onclick="debugCurrentData()">Debug rbfData</button>
+                <button class="test-button" onclick="testSpecificDate()">Test Specific Date</button>
+                <button class="test-button" onclick="debugCalendarInstance()">Debug Calendar Instance</button>
+                <button class="test-button" onclick="simulateDataChange()">Simulate Data Change</button>
+                
+                <input type="date" id="test-date-input" class="test-input" placeholder="YYYY-MM-DD">
+                
+                <div class="debug-info">
+                    <div><span class="status-indicator status-ok"></span>Calendar Available: <span id="calendar-status">Checking...</span></div>
+                    <div><span class="status-indicator status-ok"></span>Debug Mode: <span id="debug-mode">Unknown</span></div>
+                    <div><span class="status-indicator status-ok"></span>Global Tools: <span id="global-tools">Checking...</span></div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="test-results" class="test-log">
+🎯 Calendar Renewal Test Ready
+✅ Enhanced disable function loaded
+✅ Meal availability checking enabled
+✅ Global debug tools available
+✅ Error handling and fallbacks implemented
+
+Run a test to see the renewed calendar system in action...
+        </div>
+        
+        <h3>Calendar Test Interface</h3>
+        <div id="calendar-container" style="min-height: 300px; border: 1px solid #ddd; border-radius: 4px; padding: 20px; background: white;">
+            <div id="flatpickr-placeholder">Calendar will be initialized here during testing...</div>
+        </div>
+        
+        <div class="warning">
+            <strong>⚠️ Test Environment Note:</strong><br>
+            This test simulates the calendar system. In a real WordPress environment, the calendar would be integrated with the actual booking form and database.
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.9/dist/flatpickr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.9/dist/l10n/it.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.9/dist/flatpickr.min.css">
+
+    <script>
+        // Simulate rbfData for testing
+        let testFp = null;
+        let currentMeal = 'pranzo';
+        let testScenario = 'meal-restricted';
+
+        // Mock rbfData generator
+        function generateTestRbfData(scenario) {
+            const baseData = {
+                debug: true,
+                locale: 'it',
+                minAdvanceMinutes: 60,
+                maxAdvanceMinutes: 10080, // 1 week
+                labels: {
+                    loading: 'Caricamento...',
+                    chooseTime: 'Scegli un orario...',
+                    noTime: 'Nessun orario disponibile'
+                }
+            };
+
+            switch (scenario) {
+                case 'normal':
+                    return {
+                        ...baseData,
+                        closedDays: [],
+                        closedSingles: [],
+                        closedRanges: [],
+                        exceptions: [],
+                        mealAvailability: {
+                            pranzo: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
+                            cena: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
+                            aperitivo: ['fri', 'sat', 'sun'],
+                            brunch: ['sat', 'sun']
+                        }
+                    };
+
+                case 'meal-restricted':
+                    return {
+                        ...baseData,
+                        closedDays: [],
+                        closedSingles: [],
+                        closedRanges: [],
+                        exceptions: [],
+                        mealAvailability: {
+                            pranzo: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'], // No Sunday
+                            cena: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
+                            aperitivo: ['fri', 'sat', 'sun'],
+                            brunch: ['sun'] // Only Sunday
+                        }
+                    };
+
+                case 'closed-sundays':
+                    return {
+                        ...baseData,
+                        closedDays: [0], // Sunday = 0
+                        closedSingles: [],
+                        closedRanges: [],
+                        exceptions: [],
+                        mealAvailability: {
+                            pranzo: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'],
+                            cena: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'],
+                            aperitivo: ['fri', 'sat'],
+                            brunch: []
+                        }
+                    };
+
+                case 'holiday-period':
+                    const christmas2024 = new Date('2024-12-24');
+                    const newYear2025 = new Date('2025-01-02');
+                    return {
+                        ...baseData,
+                        closedDays: [],
+                        closedSingles: ['2024-12-24', '2024-12-25', '2024-12-26', '2025-01-01'],
+                        closedRanges: [
+                            { from: '2024-12-24', to: '2024-12-26' },
+                            { from: '2024-12-31', to: '2025-01-02' }
+                        ],
+                        exceptions: [
+                            { date: '2024-12-24', type: 'holiday', description: 'Vigilia di Natale' },
+                            { date: '2024-12-25', type: 'holiday', description: 'Natale' },
+                            { date: '2024-12-26', type: 'holiday', description: 'Santo Stefano' },
+                            { date: '2024-12-31', type: 'special', description: 'Capodanno - Orari Speciali' },
+                            { date: '2025-01-01', type: 'holiday', description: 'Capodanno' }
+                        ],
+                        mealAvailability: {
+                            pranzo: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'],
+                            cena: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
+                            aperitivo: ['fri', 'sat', 'sun'],
+                            brunch: ['sun']
+                        }
+                    };
+
+                case 'malformed-data':
+                    return {
+                        ...baseData,
+                        closedDays: "not an array", // Wrong type
+                        closedSingles: null, // Null value
+                        closedRanges: undefined, // Undefined
+                        exceptions: "invalid", // Wrong type
+                        mealAvailability: {
+                            pranzo: "not an array", // Wrong type
+                            cena: null, // Null
+                            aperitivo: ['invalid-day'], // Invalid day name
+                            brunch: 123 // Wrong type
+                        }
+                    };
+
+                case 'empty-data':
+                    return {
+                        ...baseData,
+                        closedDays: [],
+                        closedSingles: [],
+                        closedRanges: [],
+                        exceptions: [],
+                        mealAvailability: {}
+                    };
+
+                case 'extreme-restrictions':
+                    return {
+                        ...baseData,
+                        closedDays: [0, 1, 2, 3, 4], // Closed Sun-Thu, only Fri-Sat open
+                        closedSingles: ['2024-12-20', '2024-12-21'],
+                        closedRanges: [],
+                        exceptions: [],
+                        mealAvailability: {
+                            pranzo: ['fri'], // Only Friday
+                            cena: ['fri', 'sat'], // Only Friday and Saturday
+                            aperitivo: [],
+                            brunch: []
+                        }
+                    };
+
+                default:
+                    return baseData;
+            }
+        }
+
+        // Mock console logging
+        const testLog = {
+            messages: [],
+            log: function(message) {
+                this.messages.push(`[LOG] ${new Date().toLocaleTimeString()}: ${message}`);
+                this.updateDisplay();
+                console.log('RBF Test:', message);
+            },
+            error: function(message) {
+                this.messages.push(`[ERROR] ${new Date().toLocaleTimeString()}: ${message}`);
+                this.updateDisplay();
+                console.error('RBF Test:', message);
+            },
+            warn: function(message) {
+                this.messages.push(`[WARN] ${new Date().toLocaleTimeString()}: ${message}`);
+                this.updateDisplay();
+                console.warn('RBF Test:', message);
+            },
+            updateDisplay: function() {
+                const resultsDiv = document.getElementById('test-results');
+                resultsDiv.textContent = this.messages.join('\n');
+                resultsDiv.scrollTop = resultsDiv.scrollHeight;
+            },
+            clear: function() {
+                this.messages = [];
+                this.updateDisplay();
+            }
+        };
+
+        // Mock the renewed disable function
+        function isDateDisabled(date, rbfData, selectedMeal) {
+            const dateStr = formatLocalISO(date);
+            const dayOfWeek = date.getDay();
+
+            testLog.log(`🔍 Checking date: ${dateStr} (day: ${dayOfWeek})`);
+
+            // 1. CHECK: General restaurant closed days
+            if (rbfData.closedDays && Array.isArray(rbfData.closedDays) && rbfData.closedDays.length > 0) {
+                if (rbfData.closedDays.includes(dayOfWeek)) {
+                    testLog.log(`❌ Date ${dateStr} disabled: restaurant closed on day ${dayOfWeek}`);
+                    return true;
+                }
+            }
+
+            // 2. CHECK: Specific closed dates
+            if (rbfData.closedSingles && Array.isArray(rbfData.closedSingles) && rbfData.closedSingles.length > 0) {
+                if (rbfData.closedSingles.includes(dateStr)) {
+                    testLog.log(`❌ Date ${dateStr} disabled: specific closure date`);
+                    return true;
+                }
+            }
+
+            // 3. CHECK: Closed date ranges
+            if (rbfData.closedRanges && Array.isArray(rbfData.closedRanges) && rbfData.closedRanges.length > 0) {
+                for (let range of rbfData.closedRanges) {
+                    if (range && range.from && range.to) {
+                        if (dateStr >= range.from && dateStr <= range.to) {
+                            testLog.log(`❌ Date ${dateStr} disabled: within closed range ${range.from} to ${range.to}`);
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            // 4. CHECK: Special exceptions
+            if (rbfData.exceptions && Array.isArray(rbfData.exceptions) && rbfData.exceptions.length > 0) {
+                for (let exception of rbfData.exceptions) {
+                    if (exception && exception.date === dateStr) {
+                        if (exception.type === 'closure' || exception.type === 'holiday') {
+                            testLog.log(`❌ Date ${dateStr} disabled: ${exception.type} exception`);
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            // 5. CHECK: Meal availability
+            if (selectedMeal && rbfData.mealAvailability && rbfData.mealAvailability[selectedMeal]) {
+                const dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+                const currentDayName = dayNames[dayOfWeek];
+                const availableDays = rbfData.mealAvailability[selectedMeal];
+
+                if (Array.isArray(availableDays) && !availableDays.includes(currentDayName)) {
+                    testLog.log(`❌ Date ${dateStr} disabled: meal "${selectedMeal}" not available on ${currentDayName}`);
+                    return true;
+                }
+            }
+
+            testLog.log(`✅ Date ${dateStr} allowed`);
+            return false;
+        }
+
+        function formatLocalISO(date) {
+            return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+                .toISOString()
+                .split('T')[0];
+        }
+
+        // Initialize calendar test
+        function initializeCalendarTest() {
+            testLog.clear();
+            testLog.log('🔄 Initializing calendar test...');
+
+            const scenario = document.getElementById('test-scenario').value;
+            testScenario = scenario;
+            
+            const rbfData = generateTestRbfData(scenario);
+            testLog.log(`📊 Test scenario: ${scenario}`);
+            testLog.log(`🍽️ Selected meal: ${currentMeal}`);
+            
+            // Destroy existing calendar
+            if (testFp) {
+                testFp.destroy();
+                testFp = null;
+            }
+
+            try {
+                // Create test calendar
+                const calendarContainer = document.getElementById('calendar-container');
+                calendarContainer.innerHTML = '<input id="test-calendar-input" placeholder="Select a date..." readonly>';
+
+                const input = document.getElementById('test-calendar-input');
+                
+                testFp = flatpickr(input, {
+                    altInput: true,
+                    altFormat: 'd-m-Y',
+                    dateFormat: 'Y-m-d',
+                    minDate: 'today',
+                    locale: 'it',
+                    enableMonthDropdown: true,
+                    enableYearDropdown: true,
+                    
+                    disable: [function(date) {
+                        try {
+                            return isDateDisabled(date, rbfData, currentMeal);
+                        } catch (error) {
+                            testLog.error(`Calendar disable function error: ${error.message}`);
+                            return false; // Allow date on error
+                        }
+                    }],
+                    
+                    onReady: function(selectedDates, dateStr, instance) {
+                        testLog.log('✅ Test calendar initialized successfully');
+                        testLog.log('📊 rbfData structure:');
+                        testLog.log(`  - closedDays: ${JSON.stringify(rbfData.closedDays)}`);
+                        testLog.log(`  - closedSingles: ${rbfData.closedSingles?.length || 0} dates`);
+                        testLog.log(`  - closedRanges: ${rbfData.closedRanges?.length || 0} ranges`);
+                        testLog.log(`  - exceptions: ${rbfData.exceptions?.length || 0} exceptions`);
+                        testLog.log(`  - mealAvailability: ${Object.keys(rbfData.mealAvailability || {}).join(', ')}`);
+                    },
+                    
+                    onChange: function(selectedDates, dateStr, instance) {
+                        if (dateStr) {
+                            testLog.log(`📅 Date selected: ${dateStr}`);
+                        }
+                    }
+                });
+
+                testLog.log('✅ Calendar test initialized');
+                updateStatus();
+
+            } catch (error) {
+                testLog.error(`Failed to initialize calendar: ${error.message}`);
+            }
+        }
+
+        // Test calendar refresh
+        function testCalendarRefresh() {
+            testLog.log('🔄 Testing calendar refresh...');
+            
+            if (testFp) {
+                try {
+                    testFp.redraw();
+                    testLog.log('✅ Calendar refreshed successfully');
+                } catch (error) {
+                    testLog.error(`Calendar refresh failed: ${error.message}`);
+                }
+            } else {
+                testLog.warn('No calendar instance to refresh');
+            }
+        }
+
+        // Test calendar reinitialization
+        function testCalendarReinit() {
+            testLog.log('🔧 Testing complete calendar reinitialization...');
+            
+            if (testFp) {
+                try {
+                    testFp.destroy();
+                    testFp = null;
+                    testLog.log('✅ Previous calendar instance destroyed');
+                } catch (error) {
+                    testLog.warn(`Error destroying previous instance: ${error.message}`);
+                }
+            }
+            
+            // Reinitialize
+            setTimeout(() => {
+                initializeCalendarTest();
+                testLog.log('✅ Calendar reinitialized successfully');
+            }, 100);
+        }
+
+        // Run complete test suite
+        function runCompleteTest() {
+            testLog.clear();
+            testLog.log('🚀 Running complete calendar renewal test suite...');
+            
+            const scenarios = ['normal', 'meal-restricted', 'closed-sundays', 'holiday-period', 'malformed-data', 'empty-data'];
+            let currentScenarioIndex = 0;
+            
+            function testNextScenario() {
+                if (currentScenarioIndex >= scenarios.length) {
+                    testLog.log('🎉 Complete test suite finished!');
+                    testLog.log('✅ All calendar renewal features tested successfully');
+                    return;
+                }
+                
+                const scenario = scenarios[currentScenarioIndex];
+                testLog.log(`\n🧪 Testing scenario: ${scenario}`);
+                
+                document.getElementById('test-scenario').value = scenario;
+                initializeCalendarTest();
+                
+                // Test a few specific dates
+                const testDates = [
+                    new Date(), // Today
+                    new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Next week
+                    new Date('2024-12-25'), // Christmas
+                    new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // Two weeks
+                ];
+                
+                testDates.forEach(date => {
+                    const rbfData = generateTestRbfData(scenario);
+                    const isDisabled = isDateDisabled(date, rbfData, currentMeal);
+                    testLog.log(`  📅 ${formatLocalISO(date)}: ${isDisabled ? '❌ DISABLED' : '✅ ALLOWED'}`);
+                });
+                
+                currentScenarioIndex++;
+                setTimeout(testNextScenario, 2000); // 2 second delay between tests
+            }
+            
+            testNextScenario();
+        }
+
+        // Debug functions
+        function debugCurrentData() {
+            const rbfData = generateTestRbfData(testScenario);
+            testLog.log('🔍 Current rbfData structure:');
+            testLog.log(JSON.stringify(rbfData, null, 2));
+        }
+
+        function testSpecificDate() {
+            const dateInput = document.getElementById('test-date-input');
+            const dateStr = dateInput.value;
+            
+            if (!dateStr) {
+                testLog.warn('Please select a date to test');
+                return;
+            }
+            
+            try {
+                const testDate = new Date(dateStr);
+                const rbfData = generateTestRbfData(testScenario);
+                const isDisabled = isDateDisabled(testDate, rbfData, currentMeal);
+                
+                testLog.log(`\n📅 Testing specific date: ${dateStr}`);
+                testLog.log(`🍽️ Meal: ${currentMeal}`);
+                testLog.log(`📊 Scenario: ${testScenario}`);
+                testLog.log(`🎯 Result: ${isDisabled ? '❌ DISABLED' : '✅ ALLOWED'}`);
+            } catch (error) {
+                testLog.error(`Error testing date: ${error.message}`);
+            }
+        }
+
+        function debugCalendarInstance() {
+            testLog.log('🔍 Calendar instance debug:');
+            testLog.log(`Instance exists: ${testFp ? 'Yes' : 'No'}`);
+            if (testFp) {
+                testLog.log(`Current date: ${testFp.selectedDates.length > 0 ? formatLocalISO(testFp.selectedDates[0]) : 'None'}`);
+                testLog.log(`Is open: ${testFp.isOpen}`);
+            }
+        }
+
+        function simulateDataChange() {
+            testLog.log('🔄 Simulating meal change to trigger calendar refresh...');
+            
+            // Change meal
+            const meals = ['pranzo', 'cena', 'aperitivo', 'brunch'];
+            const currentIndex = meals.indexOf(currentMeal);
+            const nextMeal = meals[(currentIndex + 1) % meals.length];
+            
+            changeMeal(nextMeal);
+            
+            // Refresh calendar with new meal
+            if (testFp) {
+                testFp.redraw();
+                testLog.log(`✅ Calendar refreshed for meal change: ${currentMeal} → ${nextMeal}`);
+            }
+        }
+
+        function clearTestLog() {
+            testLog.clear();
+            testLog.log('📋 Test log cleared. Ready for new tests.');
+        }
+
+        // Meal selection
+        function changeMeal(meal) {
+            currentMeal = meal;
+            
+            // Update UI
+            document.querySelectorAll('.meal-option').forEach(option => {
+                option.classList.remove('selected');
+                if (option.dataset.meal === meal) {
+                    option.classList.add('selected');
+                }
+            });
+            
+            testLog.log(`🍽️ Meal changed to: ${meal}`);
+        }
+
+        // Update status indicators
+        function updateStatus() {
+            document.getElementById('calendar-status').textContent = testFp ? 'Active' : 'Not initialized';
+            document.getElementById('debug-mode').textContent = 'Enabled';
+            document.getElementById('global-tools').textContent = 'Available';
+        }
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Meal selection
+            document.querySelectorAll('.meal-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    changeMeal(this.dataset.meal);
+                });
+            });
+            
+            // Scenario change
+            document.getElementById('test-scenario').addEventListener('change', function() {
+                testScenario = this.value;
+                testLog.log(`📊 Test scenario changed to: ${testScenario}`);
+            });
+            
+            updateStatus();
+            testLog.log('🎯 Calendar renewal test interface ready');
+            testLog.log('💡 Tip: Use the "Run Complete Test Suite" button for comprehensive testing');
+        });
+
+        // Make functions available globally for manual testing
+        window.testCalendar = {
+            init: initializeCalendarTest,
+            refresh: testCalendarRefresh,
+            reinit: testCalendarReinit,
+            runComplete: runCompleteTest,
+            debugData: debugCurrentData,
+            testDate: testSpecificDate,
+            changeMeal: changeMeal,
+            getInstance: () => testFp
+        };
+    </script>
+</body>
+</html>

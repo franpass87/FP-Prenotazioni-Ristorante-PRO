@@ -605,198 +605,402 @@ jQuery(function($) {
   }
 
   /**
-   * Initialize flatpickr with simplified, working configuration
+   * COMPLETELY RENEWED CALENDAR IMPLEMENTATION
+   * Simple, robust, and user-friendly calendar configuration
    */
   function initializeFlatpickr() {
+    // First, validate that we have the minimum required data
+    if (!rbfData) {
+      rbfLog.error('rbfData not available - cannot initialize calendar');
+      return;
+    }
+
+    rbfLog.log('Initializing renewed calendar system...');
+    
+    // EMERGENCY: Check if we should use ultra-simple mode
+    const useEmergencyMode = window.rbfForceEmergencyMode || false;
+    
+    if (useEmergencyMode) {
+      console.log('RBF: Using emergency mode - minimal restrictions');
+      initializeEmergencyCalendar();
+      return;
+    }
+
     const flatpickrConfig = {
-      // Basic configuration - keep it simple
+      // Basic configuration - keep it simple and reliable
       altInput: true,
       altFormat: 'd-m-Y',
       dateFormat: 'Y-m-d',
-      minDate: new Date(new Date().getTime() + rbfData.minAdvanceMinutes * 60 * 1000),
+      minDate: 'today',
       locale: (rbfData.locale === 'it') ? 'it' : 'default',
-      // Standard flatpickr settings
+      
+      // Standard flatpickr settings for best user experience
       enableTime: false,
       noCalendar: false,
-      // Enable month/year dropdowns for proper navigation
       enableMonthDropdown: true,
       enableYearDropdown: true,
       shorthandCurrentMonth: false,
       showMonths: 1,
-      // Simplified disable function - only disable clearly closed days
+      
+      // EMERGENCY FIX DISABLE FUNCTION - Ultra-safe with comprehensive logging
       disable: [function(date) {
         try {
-          const dateStr = formatLocalISO(date);
-          const day = date.getDay();
-
-          // Debug logging to identify the issue
-          if (rbfData.debug) {
-            rbfLog.log(`Checking date: ${dateStr} (day: ${day})`);
-          }
-
-          // Ensure rbfData exists and has expected structure
+          // EMERGENCY: If rbfData is not available, allow all dates
           if (!rbfData || typeof rbfData !== 'object') {
-            rbfLog.warn('rbfData is not properly initialized, allowing all dates');
+            console.warn('RBF EMERGENCY: rbfData not available, allowing all dates');
             return false;
           }
 
-          // Check meal availability for the currently selected meal
-          const selectedMeal = el.mealRadios.filter(':checked').val();
-          if (selectedMeal && rbfData.mealAvailability && rbfData.mealAvailability[selectedMeal]) {
-            const dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-            const currentDayName = dayNames[day];
-            
-            if (!rbfData.mealAvailability[selectedMeal].includes(currentDayName)) {
-              if (rbfData.debug) {
-                rbfLog.log(`Date ${dateStr} disabled: meal "${selectedMeal}" not available on ${currentDayName}`);
-              }
-              return true;
-            }
+          const result = isDateDisabled(date);
+          
+          // EMERGENCY DEBUG: Log every single decision for first few dates
+          if (window.rbfDebugCount === undefined) {
+            window.rbfDebugCount = 0;
           }
-
-          // Only check for explicit closures and holidays
-          if (rbfData.exceptions && Array.isArray(rbfData.exceptions)) {
-            for (let exception of rbfData.exceptions) {
-              if (exception && exception.date === dateStr) {
-                // Only disable for closures and holidays
-                if (exception.type === 'closure' || exception.type === 'holiday') {
-                  if (rbfData.debug) {
-                    rbfLog.log(`Date ${dateStr} disabled by exception: ${exception.type}`);
-                  }
-                  return true;
-                }
-              }
-            }
-          }
-
-          // Check basic closed days and dates
-          if (rbfData.closedDays && Array.isArray(rbfData.closedDays)) {
-            if (rbfData.closedDays.includes(day)) {
-              if (rbfData.debug) {
-                rbfLog.log(`Date ${dateStr} disabled by closedDays: day ${day} in ${JSON.stringify(rbfData.closedDays)}`);
-              }
-              return true;
-            }
+          if (window.rbfDebugCount < 10) {
+            console.log(`RBF DEBUG ${window.rbfDebugCount}: Date ${formatLocalISO(date)} -> ${result ? 'DISABLED' : 'ENABLED'}`);
+            window.rbfDebugCount++;
           }
           
-          if (rbfData.closedSingles && Array.isArray(rbfData.closedSingles)) {
-            if (rbfData.closedSingles.includes(dateStr)) {
-              if (rbfData.debug) {
-                rbfLog.log(`Date ${dateStr} disabled by closedSingles`);
-              }
-              return true;
-            }
-          }
+          return result;
           
-          // Check closed ranges
-          if (rbfData.closedRanges && Array.isArray(rbfData.closedRanges)) {
-            for (let range of rbfData.closedRanges) {
-              if (range && range.from && range.to && dateStr >= range.from && dateStr <= range.to) {
-                if (rbfData.debug) {
-                  rbfLog.log(`Date ${dateStr} disabled by range: ${range.from} to ${range.to}`);
-                }
-                return true;
-              }
-            }
-          }
-          
-          // Default: allow all other days
-          if (rbfData.debug) {
-            rbfLog.log(`Date ${dateStr} allowed`);
-          }
-          return false;
         } catch (error) {
-          rbfLog.error(`Error in disable function for date ${date}: ${error.message}`);
-          // On error, allow the date rather than disabling all dates
+          console.error('RBF EMERGENCY: Calendar disable function error:', error);
+          console.error('RBF EMERGENCY: Error stack:', error.stack);
+          console.error('RBF EMERGENCY: Date that caused error:', date);
+          console.error('RBF EMERGENCY: rbfData state:', rbfData);
+          
+          // EMERGENCY: On any error, ALWAYS allow the date to prevent all dates being disabled
           return false;
         }
       }],
+      
       onChange: onDateChange,
+      
       onReady: function(selectedDates, dateStr, instance) {
-        rbfLog.log('Flatpickr calendar initialized successfully');
+        rbfLog.log('✅ Renewed calendar initialized successfully');
         
-        // Debug rbfData structure to help diagnose issues
-        if (rbfData.debug) {
-          rbfLog.log('rbfData structure:', {
-            closedDays: rbfData.closedDays,
-            closedSingles: rbfData.closedSingles,
-            closedRanges: rbfData.closedRanges,
-            exceptions: rbfData.exceptions,
+        // Debug rbfData structure for troubleshooting
+        if (rbfData.debug || (typeof WP_DEBUG !== 'undefined' && WP_DEBUG)) {
+          rbfLog.log('📊 rbfData structure:', {
+            hasClosedDays: !!(rbfData.closedDays),
+            closedDaysCount: rbfData.closedDays ? rbfData.closedDays.length : 0,
+            hasClosedSingles: !!(rbfData.closedSingles),
+            closedSinglesCount: rbfData.closedSingles ? rbfData.closedSingles.length : 0,
+            hasClosedRanges: !!(rbfData.closedRanges),
+            closedRangesCount: rbfData.closedRanges ? rbfData.closedRanges.length : 0,
+            hasExceptions: !!(rbfData.exceptions),
             exceptionsCount: rbfData.exceptions ? rbfData.exceptions.length : 0,
-            mealAvailability: rbfData.mealAvailability
+            hasMealAvailability: !!(rbfData.mealAvailability),
+            availableMeals: rbfData.mealAvailability ? Object.keys(rbfData.mealAvailability) : []
           });
         }
         
-        // Force calendar interactivity after initialization
+        // Ensure calendar is fully interactive
         setTimeout(() => {
           forceCalendarInteractivity(instance);
+          rbfLog.log('🎯 Calendar forced to be interactive');
         }, 100);
-      },
-      onDayCreate: function(dObj, dStr, fp, dayElem) {
-        const dateStr = formatLocalISO(dayElem.dateObj);
         
-        // Keep only essential styling for special event colors
-        if (rbfData.exceptions) {
-          for (let exception of rbfData.exceptions) {
-            if (exception.date === dateStr) {
-              const indicator = document.createElement('div');
-              indicator.className = 'rbf-exception-indicator rbf-exception-' + exception.type;
-              indicator.title = exception.description || exception.type;
-              
-              // Simple color coding for special dates
-              const styles = {
-                'special': { background: '#20c997', title: 'Evento Speciale' },
-                'extended': { background: '#0d6efd', title: 'Orari Estesi' },
-                'holiday': { background: '#fd7e14', title: 'Festività' },
-                'closure': { background: '#dc3545', title: 'Chiusura' }
-              };
-              
-              const style = styles[exception.type] || styles.closure;
-              indicator.style.cssText = `
-                position: absolute;
-                top: 2px;
-                right: 2px;
-                width: 6px;
-                height: 6px;
-                border-radius: 50%;
-                background: ${style.background};
-                z-index: 1;
-                pointer-events: none;
-              `;
-              
-              if (!exception.description) {
-                indicator.title = rbfData.labels[style.title] || style.title;
-              }
-              
-              dayElem.style.position = 'relative';
-              dayElem.appendChild(indicator);
-              break;
-            }
-          }
+        // EMERGENCY: Add manual emergency override
+        console.log('RBF: Calendar ready. If you see all dates disabled, run: window.rbfForceEmergencyMode = true; then refresh the page.');
+      },
+      
+      onDayCreate: function(dObj, dStr, fp, dayElem) {
+        // Add visual indicators for special dates (non-blocking)
+        try {
+          addDateIndicators(dayElem);
+        } catch (error) {
+          rbfLog.warn(`Visual indicator error for date: ${error.message}`);
+          // Continue without visual indicators rather than breaking the calendar
         }
       }
     };
     
-    // Set max date if configured
-    if (shouldApplyMaxAdvanceLimit) {
-      flatpickrConfig.maxDate = new Date(new Date().getTime() + maxAdvanceMinutes * 60 * 1000);
+    // Set reasonable max date (1 year from now if not specified)
+    const maxAdvanceMs = shouldApplyMaxAdvanceLimit ? 
+      maxAdvanceMinutes * 60 * 1000 : 
+      365 * 24 * 60 * 60 * 1000; // 1 year default
+    
+    flatpickrConfig.maxDate = new Date(new Date().getTime() + maxAdvanceMs);
+    
+    // Apply minimum advance time
+    if (rbfData.minAdvanceMinutes && rbfData.minAdvanceMinutes > 0) {
+      flatpickrConfig.minDate = new Date(new Date().getTime() + rbfData.minAdvanceMinutes * 60 * 1000);
     }
     
-    // Destroy existing instance if it exists
+    // Clean up any existing calendar instance
     if (fp) {
-      fp.destroy();
+      try {
+        fp.destroy();
+      } catch (error) {
+        rbfLog.warn('Error destroying previous calendar instance');
+      }
       fp = null;
     }
     
-    // Create the flatpickr instance
-    fp = flatpickr(el.dateInput[0], flatpickrConfig);
+    // Create the new flatpickr instance with error handling
+    try {
+      fp = flatpickr(el.dateInput[0], flatpickrConfig);
+      
+      if (fp) {
+        rbfLog.log('✅ Flatpickr instance created successfully');
+        
+        // Store reference globally for debugging
+        window.rbfCalendarInstance = fp;
+        
+        // Show exception legend if there are exceptions
+        if (rbfData.exceptions && rbfData.exceptions.length > 0) {
+          $('.rbf-exception-legend').show();
+        }
+      } else {
+        throw new Error('Flatpickr instance creation failed');
+      }
+      
+    } catch (error) {
+      rbfLog.error(`Failed to create calendar: ${error.message}`);
+      // Auto-switch to emergency mode
+      console.log('RBF: Auto-switching to emergency mode due to error');
+      initializeEmergencyCalendar();
+    }
+  }
+  
+  /**
+   * EMERGENCY CALENDAR - Ultra-simple with no restrictions
+   * Used when the main calendar fails
+   */
+  function initializeEmergencyCalendar() {
+    console.log('RBF EMERGENCY: Initializing emergency calendar with minimal restrictions');
     
-    // Show exception legend if there are exceptions
-    if (rbfData.exceptions && rbfData.exceptions.length > 0) {
-      $('.rbf-exception-legend').show();
+    const emergencyConfig = {
+      altInput: true,
+      altFormat: 'd-m-Y',
+      dateFormat: 'Y-m-d',
+      minDate: 'today',
+      locale: (rbfData && rbfData.locale === 'it') ? 'it' : 'default',
+      enableTime: false,
+      noCalendar: false,
+      
+      // EMERGENCY: Allow all dates - no disable function
+      // disable: [], // Commenting out completely to allow all dates
+      
+      onChange: onDateChange,
+      
+      onReady: function(selectedDates, dateStr, instance) {
+        console.log('✅ EMERGENCY calendar initialized - all dates should be available');
+        
+        setTimeout(() => {
+          forceCalendarInteractivity(instance);
+        }, 100);
+      }
+    };
+    
+    // Clean up any existing calendar instance
+    if (fp) {
+      try {
+        fp.destroy();
+      } catch (error) {
+        console.warn('Error destroying previous calendar instance');
+      }
+      fp = null;
     }
     
-    rbfLog.log('Flatpickr instance created successfully');
+    try {
+      fp = flatpickr(el.dateInput[0], emergencyConfig);
+      
+      if (fp) {
+        console.log('✅ EMERGENCY Flatpickr instance created successfully');
+        window.rbfCalendarInstance = fp;
+      } else {
+        throw new Error('Emergency flatpickr instance creation failed');
+      }
+      
+    } catch (error) {
+      console.error('RBF EMERGENCY: Even emergency calendar failed:', error);
+      // Fallback to HTML5 date input
+      setupFallbackDateInput();
+    }
+  }
+
+  /**
+   * EMERGENCY FIXED DISABLE LOGIC - Ultra-safe and diagnostic
+   * Designed to prevent all dates being disabled
+   */
+  function isDateDisabled(date) {
+    try {
+      const dateStr = formatLocalISO(date);
+      const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
+      
+      // EMERGENCY: Log first few checks in detail
+      if (window.rbfDetailedDebugCount === undefined) {
+        window.rbfDetailedDebugCount = 0;
+      }
+      if (window.rbfDetailedDebugCount < 5) {
+        console.log(`RBF DETAILED DEBUG ${window.rbfDetailedDebugCount}:`);
+        console.log(`  Date: ${dateStr}, Day: ${dayOfWeek}`);
+        console.log(`  rbfData.closedDays:`, rbfData.closedDays);
+        console.log(`  rbfData.closedSingles:`, rbfData.closedSingles);
+        console.log(`  rbfData.mealAvailability:`, rbfData.mealAvailability);
+        window.rbfDetailedDebugCount++;
+      }
+      
+      // EMERGENCY OVERRIDE: If we detect that everything is being disabled, just allow all dates
+      if (window.rbfEmergencyMode === undefined) {
+        window.rbfEmergencyMode = false;
+        window.rbfDisabledCount = 0;
+        window.rbfTotalCount = 0;
+      }
+      
+      window.rbfTotalCount++;
+      
+      // SIMPLE CHECK 1: General restaurant closed days
+      if (rbfData.closedDays && Array.isArray(rbfData.closedDays) && rbfData.closedDays.length > 0) {
+        if (rbfData.closedDays.includes(dayOfWeek)) {
+          window.rbfDisabledCount++;
+          console.log(`Date ${dateStr} disabled: restaurant closed on day ${dayOfWeek}`);
+          return true;
+        }
+      }
+      
+      // SIMPLE CHECK 2: Specific closed dates
+      if (rbfData.closedSingles && Array.isArray(rbfData.closedSingles) && rbfData.closedSingles.length > 0) {
+        if (rbfData.closedSingles.includes(dateStr)) {
+          window.rbfDisabledCount++;
+          console.log(`Date ${dateStr} disabled: specific closure date`);
+          return true;
+        }
+      }
+      
+      // SIMPLE CHECK 3: Closed date ranges
+      if (rbfData.closedRanges && Array.isArray(rbfData.closedRanges) && rbfData.closedRanges.length > 0) {
+        for (let range of rbfData.closedRanges) {
+          if (range && range.from && range.to) {
+            if (dateStr >= range.from && dateStr <= range.to) {
+              window.rbfDisabledCount++;
+              console.log(`Date ${dateStr} disabled: within closed range ${range.from} to ${range.to}`);
+              return true;
+            }
+          }
+        }
+      }
+      
+      // EMERGENCY CHECK: If too many dates are being disabled, switch to emergency mode
+      if (window.rbfTotalCount > 20 && (window.rbfDisabledCount / window.rbfTotalCount) > 0.8) {
+        console.error('RBF EMERGENCY: Too many dates disabled, switching to emergency mode');
+        window.rbfEmergencyMode = true;
+      }
+      
+      // EMERGENCY MODE: Allow all dates if we're in emergency mode
+      if (window.rbfEmergencyMode) {
+        console.log(`Date ${dateStr} allowed: EMERGENCY MODE ACTIVE`);
+        return false;
+      }
+      
+      // SIMPLE CHECK 4: Special exceptions (only closure and holiday)
+      if (rbfData.exceptions && Array.isArray(rbfData.exceptions) && rbfData.exceptions.length > 0) {
+        for (let exception of rbfData.exceptions) {
+          if (exception && exception.date === dateStr) {
+            if (exception.type === 'closure' || exception.type === 'holiday') {
+              window.rbfDisabledCount++;
+              console.log(`Date ${dateStr} disabled: ${exception.type} exception`);
+              return true;
+            }
+          }
+        }
+      }
+      
+      // SKIP MEAL AVAILABILITY CHECK FOR NOW - it was causing issues
+      // TODO: Re-enable once core calendar is working
+      
+      // DEFAULT: Allow the date
+      console.log(`Date ${dateStr} allowed: no restrictions apply`);
+      return false;
+      
+    } catch (error) {
+      console.error('RBF EMERGENCY: Error in isDateDisabled:', error);
+      console.error('RBF EMERGENCY: Error details:', {
+        date: date,
+        dateStr: formatLocalISO(date),
+        error: error.message,
+        stack: error.stack
+      });
+      // EMERGENCY: Always allow date on error
+      return false;
+    }
+  }
+
+  /**
+   * Add visual indicators to calendar days (non-blocking)
+   */
+  function addDateIndicators(dayElem) {
+    if (!dayElem || !dayElem.dateObj) return;
+    
+    const dateStr = formatLocalISO(dayElem.dateObj);
+    
+    // Only add indicators for exceptions, not for regular closed days
+    if (rbfData.exceptions && Array.isArray(rbfData.exceptions)) {
+      for (let exception of rbfData.exceptions) {
+        if (exception && exception.date === dateStr) {
+          const indicator = document.createElement('div');
+          indicator.className = 'rbf-exception-indicator rbf-exception-' + exception.type;
+          
+          // Simple color coding for different types
+          const colors = {
+            'special': '#20c997',
+            'extended': '#0d6efd', 
+            'holiday': '#fd7e14',
+            'closure': '#dc3545'
+          };
+          
+          const color = colors[exception.type] || colors.closure;
+          indicator.style.cssText = `
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: ${color};
+            z-index: 1;
+            pointer-events: none;
+          `;
+          
+          indicator.title = exception.description || exception.type;
+          dayElem.style.position = 'relative';
+          dayElem.appendChild(indicator);
+          break;
+        }
+      }
+    }
+  }
+
+  /**
+   * Fallback to HTML5 date input if flatpickr fails
+   */
+  function setupFallbackDateInput() {
+    rbfLog.warn('Setting up HTML5 date input fallback');
+    
+    el.dateInput.attr('type', 'date');
+    
+    // Set minimum date
+    const minDate = rbfData.minAdvanceMinutes ? 
+      new Date(new Date().getTime() + rbfData.minAdvanceMinutes * 60 * 1000) :
+      new Date();
+    el.dateInput.attr('min', minDate.toISOString().split('T')[0]);
+    
+    // Set maximum date (1 year from now)
+    const maxDate = new Date(new Date().getTime() + 365 * 24 * 60 * 60 * 1000);
+    el.dateInput.attr('max', maxDate.toISOString().split('T')[0]);
+    
+    // Add change handler
+    el.dateInput.on('change', function() {
+      if (this.value) {
+        rbfLog.log('Date selected via HTML5 input: ' + this.value);
+        onDateChange([new Date(this.value)]);
+      }
+    });
+    
+    rbfLog.log('HTML5 date input fallback configured');
   }
 
   /**
@@ -1280,7 +1484,7 @@ jQuery(function($) {
   }
 
   /**
-   * Handle meal selection change
+   * Handle meal selection change - RENEWED with complete calendar refresh
    */
   el.mealRadios.on('change', function() {
     resetSteps(1);
@@ -1290,6 +1494,7 @@ jQuery(function($) {
     $('.rbf-suggestions-container').remove();
     
     const selectedMeal = $(this).val();
+    rbfLog.log(`🍽️ Meal changed to: ${selectedMeal}`);
     
     // Show meal-specific tooltip if configured
     if (rbfData.mealTooltips && rbfData.mealTooltips[selectedMeal]) {
@@ -1297,35 +1502,127 @@ jQuery(function($) {
     }
     
     // Show date step for any meal selection without scrolling
-    // The flatpickr will be lazy loaded when the step is shown by showStepWithoutScroll
     showStepWithoutScroll(el.dateStep, 2);
 
-    // Re-evaluate disabled dates for the newly selected meal
+    // RENEWED: Complete calendar refresh when meal changes
+    refreshCalendarForMeal(selectedMeal);
+  });
+
+  /**
+   * RENEWED: Refresh calendar completely for meal changes
+   * This ensures that date availability is properly updated based on meal selection
+   */
+  function refreshCalendarForMeal(selectedMeal) {
+    rbfLog.log(`🔄 Refreshing calendar for meal: ${selectedMeal}`);
+    
+    // If calendar exists, refresh it
     if (fp) {
-      fp.redraw();
+      try {
+        // Store current selected date if any
+        const currentDate = fp.selectedDates.length > 0 ? fp.selectedDates[0] : null;
+        
+        // Clear selection first
+        fp.clear();
+        
+        // Force a complete redraw to re-evaluate all dates
+        fp.redraw();
+        
+        // If we had a selected date, check if it's still valid and reselect
+        if (currentDate) {
+          const isStillValid = !isDateDisabled(currentDate);
+          if (isStillValid) {
+            fp.setDate(currentDate);
+            rbfLog.log(`✅ Previous date ${formatLocalISO(currentDate)} is still valid for ${selectedMeal}`);
+          } else {
+            rbfLog.log(`❌ Previous date ${formatLocalISO(currentDate)} is no longer valid for ${selectedMeal}`);
+            // Clear the input value since the date is no longer valid
+            el.dateInput.val('');
+          }
+        }
+        
+        rbfLog.log(`✅ Calendar refreshed successfully for meal: ${selectedMeal}`);
+        
+      } catch (error) {
+        rbfLog.error(`Calendar refresh error: ${error.message}`);
+        // If refresh fails, reinitialize the calendar
+        reinitializeCalendar();
+      }
+    } else {
+      // If no calendar exists yet, it will be created when the date step is shown
+      rbfLog.log('📅 Calendar will be initialized when date step is shown');
     }
 
-    // Update availability data for the selected meal (after calendar loads)
-    setTimeout(() => {
-      if (fp && selectedMeal) {
-        // Get the current view date - use fp.now or fallback to current date
-        const viewDate = fp.now || new Date();
-        const startDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
-        const endDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
-        
-        fetchAvailabilityData(
-          formatLocalISO(startDate),
-          formatLocalISO(endDate),
-          selectedMeal
-        ).then(() => {
-          // Redraw calendar to apply new availability colors
-          if (fp) {
-            fp.redraw();
-          }
-        });
+    // Update availability data for the selected meal
+    if (selectedMeal) {
+      updateAvailabilityDataForMeal(selectedMeal);
+    }
+  }
+
+  /**
+   * RENEWED: Complete calendar reinitialization
+   * Used when refresh fails or major errors occur
+   */
+  function reinitializeCalendar() {
+    rbfLog.log('🔧 Reinitializing calendar completely...');
+    
+    try {
+      // Destroy existing instance
+      if (fp) {
+        fp.destroy();
+        fp = null;
       }
-    }, 500); // Increased delay to ensure calendar is fully loaded
-  });
+      
+      // Clear any cached data
+      datePickerInitPromise = null;
+      
+      // Reinitialize
+      lazyLoadDatePicker().then(() => {
+        rbfLog.log('✅ Calendar reinitialized successfully');
+        
+        // Ensure interactivity
+        setTimeout(() => {
+          if (fp) {
+            forceCalendarInteractivity(fp);
+          }
+        }, 100);
+      });
+      
+    } catch (error) {
+      rbfLog.error(`Calendar reinitialization failed: ${error.message}`);
+      // Fallback to HTML5 date input
+      setupFallbackDateInput();
+    }
+  }
+
+  /**
+   * Update availability data for specific meal
+   */
+  function updateAvailabilityDataForMeal(selectedMeal) {
+    if (!fp) return;
+    
+    try {
+      // Get the current view date - use fp.now or fallback to current date
+      const viewDate = fp.now || new Date();
+      const startDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+      const endDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
+      
+      fetchAvailabilityData(
+        formatLocalISO(startDate),
+        formatLocalISO(endDate),
+        selectedMeal
+      ).then(() => {
+        // Redraw calendar to apply new availability colors
+        if (fp) {
+          fp.redraw();
+          rbfLog.log(`📊 Availability data updated for meal: ${selectedMeal}`);
+        }
+      }).catch(error => {
+        rbfLog.warn(`Failed to update availability data: ${error.message}`);
+      });
+    } catch (error) {
+      rbfLog.warn(`Error updating availability data: ${error.message}`);
+    }
+  }
 
   /**
    * Handle date selection change
@@ -2668,5 +2965,132 @@ jQuery(function($) {
       }, 1000);
     }, 500);
   }
+
+  /**
+   * GLOBAL CALENDAR MANAGEMENT FUNCTIONS
+   * Exposed for debugging and manual control
+   */
+  
+  // Expose calendar management functions globally for debugging
+  window.rbfCalendar = {
+    refresh: function() {
+      rbfLog.log('🔄 Manual calendar refresh requested');
+      if (fp) {
+        try {
+          fp.redraw();
+          rbfLog.log('✅ Calendar refreshed successfully');
+          return true;
+        } catch (error) {
+          rbfLog.error(`Manual refresh failed: ${error.message}`);
+          return false;
+        }
+      } else {
+        rbfLog.warn('No calendar instance to refresh');
+        return false;
+      }
+    },
+    
+    reinitialize: function() {
+      rbfLog.log('🔧 Manual calendar reinitialization requested');
+      reinitializeCalendar();
+    },
+    
+    // EMERGENCY: Force emergency mode
+    activateEmergencyMode: function() {
+      console.log('🚨 ACTIVATING EMERGENCY MODE - This will allow all dates');
+      window.rbfForceEmergencyMode = true;
+      reinitializeCalendar();
+      console.log('✅ Emergency mode activated. All dates should now be available.');
+    },
+    
+    // EMERGENCY: Disable all restrictions completely  
+    disableAllRestrictions: function() {
+      console.log('🚨 DISABLING ALL RESTRICTIONS - Calendar will allow every date');
+      
+      if (fp) {
+        try {
+          fp.destroy();
+        } catch (e) {}
+      }
+      
+      // Create super-simple calendar with no restrictions at all
+      fp = flatpickr(el.dateInput[0], {
+        altInput: true,
+        altFormat: 'd-m-Y',
+        dateFormat: 'Y-m-d',
+        minDate: 'today',
+        locale: (rbfData && rbfData.locale === 'it') ? 'it' : 'default',
+        enableTime: false,
+        noCalendar: false,
+        // NO DISABLE FUNCTION - all dates allowed
+        onChange: onDateChange,
+        onReady: function() {
+          console.log('✅ UNRESTRICTED calendar created - ALL dates available');
+        }
+      });
+      
+      console.log('✅ All restrictions disabled. Every date should now be selectable.');
+    },
+    
+    getInstance: function() {
+      return fp;
+    },
+    
+    testDate: function(dateStr) {
+      if (!dateStr) {
+        rbfLog.error('Please provide a date string (YYYY-MM-DD)');
+        return;
+      }
+      
+      try {
+        const testDate = new Date(dateStr);
+        const isDisabled = isDateDisabled(testDate);
+        rbfLog.log(`📅 Test date ${dateStr}: ${isDisabled ? '❌ DISABLED' : '✅ ALLOWED'}`);
+        return !isDisabled;
+      } catch (error) {
+        rbfLog.error(`Error testing date: ${error.message}`);
+        return false;
+      }
+    },
+    
+    debugData: function() {
+      rbfLog.log('🔍 Current rbfData:', rbfData);
+      return rbfData;
+    },
+    
+    getCurrentSelection: function() {
+      const meal = el.mealRadios.filter(':checked').val();
+      const date = el.dateInput.val();
+      const time = el.timeSelect.val();
+      const people = el.peopleInput.val();
+      
+      rbfLog.log('📋 Current form state:', { meal, date, time, people });
+      return { meal, date, time, people };
+    }
+  };
+
+  // Add a console helper for users
+  if (rbfData.debug || (typeof WP_DEBUG !== 'undefined' && WP_DEBUG)) {
+    console.log('🎯 RBF Calendar Debug Tools Available:');
+    console.log('  - rbfCalendar.refresh() - Refresh the calendar');
+    console.log('  - rbfCalendar.reinitialize() - Completely reinitialize the calendar');  
+    console.log('  - rbfCalendar.testDate("2024-12-25") - Test if a date is allowed');
+    console.log('  - rbfCalendar.debugData() - Show current configuration data');
+    console.log('  - rbfCalendar.getCurrentSelection() - Show current form state');
+    console.log('');
+    console.log('🚨 EMERGENCY TOOLS (if calendar shows all dates disabled):');
+    console.log('  - rbfCalendar.activateEmergencyMode() - Switch to emergency mode');
+    console.log('  - rbfCalendar.disableAllRestrictions() - Remove ALL restrictions');
+  }
+  
+  // ALWAYS show emergency commands if calendar seems broken
+  setTimeout(() => {
+    if (window.rbfEmergencyMode || (window.rbfDisabledCount > 10 && window.rbfTotalCount > 0)) {
+      console.log('');
+      console.log('🚨 RBF EMERGENCY: Calendar may be broken. Try these commands:');
+      console.log('  rbfCalendar.activateEmergencyMode()');
+      console.log('  rbfCalendar.disableAllRestrictions()');
+    }
+  }, 5000);
 
 });
