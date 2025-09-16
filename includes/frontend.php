@@ -202,6 +202,9 @@ function rbf_enqueue_frontend_assets() {
             'loadingTimes' => rbf_translate_string('Caricamento orari...'),
             'refreshing' => rbf_translate_string('Aggiornamento...'),
             'submittingBooking' => rbf_translate_string('Invio prenotazione in corso...'),
+            
+            // Enhanced calendar labels
+            'chooseDate' => rbf_translate_string('Seleziona una data'),
         ],
     ]);
 }

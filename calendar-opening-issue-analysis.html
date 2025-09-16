@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendar Opening Issue Analysis - FP Prenotazioni</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: #f5f7fa; 
+        }
+        .analysis-container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .issue-section {
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .issue-problem { background: #f8d7da; border-left: 4px solid #dc3545; }
+        .issue-analysis { background: #fff3cd; border-left: 4px solid #ffc107; }
+        .issue-solution { background: #d4edda; border-left: 4px solid #28a745; }
+        .code-block {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+        .test-results {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="analysis-container">
+        <h1>🔍 Calendar Opening Issue Analysis</h1>
+        <p><strong>Issue Report:</strong> "Ora il calendario non si apre più" (The calendar no longer opens)</p>
+        
+        <div class="issue-section issue-problem">
+            <h2>🚨 Problem Identified</h2>
+            <p>Based on our test with external dependencies, the issue is confirmed:</p>
+            <ul>
+                <li><strong>External Libraries Blocked:</strong> jQuery and Flatpickr are not loading from CDNs</li>
+                <li><strong>Calendar Instance Missing:</strong> No Flatpickr instance is created</li>
+                <li><strong>Fallback Working:</strong> HTML5 date input fallback works properly</li>
+            </ul>
+        </div>
+        
+        <div class="issue-section issue-analysis">
+            <h2>⚡ Root Cause Analysis</h2>
+            <p>The issue stems from the dependency loading mechanism in the original code:</p>
+            
+            <h3>1. Frontend Dependency Loading</h3>
+            <div class="code-block">// From includes/frontend.php
+wp_enqueue_script('rbf-flatpickr', 'https://cdn.jsdelivr.net/npm/flatpickr', [], '4.6.9', true);
+wp_enqueue_script('rbf-intl-tel-input','https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/19.2.16/js/intlTelInput.min.js',[], '19.2.16', true);</div>
+            
+            <h3>2. JavaScript Lazy Loading Logic</h3>
+            <div class="code-block">// From assets/js/frontend.js
+function lazyLoadDatePicker() {
+  if (fp) return Promise.resolve();
+  if (datePickerInitPromise) return datePickerInitPromise;
+
+  datePickerInitPromise = new Promise((resolve) => {
+    if (typeof flatpickr !== 'undefined') {
+      init();
+    } else {
+      // Try to load Flatpickr dynamically
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/flatpickr';
+      // ... error handling
+    }
+  });
+}</div>
+            
+            <h3>3. Event Handler for Calendar Opening</h3>
+            <div class="code-block">// Calendar opening logic at end of frontend.js
+el.dateInput.on('focus click', () => {
+  lazyLoadDatePicker().then(() => {
+    setTimeout(() => {
+      if (fp && !fp.isOpen) {
+        fp.open();
+      }
+    }, 50);
+  });
+});</div>
+        </div>
+        
+        <div class="issue-section issue-solution">
+            <h2>✅ Solution Strategy</h2>
+            <p>The fix involves multiple approaches to ensure calendar reliability:</p>
+            
+            <h3>1. Immediate Fix - Better Error Handling</h3>
+            <div class="code-block">// Enhanced lazyLoadDatePicker with better fallback
+function lazyLoadDatePicker() {
+  if (fp) return Promise.resolve();
+  if (datePickerInitPromise) return datePickerInitPromise;
+
+  datePickerInitPromise = new Promise((resolve) => {
+    const init = () => {
+      if (typeof flatpickr !== 'undefined') {
+        initializeFlatpickr();
+        resolve();
+      } else {
+        setupFallbackDateInput();
+        resolve();
+      }
+    };
+
+    // Give more time for libraries to load
+    setTimeout(init, 100);
+  });
+
+  return datePickerInitPromise;
+}</div>
+            
+            <h3>2. Enhanced Error Recovery</h3>
+            <div class="code-block">// Better initialization with retry mechanism
+function initializeFlatpickr() {
+  try {
+    if (!window.flatpickr) {
+      throw new Error('Flatpickr not available');
+    }
+    
+    // Create calendar instance
+    fp = flatpickr(el.dateInput[0], config);
+    
+    if (!fp) {
+      throw new Error('Failed to create Flatpickr instance');
+    }
+    
+  } catch (error) {
+    rbfLog.error('Calendar initialization failed: ' + error.message);
+    setupFallbackDateInput();
+  }
+}</div>
+            
+            <h3>3. Improved Event Handling</h3>
+            <div class="code-block">// More robust event handling
+el.dateInput.on('focus click', () => {
+  lazyLoadDatePicker().then(() => {
+    // Wait longer for initialization
+    setTimeout(() => {
+      if (fp && typeof fp.open === 'function' && !fp.isOpen) {
+        try {
+          fp.open();
+        } catch (error) {
+          rbfLog.error('Failed to open calendar: ' + error.message);
+          // Try fallback
+          if (el.dateInput.attr('type') !== 'date') {
+            el.dateInput.attr('type', 'date').removeAttr('readonly');
+          }
+        }
+      }
+    }, 200); // Increased delay
+  });
+});</div>
+        </div>
+        
+        <div class="test-results">
+            <h3>📋 Test Results Summary</h3>
+            <ul>
+                <li>✅ <strong>Meal Selection:</strong> Works correctly</li>
+                <li>✅ <strong>Date Step Display:</strong> Shows properly after meal selection</li>
+                <li>✅ <strong>Fallback Mechanism:</strong> HTML5 date input created when Flatpickr unavailable</li>
+                <li>❌ <strong>External Dependencies:</strong> Blocked by security policies</li>
+                <li>❌ <strong>Flatpickr Calendar:</strong> Cannot initialize without library</li>
+                <li>✅ <strong>Event Handlers:</strong> Properly attached and firing</li>
+            </ul>
+        </div>
+        
+        <div class="issue-section issue-solution">
+            <h2>🔧 Recommended Fix</h2>
+            <p>The calendar opening issue can be resolved with the following changes:</p>
+            
+            <h3>Priority 1: Immediate Fix</h3>
+            <ol>
+                <li><strong>Increase initialization delays</strong> to allow more time for libraries to load</li>
+                <li><strong>Improve error handling</strong> in the calendar initialization process</li>
+                <li><strong>Enhance fallback mechanism</strong> to ensure date selection always works</li>
+            </ol>
+            
+            <h3>Priority 2: Long-term Improvements</h3>
+            <ol>
+                <li><strong>Bundle dependencies locally</strong> to avoid CDN loading issues</li>
+                <li><strong>Add retry mechanism</strong> for failed library loads</li>
+                <li><strong>Implement progressive enhancement</strong> starting with HTML5 input</li>
+            </ol>
+        </div>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <p><strong>Next Step:</strong> Apply the fix to assets/js/frontend.js</p>
+        </div>
+    </div>
+</body>
+</html>

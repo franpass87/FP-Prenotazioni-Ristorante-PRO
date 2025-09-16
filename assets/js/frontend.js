@@ -440,7 +440,7 @@ jQuery(function($) {
   }
 
   /**
-   * Initialize calendar with fallback support
+   * Initialize calendar with enhanced fallback support and better error handling
    */
   function lazyLoadDatePicker() {
     if (fp) return Promise.resolve();
@@ -448,71 +448,118 @@ jQuery(function($) {
 
     datePickerInitPromise = new Promise((resolve) => {
       const init = () => {
-        initializeFlatpickr();
-        // Don't automatically open calendar - let user click to open
-        // This prevents interference with navigation and date selection
-        resolve();
-        datePickerInitPromise = null;
+        try {
+          // Wait a bit to ensure DOM is ready and libraries are loaded
+          setTimeout(() => {
+            if (typeof flatpickr !== 'undefined') {
+              rbfLog.log('Flatpickr available, initializing calendar...');
+              initializeFlatpickr();
+            } else {
+              rbfLog.warn('Flatpickr still not available after wait, using fallback');
+              initFallback();
+            }
+            resolve();
+            datePickerInitPromise = null;
+          }, 150); // Increased delay for better stability
+        } catch (error) {
+          rbfLog.error('Calendar initialization error: ' + error.message);
+          initFallback();
+          resolve();
+          datePickerInitPromise = null;
+        }
       };
 
       const initFallback = () => {
-        rbfLog.warn('Flatpickr not available, using HTML5 date input fallback');
-        if (el.dateInput.length) {
-          // Enhanced HTML5 date input fallback
-          el.dateInput.attr('type', 'date');
-          
-          // Set minimum date based on advance time requirements
-          const today = new Date();
-          const minDate = new Date(today.getTime() + (rbfData.minAdvanceMinutes || 60) * 60 * 1000);
-          el.dateInput.attr('min', minDate.toISOString().split('T')[0]);
-          
-          // Set maximum date (e.g., 6 months in advance)
-          const maxDate = new Date(today.getTime() + maxAdvanceMinutes * 60 * 1000);
-          el.dateInput.attr('max', maxDate.toISOString().split('T')[0]);
-          
-          // Add event listener for date changes
-          el.dateInput.on('change', function() {
-            const selectedDate = this.value;
-            if (selectedDate) {
-              rbfLog.log('Date selected via HTML5 input: ' + selectedDate);
-              // Trigger time slot loading
-              loadTimeSlots();
-            }
-          });
-          
-          // Improve styling for fallback date input
-          el.dateInput.addClass('rbf-date-fallback');
-        }
-        resolve();
-        datePickerInitPromise = null;
+        rbfLog.warn('Using HTML5 date input fallback');
+        setupFallbackDateInput();
       };
 
+      // Check if Flatpickr is already available
       if (typeof flatpickr !== 'undefined') {
+        rbfLog.log('Flatpickr already available');
         init();
       } else {
-        // Try to load Flatpickr with enhanced error handling
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/flatpickr';
-        script.async = true;
-        script.onload = init;
-        script.onerror = initFallback;
+        // Try to wait for Flatpickr to load, then fallback if needed
+        let checkAttempts = 0;
+        const maxAttempts = 10;
+        const checkInterval = 200;
         
-        // Set a timeout for loading
-        const loadTimeout = setTimeout(() => {
-          rbfLog.warn('Flatpickr loading timeout, using fallback');
-          initFallback();
-        }, 5000);
-        
-        script.onload = () => {
-          clearTimeout(loadTimeout);
-          init();
+        const checkFlatpickr = () => {
+          checkAttempts++;
+          
+          if (typeof flatpickr !== 'undefined') {
+            rbfLog.log(`Flatpickr found after ${checkAttempts} attempts`);
+            init();
+          } else if (checkAttempts >= maxAttempts) {
+            rbfLog.warn(`Flatpickr not found after ${maxAttempts} attempts, using fallback`);
+            initFallback();
+            resolve();
+            datePickerInitPromise = null;
+          } else {
+            setTimeout(checkFlatpickr, checkInterval);
+          }
         };
         
-        document.head.appendChild(script);
+        // Start checking
+        checkFlatpickr();
       }
     });
 
     return datePickerInitPromise;
+  }
+
+  /**
+   * Enhanced HTML5 date input fallback
+   */
+  function setupFallbackDateInput() {
+    if (!el.dateInput.length) {
+      rbfLog.error('Date input element not found for fallback');
+      return;
+    }
+
+    rbfLog.log('Setting up enhanced HTML5 date input fallback...');
+    
+    try {
+      // Convert to HTML5 date input
+      el.dateInput.attr('type', 'date');
+      el.dateInput.removeAttr('readonly');
+      
+      // Set minimum date based on advance time requirements
+      const today = new Date();
+      const minDate = new Date(today.getTime() + (rbfData.minAdvanceMinutes || 60) * 60 * 1000);
+      el.dateInput.attr('min', minDate.toISOString().split('T')[0]);
+      
+      // Set maximum date
+      const maxDate = new Date(today.getTime() + maxAdvanceMinutes * 60 * 1000);
+      el.dateInput.attr('max', maxDate.toISOString().split('T')[0]);
+      
+      // Remove any existing change handlers to avoid duplicates
+      el.dateInput.off('change.fallback');
+      
+      // Add event listener for date changes
+      el.dateInput.on('change.fallback', function() {
+        const selectedDate = this.value;
+        if (selectedDate) {
+          rbfLog.log('Date selected via HTML5 input: ' + selectedDate);
+          // Convert to date object and trigger the same flow as Flatpickr
+          const dateObj = new Date(selectedDate + 'T00:00:00');
+          onDateChange([dateObj]);
+        }
+      });
+      
+      // Improve styling for fallback date input
+      el.dateInput.addClass('rbf-date-fallback');
+      
+      // Show a helpful message
+      if (el.dateInput.attr('placeholder')) {
+        el.dateInput.attr('placeholder', rbfData.labels.chooseDate || 'Seleziona una data');
+      }
+      
+      rbfLog.log('✅ HTML5 date input fallback configured successfully');
+      
+    } catch (error) {
+      rbfLog.error('Failed to setup fallback date input: ' + error.message);
+    }
   }
 
   /**
@@ -647,7 +694,7 @@ jQuery(function($) {
 
   /**
    * COMPLETELY RENEWED CALENDAR IMPLEMENTATION
-   * Simple, robust, and user-friendly calendar configuration
+   * Enhanced with better error handling and reliability
    */
   function initializeFlatpickr() {
     // First, validate that we have the minimum required data
@@ -656,7 +703,12 @@ jQuery(function($) {
       return;
     }
 
-    rbfLog.log('Initializing renewed calendar system...');
+    if (!el.dateInput || !el.dateInput.length) {
+      rbfLog.error('Date input element not found - cannot initialize calendar');
+      return;
+    }
+
+    rbfLog.log('Initializing enhanced calendar system...');
     
     // EMERGENCY: Check if we should use ultra-simple mode
     const useEmergencyMode = window.rbfForceEmergencyMode || false;
@@ -667,168 +719,171 @@ jQuery(function($) {
       return;
     }
 
-    const flatpickrConfig = {
-      // Basic configuration - keep it simple and reliable
-      altInput: true,
-      altFormat: 'd-m-Y',
-      dateFormat: 'Y-m-d',
-      minDate: 'today',
-      locale: (rbfData.locale === 'it') ? 'it' : 'default',
-      
-      // Standard flatpickr settings for best user experience
-      enableTime: false,
-      noCalendar: false,
-      enableMonthDropdown: true,
-      enableYearDropdown: true,
-      shorthandCurrentMonth: false,
-      showMonths: 1,
-      
-      // EMERGENCY FIX DISABLE FUNCTION - Ultra-safe with comprehensive logging
-      disable: [function(date) {
-        try {
-          // EMERGENCY: If rbfData is not available, allow all dates
-          if (!rbfData || typeof rbfData !== 'object') {
-            console.warn('RBF EMERGENCY: rbfData not available, allowing all dates');
+    try {
+      const flatpickrConfig = {
+        // Basic configuration - keep it simple and reliable
+        altInput: true,
+        altFormat: 'd-m-Y',
+        dateFormat: 'Y-m-d',
+        minDate: 'today',
+        locale: (rbfData.locale === 'it') ? 'it' : 'default',
+        
+        // Standard flatpickr settings for best user experience
+        enableTime: false,
+        noCalendar: false,
+        enableMonthDropdown: true,
+        enableYearDropdown: true,
+        shorthandCurrentMonth: false,
+        showMonths: 1,
+        
+        // ENHANCED DISABLE FUNCTION - Ultra-safe with comprehensive logging
+        disable: [function(date) {
+          try {
+            // EMERGENCY: If rbfData is not available, allow all dates
+            if (!rbfData || typeof rbfData !== 'object') {
+              console.warn('RBF EMERGENCY: rbfData not available, allowing all dates');
+              return false;
+            }
+
+            const result = isDateDisabled(date);
+            
+            // DEBUG: Log decisions for troubleshooting
+            if (rbfData.debug && window.rbfDebugCount < 5) {
+              console.log(`RBF DEBUG: Date ${formatLocalISO(date)} -> ${result ? 'DISABLED' : 'ENABLED'}`);
+              window.rbfDebugCount = (window.rbfDebugCount || 0) + 1;
+            }
+            
+            return result;
+            
+          } catch (error) {
+            console.error('RBF EMERGENCY: Calendar disable function error:', error);
+            // EMERGENCY: On any error, ALWAYS allow the date to prevent all dates being disabled
             return false;
           }
-
-          const result = isDateDisabled(date);
+        }],
+        
+        onChange: onDateChange,
+        
+        onReady: function(selectedDates, dateStr, instance) {
+          rbfLog.log('✅ Enhanced calendar initialized successfully');
           
-          // EMERGENCY DEBUG: Log every single decision for first few dates
-          if (window.rbfDebugCount === undefined) {
-            window.rbfDebugCount = 0;
+          // Debug rbfData structure for troubleshooting
+          if (rbfData.debug || (typeof WP_DEBUG !== 'undefined' && WP_DEBUG)) {
+            rbfLog.log('📊 rbfData structure:', {
+              hasClosedDays: !!(rbfData.closedDays),
+              closedDaysCount: rbfData.closedDays ? rbfData.closedDays.length : 0,
+              hasClosedSingles: !!(rbfData.closedSingles),
+              closedSinglesCount: rbfData.closedSingles ? rbfData.closedSingles.length : 0,
+              hasClosedRanges: !!(rbfData.closedRanges),
+              closedRangesCount: rbfData.closedRanges ? rbfData.closedRanges.length : 0,
+              hasExceptions: !!(rbfData.exceptions),
+              exceptionsCount: rbfData.exceptions ? rbfData.exceptions.length : 0,
+              hasMealAvailability: !!(rbfData.mealAvailability),
+              availableMeals: rbfData.mealAvailability ? Object.keys(rbfData.mealAvailability) : []
+            });
           }
-          if (window.rbfDebugCount < 10) {
-            console.log(`RBF DEBUG ${window.rbfDebugCount}: Date ${formatLocalISO(date)} -> ${result ? 'DISABLED' : 'ENABLED'}`);
-            window.rbfDebugCount++;
+          
+          // Ensure calendar is fully interactive
+          setTimeout(() => {
+            forceCalendarInteractivity(instance);
+            rbfLog.log('🎯 Calendar forced to be interactive');
+          }, 100);
+          
+          // Store global reference for debugging
+          window.rbfCalendarInstance = instance;
+        },
+        
+        onOpen: function(selectedDates, dateStr, instance) {
+          rbfLog.log('📅 Calendar opened - forcing interactivity');
+          
+          // CRITICAL: Force interactivity immediately when calendar opens
+          setTimeout(() => {
+            forceCalendarInteractivity(instance);
+          }, 50);
+          
+          // Double-check after a brief delay to handle any race conditions
+          setTimeout(() => {
+            forceCalendarInteractivity(instance);
+          }, 200);
+        },
+        
+        onClose: function(selectedDates, dateStr, instance) {
+          rbfLog.log('📅 Calendar closed');
+        },
+        
+        onDayCreate: function(dObj, dStr, fp, dayElem) {
+          // CRITICAL: Ensure day is interactive if not disabled
+          if (!dayElem.classList.contains('flatpickr-disabled')) {
+            dayElem.style.pointerEvents = 'auto';
+            dayElem.style.cursor = 'pointer';
+            dayElem.style.position = 'relative';
+            dayElem.style.zIndex = '1';
+            dayElem.setAttribute('tabindex', '0');
+            
+            // Remove any problematic classes
+            dayElem.classList.remove('rbf-component-loading', 'rbf-loading');
           }
           
-          return result;
-          
-        } catch (error) {
-          console.error('RBF EMERGENCY: Calendar disable function error:', error);
-          console.error('RBF EMERGENCY: Error stack:', error.stack);
-          console.error('RBF EMERGENCY: Date that caused error:', date);
-          console.error('RBF EMERGENCY: rbfData state:', rbfData);
-          
-          // EMERGENCY: On any error, ALWAYS allow the date to prevent all dates being disabled
-          return false;
+          // Add visual indicators for special dates (non-blocking)
+          try {
+            addDateIndicators(dayElem);
+          } catch (error) {
+            rbfLog.warn(`Visual indicator error for date: ${error.message}`);
+            // Continue without visual indicators rather than breaking the calendar
+          }
         }
-      }],
+      };
       
-      onChange: onDateChange,
+      // Set reasonable max date (1 year from now if not specified)
+      const maxAdvanceMs = shouldApplyMaxAdvanceLimit ? 
+        maxAdvanceMinutes * 60 * 1000 : 
+        365 * 24 * 60 * 60 * 1000; // 1 year default
       
-      onReady: function(selectedDates, dateStr, instance) {
-        rbfLog.log('✅ Renewed calendar initialized successfully');
-        
-        // Debug rbfData structure for troubleshooting
-        if (rbfData.debug || (typeof WP_DEBUG !== 'undefined' && WP_DEBUG)) {
-          rbfLog.log('📊 rbfData structure:', {
-            hasClosedDays: !!(rbfData.closedDays),
-            closedDaysCount: rbfData.closedDays ? rbfData.closedDays.length : 0,
-            hasClosedSingles: !!(rbfData.closedSingles),
-            closedSinglesCount: rbfData.closedSingles ? rbfData.closedSingles.length : 0,
-            hasClosedRanges: !!(rbfData.closedRanges),
-            closedRangesCount: rbfData.closedRanges ? rbfData.closedRanges.length : 0,
-            hasExceptions: !!(rbfData.exceptions),
-            exceptionsCount: rbfData.exceptions ? rbfData.exceptions.length : 0,
-            hasMealAvailability: !!(rbfData.mealAvailability),
-            availableMeals: rbfData.mealAvailability ? Object.keys(rbfData.mealAvailability) : []
-          });
-        }
-        
-        // Ensure calendar is fully interactive
-        setTimeout(() => {
-          forceCalendarInteractivity(instance);
-          rbfLog.log('🎯 Calendar forced to be interactive');
-        }, 100);
-        
-        // EMERGENCY: Add manual emergency override
-        console.log('RBF: Calendar ready. If you see all dates disabled, run: window.rbfForceEmergencyMode = true; then refresh the page.');
-      },
+      flatpickrConfig.maxDate = new Date(new Date().getTime() + maxAdvanceMs);
       
-      onOpen: function(selectedDates, dateStr, instance) {
-        rbfLog.log('📅 Calendar opened - forcing interactivity');
-        
-        // CRITICAL: Force interactivity immediately when calendar opens
-        setTimeout(() => {
-          forceCalendarInteractivity(instance);
-        }, 50);
-        
-        // Double-check after a brief delay to handle any race conditions
-        setTimeout(() => {
-          forceCalendarInteractivity(instance);
-        }, 200);
-      },
+      // Apply minimum advance time
+      if (rbfData.minAdvanceMinutes && rbfData.minAdvanceMinutes > 0) {
+        flatpickrConfig.minDate = new Date(new Date().getTime() + rbfData.minAdvanceMinutes * 60 * 1000);
+      }
       
-      onDayCreate: function(dObj, dStr, fp, dayElem) {
-        // CRITICAL: Ensure day is interactive if not disabled
-        if (!dayElem.classList.contains('flatpickr-disabled')) {
-          dayElem.style.pointerEvents = 'auto';
-          dayElem.style.cursor = 'pointer';
-          dayElem.style.position = 'relative';
-          dayElem.style.zIndex = '1';
-          dayElem.setAttribute('tabindex', '0');
-          
-          // Remove any problematic classes
-          dayElem.classList.remove('rbf-component-loading', 'rbf-loading');
-        }
-        
-        // Add visual indicators for special dates (non-blocking)
+      // Clean up any existing calendar instance
+      if (fp) {
         try {
-          addDateIndicators(dayElem);
+          fp.destroy();
         } catch (error) {
-          rbfLog.warn(`Visual indicator error for date: ${error.message}`);
-          // Continue without visual indicators rather than breaking the calendar
+          rbfLog.warn('Error destroying previous calendar instance');
         }
+        fp = null;
       }
-    };
-    
-    // Set reasonable max date (1 year from now if not specified)
-    const maxAdvanceMs = shouldApplyMaxAdvanceLimit ? 
-      maxAdvanceMinutes * 60 * 1000 : 
-      365 * 24 * 60 * 60 * 1000; // 1 year default
-    
-    flatpickrConfig.maxDate = new Date(new Date().getTime() + maxAdvanceMs);
-    
-    // Apply minimum advance time
-    if (rbfData.minAdvanceMinutes && rbfData.minAdvanceMinutes > 0) {
-      flatpickrConfig.minDate = new Date(new Date().getTime() + rbfData.minAdvanceMinutes * 60 * 1000);
-    }
-    
-    // Clean up any existing calendar instance
-    if (fp) {
-      try {
-        fp.destroy();
-      } catch (error) {
-        rbfLog.warn('Error destroying previous calendar instance');
-      }
-      fp = null;
-    }
-    
-    // Create the new flatpickr instance with error handling
-    try {
+      
+      // Create the new flatpickr instance with enhanced error handling
       fp = flatpickr(el.dateInput[0], flatpickrConfig);
       
-      if (fp) {
+      if (fp && fp.calendarContainer) {
         rbfLog.log('✅ Flatpickr instance created successfully');
-        
-        // Store reference globally for debugging
-        window.rbfCalendarInstance = fp;
         
         // Show exception legend if there are exceptions
         if (rbfData.exceptions && rbfData.exceptions.length > 0) {
           $('.rbf-exception-legend').show();
         }
+        
+        return true;
       } else {
-        throw new Error('Flatpickr instance creation failed');
+        throw new Error('Flatpickr instance creation failed - no instance or container returned');
       }
       
     } catch (error) {
       rbfLog.error(`Failed to create calendar: ${error.message}`);
-      // Auto-switch to emergency mode
-      console.log('RBF: Auto-switching to emergency mode due to error');
-      initializeEmergencyCalendar();
+      console.error('Calendar creation error details:', error);
+      
+      // Clear the failed instance
+      fp = null;
+      
+      // Auto-switch to fallback
+      rbfLog.log('Auto-switching to HTML5 date input fallback due to Flatpickr error');
+      setupFallbackDateInput();
+      
+      return false;
     }
   }
   
@@ -2908,15 +2963,43 @@ jQuery(function($) {
     }
   })();
 
-  // Ensure calendar opens when date field gains focus or is clicked
+  // Enhanced calendar opening when date field gains focus or is clicked
   el.dateInput.on('focus click', () => {
+    rbfLog.log('Date input focused/clicked - attempting to open calendar...');
+    
     lazyLoadDatePicker().then(() => {
-      // Small delay to ensure proper initialization before opening
+      // Wait longer for proper initialization before attempting to open
       setTimeout(() => {
-        if (fp && !fp.isOpen) {
-          fp.open();
+        if (fp && typeof fp.open === 'function') {
+          try {
+            if (!fp.isOpen) {
+              rbfLog.log('Opening Flatpickr calendar...');
+              fp.open();
+            } else {
+              rbfLog.log('Calendar already open');
+            }
+          } catch (error) {
+            rbfLog.error('Failed to open Flatpickr calendar: ' + error.message);
+            // If Flatpickr fails, ensure HTML5 fallback is active
+            if (el.dateInput.attr('type') !== 'date') {
+              rbfLog.log('Switching to HTML5 date input fallback...');
+              setupFallbackDateInput();
+            }
+          }
+        } else {
+          rbfLog.log('No Flatpickr instance available, HTML5 fallback should be active');
+          // Ensure the fallback is properly set up
+          if (el.dateInput.attr('type') !== 'date') {
+            setupFallbackDateInput();
+          }
         }
-      }, 50);
+      }, 200); // Increased delay for better reliability
+    }).catch(error => {
+      rbfLog.error('lazyLoadDatePicker failed: ' + error.message);
+      // Ensure fallback is set up even if promise fails
+      if (el.dateInput.attr('type') !== 'date') {
+        setupFallbackDateInput();
+      }
     });
   });
 
