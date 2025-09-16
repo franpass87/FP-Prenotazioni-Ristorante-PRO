@@ -588,13 +588,30 @@ function rbf_render_booking_form($atts = []) {
                         <div class="rbf-radio-group" role="radiogroup" aria-labelledby="meal-label" aria-required="true">
                             <?php
                             $active_meals = rbf_get_active_meals();
-                            foreach ($active_meals as $meal) {
-                                $meal_id = esc_attr($meal['id']);
-                                $meal_name = esc_html($meal['name']);
-                                ?>
-                                <input type="radio" name="rbf_meal" value="<?php echo $meal_id; ?>" id="rbf_meal_<?php echo $meal_id; ?>" required aria-describedby="rbf-meal-notice">
-                                <label for="rbf_meal_<?php echo $meal_id; ?>"><?php echo $meal_name; ?></label>
-                                <?php
+                            if (empty($active_meals)) {
+                                // No meals configured - show helpful message for admin users
+                                if (current_user_can('manage_options')) {
+                                    ?>
+                                    <div class="notice notice-warning inline" style="margin: 0;">
+                                        <p><strong><?php echo esc_html(rbf_translate_string('Configurazione richiesta:')); ?></strong> <?php echo esc_html(rbf_translate_string('Nessun pasto è configurato. Per abilitare le prenotazioni, configura almeno un pasto nella sezione')); ?> <a href="<?php echo admin_url('admin.php?page=rbf-settings'); ?>"><?php echo esc_html(rbf_translate_string('Impostazioni Plugin')); ?></a>.</p>
+                                    </div>
+                                    <?php
+                                } else {
+                                    ?>
+                                    <div class="notice notice-info inline" style="margin: 0;">
+                                        <p><?php echo esc_html(rbf_translate_string('Il servizio di prenotazione è temporaneamente non disponibile. Riprova più tardi o contatta il ristorante.')); ?></p>
+                                    </div>
+                                    <?php
+                                }
+                            } else {
+                                foreach ($active_meals as $meal) {
+                                    $meal_id = esc_attr($meal['id']);
+                                    $meal_name = esc_html($meal['name']);
+                                    ?>
+                                    <input type="radio" name="rbf_meal" value="<?php echo $meal_id; ?>" id="rbf_meal_<?php echo $meal_id; ?>" required aria-describedby="rbf-meal-notice">
+                                    <label for="rbf_meal_<?php echo $meal_id; ?>"><?php echo $meal_name; ?></label>
+                                    <?php
+                                }
                             }
                             ?>
                         </div>
@@ -1207,6 +1224,16 @@ function rbf_ajax_get_availability() {
         wp_send_json_error([
             'message' => rbf_translate_string('Parametri mancanti'),
             'code' => 'missing_params'
+        ]);
+        return;
+    }
+    
+    // Check if the requested meal is configured and enabled
+    $meal_config = rbf_get_meal_config($meal);
+    if (!$meal_config) {
+        wp_send_json_error([
+            'message' => rbf_translate_string('Il servizio richiesto non è configurato o non è disponibile'),
+            'code' => 'meal_not_configured'
         ]);
         return;
     }
