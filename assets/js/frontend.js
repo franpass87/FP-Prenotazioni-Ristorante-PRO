@@ -295,7 +295,7 @@ jQuery(function($) {
   /**
    * Show loading state for component
    */
-  function showComponentLoading(component, message = rbfData.labels.loading) {
+  function showComponentLoading(component, message = (rbfData && rbfData.labels && rbfData.labels.loading) || 'Caricamento...') {
     componentsLoading.add(component);
     const $component = $(component);
     
@@ -537,7 +537,8 @@ jQuery(function($) {
       el.dateInput.attr('min', minDate.toISOString().split('T')[0]);
       
       // Set maximum date
-      const maxDate = new Date(today.getTime() + maxAdvanceMinutes * 60 * 1000);
+      const maxAdvanceMs = typeof maxAdvanceMinutes !== 'undefined' ? maxAdvanceMinutes * 60 * 1000 : 259200 * 60 * 1000; // Default 6 months
+      const maxDate = new Date(today.getTime() + maxAdvanceMs);
       el.dateInput.attr('max', maxDate.toISOString().split('T')[0]);
       
       // Remove any existing change handlers to avoid duplicates
@@ -559,7 +560,7 @@ jQuery(function($) {
       
       // Show a helpful message
       if (el.dateInput.attr('placeholder')) {
-        el.dateInput.attr('placeholder', rbfData.labels.chooseDate || 'Seleziona una data');
+        el.dateInput.attr('placeholder', (rbfData && rbfData.labels && rbfData.labels.chooseDate) || 'Seleziona una data');
       }
       
       rbfLog.log('✅ HTML5 date input fallback configured successfully');
@@ -574,6 +575,13 @@ jQuery(function($) {
    */
   function fetchAvailabilityData(startDate, endDate, meal) {
     return new Promise((resolve) => {
+      // Safety check for rbfData
+      if (!rbfData || !rbfData.ajaxUrl || !rbfData.nonce) {
+        rbfLog.error('Missing required rbfData properties for AJAX call');
+        resolve({});
+        return;
+      }
+      
       $.post(rbfData.ajaxUrl, {
         action: 'rbf_get_calendar_availability',
         _ajax_nonce: rbfData.nonce,
@@ -621,23 +629,24 @@ jQuery(function($) {
       let contextualMessage = '';
       
       // Generate dynamic contextual messages based on availability
+      const labels = (rbfData && rbfData.labels) || {};
       if (status.level === 'available') {
-        statusText = rbfData.labels.available || 'Disponibile';
+        statusText = labels.available || 'Disponibile';
         if (status.remaining > 20) {
-          contextualMessage = rbfData.labels.manySpots || 'Molti posti disponibili';
+          contextualMessage = labels.manySpots || 'Molti posti disponibili';
         } else if (status.remaining > 10) {
-          contextualMessage = rbfData.labels.someSpots || 'Buona disponibilità';
+          contextualMessage = labels.someSpots || 'Buona disponibilità';
         }
       } else if (status.level === 'limited') {
-        statusText = rbfData.labels.limited || 'Limitato';
+        statusText = labels.limited || 'Limitato';
         if (status.remaining <= 2) {
-          contextualMessage = rbfData.labels.lastSpots || 'Ultimi 2 posti rimasti';
+          contextualMessage = labels.lastSpots || 'Ultimi 2 posti rimasti';
         } else if (status.remaining <= 5) {
-          contextualMessage = rbfData.labels.fewSpots || 'Pochi posti rimasti';
+          contextualMessage = labels.fewSpots || 'Pochi posti rimasti';
         }
       } else {
-        statusText = rbfData.labels.nearlyFull || 'Quasi pieno';
-        contextualMessage = rbfData.labels.actFast || 'Prenota subito!';
+        statusText = labels.nearlyFull || 'Quasi pieno';
+        contextualMessage = labels.actFast || 'Prenota subito!';
       }
       
       const spotsLabel = rbfData.labels.spotsRemaining || 'Posti rimasti:';
@@ -775,7 +784,7 @@ jQuery(function($) {
           rbfLog.log('✅ Enhanced calendar initialized successfully');
           
           // Fix accessibility issue: ensure the alternate input has the correct id
-          if (instance.altInput) {
+          if (instance.altInput && instance.input) {
             // Transfer the id from the original input to the alternate input
             const originalId = instance.input.id;
             if (originalId) {
@@ -786,6 +795,8 @@ jQuery(function($) {
               instance.input.setAttribute('data-original-id', originalId);
               rbfLog.log('📋 Fixed accessibility: transferred id to alternate input');
             }
+          } else {
+            rbfLog.warn('altInput or input not available during onReady - accessibility fix not applied');
           }
           
           // Debug rbfData structure for troubleshooting
