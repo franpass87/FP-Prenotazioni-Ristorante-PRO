@@ -640,6 +640,20 @@ jQuery(function($) {
             return false;
           }
 
+          // Check meal availability for the currently selected meal
+          const selectedMeal = el.mealRadios.filter(':checked').val();
+          if (selectedMeal && rbfData.mealAvailability && rbfData.mealAvailability[selectedMeal]) {
+            const dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+            const currentDayName = dayNames[day];
+            
+            if (!rbfData.mealAvailability[selectedMeal].includes(currentDayName)) {
+              if (rbfData.debug) {
+                rbfLog.log(`Date ${dateStr} disabled: meal "${selectedMeal}" not available on ${currentDayName}`);
+              }
+              return true;
+            }
+          }
+
           // Only check for explicit closures and holidays
           if (rbfData.exceptions && Array.isArray(rbfData.exceptions)) {
             for (let exception of rbfData.exceptions) {
@@ -708,7 +722,8 @@ jQuery(function($) {
             closedSingles: rbfData.closedSingles,
             closedRanges: rbfData.closedRanges,
             exceptions: rbfData.exceptions,
-            exceptionsCount: rbfData.exceptions ? rbfData.exceptions.length : 0
+            exceptionsCount: rbfData.exceptions ? rbfData.exceptions.length : 0,
+            mealAvailability: rbfData.mealAvailability
           });
         }
         

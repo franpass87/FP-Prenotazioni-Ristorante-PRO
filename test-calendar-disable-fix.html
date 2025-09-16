@@ -82,6 +82,7 @@
                 <option value="single-closed">Single date closed (today)</option>
                 <option value="range-closed">Date range closed (next 3 days)</option>
                 <option value="exceptions">Exceptions with holidays</option>
+                <option value="meal-restricted" selected>Meal availability restricted (Pranzo Mon-Sat only)</option>
                 <option value="invalid">Invalid/malformed rbfData</option>
             </select>
         </label>
@@ -148,7 +149,10 @@
                         closedDays: [],
                         closedSingles: [],
                         closedRanges: [],
-                        exceptions: []
+                        exceptions: [],
+                        mealAvailability: {
+                            'pranzo': ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+                        }
                     };
                     
                 case 'some-closed':
@@ -157,7 +161,10 @@
                         closedDays: [0], // Sunday closed
                         closedSingles: [],
                         closedRanges: [],
-                        exceptions: []
+                        exceptions: [],
+                        mealAvailability: {
+                            'pranzo': ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'] // No Sunday
+                        }
                     };
                     
                 case 'single-closed':
@@ -166,7 +173,10 @@
                         closedDays: [],
                         closedSingles: [formatLocalISO(today)],
                         closedRanges: [],
-                        exceptions: []
+                        exceptions: [],
+                        mealAvailability: {
+                            'pranzo': ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+                        }
                     };
                     
                 case 'range-closed':
@@ -178,7 +188,10 @@
                             from: formatLocalISO(tomorrow),
                             to: formatLocalISO(dayAfter)
                         }],
-                        exceptions: []
+                        exceptions: [],
+                        mealAvailability: {
+                            'pranzo': ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+                        }
                     };
                     
                 case 'exceptions':
@@ -191,7 +204,22 @@
                             date: formatLocalISO(tomorrow),
                             type: 'holiday',
                             description: 'Test Holiday'
-                        }]
+                        }],
+                        mealAvailability: {
+                            'pranzo': ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+                        }
+                    };
+                    
+                case 'meal-restricted':
+                    return {
+                        debug: true,
+                        closedDays: [],
+                        closedSingles: [],
+                        closedRanges: [],
+                        exceptions: [],
+                        mealAvailability: {
+                            'pranzo': ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'] // No Sunday - simulates user's issue
+                        }
                     };
                     
                 case 'invalid':
@@ -200,7 +228,10 @@
                         closedDays: 'invalid', // Should be array
                         closedSingles: null,
                         closedRanges: 'not-array',
-                        exceptions: 'also-invalid'
+                        exceptions: 'also-invalid',
+                        mealAvailability: {
+                            'pranzo': ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+                        }
                     };
                     
                 default:
@@ -209,7 +240,7 @@
         }
         
         // Improved disable function from the fix
-        function improvedDisableFunction(date, rbfData) {
+        function improvedDisableFunctionWithMeal(date, rbfData, selectedMeal) {
             try {
                 const dateStr = formatLocalISO(date);
                 const day = date.getDay();
@@ -223,6 +254,19 @@
                 if (!rbfData || typeof rbfData !== 'object') {
                     rbfLog.warn('rbfData is not properly initialized, allowing all dates');
                     return false;
+                }
+
+                // Check meal availability for the currently selected meal
+                if (selectedMeal && rbfData.mealAvailability && rbfData.mealAvailability[selectedMeal]) {
+                    const dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+                    const currentDayName = dayNames[day];
+                    
+                    if (!rbfData.mealAvailability[selectedMeal].includes(currentDayName)) {
+                        if (rbfData.debug) {
+                            rbfLog.log(`Date ${dateStr} disabled: meal "${selectedMeal}" not available on ${currentDayName}`);
+                        }
+                        return true;
+                    }
                 }
 
                 // Only check for explicit closures and holidays
@@ -291,6 +335,10 @@
             log(`Testing with mode: ${mode}`, 'success');
             log(`rbfData: ${JSON.stringify(testRbfData, null, 2)}`);
             
+            // Mock selected meal for testing
+            const mockSelectedMeal = 'pranzo';
+            log(`Mock selected meal: ${mockSelectedMeal}`);
+            
             // Test several dates
             const testDates = [];
             const today = new Date();
@@ -300,7 +348,7 @@
             
             log('Testing dates:');
             testDates.forEach((date, index) => {
-                const isDisabled = improvedDisableFunction(date, testRbfData);
+                const isDisabled = improvedDisableFunctionWithMeal(date, testRbfData, mockSelectedMeal);
                 const status = isDisabled ? 'DISABLED' : 'ALLOWED';
                 const dayName = date.toLocaleDateString('it-IT', { weekday: 'short' });
                 log(`Day ${index}: ${formatLocalISO(date)} (${dayName}) → ${status}`);
