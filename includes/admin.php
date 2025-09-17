@@ -288,8 +288,16 @@ function rbf_sanitize_settings_callback($input) {
         $output['secondary_color'] = '';
     }
 
+    $current_settings = wp_parse_args(get_option('rbf_settings', []), $defaults);
     $days = ['mon','tue','wed','thu','fri','sat','sun'];
-    foreach ($days as $day) $output["open_{$day}"] = (isset($input["open_{$day}"]) && $input["open_{$day}"]==='yes') ? 'yes' : 'no';
+    foreach ($days as $day) {
+        $day_key = "open_{$day}";
+        if (array_key_exists($day_key, $input)) {
+            $output[$day_key] = ($input[$day_key] === 'yes') ? 'yes' : 'no';
+        } else {
+            $output[$day_key] = $current_settings[$day_key] ?? ($defaults[$day_key] ?? 'no');
+        }
+    }
 
     if (isset($input['closed_dates'])) $output['closed_dates'] = sanitize_textarea_field($input['closed_dates']);
 
@@ -418,6 +426,15 @@ function rbf_inject_brand_css_vars_admin() {
  */
 function rbf_settings_page_html() {
     $options = wp_parse_args(get_option('rbf_settings', rbf_get_default_settings()), rbf_get_default_settings());
+    $day_labels = [
+        'mon' => rbf_translate_string('Lunedì'),
+        'tue' => rbf_translate_string('Martedì'),
+        'wed' => rbf_translate_string('Mercoledì'),
+        'thu' => rbf_translate_string('Giovedì'),
+        'fri' => rbf_translate_string('Venerdì'),
+        'sat' => rbf_translate_string('Sabato'),
+        'sun' => rbf_translate_string('Domenica')
+    ];
     ?>
     <div class="rbf-admin-wrap">
         <h1><?php echo esc_html(rbf_translate_string('Impostazioni Prenotazioni Ristorante')); ?></h1>
@@ -465,9 +482,32 @@ function rbf_settings_page_html() {
                         </div>
                     </td>
                 </tr>
-                
+
+                <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Disponibilità Settimanale')); ?></h2></th></tr>
+                <tr>
+                    <th><?php echo esc_html(rbf_translate_string('Giorni di apertura')); ?></th>
+                    <td>
+                        <div class="rbf-weekday-toggle-group" style="display: flex; flex-wrap: wrap; gap: 10px;">
+                            <?php foreach ($day_labels as $day_key => $day_label) {
+                                $option_key = "open_{$day_key}";
+                                $is_open = ($options[$option_key] ?? 'yes') === 'yes';
+                                ?>
+                                <label style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; background: #fff;">
+                                    <input type="hidden" name="rbf_settings[<?php echo esc_attr($option_key); ?>]" value="no">
+                                    <input type="checkbox" name="rbf_settings[<?php echo esc_attr($option_key); ?>]" value="yes" <?php checked($is_open); ?>>
+                                    <span><?php echo esc_html($day_label); ?></span>
+                                </label>
+                                <?php
+                            } ?>
+                        </div>
+                        <p class="description" style="margin-top: 8px;">
+                            <?php echo esc_html(rbf_translate_string('Deseleziona i giorni in cui il ristorante resta chiuso.')); ?>
+                        </p>
+                    </td>
+                </tr>
+
                 <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Configurazione Pasti')); ?></h2></th></tr>
-                
+
                 <tr>
                     <th><?php echo esc_html(rbf_translate_string('Pasti Personalizzati')); ?></th>
                     <td>
@@ -477,16 +517,6 @@ function rbf_settings_page_html() {
                             if (!is_array($custom_meals)) {
                                 $custom_meals = [];
                             }
-                            $day_labels = [
-                                'mon' => rbf_translate_string('Lunedì'),
-                                'tue' => rbf_translate_string('Martedì'),
-                                'wed' => rbf_translate_string('Mercoledì'),
-                                'thu' => rbf_translate_string('Giovedì'),
-                                'fri' => rbf_translate_string('Venerdì'),
-                                'sat' => rbf_translate_string('Sabato'),
-                                'sun' => rbf_translate_string('Domenica')
-                            ];
-
                             ?>
                             <div class="notice notice-info inline" style="margin: 0 0 15px 0;">
                                 <p><?php echo esc_html(rbf_translate_string('Importante: dopo l\'installazione non sono presenti pasti preconfigurati. Configura i servizi del tuo ristorante utilizzando "Aggiungi Pasto" e salva le modifiche per renderli disponibili nel form.')); ?></p>
