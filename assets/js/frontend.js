@@ -1279,37 +1279,38 @@ function initializeBookingForm($) {
     
     const dateStr = formatLocalISO(dayElem.dateObj);
     
-    // Only add indicators for exceptions, not for regular closed days
+    // Add CSS classes for different special date types
     if (rbfData.exceptions && Array.isArray(rbfData.exceptions)) {
       for (let exception of rbfData.exceptions) {
         if (exception && exception.date === dateStr) {
-          const indicator = document.createElement('div');
-          indicator.className = 'rbf-exception-indicator rbf-exception-' + exception.type;
+          // Remove existing special date classes to avoid conflicts
+          dayElem.classList.remove('rbf-special-event', 'rbf-extended-hours', 'rbf-holiday', 'rbf-closure');
           
-          // Simple color coding for different types
-          const colors = {
-            'special': '#20c997',
-            'extended': '#0d6efd', 
-            'holiday': '#fd7e14',
-            'closure': '#dc3545'
-          };
+          // Apply appropriate class based on exception type for visual differentiation
+          switch (exception.type) {
+            case 'special':
+              dayElem.classList.add('rbf-special-event');
+              break;
+            case 'extended':
+              dayElem.classList.add('rbf-extended-hours');
+              break;
+            case 'holiday':
+              dayElem.classList.add('rbf-holiday');
+              break;
+            case 'closure':
+              dayElem.classList.add('rbf-closure');
+              break;
+            default:
+              dayElem.classList.add('rbf-closure'); // Default to closure for safety
+          }
           
-          const color = colors[exception.type] || colors.closure;
-          indicator.style.cssText = `
-            position: absolute;
-            top: 2px;
-            right: 2px;
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: ${color};
-            z-index: 1;
-            pointer-events: none;
-          `;
+          // Add tooltip with description
+          if (exception.description) {
+            dayElem.title = `${exception.type.toUpperCase()}: ${exception.description}`;
+          } else {
+            dayElem.title = exception.type.toUpperCase();
+          }
           
-          indicator.title = exception.description || exception.type;
-          dayElem.style.position = 'relative';
-          dayElem.appendChild(indicator);
           break;
         }
       }
