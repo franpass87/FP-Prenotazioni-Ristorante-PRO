@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✅ Form Test con Frontend.js - Fallback Completo</title>
+    
+    <!-- Frontend CSS -->
+    <link rel="stylesheet" href="assets/css/frontend.css">
+    
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: #f5f7fa; 
+        }
+        .demo-container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+        }
+        .test-section {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .status-banner {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+        }
+        .status-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .status-warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+        .status-error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .test-button {
+            background: var(--rbf-primary, #007bff);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        .test-button:hover {
+            opacity: 0.9;
+        }
+        
+        /* Ensure form is visible for testing */
+        .rbf-step {
+            display: block !important;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            background: #f8f9fa;
+        }
+        
+        .rbf-step.active {
+            background: white;
+            border-color: var(--rbf-primary, #007bff);
+        }
+        
+        /* Fallback styling for when CSS doesn't load */
+        .rbf-form {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .rbf-field-wrapper {
+            margin-bottom: 1.5rem;
+        }
+        
+        .rbf-field-wrapper label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .rbf-field-wrapper input,
+        .rbf-field-wrapper select,
+        .rbf-field-wrapper textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        .rbf-submit-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 1rem;
+        }
+        
+        .rbf-submit-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <h1>✅ Form Test con Frontend.js - Fallback Completo</h1>
+        
+        <div id="test-status" class="status-banner status-warning">
+            ⏳ Inizializzazione test in corso...
+        </div>
+        
+        <div class="test-section">
+            <h2>🔧 Test Funzionalità</h2>
+            <button class="test-button" onclick="testFormFields()">Testa Tutti i Campi</button>
+            <button class="test-button" onclick="populateForm()">Popola Form</button>
+            <button class="test-button" onclick="clearForm()">Cancella Form</button>
+            <button class="test-button" onclick="testSubmitButton()">Test Submit Button</button>
+        </div>
+
+        <div class="rbf-form-container">
+            <div id="rbf-message-anchor"></div>
+            
+            <form id="rbf-form" class="rbf-form" method="post" action="#" role="form" aria-label="Modulo di prenotazione ristorante">
+                <h2 style="text-align: center; color: var(--rbf-primary, #007bff); margin-bottom: 2rem;">
+                    🍽️ Prenota il tuo tavolo
+                </h2>
+                
+                <!-- Progress Indicator -->
+                <div class="rbf-progress-indicator" role="progressbar" aria-valuenow="1" aria-valuemin="1" aria-valuemax="5" aria-label="Progresso prenotazione">
+                    <div class="rbf-progress-step active" data-step="1">1</div>
+                    <div class="rbf-progress-step" data-step="2">2</div>
+                    <div class="rbf-progress-step" data-step="3">3</div>
+                    <div class="rbf-progress-step" data-step="4">4</div>
+                    <div class="rbf-progress-step" data-step="5">5</div>
+                </div>
+
+                <!-- Step 1: Meal Selection -->
+                <div id="step-meal" class="rbf-step active" role="group" aria-labelledby="meal-label">
+                    <h3>Step 1: Scegli il pasto</h3>
+                    <div class="rbf-field-wrapper">
+                        <label id="meal-label">Scegli il pasto <span class="rbf-required-indicator">*</span></label>
+                        <div class="rbf-radio-group" role="radiogroup" aria-labelledby="meal-label" aria-required="true">
+                            <label><input type="radio" name="rbf_meal" value="brunch" id="rbf_meal_brunch" required> Brunch</label>
+                            <label><input type="radio" name="rbf_meal" value="pranzo" id="rbf_meal_pranzo"> Pranzo</label>
+                            <label><input type="radio" name="rbf_meal" value="aperitivo_cena" id="rbf_meal_aperitivo_cena"> Aperitivo e Cena</label>
+                        </div>
+                        <div id="rbf-meal-error" class="rbf-field-error"></div>
+                        <p id="rbf-meal-notice" style="display:none;" role="status" aria-live="polite"></p>
+                    </div>
+                </div>
+
+                <!-- Step 2: Date Selection -->
+                <div id="step-date" class="rbf-step" role="group" aria-labelledby="date-label">
+                    <h3>Step 2: Seleziona la data</h3>
+                    <div class="rbf-field-wrapper">
+                        <label id="date-label" for="rbf-date">Data <span class="rbf-required-indicator">*</span></label>
+                        <input id="rbf-date" name="rbf_data" type="date" required aria-describedby="date-help" 
+                               aria-label="Seleziona data prenotazione">
+                        <div id="rbf-date-error" class="rbf-field-error"></div>
+                        <small id="date-help" class="rbf-help-text">Seleziona una data dal calendario</small>
+                    </div>
+                </div>
+
+                <!-- Step 3: Time Selection -->
+                <div id="step-time" class="rbf-step" role="group" aria-labelledby="time-label">
+                    <h3>Step 3: Seleziona l'orario</h3>
+                    <div class="rbf-field-wrapper">
+                        <label id="time-label" for="rbf-time">Orario <span class="rbf-required-indicator">*</span></label>
+                        <select id="rbf-time" name="rbf_orario" required aria-describedby="time-help">
+                            <option value="">Scegli un orario...</option>
+                            <option value="11:00">11:00</option>
+                            <option value="11:30">11:30</option>
+                            <option value="12:00">12:00</option>
+                            <option value="12:30">12:30</option>
+                            <option value="13:00">13:00</option>
+                            <option value="19:00">19:00</option>
+                            <option value="19:30">19:30</option>
+                            <option value="20:00">20:00</option>
+                        </select>
+                        <div id="rbf-time-error" class="rbf-field-error"></div>
+                        <small id="time-help" class="rbf-help-text">Seleziona un orario disponibile</small>
+                    </div>
+                </div>
+
+                <!-- Step 4: People Selector -->
+                <div id="step-people" class="rbf-step" role="group" aria-labelledby="people-label">
+                    <h3>Step 4: Numero di persone</h3>
+                    <div class="rbf-field-wrapper">
+                        <label id="people-label">Numero di persone <span class="rbf-required-indicator">*</span></label>
+                        <div class="rbf-people-selector" role="group" aria-labelledby="people-label">
+                            <button type="button" id="rbf-people-minus" class="rbf-people-btn" aria-label="Riduci numero persone">-</button>
+                            <input type="number" id="rbf-people" name="rbf_persone" value="2" min="1" max="20" readonly 
+                                   aria-label="Numero di persone" aria-describedby="people-help" required>
+                            <button type="button" id="rbf-people-plus" class="rbf-people-btn" aria-label="Aumenta numero persone">+</button>
+                        </div>
+                        <div id="rbf-people-error" class="rbf-field-error"></div>
+                        <small id="people-help" class="rbf-help-text">Usa i pulsanti + e - per modificare</small>
+                    </div>
+                </div>
+
+                <!-- Step 5: Contact Details -->
+                <div id="step-details" class="rbf-step" role="group" aria-labelledby="details-label">
+                    <h3 id="details-label">Step 5: Dati personali</h3>
+                    
+                    <div class="rbf-field-wrapper">
+                        <label for="rbf-name">Nome <span class="rbf-required-indicator">*</span></label>
+                        <input type="text" id="rbf-name" name="rbf_nome" placeholder="Il tuo nome" required aria-describedby="nome-help">
+                        <div id="rbf-name-error" class="rbf-field-error"></div>
+                        <small id="nome-help" class="rbf-help-text">Inserisci il tuo nome</small>
+                    </div>
+                    
+                    <div class="rbf-field-wrapper">
+                        <label for="rbf-surname">Cognome <span class="rbf-required-indicator">*</span></label>
+                        <input type="text" id="rbf-surname" name="rbf_cognome" placeholder="Il tuo cognome" required aria-describedby="cognome-help">
+                        <div id="rbf-surname-error" class="rbf-field-error"></div>
+                        <small id="cognome-help" class="rbf-help-text">Inserisci il tuo cognome</small>
+                    </div>
+                    
+                    <div class="rbf-field-wrapper">
+                        <label for="rbf-email">Email <span class="rbf-required-indicator">*</span></label>
+                        <input type="email" id="rbf-email" name="rbf_email" placeholder="la-tua-email@esempio.com" required aria-describedby="email-help">
+                        <div id="rbf-email-error" class="rbf-field-error"></div>
+                        <small id="email-help" class="rbf-help-text">Inserisci una email valida</small>
+                    </div>
+                    
+                    <div class="rbf-field-wrapper">
+                        <label for="rbf-tel">Telefono <span class="rbf-required-indicator">*</span></label>
+                        <input type="tel" id="rbf-tel" name="rbf_telefono" placeholder="Il tuo numero di telefono" required aria-describedby="tel-help">
+                        <div id="rbf-tel-error" class="rbf-field-error"></div>
+                        <small id="tel-help" class="rbf-help-text">Inserisci il tuo numero di telefono</small>
+                    </div>
+                    
+                    <div class="rbf-field-wrapper">
+                        <label for="rbf-note">Note (opzionale)</label>
+                        <textarea id="rbf-note" name="rbf_note" placeholder="Eventuali richieste speciali..." rows="3" aria-describedby="note-help"></textarea>
+                        <small id="note-help" class="rbf-help-text">Aggiungi eventuali richieste speciali (opzionale)</small>
+                    </div>
+                </div>
+
+                <!-- Privacy Consent -->
+                <div class="rbf-checkbox-group">
+                    <label for="rbf-privacy">
+                        <input type="checkbox" id="rbf-privacy" name="rbf_privacy" required>
+                        <span>Accetto la <a href="#" target="_blank">Privacy Policy</a> <span class="rbf-required-indicator">*</span></span>
+                    </label>
+                    <div id="rbf-privacy-error" class="rbf-field-error"></div>
+                </div>
+
+                <!-- Marketing Consent (optional) -->
+                <div class="rbf-checkbox-group">
+                    <label for="rbf-marketing">
+                        <input type="checkbox" id="rbf-marketing" name="rbf_marketing">
+                        <span>Accetto di ricevere comunicazioni promozionali (opzionale)</span>
+                    </label>
+                </div>
+
+                <!-- Submit Button -->
+                <button id="rbf-submit" type="submit" class="rbf-submit-btn" disabled>
+                    Conferma Prenotazione
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Mock rbfData for frontend.js -->
+    <script>
+        // Mock rbfData object with all required properties
+        window.rbfData = {
+            ajaxUrl: '#',
+            nonce: 'test_nonce',
+            maxAdvanceMinutes: 7200,
+            closedDays: [0], // Sunday closed
+            closedSpecific: [],
+            mealTooltips: {
+                brunch: 'Dalle 10:00 alle 12:00',
+                pranzo: 'Dalle 12:00 alle 15:00',
+                aperitivo_cena: 'Dalle 18:00 alle 23:00'
+            },
+            mealAvailability: {
+                brunch: {mon: true, tue: true, wed: true, thu: true, fri: true, sat: true, sun: false},
+                pranzo: {mon: true, tue: true, wed: true, thu: true, fri: true, sat: true, sun: false},
+                aperitivo_cena: {mon: true, tue: true, wed: true, thu: true, fri: true, sat: true, sun: false}
+            },
+            locale: 'it',
+            debug: true,
+            labels: {
+                dateRequired: 'Seleziona una data per continuare.',
+                dateInPast: 'La data selezionata non può essere nel passato.',
+                timeRequired: 'Seleziona un orario per continuare.',
+                peopleMinimum: 'Il numero di persone deve essere almeno 1.',
+                peopleMaximum: 'Il numero di persone non può superare 20.',
+                nameRequired: 'Il nome deve contenere almeno 2 caratteri.',
+                nameInvalid: 'Il nome può contenere solo lettere, spazi, apostrofi e trattini.',
+                surnameRequired: 'Il cognome deve contenere almeno 2 caratteri.',
+                surnameInvalid: 'Il cognome può contenere solo lettere, spazi, apostrofi e trattini.',
+                emailRequired: 'L\'indirizzo email è obbligatorio.',
+                emailInvalid: 'Inserisci un indirizzo email valido.',
+                phoneRequired: 'Il numero di telefono è obbligatorio.',
+                phoneInvalid: 'Il numero di telefono inserito non è valido.',
+                privacyRequired: 'Devi accettare la Privacy Policy per procedere.'
+            }
+        };
+        
+        // Mock jQuery if not available
+        if (typeof jQuery === 'undefined') {
+            console.warn('jQuery not available - creating mock');
+            
+            // Simple jQuery mock for basic functionality
+            window.jQuery = window.$ = function(selector) {
+                if (typeof selector === 'string') {
+                    const elements = document.querySelectorAll(selector);
+                    return {
+                        length: elements.length,
+                        0: elements[0],
+                        each: function(callback) {
+                            Array.from(elements).forEach((el, index) => {
+                                callback.call(el, index, el);
+                            });
+                            return this;
+                        },
+                        on: function(event, handler) {
+                            Array.from(elements).forEach(el => {
+                                el.addEventListener(event, handler);
+                            });
+                            return this;
+                        },
+                        val: function(value) {
+                            if (value !== undefined) {
+                                Array.from(elements).forEach(el => {
+                                    el.value = value;
+                                });
+                                return this;
+                            }
+                            return elements[0] ? elements[0].value : '';
+                        },
+                        prop: function(prop, value) {
+                            if (value !== undefined) {
+                                Array.from(elements).forEach(el => {
+                                    el[prop] = value;
+                                });
+                                return this;
+                            }
+                            return elements[0] ? elements[0][prop] : false;
+                        },
+                        is: function(selector) {
+                            return elements[0] ? elements[0].matches(selector) : false;
+                        },
+                        filter: function(selector) {
+                            const filtered = Array.from(elements).filter(el => 
+                                typeof selector === 'string' ? el.matches(selector) : selector.call(el)
+                            );
+                            return jQuery(filtered);
+                        },
+                        show: function() {
+                            Array.from(elements).forEach(el => {
+                                el.style.display = '';
+                            });
+                            return this;
+                        },
+                        hide: function() {
+                            Array.from(elements).forEach(el => {
+                                el.style.display = 'none';
+                            });
+                            return this;
+                        }
+                    };
+                } else if (typeof selector === 'function') {
+                    // DOM ready
+                    if (document.readyState === 'loading') {
+                        document.addEventListener('DOMContentLoaded', selector);
+                    } else {
+                        selector();
+                    }
+                    return this;
+                }
+                return {};
+            };
+        }
+        
+        // Test functions
+        function updateTestStatus(message, type = 'warning') {
+            const statusElement = document.getElementById('test-status');
+            statusElement.className = `status-banner status-${type}`;
+            statusElement.innerHTML = message;
+        }
+        
+        function testFormFields() {
+            updateTestStatus('⏳ Testando tutti i campi...', 'warning');
+            
+            const tests = [];
+            
+            // Test form presence
+            const form = document.getElementById('rbf-form');
+            tests.push({
+                name: 'Form principale',
+                passed: form !== null,
+                message: form ? 'Trovato' : 'Non trovato'
+            });
+            
+            // Test required fields
+            const requiredFields = form.querySelectorAll('[required]');
+            tests.push({
+                name: 'Campi obbligatori',
+                passed: requiredFields.length >= 7,
+                message: `${requiredFields.length} campi trovati`
+            });
+            
+            // Test submit button
+            const submitButton = document.getElementById('rbf-submit');
+            tests.push({
+                name: 'Submit button',
+                passed: submitButton !== null,
+                message: submitButton ? (submitButton.disabled ? 'Presente (disabilitato)' : 'Presente (abilitato)') : 'Non trovato'
+            });
+            
+            // Test people selector buttons
+            const minusBtn = document.getElementById('rbf-people-minus');
+            const plusBtn = document.getElementById('rbf-people-plus');
+            tests.push({
+                name: 'People selector buttons',
+                passed: minusBtn && plusBtn,
+                message: (minusBtn && plusBtn) ? 'Funzionali' : 'Mancanti'
+            });
+            
+            const passed = tests.filter(t => t.passed).length;
+            const total = tests.length;
+            const percentage = Math.round((passed / total) * 100);
+            
+            if (percentage >= 80) {
+                updateTestStatus(`✅ Test completati: ${passed}/${total} (${percentage}%)`, 'success');
+            } else {
+                updateTestStatus(`⚠️ Test completati: ${passed}/${total} (${percentage}%)`, 'warning');
+            }
+            
+            console.log('Test Results:', tests);
+        }
+        
+        function populateForm() {
+            // Generate a future date
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const futureDate = tomorrow.toISOString().split('T')[0];
+            
+            // Populate form
+            document.getElementById('rbf_meal_pranzo').checked = true;
+            document.getElementById('rbf-date').value = futureDate;
+            document.getElementById('rbf-time').value = '12:30';
+            document.getElementById('rbf-people').value = '4';
+            document.getElementById('rbf-name').value = 'Mario';
+            document.getElementById('rbf-surname').value = 'Rossi';
+            document.getElementById('rbf-email').value = 'mario.rossi@gmail.com';
+            document.getElementById('rbf-tel').value = '+39 123 456 7890';
+            document.getElementById('rbf-note').value = 'Tavolo vicino alla finestra';
+            document.getElementById('rbf-privacy').checked = true;
+            
+            // Trigger events to activate validation
+            document.querySelectorAll('#rbf-form input, #rbf-form select').forEach(field => {
+                field.dispatchEvent(new Event('change', { bubbles: true }));
+                field.dispatchEvent(new Event('input', { bubbles: true }));
+            });
+            
+            updateTestStatus('✅ Form popolato con dati di test', 'success');
+        }
+        
+        function clearForm() {
+            document.getElementById('rbf-form').reset();
+            updateTestStatus('✅ Form cancellato', 'success');
+        }
+        
+        function testSubmitButton() {
+            const submitButton = document.getElementById('rbf-submit');
+            if (submitButton) {
+                const isDisabled = submitButton.disabled;
+                updateTestStatus(
+                    `Submit button: ${isDisabled ? 'Disabilitato' : 'Abilitato'}`, 
+                    isDisabled ? 'warning' : 'success'
+                );
+            } else {
+                updateTestStatus('❌ Submit button non trovato', 'error');
+            }
+        }
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            updateTestStatus('✅ Pagina inizializzata - Pronto per i test', 'success');
+            
+            // Simple people selector fallback
+            const minusBtn = document.getElementById('rbf-people-minus');
+            const plusBtn = document.getElementById('rbf-people-plus');
+            const peopleInput = document.getElementById('rbf-people');
+            
+            if (minusBtn && plusBtn && peopleInput) {
+                minusBtn.addEventListener('click', function() {
+                    const current = parseInt(peopleInput.value);
+                    if (current > 1) {
+                        peopleInput.value = current - 1;
+                        peopleInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                });
+                
+                plusBtn.addEventListener('click', function() {
+                    const current = parseInt(peopleInput.value);
+                    if (current < 20) {
+                        peopleInput.value = current + 1;
+                        peopleInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                });
+            }
+            
+            // Auto-run initial test
+            setTimeout(testFormFields, 500);
+        });
+    </script>
+
+    <!-- Load frontend.js -->
+    <script src="assets/js/frontend.js"></script>
+    
+    <script>
+        // Additional functionality after frontend.js loads
+        setTimeout(() => {
+            console.log('Frontend.js loaded status check');
+            
+            // Check if frontend.js loaded successfully
+            if (typeof initializeBookingForm !== 'undefined') {
+                updateTestStatus('✅ Frontend.js caricato con successo', 'success');
+            } else {
+                updateTestStatus('⚠️ Frontend.js non completamente caricato', 'warning');
+            }
+            
+            // Re-run tests after initialization
+            setTimeout(testFormFields, 1000);
+        }, 2000);
+    </script>
+</body>
+</html>
