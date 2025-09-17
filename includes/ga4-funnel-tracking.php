@@ -489,36 +489,72 @@ function rbf_ajax_get_booking_completion_data() {
     
     // Get completion data from transient
     $completion_data = get_transient('rbf_ga4_completion_' . $booking_id);
-    
-    if ($completion_data && isset($completion_data['event_params'])) {
-        wp_send_json_success($completion_data);
-    } else {
-        // Fallback: reconstruct from booking data
-        $session_id = rbf_generate_session_id();
-        $client_id = rbf_resolve_ga_client_id($session_id);
 
-        $fallback_params = [
-            'booking_id' => $booking_id,
-            'value' => 0,
-            'currency' => 'EUR',
-            'meal_type' => '',
-            'people_count' => 1,
-            'traffic_source' => 'organic',
-            'funnel_step' => 7,
-            'step_name' => 'booking_confirmation',
-            'vertical' => 'restaurant'
-        ];
+    if (is_array($completion_data) && !empty($completion_data['event_params'])) {
+        $event_params = is_array($completion_data['event_params']) ? $completion_data['event_params'] : [];
+        $event_name = sanitize_text_field($completion_data['event_name'] ?? 'booking_confirmed');
 
-        $fallback_data = [
-            'event_params' => $fallback_params,
+        $session_id = '';
+        if (!empty($completion_data['session_id'])) {
+            $session_id = sanitize_key($completion_data['session_id']);
+        }
+        if (!$session_id) {
+            $session_id = rbf_generate_session_id();
+        }
+
+        $event_id = '';
+        if (!empty($completion_data['event_id'])) {
+            $event_id = sanitize_text_field($completion_data['event_id']);
+        }
+        if (!$event_id) {
+            $event_id = rbf_generate_event_id($event_name, $session_id);
+        }
+
+        $client_id = '';
+        if (!empty($completion_data['client_id'])) {
+            $client_id = rbf_clean_ga_client_id($completion_data['client_id']);
+        }
+        if (!$client_id) {
+            $client_id = rbf_resolve_ga_client_id($session_id);
+        }
+
+        $response_data = [
+            'event_params' => $event_params,
             'session_id' => $session_id,
-            'event_id' => '',
+            'event_id' => $event_id,
             'client_id' => $client_id,
-            'event_name' => 'booking_confirmed'
+            'event_name' => $event_name
         ];
 
-        wp_send_json_success($fallback_data);
+        wp_send_json_success($response_data);
+        return;
     }
+
+    // Fallback: reconstruct from booking data
+    $session_id = rbf_generate_session_id();
+    $client_id = rbf_resolve_ga_client_id($session_id);
+
+    $fallback_params = [
+        'booking_id' => $booking_id,
+        'value' => 0,
+        'currency' => 'EUR',
+        'meal_type' => '',
+        'people_count' => 1,
+        'traffic_source' => 'organic',
+        'funnel_step' => 7,
+        'step_name' => 'booking_confirmation',
+        'vertical' => 'restaurant'
+    ];
+
+    $fallback_data = [
+        'event_params' => $fallback_params,
+        'session_id' => $session_id,
+        'event_id' => rbf_generate_event_id('booking_confirmed', $session_id),
+        'client_id' => $client_id,
+        'event_name' => 'booking_confirmed'
+    ];
+
+    wp_send_json_success($fallback_data);
 }
 
 /**
