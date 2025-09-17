@@ -701,106 +701,131 @@ function initializeBookingForm($) {
    * Add availability tooltip to calendar day
    */
   function addAvailabilityTooltip(dayElem, status) {
-    let tooltip = null;
-    const tooltipId = 'rbf-tooltip-' + Math.random().toString(36).substr(2, 9);
-    
-    // Add aria-describedby for accessibility
-    dayElem.setAttribute('aria-describedby', tooltipId);
+    if (!dayElem || !status || dayElem.classList.contains('flatpickr-disabled')) {
+      return;
+    }
+
+    const state = dayElem._rbfTooltipState || {};
+    state.status = status;
+    dayElem._rbfTooltipState = state;
+
+    if (state.hideTooltip) {
+      state.hideTooltip();
+    }
+
+    if (!state.tooltipId) {
+      state.tooltipId = 'rbf-tooltip-' + Math.random().toString(36).substr(2, 9);
+    }
+
+    dayElem.setAttribute('aria-describedby', state.tooltipId);
     dayElem.setAttribute('role', 'button');
     dayElem.setAttribute('tabindex', '0');
-    
-    function showTooltip() {
-      // Remove any existing tooltip
-      if (tooltip) {
-        tooltip.remove();
+
+    if (state.initialized) {
+      return;
+    }
+
+    const showTooltip = function() {
+      const availability = state.status;
+      if (!availability) {
+        return;
       }
-      
-      tooltip = document.createElement('div');
+
+      if (state.tooltip) {
+        state.tooltip.remove();
+        state.tooltip = null;
+      }
+
+      const tooltip = document.createElement('div');
       tooltip.className = 'rbf-availability-tooltip';
-      tooltip.id = tooltipId;
+      tooltip.id = state.tooltipId;
       tooltip.setAttribute('role', 'tooltip');
-      
+
+      const labels = (rbfData && rbfData.labels) || {};
+
       let statusText;
       let contextualMessage = '';
-      
-      // Generate dynamic contextual messages based on availability
-      const labels = (rbfData && rbfData.labels) || {};
-      if (status.level === 'available') {
+
+      if (availability.level === 'available') {
         statusText = labels.available || 'Disponibile';
-        if (status.remaining > 20) {
+        if (availability.remaining > 20) {
           contextualMessage = labels.manySpots || 'Molti posti disponibili';
-        } else if (status.remaining > 10) {
+        } else if (availability.remaining > 10) {
           contextualMessage = labels.someSpots || 'Buona disponibilità';
         }
-      } else if (status.level === 'limited') {
+      } else if (availability.level === 'limited') {
         statusText = labels.limited || 'Limitato';
-        if (status.remaining <= 2) {
+        if (availability.remaining <= 2) {
           contextualMessage = labels.lastSpots || 'Ultimi 2 posti rimasti';
-        } else if (status.remaining <= 5) {
+        } else if (availability.remaining <= 5) {
           contextualMessage = labels.fewSpots || 'Pochi posti rimasti';
         }
       } else {
         statusText = labels.nearlyFull || 'Quasi pieno';
         contextualMessage = labels.actFast || 'Prenota subito!';
       }
-      
-      const spotsLabel = rbfData.labels.spotsRemaining || 'Posti rimasti:';
-      const occupancyLabel = rbfData.labels.occupancy || 'Occupazione:';
-      
+
+      const spotsLabel = labels.spotsRemaining || 'Posti rimasti:';
+      const occupancyLabel = labels.occupancy || 'Occupazione:';
+
       tooltip.innerHTML = `
         <div class="rbf-tooltip-status">${statusText}</div>
         ${contextualMessage ? `<div class="rbf-tooltip-context">${contextualMessage}</div>` : ''}
-        <div class="rbf-tooltip-spots">${spotsLabel} ${status.remaining}/${status.total}</div>
-        <div class="rbf-tooltip-occupancy">${occupancyLabel} ${status.occupancy}%</div>
+        <div class="rbf-tooltip-spots">${spotsLabel} ${availability.remaining}/${availability.total}</div>
+        <div class="rbf-tooltip-occupancy">${occupancyLabel} ${availability.occupancy}%</div>
       `;
-      
+
       document.body.appendChild(tooltip);
-      
-      // Position tooltip above the day element with responsive positioning
+
       const rect = dayElem.getBoundingClientRect();
       const tooltipRect = tooltip.getBoundingClientRect();
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
-      
+
       let left = rect.left + rect.width / 2 - tooltipRect.width / 2;
       let top = rect.top - tooltipRect.height - 10;
-      
-      // Adjust horizontal position if tooltip would overflow viewport
+
       if (left < 10) {
         left = 10;
       } else if (left + tooltipRect.width > viewportWidth - 10) {
         left = viewportWidth - tooltipRect.width - 10;
       }
-      
-      // Adjust vertical position if tooltip would overflow top of viewport
+
       if (top < 10) {
         top = rect.bottom + 10;
         tooltip.classList.add('rbf-tooltip-below');
       }
-      
+
       tooltip.style.left = left + 'px';
       tooltip.style.top = top + 'px';
-    }
-    
-    function hideTooltip() {
-      if (tooltip) {
-        tooltip.remove();
-        tooltip = null;
+
+      state.tooltip = tooltip;
+    };
+
+    const hideTooltip = function() {
+      if (state.tooltip) {
+        state.tooltip.remove();
+        state.tooltip = null;
       }
-    }
-    
-    dayElem.addEventListener('mouseenter', showTooltip);
-    dayElem.addEventListener('mouseleave', hideTooltip);
-    dayElem.addEventListener('focus', showTooltip);
-    dayElem.addEventListener('blur', hideTooltip);
-    
-    // Handle keyboard navigation
-    dayElem.addEventListener('keydown', function(e) {
+    };
+
+    const keydownHandler = function(e) {
       if (e.key === 'Escape') {
         hideTooltip();
         dayElem.blur();
       }
-    });
+    };
+
+    dayElem.addEventListener('mouseenter', showTooltip);
+    dayElem.addEventListener('mouseleave', hideTooltip);
+    dayElem.addEventListener('focus', showTooltip);
+    dayElem.addEventListener('blur', hideTooltip);
+    dayElem.addEventListener('keydown', keydownHandler);
+
+    state.showTooltip = showTooltip;
+    state.hideTooltip = hideTooltip;
+    state.keydownHandler = keydownHandler;
+    state.initialized = true;
   }
 
   /**
@@ -974,15 +999,7 @@ function initializeBookingForm($) {
               
               // Add hover tooltip for availability info
               if (!dayElem.classList.contains('flatpickr-disabled')) {
-                dayElem.addEventListener('mouseenter', function(e) {
-                  if (availability) {
-                    showAvailabilityTooltip(e.target, availability);
-                  }
-                });
-                
-                dayElem.addEventListener('mouseleave', function() {
-                  hideAvailabilityTooltip();
-                });
+                addAvailabilityTooltip(dayElem, availability);
               }
             }
           } catch (error) {
