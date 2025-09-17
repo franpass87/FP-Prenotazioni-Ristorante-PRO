@@ -3754,30 +3754,6 @@ function initializeBookingForm($) {
     }
   }, 5000);
 
-  // Missing function implementations that are referenced in the code
-  
-  /**
-   * Handle date change from calendar or fallback input
-   */
-  function onDateChange(selectedDates) {
-    const dateValue = selectedDates && selectedDates.length > 0 ? 
-      formatLocalISO(selectedDates[0]) : 
-      el.dateInput.val();
-
-    if (dateValue) {
-      rbfLog.log('Date changed to: ' + dateValue);
-      resetSteps(2);
-      showStepWithoutScroll(el.timeStep, 3);
-      el.timeSelect.html('<option value="">' + ((rbfData && rbfData.labels && rbfData.labels.loading) || 'Caricamento...') + '</option>');
-      el.timeSelect.prop('disabled', true);
-      
-      const selectedMeal = el.mealRadios.filter(':checked').val();
-      if (selectedMeal) {
-        loadAvailableTimes(dateValue, selectedMeal);
-      }
-    }
-  }
-
   /**
    * Initialize international telephone input
    */
