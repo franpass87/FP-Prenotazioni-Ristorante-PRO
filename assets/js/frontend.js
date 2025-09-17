@@ -2452,7 +2452,25 @@ function initializeBookingForm($) {
     
     // Get meal name from selected radio button
     const selectedMealRadio = el.mealRadios.filter(':checked');
-    const mealName = selectedMealRadio.length ? selectedMealRadio.next('span').text().trim() : '';
+    let mealName = '';
+
+    if (selectedMealRadio.length) {
+      let mealLabel = selectedMealRadio.next('label');
+
+      if (!mealLabel.length) {
+        const radioId = selectedMealRadio.attr('id');
+        if (radioId) {
+          mealLabel = form.find(`label[for="${radioId}"]`);
+        }
+      }
+
+      if (mealLabel.length) {
+        mealName = mealLabel.text().trim();
+      } else {
+        const selectedValue = selectedMealRadio.val();
+        mealName = selectedValue ? String(selectedValue).trim() : '';
+      }
+    }
     
     // Format data for display
     const customerName = `${form.find('#rbf-name').val()} ${form.find('#rbf-surname').val()}`;
