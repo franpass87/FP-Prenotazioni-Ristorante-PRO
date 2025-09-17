@@ -872,7 +872,21 @@ function initializeBookingForm($) {
         }],
         
         onChange: onDateChange,
-        
+
+        onMonthChange: function(selectedDates, dateStr, instance) {
+          const selectedMeal = el.mealRadios.filter(':checked').val();
+          if (selectedMeal) {
+            updateAvailabilityDataForMeal(selectedMeal, instance);
+          }
+        },
+
+        onYearChange: function(selectedDates, dateStr, instance) {
+          const selectedMeal = el.mealRadios.filter(':checked').val();
+          if (selectedMeal) {
+            updateAvailabilityDataForMeal(selectedMeal, instance);
+          }
+        },
+
         onReady: function(selectedDates, dateStr, instance) {
           rbfLog.log('✅ Enhanced calendar initialized successfully');
           
@@ -1966,15 +1980,40 @@ function initializeBookingForm($) {
   /**
    * Update availability data for specific meal
    */
-  function updateAvailabilityDataForMeal(selectedMeal) {
-    if (!fp) return;
-    
+  function updateAvailabilityDataForMeal(selectedMeal, calendarInstance = fp) {
     try {
-      // Get the current view date - use fp.now or fallback to current date
-      const viewDate = fp.now || new Date();
-      const startDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
-      const endDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
-      
+      const calendar = calendarInstance || fp || null;
+      const fallbackDate = new Date();
+      let startDate;
+      let endDate;
+
+      if (calendar) {
+        const currentYear = typeof calendar.currentYear === 'number'
+          ? calendar.currentYear
+          : fallbackDate.getFullYear();
+        const currentMonth = typeof calendar.currentMonth === 'number'
+          ? calendar.currentMonth
+          : fallbackDate.getMonth();
+
+        let monthsToShow = 1;
+        if (calendar.config && typeof calendar.config.showMonths !== 'undefined') {
+          const configuredMonths = Number(calendar.config.showMonths);
+          if (Number.isInteger(configuredMonths) && configuredMonths > 0) {
+            monthsToShow = configuredMonths;
+          }
+        }
+
+        startDate = new Date(currentYear, currentMonth, 1);
+
+        const lastMonthIndex = currentMonth + monthsToShow - 1;
+        const endYear = currentYear + Math.floor(lastMonthIndex / 12);
+        const endMonthIndex = ((lastMonthIndex % 12) + 12) % 12;
+        endDate = new Date(endYear, endMonthIndex + 1, 0);
+      } else {
+        startDate = new Date(fallbackDate.getFullYear(), fallbackDate.getMonth(), 1);
+        endDate = new Date(fallbackDate.getFullYear(), fallbackDate.getMonth() + 1, 0);
+      }
+
       fetchAvailabilityData(
         formatLocalISO(startDate),
         formatLocalISO(endDate),
