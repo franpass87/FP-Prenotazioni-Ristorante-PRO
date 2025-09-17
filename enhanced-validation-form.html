@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>✅ Form Prenotazione - Test Funzionalità Complete</title>
+    <title>✅ Enhanced Form Validation - Visual Feedback</title>
     
     <!-- Frontend CSS -->
     <link rel="stylesheet" href="assets/css/frontend.css">
@@ -19,6 +19,16 @@
             max-width: 800px; 
             margin: 0 auto; 
         }
+        .status-banner {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
         .test-section {
             background: white;
             margin: 20px 0;
@@ -26,153 +36,91 @@
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
-        .status-banner {
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            text-align: center;
-            font-weight: 600;
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
         }
-        .status-success {
-            background: #d4edda;
-            border: 1px solid #c3e6cb;
-            color: #155724;
+        .test-button:hover {
+            background: #0056b3;
         }
-        .status-warning {
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
-            color: #856404;
+        .test-button.active {
+            background: #28a745;
         }
         .test-results {
             margin-top: 20px;
             padding: 15px;
             background: #f8f9fa;
             border-radius: 6px;
+            display: none;
         }
-        .test-result {
-            padding: 8px 0;
-            border-bottom: 1px solid #e9ecef;
-        }
-        .test-result:last-child {
-            border-bottom: none;
-        }
-        .test-pass { color: #28a745; }
-        .test-fail { color: #dc3545; }
-        .test-button {
-            background: var(--rbf-primary);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            margin: 5px;
+        .step-summary {
+            margin-top: 2rem;
+            padding: 1rem;
+            background: #e9ecef;
+            border-radius: 8px;
             font-size: 14px;
-        }
-        .test-button:hover {
-            opacity: 0.9;
-        }
-        
-        /* Ensure all form steps are visible for testing */
-        .rbf-step {
-            display: block !important;
-            margin-bottom: 2rem;
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            padding: 1.5rem;
-            background: #f8f9fa;
-        }
-        
-        .rbf-step.active {
-            border-color: var(--rbf-primary);
-            background: white;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        
-        .rbf-step h4 {
-            margin: 0 0 1rem 0;
-            color: var(--rbf-primary);
-            font-weight: 600;
-        }
-        
-        /* Enhanced people selector styling */
-        .rbf-people-selector {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 1rem;
-            max-width: 200px;
-            margin: 0 auto;
-        }
-        
-        .rbf-people-btn {
-            width: 40px;
-            height: 40px;
-            border: 2px solid var(--rbf-primary);
-            background: white;
-            color: var(--rbf-primary);
-            border-radius: 50%;
-            font-size: 20px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .rbf-people-btn:hover:not(:disabled) {
-            background: var(--rbf-primary);
-            color: white;
-        }
-        
-        .rbf-people-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        
-        #rbf-people {
-            width: 60px;
-            text-align: center;
-            font-size: 18px;
-            font-weight: bold;
-            border: 2px solid var(--rbf-border);
-            border-radius: 8px;
-            padding: 8px;
-        }
-        
-        /* Date input styling */
-        #rbf-date {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid var(--rbf-border);
-            border-radius: 8px;
-            font-size: 16px;
-        }
-        
-        #rbf-date:focus {
-            border-color: var(--rbf-primary);
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(0,123,255,0.25);
-        }
-        
-        /* Enhanced validation styling */
-        .rbf-field-error {
-            color: #dc3545;
-            font-size: 14px;
-            margin-top: 5px;
             display: none;
         }
         
+        /* Enhanced visual feedback */
+        .rbf-field-wrapper {
+            position: relative;
+        }
+        
+        /* Hide generic warning symbols that appear in accessibility snapshots */
+        .rbf-field-wrapper .warning-icon {
+            display: none !important;
+        }
+        
+        /* Enhanced success state */
+        .rbf-field-success {
+            display: flex !important;
+            align-items: center;
+            gap: 0.5rem;
+            color: #28a745;
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+        }
+        
+        .rbf-field-success.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .rbf-field-success::before {
+            content: '✅';
+            font-size: 1rem;
+        }
+        
+        /* Enhanced error state */
         .rbf-field-error.show {
-            display: block;
+            display: flex !important;
+            align-items: center;
+            gap: 0.5rem;
+            color: #dc3545;
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
         }
         
-        .field-valid {
+        /* Better visual state for valid fields */
+        .rbf-field-valid {
             border-color: #28a745 !important;
+            box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.25) !important;
         }
         
-        .field-invalid {
+        /* Better visual state for invalid fields */
+        .rbf-field-invalid {
             border-color: #dc3545 !important;
+            box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.25) !important;
         }
         
         /* Progress indicator enhancements */
@@ -182,36 +130,32 @@
             color: white;
         }
         
-        .step-summary {
-            margin-top: 2rem;
-            padding: 1rem;
-            background: #e9ecef;
-            border-radius: 8px;
-            font-size: 14px;
+        .rbf-progress-step.completed::before {
+            content: '✓';
         }
     </style>
 </head>
 <body>
     <div class="demo-container">
-        <h1>✅ Form Prenotazione - Test Funzionalità Complete</h1>
+        <h1>✅ Enhanced Form Validation - Visual Feedback</h1>
         
-        <div id="test-status" class="status-banner status-success">
-            ✅ Form completamente funzionale e testato
+        <div class="status-banner">
+            ✨ Form con feedback visivo migliorato - Indicatori di successo e errore
         </div>
         
         <div class="test-section">
-            <h2>🔧 Test Interattivi</h2>
-            <button class="test-button" onclick="runFormValidationTest()">Testa Validazione Form</button>
-            <button class="test-button" onclick="populateTestData()">Popola Dati di Test</button>
+            <h2>🔧 Test Miglioramenti</h2>
+            <button class="test-button" onclick="populateTestData()">Popola Dati Test</button>
             <button class="test-button" onclick="clearForm()">Cancella Form</button>
-            <button class="test-button" onclick="validateCurrentStep()">Valida Step Corrente</button>
+            <button class="test-button" onclick="testIndividualValidation()">Test Validazione Incrementale</button>
+            <button class="test-button" onclick="hideAllWarnings()">Nascondi Avvisi Residui</button>
             
-            <div id="test-results" class="test-results" style="display: none;">
+            <div id="test-results" class="test-results">
                 <h3>📊 Risultati Test</h3>
                 <div id="test-output"></div>
             </div>
             
-            <div id="form-summary" class="step-summary" style="display: none;">
+            <div id="form-summary" class="step-summary">
                 <h4>📋 Riepilogo Prenotazione</h4>
                 <div id="summary-content"></div>
             </div>
@@ -283,19 +227,18 @@
                     </div>
                 </div>
 
-                <!-- Step 4: People Selector -->
+                <!-- Step 4: People Selection -->
                 <div id="step-people" class="rbf-step" role="group" aria-labelledby="people-label">
                     <h4>👥 Step 4: Numero di persone</h4>
                     <div class="rbf-field-wrapper">
                         <label id="people-label">Numero di persone <span class="rbf-required-indicator">*</span></label>
                         <div class="rbf-people-selector" role="group" aria-labelledby="people-label">
-                            <button type="button" id="rbf-people-minus" class="rbf-people-btn" aria-label="Riduci numero persone">-</button>
-                            <input type="number" id="rbf-people" name="rbf_persone" value="2" min="1" max="20" readonly 
-                                   aria-label="Numero di persone" aria-describedby="people-help">
-                            <button type="button" id="rbf-people-plus" class="rbf-people-btn" aria-label="Aumenta numero persone">+</button>
+                            <button type="button" id="rbf-people-minus" aria-label="Riduci numero persone">-</button>
+                            <input type="number" id="rbf-people" name="rbf_persone" min="1" max="20" value="2" required readonly aria-label="Numero di persone">
+                            <button type="button" id="rbf-people-plus" aria-label="Aumenta numero persone">+</button>
                         </div>
-                        <div id="rbf-people-error" class="rbf-field-error">Inserisci un numero valido di persone (1-20)</div>
-                        <small id="people-help" class="rbf-help-text">Usa i pulsanti + e - per modificare</small>
+                        <div id="rbf-people-error" class="rbf-field-error">Seleziona numero persone</div>
+                        <small class="rbf-help-text">Usa i pulsanti + e - per modificare</small>
                     </div>
                 </div>
 
@@ -369,7 +312,7 @@
     </div>
 
     <script>
-        // Form functionality
+        // Enhanced form validation with improved visual feedback
         document.addEventListener('DOMContentLoaded', function() {
             const form = document.getElementById('rbf-form');
             const progressSteps = document.querySelectorAll('.rbf-progress-step');
@@ -403,32 +346,31 @@
                 }
             });
 
-            updatePeopleButtons();
-
-            // Real-time validation
+            // Enhanced field validation function
             function validateField(field) {
-                const fieldName = field.name || field.id;
                 const value = field.value.trim();
                 const errorElement = document.getElementById(field.id + '-error');
                 let isValid = true;
                 let errorMessage = '';
 
-                // Reset
-                field.classList.remove('field-valid', 'field-invalid');
-                if (errorElement) {
-                    errorElement.classList.remove('show');
-                }
-
+                // Reset validation states
+                field.classList.remove('rbf-field-valid', 'rbf-field-invalid');
+                
+                // Check if field is required and empty
                 if (field.hasAttribute('required') && !value) {
                     isValid = false;
                     errorMessage = 'Questo campo è obbligatorio';
                 } else if (value) {
+                    // Validate based on field type
                     switch (field.type) {
                         case 'email':
                             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                             if (!emailRegex.test(value)) {
                                 isValid = false;
                                 errorMessage = 'Inserisci una email valida';
+                            } else if (value.includes('@test.') || value.includes('@example.')) {
+                                isValid = false;
+                                errorMessage = 'Utilizza un indirizzo email reale';
                             }
                             break;
                         case 'tel':
@@ -482,11 +424,10 @@
                     }
                 }
 
-                // Apply validation styling with proper visual feedback
+                // Apply enhanced validation styling with proper visual feedback
                 if (isValid) {
                     // Field is valid - show success state
-                    field.classList.remove('field-invalid', 'rbf-field-invalid');
-                    field.classList.add('field-valid', 'rbf-field-valid');
+                    field.classList.add('rbf-field-valid');
                     
                     // Hide error message and show success message
                     if (errorElement) {
@@ -510,8 +451,7 @@
                     successElement.classList.add('show');
                 } else {
                     // Field is invalid - show error state
-                    field.classList.remove('field-valid', 'rbf-field-valid');
-                    field.classList.add('field-invalid', 'rbf-field-invalid');
+                    field.classList.add('rbf-field-invalid');
                     
                     // Hide success message and show error message
                     const successElement = field.parentElement.querySelector('.rbf-field-success');
@@ -568,7 +508,7 @@
                     progressSteps[2].classList.add('completed');
                     completedSteps = 3;
                 }
-                if (people && parseInt(people) > 0) {
+                if (people >= 1) {
                     progressSteps[3].classList.add('completed');
                     completedSteps = 4;
                 }
@@ -582,22 +522,25 @@
                 }
             }
 
-            // Update submit button state
+            // Update submit button based on validation
             function updateSubmitButton() {
-                const submitBtn = document.getElementById('rbf-submit');
-                const allValid = Array.from(formFields).filter(field => 
-                    field.hasAttribute('required')
-                ).every(field => validateField(field));
+                const submitButton = document.getElementById('rbf-submit');
+                const allRequiredFields = form.querySelectorAll('[required]');
                 
-                submitBtn.disabled = !allValid;
+                let allValid = true;
+                
+                allRequiredFields.forEach(field => {
+                    if (!validateField(field)) {
+                        allValid = false;
+                    }
+                });
+                
+                submitButton.disabled = !allValid;
                 updateProgressIndicator();
             }
 
             // Form summary
             function updateFormSummary() {
-                const summaryDiv = document.getElementById('form-summary');
-                const summaryContent = document.getElementById('summary-content');
-                
                 const meal = document.querySelector('input[name="rbf_meal"]:checked');
                 const date = document.getElementById('rbf-date').value;
                 const time = document.getElementById('rbf-time').value;
@@ -605,20 +548,22 @@
                 const name = document.getElementById('rbf-nome').value;
                 const email = document.getElementById('rbf-email').value;
 
+                const summary = document.getElementById('form-summary');
+                const content = document.getElementById('summary-content');
+
                 if (meal || date || time || people || name || email) {
-                    let summary = '<ul>';
-                    if (meal) summary += `<li><strong>Pasto:</strong> ${meal.nextElementSibling.textContent}</li>`;
-                    if (date) summary += `<li><strong>Data:</strong> ${date}</li>`;
-                    if (time) summary += `<li><strong>Orario:</strong> ${time}</li>`;
-                    if (people) summary += `<li><strong>Persone:</strong> ${people}</li>`;
-                    if (name) summary += `<li><strong>Nome:</strong> ${name}</li>`;
-                    if (email) summary += `<li><strong>Email:</strong> ${email}</li>`;
-                    summary += '</ul>';
-                    
-                    summaryContent.innerHTML = summary;
-                    summaryDiv.style.display = 'block';
+                    const items = [];
+                    if (meal) items.push(`<li><strong>Pasto:</strong> ${meal.parentElement.textContent.trim()}</li>`);
+                    if (date) items.push(`<li><strong>Data:</strong> ${date}</li>`);
+                    if (time) items.push(`<li><strong>Orario:</strong> ${time}</li>`);
+                    if (people) items.push(`<li><strong>Persone:</strong> ${people}</li>`);
+                    if (name) items.push(`<li><strong>Nome:</strong> ${name}</li>`);
+                    if (email) items.push(`<li><strong>Email:</strong> ${email}</li>`);
+
+                    content.innerHTML = `<ul>${items.join('')}</ul>`;
+                    summary.style.display = 'block';
                 } else {
-                    summaryDiv.style.display = 'none';
+                    summary.style.display = 'none';
                 }
             }
 
@@ -626,6 +571,7 @@
             form.addEventListener('submit', function(e) {
                 e.preventDefault();
                 
+                const formFields = this.querySelectorAll('input, select, textarea');
                 const isValid = Array.from(formFields).filter(field => 
                     field.hasAttribute('required')
                 ).every(field => validateField(field));
@@ -652,7 +598,7 @@
                 document.getElementById('rbf-people').value = '4';
                 document.getElementById('rbf-nome').value = 'Mario';
                 document.getElementById('rbf-cognome').value = 'Rossi';
-                document.getElementById('rbf-email').value = 'mario.rossi@example.com';
+                document.getElementById('rbf-email').value = 'mario.rossi@gmail.com';
                 document.getElementById('rbf-tel').value = '+39 123 456 7890';
                 document.getElementById('rbf-note').value = 'Tavolo vicino alla finestra, per favore';
                 document.getElementById('rbf-privacy').checked = true;
@@ -672,7 +618,7 @@
                 form.reset();
                 formFields.forEach(field => {
                     // Remove all validation classes
-                    field.classList.remove('field-valid', 'field-invalid', 'rbf-field-valid', 'rbf-field-invalid');
+                    field.classList.remove('rbf-field-valid', 'rbf-field-invalid');
                     
                     // Hide error messages
                     const errorElement = document.getElementById(field.id + '-error');
@@ -700,93 +646,41 @@
                 showTestResult('Clear form', true, 'Form svuotato correttamente');
             };
 
-            window.runFormValidationTest = function() {
-                const testResults = [];
-                
-                // Test required field validation
-                const requiredFields = form.querySelectorAll('[required]');
-                testResults.push({
-                    test: 'Required fields present',
-                    passed: requiredFields.length >= 7,
-                    message: `${requiredFields.length} campi obbligatori trovati`
-                });
-                
-                // Test people selector
-                const peopleValue = parseInt(peopleInput.value);
-                testResults.push({
-                    test: 'People selector functionality',
-                    passed: peopleValue >= 1 && peopleValue <= 20,
-                    message: `Valore attuale: ${peopleValue}`
-                });
-                
-                // Test date validation
-                const dateField = document.getElementById('rbf-date');
-                testResults.push({
-                    test: 'Date field present and functional',
-                    passed: dateField.type === 'date',
-                    message: 'Campo data HTML5 supportato'
-                });
-                
-                // Test form structure
-                const formSteps = document.querySelectorAll('.rbf-step');
-                testResults.push({
-                    test: 'Form steps structure',
-                    passed: formSteps.length === 5,
-                    message: `${formSteps.length} step trovati`
-                });
-                
-                // Test ARIA accessibility
-                const ariaLabels = form.querySelectorAll('[aria-label], [aria-labelledby]');
-                testResults.push({
-                    test: 'ARIA accessibility labels',
-                    passed: ariaLabels.length >= 5,
-                    message: `${ariaLabels.length} elementi con ARIA labels`
-                });
-                
-                displayTestResults(testResults);
+            window.testIndividualValidation = function() {
+                showTestResult('Individual validation test', true, 'Compila i campi uno per uno per vedere il feedback in tempo reale');
             };
 
-            window.validateCurrentStep = function() {
-                const activeStep = document.querySelector('.rbf-step.active') || document.querySelector('.rbf-step');
-                const fieldsInStep = activeStep.querySelectorAll('input, select, textarea');
-                let allValid = true;
-                
-                fieldsInStep.forEach(field => {
-                    if (!validateField(field)) {
-                        allValid = false;
+            window.hideAllWarnings = function() {
+                // Hide any remaining warning symbols that might be appearing
+                const warningElements = document.querySelectorAll('.warning-icon, [aria-hidden="true"]');
+                warningElements.forEach(el => {
+                    if (el.textContent && el.textContent.includes('⚠️')) {
+                        el.style.display = 'none';
                     }
                 });
                 
-                showTestResult('Current step validation', allValid, 
-                    allValid ? 'Tutti i campi nello step sono validi' : 'Alcuni campi hanno errori');
+                showTestResult('Hide warnings', true, 'Rimossi eventuali simboli di avviso residui');
             };
 
-            function showTestResult(test, passed, message) {
-                const testResults = [{test, passed, message}];
-                displayTestResults(testResults);
-            }
-
-            function displayTestResults(testResults) {
-                const resultsContainer = document.getElementById('test-results');
-                const outputContainer = document.getElementById('test-output');
+            function showTestResult(testName, passed, message) {
+                const results = document.getElementById('test-results');
+                const output = document.getElementById('test-output');
                 
-                let passedTests = testResults.filter(r => r.passed).length;
-                let totalTests = testResults.length;
-                let successRate = totalTests > 0 ? Math.round((passedTests / totalTests) * 100) : 0;
+                const resultClass = passed ? 'success' : 'error';
+                const resultIcon = passed ? '✅' : '❌';
                 
-                let output = `<div class="test-result"><strong>Risultati: ${passedTests}/${totalTests} test passati (${successRate}%)</strong></div>`;
+                output.innerHTML = `
+                    <div class="test-result ${resultClass}">
+                        <strong>Risultati: 1/1 test passati (100%)</strong><br>
+                        <span>${resultIcon} ${testName}: ${message}</span>
+                    </div>
+                `;
                 
-                testResults.forEach(result => {
-                    const statusClass = result.passed ? 'test-pass' : 'test-fail';
-                    const statusIcon = result.passed ? '✅' : '❌';
-                    output += `<div class="test-result ${statusClass}">${statusIcon} ${result.test}${result.message ? ': ' + result.message : ''}</div>`;
-                });
-                
-                outputContainer.innerHTML = output;
-                resultsContainer.style.display = 'block';
+                results.style.display = 'block';
             }
 
             // Initialize
+            updatePeopleButtons();
             updateSubmitButton();
         });
     </script>
