@@ -17,28 +17,8 @@ add_action('wp_enqueue_scripts', 'rbf_enqueue_frontend_assets');
 function rbf_enqueue_frontend_assets() {
     global $post;
     if (!is_singular() || !$post) return;
-    
-    // Check for any booking form shortcode
-    $booking_shortcodes = [
-        'ristorante_booking_form',
-        'anniversary_booking_form',
-        'birthday_booking_form', 
-        'romantic_booking_form',
-        'celebration_booking_form',
-        'business_booking_form',
-        'proposal_booking_form',
-        'special_booking_form'
-    ];
-    
-    $has_booking_form = false;
-    foreach ($booking_shortcodes as $shortcode) {
-        if (has_shortcode($post->post_content, $shortcode)) {
-            $has_booking_form = true;
-            break;
-        }
-    }
-    
-    if (!$has_booking_form) return;
+
+    if (!rbf_post_has_booking_form($post)) return;
 
     $default_settings = rbf_get_default_settings();
     $options = wp_parse_args(rbf_get_settings(), $default_settings);

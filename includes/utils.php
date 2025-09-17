@@ -11,6 +11,70 @@ if (!defined('ABSPATH')) {
 }
 
 /**
+ * Retrieve all booking form shortcodes handled by the plugin.
+ *
+ * Having a centralized list keeps script enqueues and integrations
+ * synchronized with the shortcodes registered on the frontend.
+ *
+ * @return array List of shortcode tags.
+ */
+function rbf_get_booking_form_shortcodes() {
+    $shortcodes = [
+        'ristorante_booking_form',
+        'anniversary_booking_form',
+        'birthday_booking_form',
+        'romantic_booking_form',
+        'celebration_booking_form',
+        'business_booking_form',
+        'proposal_booking_form',
+        'special_booking_form',
+    ];
+
+    // Maintain backward compatibility with legacy shortcode names.
+    $legacy_shortcodes = [
+        'rbf_form',
+        'restaurant_booking_form',
+    ];
+
+    $shortcodes = array_merge($shortcodes, $legacy_shortcodes);
+
+    /**
+     * Filter the list of booking form shortcodes.
+     *
+     * @param array $shortcodes Default list of booking form shortcodes.
+     */
+    return apply_filters('rbf_booking_form_shortcodes', array_values(array_unique($shortcodes)));
+}
+
+/**
+ * Determine if the supplied post content includes a booking form shortcode.
+ *
+ * @param WP_Post|int|null $post Optional post object or ID to inspect.
+ * @return bool True if a booking shortcode is present, false otherwise.
+ */
+function rbf_post_has_booking_form($post = null) {
+    if (!function_exists('has_shortcode')) {
+        return false;
+    }
+
+    if (!($post instanceof WP_Post)) {
+        $post = get_post($post);
+    }
+
+    if (!$post || empty($post->post_content)) {
+        return false;
+    }
+
+    foreach (rbf_get_booking_form_shortcodes() as $shortcode) {
+        if (has_shortcode($post->post_content, $shortcode)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
  * Conditional debug logger for the plugin.
  * Logs messages only when WP_DEBUG or RBF_FORCE_LOG is enabled.
  *

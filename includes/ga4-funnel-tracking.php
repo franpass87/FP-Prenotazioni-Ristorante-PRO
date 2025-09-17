@@ -129,16 +129,17 @@ function rbf_is_gtm_hybrid_mode() {
  * Check if current page has booking form
  */
 function rbf_is_booking_page() {
-    // Check if we're on a page/post that contains the booking shortcode
+    if (!function_exists('is_singular') || !is_singular()) {
+        return false;
+    }
+
     global $post;
-    
+
     if (!$post) {
         return false;
     }
-    
-    // Check if post content contains the booking shortcode
-    return has_shortcode($post->post_content, 'rbf_form') || 
-           has_shortcode($post->post_content, 'restaurant_booking_form');
+
+    return rbf_post_has_booking_form($post);
 }
 
 /**
