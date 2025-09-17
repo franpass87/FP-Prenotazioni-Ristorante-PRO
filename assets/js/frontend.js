@@ -3495,35 +3495,69 @@ function initializeBookingForm($) {
   function applySuggestion(date, meal, time) {
     // Update meal selection
     $('input[name="rbf_meal"][value="' + meal + '"]').prop('checked', true).trigger('change');
-    
-    // Update date
-    if (window.flatpickrInstance) {
-      window.flatpickrInstance.setDate(date);
+
+    const suggestionDate = new Date(date + 'T00:00:00');
+    if (Number.isNaN(suggestionDate.getTime())) {
+      rbfLog.warn('Suggerimento con data non valida ricevuto: ' + date);
+      return;
+    }
+
+    // Update date on the appropriate calendar instance
+    if (fp && typeof fp.setDate === 'function') {
+      fp.setDate(date, true);
+    } else if (window.rbfCalendarInstance && typeof window.rbfCalendarInstance.setDate === 'function') {
+      window.rbfCalendarInstance.setDate(date, true);
     } else {
+      // Ensure fallback mode is properly configured before simulating selection
+      setupFallbackDateInput();
+      el.dateInput.val(date);
+      onDateChange([suggestionDate]);
+    }
+
+    // Ensure the underlying input value matches and trigger autosave flow
+    if (el.dateInput.val() !== date) {
       el.dateInput.val(date);
     }
-    
-    // Small delay to ensure date change is processed
-    setTimeout(function() {
-      // Trigger date change to reload time slots
-      el.dateInput.trigger('change');
-      
-      // Another delay to allow time slots to load, then select the suggested time
-      setTimeout(function() {
-        const timeValue = meal + '|' + time;
+    if (typeof scheduleAutosave === 'function') {
+      scheduleAutosave();
+    }
+    if (el.dateInput.length) {
+      ValidationManager.validateField('rbf_data', el.dateInput.val(), el.dateInput[0]);
+      updateSubmitButtonState();
+    }
+
+    const timeValue = meal + '|' + time;
+    const maxAttempts = 10;
+    const attemptDelay = 200;
+
+    function attemptSelectSuggestedTime(attempt = 0) {
+      const $option = el.timeSelect.find(`option[value="${timeValue}"]`);
+
+      if ($option.length) {
         el.timeSelect.val(timeValue).trigger('change');
-        
-        // Auto-scroll disabled to prevent anchor jumps when applying suggestions
-        
-        // Remove suggestions since one was applied
+
         $('.rbf-suggestions-container').fadeOut(300, function() {
           $(this).remove();
         });
-        
-        // Announce change to screen readers
+
         announceToScreenReader(`Applicata alternativa: ${time} per ${meal} il ${date}`);
-      }, 1000);
-    }, 500);
+        return;
+      }
+
+      if (attempt >= maxAttempts) {
+        rbfLog.warn(`Impossibile selezionare automaticamente l'orario suggerito (${timeValue}) dopo ${maxAttempts} tentativi.`);
+        return;
+      }
+
+      setTimeout(function() {
+        attemptSelectSuggestedTime(attempt + 1);
+      }, attemptDelay);
+    }
+
+    // Allow the calendar/onDateChange flow to fetch time slots before attempting selection
+    setTimeout(function() {
+      attemptSelectSuggestedTime();
+    }, 400);
   }
 
   /**
