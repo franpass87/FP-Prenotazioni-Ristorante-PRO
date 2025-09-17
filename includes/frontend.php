@@ -196,8 +196,9 @@ function rbf_enqueue_frontend_assets() {
             
             // Calendar availability labels
             'available' => rbf_translate_string('Disponibile'),
-            'limited' => rbf_translate_string('Limitato'),
-            'nearlyFull' => rbf_translate_string('Quasi pieno'),
+            'limited' => rbf_translate_string('Quasi al completo'),
+            'nearlyFull' => rbf_translate_string('Quasi al completo'),
+            'full' => rbf_translate_string('Completo'),
             'spotsRemaining' => rbf_translate_string('Posti rimasti:'),
             'occupancy' => rbf_translate_string('Occupazione:'),
             
@@ -632,8 +633,20 @@ function rbf_render_booking_form($atts = []) {
                             <input id="rbf-date" name="rbf_data" readonly="readonly" required aria-describedby="date-help" role="combobox" aria-expanded="false" aria-haspopup="grid" aria-label="<?php echo esc_attr(rbf_translate_string('Seleziona data prenotazione')); ?>">
                             <div id="rbf-date-error" class="rbf-field-error"></div>
                             <small id="date-help" class="rbf-help-text"><?php echo esc_html(rbf_translate_string('Seleziona una data dal calendario. Usa i tasti freccia per navigare, Invio per selezionare')); ?></small>
-                            <div class="rbf-exception-legend" style="display:none;" role="group" aria-labelledby="legend-label">
+                            <div class="rbf-exception-legend" style="display:none;" role="group" aria-labelledby="legend-label" aria-hidden="true">
                                 <div id="legend-label" class="sr-only"><?php echo esc_html(rbf_translate_string('Legenda calendario')); ?></div>
+                                <div class="rbf-exception-legend-item rbf-legend-availability-item">
+                                    <span class="rbf-legend-availability-swatch rbf-availability-available" role="img" aria-label="<?php echo esc_attr(rbf_translate_string('Indicatore disponibilità: Disponibile')); ?>"></span>
+                                    <span><?php echo esc_html(rbf_translate_string('Disponibile')); ?></span>
+                                </div>
+                                <div class="rbf-exception-legend-item rbf-legend-availability-item">
+                                    <span class="rbf-legend-availability-swatch rbf-availability-limited" role="img" aria-label="<?php echo esc_attr(rbf_translate_string('Indicatore disponibilità: Quasi al completo')); ?>"></span>
+                                    <span><?php echo esc_html(rbf_translate_string('Quasi al completo')); ?></span>
+                                </div>
+                                <div class="rbf-exception-legend-item rbf-legend-availability-item">
+                                    <span class="rbf-legend-availability-swatch rbf-availability-full" role="img" aria-label="<?php echo esc_attr(rbf_translate_string('Indicatore disponibilità: Completo')); ?>"></span>
+                                    <span><?php echo esc_html(rbf_translate_string('Completo')); ?></span>
+                                </div>
                                 <div class="rbf-exception-legend-item">
                                     <span class="rbf-exception-legend-dot" style="background: #20c997;" role="img" aria-label="<?php echo esc_attr(rbf_translate_string('Indicatore evento speciale')); ?>"></span>
                                     <span><?php echo esc_html(rbf_translate_string('Eventi Speciali')); ?></span>

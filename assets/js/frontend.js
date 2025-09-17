@@ -134,6 +134,8 @@ function initializeBookingForm($) {
     submitButton: form.find('#rbf-submit')
   };
 
+  const legendElement = form.find('.rbf-exception-legend');
+
   let fp = null;
   let datePickerInitPromise = null;
   let iti = null;
@@ -142,6 +144,46 @@ function initializeBookingForm($) {
   let componentsLoading = new Set(); // Track which components are loading
   let availabilityData = {}; // Store availability data for calendar coloring
   let availabilityRequest = null; // Track ongoing availability AJAX request
+
+  function hasAvailabilityLegendEntries() {
+    if (!availabilityData || typeof availabilityData !== 'object') {
+      return false;
+    }
+
+    try {
+      return Object.keys(availabilityData).some(function(key) {
+        const entry = availabilityData[key];
+        if (!entry || typeof entry !== 'object') {
+          return false;
+        }
+
+        return Object.keys(entry).length > 0;
+      });
+    } catch (error) {
+      rbfLog.warn('Availability legend inspection failed: ' + error.message);
+      return false;
+    }
+  }
+
+  function updateLegendVisibility() {
+    if (!legendElement.length) {
+      return;
+    }
+
+    try {
+      const exceptions = (rbfData && Array.isArray(rbfData.exceptions)) ? rbfData.exceptions : [];
+      const hasExceptions = exceptions.length > 0;
+      const hasAvailability = hasAvailabilityLegendEntries();
+      const shouldShowLegend = hasExceptions || hasAvailability;
+
+      legendElement.toggle(shouldShowLegend);
+      legendElement.attr('aria-hidden', shouldShowLegend ? 'false' : 'true');
+    } catch (error) {
+      rbfLog.warn('Legend visibility update failed: ' + error.message);
+    }
+  }
+
+  updateLegendVisibility();
 
   // Autosave functionality variables
   let autosaveTimeout = null;
@@ -709,9 +751,12 @@ function initializeBookingForm($) {
         } else if (response && response.success === false) {
           availabilityData = {};
         }
+
+        updateLegendVisibility();
       }).fail(function(jqXHR, textStatus) {
         if (textStatus !== 'abort') {
           availabilityData = {};
+          updateLegendVisibility();
         }
       }).always(function() {
         if (availabilityRequest === request) {
@@ -779,15 +824,17 @@ function initializeBookingForm($) {
           contextualMessage = labels.someSpots || 'Buona disponibilità';
         }
       } else if (availability.level === 'limited') {
-        statusText = labels.limited || 'Limitato';
+        statusText = labels.limited || 'Quasi al completo';
         if (availability.remaining <= 2) {
           contextualMessage = labels.lastSpots || 'Ultimi 2 posti rimasti';
         } else if (availability.remaining <= 5) {
           contextualMessage = labels.fewSpots || 'Pochi posti rimasti';
         }
-      } else {
-        statusText = labels.nearlyFull || 'Quasi pieno';
+      } else if (availability.level === 'nearlyFull') {
+        statusText = labels.nearlyFull || labels.limited || 'Quasi al completo';
         contextualMessage = labels.actFast || 'Prenota subito!';
+      } else {
+        statusText = labels.full || 'Completo';
       }
 
       const spotsLabel = labels.spotsRemaining || 'Posti rimasti:';
@@ -1210,9 +1257,7 @@ function initializeBookingForm($) {
         rbfLog.log('✅ Flatpickr instance created successfully');
         
         // Show exception legend if there are exceptions
-        if (rbfData.exceptions && rbfData.exceptions.length > 0) {
-          $('.rbf-exception-legend').show();
-        }
+        updateLegendVisibility();
         
         return true;
       } else {
@@ -2148,6 +2193,8 @@ function initializeBookingForm($) {
 
         availabilityRequest = null;
         availabilityData = {};
+
+        updateLegendVisibility();
 
         if (fp) {
           fp.redraw();
