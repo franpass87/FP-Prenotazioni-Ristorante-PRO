@@ -165,22 +165,37 @@
         /**
          * Generate unique event ID for deduplication
          */
-        generateEventId: function(eventType) {
+        generateEventId: function(eventType, sessionOverride = null) {
             const now = Date.now();
             const performanceNow = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Math.random() * 1000;
             const microseconds = String(performanceNow).replace('.', '').padEnd(16, '0').substr(0, 6);
-            return `rbf_${eventType}_${this.sessionId}_${Math.floor(now / 1000)}_${microseconds}`;
+            const sessionComponent = sessionOverride || this.sessionId || 'sessionless';
+            return `rbf_${eventType}_${sessionComponent}_${Math.floor(now / 1000)}_${microseconds}`;
         },
-        
+
         /**
          * Track event via dataLayer and gtag (if available), and server-side (optional)
          */
         trackEvent: function(eventName, params = {}, options = {}) {
             this.requestClientId();
 
-            const eventId = options.eventId || this.generateEventId(eventName);
+            let sessionId = this.sessionId;
+            if (options.sessionId && options.sessionId !== sessionId) {
+                this.log('Applying session ID override for event', { eventName, previous: sessionId, next: options.sessionId });
+                sessionId = options.sessionId;
+                this.sessionId = sessionId;
+            } else if (!sessionId && options.sessionId) {
+                sessionId = options.sessionId;
+                this.sessionId = sessionId;
+            }
+
+            if (!sessionId) {
+                sessionId = 'sessionless';
+            }
+
+            const eventId = options.eventId || this.generateEventId(eventName, sessionId);
             const dedupeKey = `${eventName}_${JSON.stringify(params)}`;
-            
+
             // Prevent duplicate tracking of identical events
             if (this.trackedEvents.has(dedupeKey) && !options.allowDuplicate) {
                 this.log(`Skipping duplicate event: ${eventName}`, params);
@@ -192,7 +207,7 @@
             // Add common parameters
             const enhancedParams = {
                 ...params,
-                session_id: this.sessionId,
+                session_id: sessionId,
                 event_id: eventId,
                 page_url: window.location.href,
                 page_title: document.title,
@@ -217,24 +232,26 @@
                     this.log(`Skipping gtag call in GTM hybrid mode: ${eventName}`);
                 }
             }
-            
+
             // Also send to server for Measurement Protocol (if configured)
             if (options.serverSide !== false) {
                 const clientIdOverride = options.clientId || this.clientId;
-                this.sendToServer(eventName, enhancedParams, eventId, clientIdOverride);
+                this.sendToServer(eventName, enhancedParams, eventId, clientIdOverride, sessionId);
             }
         },
-        
+
         /**
          * Send event to server for Measurement Protocol tracking
          */
-        sendToServer: function(eventName, params, eventId, clientId) {
+        sendToServer: function(eventName, params, eventId, clientId, sessionIdOverride = null) {
             // Check if jQuery and AJAX are available
             if (typeof $ === 'undefined' || typeof $.ajax !== 'function') {
                 this.log(`Server tracking skipped - jQuery AJAX not available for: ${eventName}`);
                 return;
             }
-            
+
+            const sessionId = sessionIdOverride || this.sessionId;
+
             $.ajax({
                 url: rbfGA4Funnel.ajaxUrl,
                 type: 'POST',
@@ -242,7 +259,7 @@
                     action: 'rbf_track_ga4_event',
                     event_name: eventName,
                     event_params: params,
-                    session_id: this.sessionId,
+                    session_id: sessionId,
                     event_id: eventId,
                     client_id: clientId || '',
                     nonce: rbfGA4Funnel.nonce
@@ -372,6 +389,9 @@
             }
 
             const options = { serverSide: false };
+            if (responseData.session_id) {
+                options.sessionId = responseData.session_id;
+            }
             if (responseData.event_id) {
                 options.eventId = responseData.event_id;
             }
