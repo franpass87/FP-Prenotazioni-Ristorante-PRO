@@ -155,7 +155,7 @@ class RBF_Email_Failover_Service {
                 $data['time'],
                 $data['people'],
                 $data['notes'],
-                $data['lang'],
+                $data['brevo_lang'] ?? $data['lang'],
                 $data['tel'],
                 $data['marketing'],
                 $data['meal']
@@ -493,9 +493,9 @@ function rbf_get_email_failover_service() {
 /**
  * Send customer notification with failover
  */
-function rbf_send_customer_notification_with_failover($first_name, $last_name, $email, $date, $time, $people, $notes, $lang, $tel, $marketing, $meal, $booking_id = null, $special_type = '', $special_label = '') {
+function rbf_send_customer_notification_with_failover($first_name, $last_name, $email, $date, $time, $people, $notes, $brevo_lang, $form_lang, $tel, $marketing, $meal, $booking_id = null, $special_type = '', $special_label = '') {
     $service = rbf_get_email_failover_service();
-    
+
     $notification_data = [
         'type' => 'customer_notification',
         'booking_id' => $booking_id,
@@ -506,21 +506,23 @@ function rbf_send_customer_notification_with_failover($first_name, $last_name, $
         'time' => $time,
         'people' => $people,
         'notes' => $notes,
-        'lang' => $lang,
+        'lang' => $brevo_lang,
+        'brevo_lang' => $brevo_lang,
+        'form_lang' => $form_lang,
         'tel' => $tel,
         'marketing' => $marketing,
         'meal' => $meal,
         'special_type' => $special_type,
         'special_label' => $special_label
     ];
-    
+
     return $service->send_notification($notification_data);
 }
 
 /**
  * Send admin notification with failover
  */
-function rbf_send_admin_notification_with_failover($first_name, $last_name, $email, $date, $time, $people, $notes, $tel, $meal, $booking_id = null, $special_type = '', $special_label = '') {
+function rbf_send_admin_notification_with_failover($first_name, $last_name, $email, $date, $time, $people, $notes, $tel, $meal, $brevo_lang, $form_lang, $booking_id = null, $special_type = '', $special_label = '') {
     $options = rbf_get_settings();
     $restaurant_email = $options['notification_email'];
     $webmaster_email = $options['webmaster_email'];
@@ -600,6 +602,8 @@ HTML;
         'notes' => $notes,
         'tel' => $tel,
         'meal' => $meal,
+        'brevo_lang' => $brevo_lang,
+        'form_lang' => $form_lang,
         'special_type' => $special_type,
         'special_label' => $special_label
     ];

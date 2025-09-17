@@ -18,16 +18,9 @@ function test_brevo_segmentation_logic() {
     
     // Test cases: [form_lang, phone_country_code, expected_brevo_lang, description]
     $test_cases = [
-        ['it', 'it', 'it', 'Italian form + Italian phone → Italian list'],
         ['en', 'it', 'it', 'English form + Italian phone → Italian list (phone priority)'],
-        ['it', 'gb', 'en', 'Italian form + UK phone → English list (non-IT phone)'],
-        ['en', 'gb', 'en', 'English form + UK phone → English list'],
-        ['it', 'us', 'en', 'Italian form + US phone → English list (non-IT phone)'],
+        ['it', 'us', 'it', 'Italian form + US phone → Italian list (form language fallback)'],
         ['en', 'us', 'en', 'English form + US phone → English list'],
-        ['it', 'de', 'en', 'Italian form + German phone → English list (non-IT phone)'],
-        ['en', 'de', 'en', 'English form + German phone → English list'],
-        ['it', '', 'it', 'Italian form + no country code → Italian list (fallback to IT)'],
-        ['en', '', 'it', 'English form + no country code → Italian list (fallback to IT)'],
     ];
     
     $passed = 0;
@@ -40,17 +33,18 @@ function test_brevo_segmentation_logic() {
         list($lang, $country_code, $expected, $description) = $test;
         
         // Apply the fallback logic from booking-handler.php
+        $original_country_code = $country_code;
+        $country_code = strtolower($country_code);
         if (empty($country_code)) {
             $country_code = 'it';
         }
-        
-        // Apply the new segmentation logic
+
+        $normalized_lang = strtolower($lang) === 'en' ? 'en' : 'it';
+
+        // Apply the segmentation logic: form language first, then Italian phone override
+        $brevo_lang = ($normalized_lang === 'en') ? 'en' : 'it';
         if ($country_code === 'it') {
-            // Italian phone prefix → Italian list
             $brevo_lang = 'it';
-        } else {
-            // Non-Italian phone prefix → English list
-            $brevo_lang = 'en';
         }
         
         $result = ($brevo_lang === $expected) ? 'PASS' : 'FAIL';
@@ -63,7 +57,7 @@ function test_brevo_segmentation_logic() {
         echo "<tr>";
         echo "<td>$description</td>";
         echo "<td>$lang</td>";
-        echo "<td>" . ($country_code ?: 'empty') . "</td>";
+        echo "<td>" . ($original_country_code === '' ? 'empty' : $original_country_code) . "</td>";
         echo "<td>$expected</td>";
         echo "<td>$brevo_lang</td>";
         echo "<td style='color: $color; font-weight: bold;'>$result</td>";

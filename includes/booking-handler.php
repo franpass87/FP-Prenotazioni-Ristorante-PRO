@@ -121,14 +121,21 @@ function rbf_validate_request($post, $redirect_url, $anchor) {
     }
 
     $notes = $sanitized_fields['rbf_allergie'] ?? '';
-    $lang = $sanitized_fields['rbf_lang'] ?? 'it';
+    $form_lang = $sanitized_fields['rbf_lang'] ?? 'it';
+    $normalized_lang = strtolower($form_lang);
+    if ($normalized_lang !== 'en') {
+        $normalized_lang = 'it';
+    }
     $country_code = strtolower($sanitized_fields['rbf_country_code'] ?? '');
     if (empty($country_code)) {
         $country_code = 'it';
     }
 
-    // Determine Brevo list based on phone prefix only
-    $brevo_lang = ($country_code === 'it') ? 'it' : 'en';
+    // Determine Brevo list using form language first, then phone prefix rules
+    $brevo_lang = ($normalized_lang === 'en') ? 'en' : 'it';
+    if ($country_code === 'it') {
+        $brevo_lang = 'it';
+    }
 
     $privacy_raw   = $sanitized_fields['rbf_privacy'] ?? 'no';
     $privacy   = ($privacy_raw === 'yes' || $privacy_raw === 'no') ? $privacy_raw : 'no';
@@ -164,7 +171,7 @@ function rbf_validate_request($post, $redirect_url, $anchor) {
         'email'            => $email,
         'tel'              => $tel,
         'notes'            => $notes,
-        'lang'             => $lang,
+        'lang'             => $form_lang,
         'country_code'     => $country_code,
         'brevo_lang'       => $brevo_lang,
         'privacy'          => $privacy,
@@ -387,6 +394,7 @@ function rbf_send_notifications($data, $context) {
     $time       = $data['time'];
     $people     = $data['people'];
     $notes      = $data['notes'];
+    $form_lang  = $data['lang'];
     $tel        = $data['tel'];
     $meal       = $data['meal'];
     $brevo_lang = $data['brevo_lang'];
@@ -398,14 +406,15 @@ function rbf_send_notifications($data, $context) {
 
     if (function_exists('rbf_send_admin_notification_with_failover')) {
         rbf_send_admin_notification_with_failover(
-            $first_name, $last_name, $email, $date, $time, $people, $notes, $tel, $meal, $post_id,
+            $first_name, $last_name, $email, $date, $time, $people, $notes, $tel, $meal,
+            $brevo_lang, $form_lang, $post_id,
             $sanitized_fields['rbf_special_type'] ?? '', $sanitized_fields['rbf_special_label'] ?? ''
         );
     }
 
     if (function_exists('rbf_send_customer_notification_with_failover')) {
         rbf_send_customer_notification_with_failover(
-            $first_name, $last_name, $email, $date, $time, $people, $notes, $brevo_lang, $tel, $marketing, $meal, $post_id,
+            $first_name, $last_name, $email, $date, $time, $people, $notes, $brevo_lang, $form_lang, $tel, $marketing, $meal, $post_id,
             $sanitized_fields['rbf_special_type'] ?? '', $sanitized_fields['rbf_special_label'] ?? ''
         );
     }
