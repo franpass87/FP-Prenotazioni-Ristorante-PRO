@@ -3788,31 +3788,4 @@ function initializeBookingForm($) {
     }
   }, 5000);
 
-  /**
-   * Initialize international telephone input
-   */
-  function initializeTelInput() {
-    if (iti || !el.telInput.length) return;
-
-    try {
-      if (typeof intlTelInput !== 'undefined') {
-        iti = intlTelInput(el.telInput[0], {
-          initialCountry: 'it',
-          preferredCountries: ['it', 'us', 'gb'],
-          separateDialCode: true,
-          formatOnDisplay: true,
-          autoHideDialCode: false,
-          nationalMode: false,
-          utilsScript: (rbfData && rbfData.utilsScript) || ''
-        });
-        
-        rbfLog.log('International telephone input initialized');
-      } else {
-        rbfLog.warn('intlTelInput not available, using fallback');
-      }
-    } catch (error) {
-      rbfLog.error('Failed to initialize international telephone input: ' + error.message);
-    }
-  }
-
 } // End of initializeBookingForm function
