@@ -221,7 +221,7 @@ function rbf_get_settings() {
     $saved = get_option('rbf_settings', []);
     $defaults = rbf_get_default_settings();
     $settings = wp_parse_args($saved, $defaults);
-    
+
     // Migration: Convert old hour-based settings to minute-based settings
     if (isset($settings['min_advance_hours']) && !isset($saved['min_advance_minutes'])) {
         $settings['min_advance_minutes'] = $settings['min_advance_hours'] * 60;
@@ -230,8 +230,28 @@ function rbf_get_settings() {
         // Update the saved options
         update_option('rbf_settings', $settings);
     }
-    
+
     return $settings;
+}
+
+/**
+ * Get the maximum number of people allowed for a booking.
+ *
+ * @param array|null $settings Optional settings array to read the limit from.
+ * @return int Normalized maximum number of people.
+ */
+function rbf_get_people_max_limit($settings = null) {
+    if (!is_array($settings)) {
+        $settings = rbf_get_settings();
+    }
+
+    $people_max = absint($settings['max_people'] ?? 0);
+
+    if ($people_max <= 0) {
+        $people_max = 20;
+    }
+
+    return $people_max;
 }
 
 /**
@@ -392,6 +412,7 @@ function rbf_translate_string($text) {
         'Console JavaScript' => 'JavaScript Console',
         'ID GA4 non valido. Deve essere nel formato G-XXXXXXXXXX.' => 'Invalid GA4 ID. Must be in format G-XXXXXXXXXX.',
         'ID GTM non valido. Deve essere nel formato GTM-XXXXXXX.' => 'Invalid GTM ID. Must be in format GTM-XXXXXXX.',
+        'Il numero di persone deve essere compreso tra 1 e %d.' => 'The number of people must be between 1 and %d.',
         'Il numero di persone deve essere compreso tra 1 e 20.' => 'The number of people must be between 1 and 20.',
         'Il numero di persone non può superare %d.' => 'The number of people cannot exceed %d.',
         'Spiacenti, non ci sono abbastanza posti. Rimasti: %d. Scegli un altro orario.' => 'Sorry, there are not enough seats available. Remaining: %d. Please choose another time.',

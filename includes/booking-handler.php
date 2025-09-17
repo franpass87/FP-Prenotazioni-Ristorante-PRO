@@ -101,8 +101,9 @@ function rbf_validate_request($post, $redirect_url, $anchor) {
     list($slot, $time) = explode('|', $time_data, 2);
     $people = $sanitized_fields['rbf_persone'];
 
-    if ($people < 1 || $people > 20) {
-        rbf_handle_error(rbf_translate_string('Il numero di persone deve essere compreso tra 1 e 20.'), 'people_validation', $redirect_url . $anchor);
+    $people_max_limit = rbf_get_people_max_limit();
+    if ($people < 1 || $people > $people_max_limit) {
+        rbf_handle_error(sprintf(rbf_translate_string('Il numero di persone deve essere compreso tra 1 e %d.'), $people_max_limit), 'people_validation', $redirect_url . $anchor);
         return false;
     }
 
