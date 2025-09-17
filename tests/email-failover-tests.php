@@ -13,8 +13,9 @@ echo "===========================\n\n";
  * Mock Brevo API failures for testing
  */
 class Mock_Brevo_Failover_Tests {
-    
+
     private $test_results = [];
+    private $log_counter = 2000;
     
     public function run_all_tests() {
         echo "🧪 Starting Email Failover Tests...\n\n";
@@ -184,14 +185,21 @@ class Mock_Brevo_Failover_Tests {
         echo "Scenario: Brevo automation fails...\n";
         $result = $this->simulate_brevo_failure('automation_error', $notification_data);
         
-        if (!$result['success']) {
+        if (!$result['success'] && $result['fallback_error'] === 'Customer automation not available via wp_mail') {
             echo "✅ Customer notification failure correctly logged\n";
             echo "ℹ️  Note: Customer automation has no wp_mail fallback (expected behavior)\n";
-            
+
             // Simulate log entry for customer notification failure
             $log_entry = $this->simulate_log_entry($notification_data['booking_id'], 'failed', 'brevo', 'Automation API error');
             echo "📝 Failure logged: Booking #{$notification_data['booking_id']}, Error: {$log_entry['error_message']}\n";
-            
+
+            $failover_summary = $this->simulate_customer_failover_flow($result['brevo_error']);
+            echo "🔁 Failover summary: {$failover_summary['error']}\n";
+            if (!empty($failover_summary['fallback_attempted'])) {
+                echo "   ↳ Fallback attempted via wp_mail with message: {$failover_summary['fallback_error']}\n";
+            }
+            echo "📌 Notification log reference ID: {$failover_summary['log_id']}\n";
+
             $this->test_results[] = ['test' => 'customer_notification_logging', 'status' => 'passed'];
         } else {
             echo "❌ Customer notification failure not properly handled\n";
@@ -264,7 +272,7 @@ class Mock_Brevo_Failover_Tests {
             case 'timeout_error':
                 return [
                     'success' => false,
-                    'brevo_error' => 'cURL error 28: Operation timed out after 15000 milliseconds',
+                    'brevo_error' => 'Brevo API timeout: Operation exceeded 15000 milliseconds',
                     'fallback_error' => null
                 ];
                 
@@ -281,10 +289,28 @@ class Mock_Brevo_Failover_Tests {
                     'brevo_error' => 'Automation API error: Contact list not found',
                     'fallback_error' => 'Customer automation not available via wp_mail'
                 ];
-                
+
             default:
                 return ['success' => false, 'error' => 'Unknown failure type'];
         }
+    }
+
+    /**
+     * Simulate send_notification() handling for customer automation failure
+     */
+    private function simulate_customer_failover_flow($brevo_error_message) {
+        $this->log_counter++;
+
+        $fallback_error = 'Customer automation not available via wp_mail';
+
+        return [
+            'success' => false,
+            'error' => sprintf('Brevo failed: %s; fallback failed: %s', $brevo_error_message, $fallback_error),
+            'brevo_error' => $brevo_error_message,
+            'fallback_error' => $fallback_error,
+            'fallback_attempted' => true,
+            'log_id' => $this->log_counter
+        ];
     }
     
     /**

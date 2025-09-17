@@ -404,8 +404,25 @@ function rbf_trigger_brevo_automation($first_name, $last_name, $email, $date, $t
     // Note: $lang parameter already contains the segmentation result based on form language + phone prefix
     $list_id = $lang === 'en' ? ($options['brevo_list_en'] ?? '') : ($options['brevo_list_it'] ?? '');
 
-    if (empty($api_key)) { rbf_handle_error('Brevo: API key non configurata.', 'brevo_config'); return; }
-    if (empty($list_id)) { rbf_handle_error("Brevo: ID lista non configurato per lingua {$lang}", 'brevo_config'); return; }
+    if (empty($api_key)) {
+        $message = 'Brevo: API key non configurata.';
+        rbf_handle_error($message, 'brevo_config');
+        return [
+            'success' => false,
+            'error' => $message,
+            'code' => 'missing_api_key',
+        ];
+    }
+
+    if (empty($list_id)) {
+        $message = "Brevo: ID lista non configurato per lingua {$lang}";
+        rbf_handle_error($message, 'brevo_config');
+        return [
+            'success' => false,
+            'error' => $message,
+            'code' => 'missing_list_id',
+        ];
+    }
 
     $base_args = [
         'headers' => ['api-key' => $api_key, 'Content-Type' => 'application/json'],
@@ -431,19 +448,35 @@ function rbf_trigger_brevo_automation($first_name, $last_name, $email, $date, $t
         'updateEnabled' => true,
     ];
 
-    $response = wp_remote_post(
+    $contact_response = wp_remote_post(
         'https://api.brevo.com/v3/contacts',
         array_merge($base_args, ['body' => wp_json_encode($contact_payload)])
     );
-    
-    if (is_wp_error($response)) {
-        rbf_handle_error('Errore Brevo (upsert contatto): ' . $response->get_error_message(), 'brevo_api');
-    } else {
-        $response_code = wp_remote_retrieve_response_code($response);
-        if ($response_code < 200 || $response_code >= 300) {
-            $response_body = wp_remote_retrieve_body($response);
-            rbf_handle_error("Errore Brevo (upsert contatto) - HTTP {$response_code}: {$response_body}", 'brevo_api');
-        }
+
+    if (is_wp_error($contact_response)) {
+        $message = 'Errore Brevo (upsert contatto): ' . $contact_response->get_error_message();
+        rbf_handle_error($message, 'brevo_api');
+        return [
+            'success' => false,
+            'error' => $message,
+            'code' => 'contact_request_error',
+            'step' => 'contact_upsert',
+        ];
+    }
+
+    $contact_status = wp_remote_retrieve_response_code($contact_response);
+    if ($contact_status < 200 || $contact_status >= 300) {
+        $response_body = wp_remote_retrieve_body($contact_response);
+        $message = "Errore Brevo (upsert contatto) - HTTP {$contact_status}: {$response_body}";
+        rbf_handle_error($message, 'brevo_api');
+        return [
+            'success' => false,
+            'error' => $message,
+            'code' => 'contact_http_error',
+            'step' => 'contact_upsert',
+            'status_code' => $contact_status,
+            'response_body' => $response_body,
+        ];
     }
 
     // 2) Custom Event via /v3/events: sempre
@@ -457,20 +490,43 @@ function rbf_trigger_brevo_automation($first_name, $last_name, $email, $date, $t
         ],
     ];
 
-    $response = wp_remote_post(
+    $event_response = wp_remote_post(
         'https://api.brevo.com/v3/events',
         array_merge($base_args, ['body' => wp_json_encode($event_payload)])
     );
-    
-    if (is_wp_error($response)) {
-        rbf_handle_error('Errore Brevo (evento booking_bistrot): ' . $response->get_error_message(), 'brevo_api');
-    } else {
-        $response_code = wp_remote_retrieve_response_code($response);
-        if ($response_code < 200 || $response_code >= 300) {
-            $response_body = wp_remote_retrieve_body($response);
-            rbf_handle_error("Errore Brevo (evento booking_bistrot) - HTTP {$response_code}: {$response_body}", 'brevo_api');
-        }
+
+    if (is_wp_error($event_response)) {
+        $message = 'Errore Brevo (evento booking_bistrot): ' . $event_response->get_error_message();
+        rbf_handle_error($message, 'brevo_api');
+        return [
+            'success' => false,
+            'error' => $message,
+            'code' => 'event_request_error',
+            'step' => 'event_trigger',
+        ];
     }
+
+    $event_status = wp_remote_retrieve_response_code($event_response);
+    if ($event_status < 200 || $event_status >= 300) {
+        $response_body = wp_remote_retrieve_body($event_response);
+        $message = "Errore Brevo (evento booking_bistrot) - HTTP {$event_status}: {$response_body}";
+        rbf_handle_error($message, 'brevo_api');
+        return [
+            'success' => false,
+            'error' => $message,
+            'code' => 'event_http_error',
+            'step' => 'event_trigger',
+            'status_code' => $event_status,
+            'response_body' => $response_body,
+        ];
+    }
+
+    return [
+        'success' => true,
+        'code' => 'brevo_automation_triggered',
+        'contact_status' => $contact_status,
+        'event_status' => $event_status,
+    ];
 }
 
 /**
