@@ -1111,6 +1111,32 @@ add_shortcode('special_booking_form', function($atts = []) {
 add_action('wp_ajax_rbf_get_calendar_availability', 'rbf_ajax_get_calendar_availability');
 add_action('wp_ajax_nopriv_rbf_get_calendar_availability', 'rbf_ajax_get_calendar_availability');
 
+function rbf_normalize_cache_key_part($value) {
+    $value = is_scalar($value) ? strtolower((string) $value) : '';
+    $value = preg_replace('/[^a-z0-9\-]+/', '-', $value);
+    $value = trim($value, '-');
+
+    return $value !== '' ? $value : 'all';
+}
+
+function rbf_build_calendar_cache_key($meal, $start_date, $end_date) {
+    return sprintf(
+        'rbf_cal_avail_%s_%s_%s',
+        rbf_normalize_cache_key_part($meal),
+        rbf_normalize_cache_key_part($start_date),
+        rbf_normalize_cache_key_part($end_date)
+    );
+}
+
+function rbf_build_times_cache_key($meal, $date, $people) {
+    return sprintf(
+        'rbf_times_%s_%s_%s',
+        rbf_normalize_cache_key_part($meal),
+        rbf_normalize_cache_key_part($date),
+        rbf_normalize_cache_key_part(absint($people))
+    );
+}
+
 function rbf_ajax_get_calendar_availability() {
     // Verify nonce
     if (!isset($_POST['_ajax_nonce']) || !wp_verify_nonce($_POST['_ajax_nonce'], 'rbf_ajax_nonce')) {
@@ -1156,7 +1182,7 @@ function rbf_ajax_get_calendar_availability() {
     }
     
     // Check for cache first
-    $cache_key = 'rbf_cal_avail_' . md5($start_date . $end_date . $meal);
+    $cache_key = rbf_build_calendar_cache_key($meal, $start_date, $end_date);
     $cached_data = get_transient($cache_key);
     
     if ($cached_data !== false) {
@@ -1257,7 +1283,7 @@ function rbf_ajax_get_availability() {
     }
     
     // Check for cache first
-    $cache_key = 'rbf_times_' . md5($date . $meal . $people);
+    $cache_key = rbf_build_times_cache_key($meal, $date, $people);
     $cached_data = get_transient($cache_key);
     
     if ($cached_data !== false) {
@@ -1333,28 +1359,41 @@ function rbf_ajax_get_availability() {
  */
 function rbf_clear_calendar_cache($date = null, $meal = null) {
     global $wpdb;
-    
+
+    $patterns = [];
+
     if ($date && $meal) {
-        // Clear specific cache entries
-        $cache_patterns = [
-            'rbf_cal_avail_' . md5($date . '%' . $meal),
-            'rbf_times_' . md5($date . $meal . '%'),
-            'rbf_avail_' . $date . '_' . $meal
+        $date = sanitize_text_field($date);
+        $meal = sanitize_text_field($meal);
+
+        $normalized_meal = rbf_normalize_cache_key_part($meal);
+        $normalized_date = rbf_normalize_cache_key_part($date);
+
+        $patterns = [
+            '_transient_rbf_cal_avail_' . $normalized_meal . '_',
+            '_transient_timeout_rbf_cal_avail_' . $normalized_meal . '_',
+            '_transient_rbf_times_' . $normalized_meal . '_' . $normalized_date . '_',
+            '_transient_timeout_rbf_times_' . $normalized_meal . '_' . $normalized_date . '_',
+            '_transient_rbf_avail_' . $date . '_' . $meal,
+            '_transient_timeout_rbf_avail_' . $date . '_' . $meal,
         ];
-        
-        foreach ($cache_patterns as $pattern) {
-            $wpdb->query($wpdb->prepare(
-                "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",
-                '_transient_' . str_replace('%', '%%', $pattern) . '%'
-            ));
-        }
     } else {
-        // Clear all calendar-related caches
+        $patterns = [
+            '_transient_rbf_cal_avail_',
+            '_transient_timeout_rbf_cal_avail_',
+            '_transient_rbf_times_',
+            '_transient_timeout_rbf_times_',
+            '_transient_rbf_avail_',
+            '_transient_timeout_rbf_avail_',
+        ];
+    }
+
+    foreach ($patterns as $pattern) {
         $wpdb->query(
-            "DELETE FROM {$wpdb->options} 
-             WHERE option_name LIKE '_transient_rbf_cal_avail_%' 
-             OR option_name LIKE '_transient_rbf_times_%'
-             OR option_name LIKE '_transient_rbf_avail_%'"
+            $wpdb->prepare(
+                "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",
+                $wpdb->esc_like($pattern) . '%'
+            )
         );
     }
 }
