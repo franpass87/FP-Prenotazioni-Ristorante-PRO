@@ -69,30 +69,41 @@ class RBF_Email_Failover_Service {
         // Try primary provider (Brevo) first
         $brevo_result = $this->try_brevo_notification($notification_data);
         
-        if ($brevo_result['success']) {
+        if (!empty($brevo_result['success'])) {
             $this->update_notification_log($log_id, 'success', 'brevo', null);
+            $brevo_result['log_id'] = $log_id;
             return $brevo_result;
         }
-        
+
         // Log Brevo failure and try fallback
-        $this->update_notification_log($log_id, 'failed', 'brevo', $brevo_result['error']);
-        
+        $brevo_error = $brevo_result['error'] ?? 'Brevo notification failed for an unknown reason';
+        $brevo_details = $brevo_result['details'] ?? null;
+
+        $this->update_notification_log($log_id, 'failed', 'brevo', $brevo_error);
+
         // Try fallback provider (wp_mail)
         $fallback_result = $this->try_fallback_notification($notification_data);
-        
-        if ($fallback_result['success']) {
-            $this->update_notification_log($log_id, 'fallback_success', 'wp_mail', null, 2);
+
+        if (!empty($fallback_result['success'])) {
+            $this->update_notification_log($log_id, 'fallback_success', 'wp_mail', 'Brevo failure: ' . $brevo_error, 2);
+            $fallback_result['brevo_error'] = $brevo_error;
+            if ($brevo_details !== null) {
+                $fallback_result['brevo_details'] = $brevo_details;
+            }
+            $fallback_result['log_id'] = $log_id;
             return $fallback_result;
         }
-        
+
         // Both providers failed
-        $this->update_notification_log($log_id, 'failed', 'wp_mail', $fallback_result['error'], 2);
-        
+        $fallback_error = $fallback_result['error'] ?? 'Fallback provider failed for an unknown reason';
+        $this->update_notification_log($log_id, 'failed', 'wp_mail', $fallback_error, 2);
+
         return [
             'success' => false,
-            'error' => 'Both Brevo and fallback providers failed',
-            'brevo_error' => $brevo_result['error'],
-            'fallback_error' => $fallback_result['error'],
+            'error' => sprintf('Brevo failed: %s; fallback failed: %s', $brevo_error, $fallback_error),
+            'brevo_error' => $brevo_error,
+            'brevo_details' => $brevo_details,
+            'fallback_error' => $fallback_error,
             'log_id' => $log_id
         ];
     }
@@ -133,12 +144,12 @@ class RBF_Email_Failover_Service {
      * Send customer notification via Brevo automation
      */
     private function send_brevo_customer_automation($data) {
+        ob_start();
+
         try {
-            // Use existing Brevo function but capture errors
-            ob_start();
-            rbf_trigger_brevo_automation(
+            $result = rbf_trigger_brevo_automation(
                 $data['first_name'],
-                $data['last_name'], 
+                $data['last_name'],
                 $data['email'],
                 $data['date'],
                 $data['time'],
@@ -149,21 +160,53 @@ class RBF_Email_Failover_Service {
                 $data['marketing'],
                 $data['meal']
             );
-            $output = ob_get_clean();
-            
-            return [
-                'success' => true,
-                'provider' => 'brevo',
-                'method' => 'automation'
-            ];
-            
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
+            if (ob_get_level() > 0) {
+                ob_end_clean();
+            }
+
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
                 'provider' => 'brevo'
             ];
         }
+
+        if (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+
+        if (is_array($result) && !empty($result['success'])) {
+            return [
+                'success' => true,
+                'provider' => 'brevo',
+                'method' => 'automation',
+                'details' => $result
+            ];
+        }
+
+        $error_message = 'Brevo automation returned an unexpected response.';
+        $details = null;
+
+        if (is_array($result)) {
+            if (!empty($result['error'])) {
+                $error_message = $result['error'];
+            }
+            $details = $result;
+        } elseif (is_wp_error($result)) {
+            $error_message = $result->get_error_message();
+            $details = [
+                'code' => $result->get_error_code(),
+                'data' => $result->get_error_data(),
+            ];
+        }
+
+        return [
+            'success' => false,
+            'error' => $error_message,
+            'provider' => 'brevo',
+            'details' => $details
+        ];
     }
     
     /**
