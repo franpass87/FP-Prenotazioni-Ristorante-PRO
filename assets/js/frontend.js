@@ -857,6 +857,122 @@ function initializeBookingForm($) {
    * COMPLETELY RENEWED CALENDAR IMPLEMENTATION
    * Enhanced with better error handling and reliability
    */
+  function transferAriaAttributesToAltInput(instance) {
+    if (!instance || !instance.input || !instance.altInput) {
+      return;
+    }
+
+    try {
+      const originalInput = instance.input;
+      const altInput = instance.altInput;
+      const attributesToTransfer = [];
+
+      Array.from(originalInput.attributes).forEach(attr => {
+        if (!attr || !attr.name) {
+          return;
+        }
+
+        const name = attr.name;
+        const lowerName = name.toLowerCase();
+
+        if (lowerName === 'role' || lowerName.startsWith('aria-')) {
+          attributesToTransfer.push({ name: name, value: attr.value });
+        }
+      });
+
+      if (attributesToTransfer.length > 0) {
+        originalInput.setAttribute('data-rbf-transferred-aria', JSON.stringify(attributesToTransfer));
+
+        attributesToTransfer.forEach(attribute => {
+          altInput.setAttribute(attribute.name, attribute.value);
+          originalInput.removeAttribute(attribute.name);
+        });
+
+        rbfLog.log('📋 Copied ARIA attributes to alternate date input');
+      }
+
+      if (!altInput.hasAttribute('aria-expanded')) {
+        altInput.setAttribute('aria-expanded', 'false');
+      }
+    } catch (error) {
+      rbfLog.warn('Failed to transfer ARIA attributes to Flatpickr alternate input: ' + error.message);
+    }
+  }
+
+  function restoreFlatpickrAriaAttributes(instance) {
+    if (!instance || !instance.input) {
+      return;
+    }
+
+    const originalInput = instance.input;
+    const storedAttributes = originalInput.getAttribute('data-rbf-transferred-aria');
+
+    if (!storedAttributes) {
+      return;
+    }
+
+    try {
+      const parsedAttributes = JSON.parse(storedAttributes);
+
+      if (Array.isArray(parsedAttributes)) {
+        parsedAttributes.forEach(attribute => {
+          if (attribute && attribute.name) {
+            originalInput.setAttribute(attribute.name, attribute.value);
+          }
+        });
+
+        rbfLog.log('📋 Restored ARIA attributes to original date input');
+      }
+    } catch (error) {
+      rbfLog.warn('Failed to restore ARIA attributes to original date input: ' + error.message);
+    } finally {
+      originalInput.removeAttribute('data-rbf-transferred-aria');
+    }
+  }
+
+  function updateAltInputAriaExpanded(instance, isExpanded) {
+    if (!instance || !instance.altInput) {
+      return;
+    }
+
+    try {
+      instance.altInput.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+    } catch (error) {
+      rbfLog.warn('Failed to update aria-expanded on alternate date input: ' + error.message);
+    }
+  }
+
+  function restoreOriginalDateInputAttributes(instance, contextLabel) {
+    if (!instance || !instance.input) {
+      return;
+    }
+
+    const context = contextLabel ? ` ${contextLabel}` : '';
+
+    try {
+      const originalInput = instance.input;
+      const originalId = originalInput.getAttribute('data-original-id');
+
+      if (originalId) {
+        originalInput.id = originalId;
+
+        if (instance.altInput) {
+          instance.altInput.removeAttribute('id');
+        }
+
+        rbfLog.log(`📋 Restored id to original input${context}`);
+      }
+
+      restoreFlatpickrAriaAttributes(instance);
+    } catch (error) {
+      if (contextLabel) {
+        rbfLog.warn(`Error restoring original input ${contextLabel}: ${error.message}`);
+      } else {
+        rbfLog.warn(`Error restoring original input: ${error.message}`);
+      }
+    }
+  }
+
   function initializeFlatpickr() {
     // First, validate that we have the minimum required data
     if (!rbfData) {
@@ -949,6 +1065,9 @@ function initializeBookingForm($) {
           
           // Fix accessibility issue: ensure the alternate input has the correct id
           if (instance.altInput && instance.input) {
+            transferAriaAttributesToAltInput(instance);
+            updateAltInputAriaExpanded(instance, false);
+
             // Transfer the id from the original input to the alternate input
             const originalId = instance.input.id;
             if (originalId) {
@@ -991,7 +1110,9 @@ function initializeBookingForm($) {
         
         onOpen: function(selectedDates, dateStr, instance) {
           rbfLog.log('📅 Calendar opened - forcing interactivity');
-          
+
+          updateAltInputAriaExpanded(instance, true);
+
           // CRITICAL: Force interactivity immediately when calendar opens
           setTimeout(() => {
             forceCalendarInteractivity(instance);
@@ -1002,9 +1123,11 @@ function initializeBookingForm($) {
             forceCalendarInteractivity(instance);
           }, 200);
         },
-        
+
         onClose: function(selectedDates, dateStr, instance) {
           rbfLog.log('📅 Calendar closed');
+
+          updateAltInputAriaExpanded(instance, false);
         },
         
         onDayCreate: function(dObj, dStr, fp, dayElem) {
@@ -1072,15 +1195,7 @@ function initializeBookingForm($) {
       // Clean up any existing calendar instance
       if (fp) {
         try {
-          // Restore the id to the original input before destroying
-          if (fp.altInput && fp.input) {
-            const originalId = fp.input.getAttribute('data-original-id');
-            if (originalId) {
-              fp.input.id = originalId;
-              fp.altInput.removeAttribute('id');
-              rbfLog.log('📋 Restored id to original input before cleanup');
-            }
-          }
+          restoreOriginalDateInputAttributes(fp, 'before cleanup');
           fp.destroy();
         } catch (error) {
           rbfLog.warn('Error destroying previous calendar instance');
@@ -1141,22 +1256,54 @@ function initializeBookingForm($) {
       // disable: [], // Commenting out completely to allow all dates
       
       onChange: onDateChange,
-      
+
       onReady: function(selectedDates, dateStr, instance) {
         rbfLog.log('Emergency calendar initialized - all dates should be available');
-        
+
+        if (instance.altInput && instance.input) {
+          transferAriaAttributesToAltInput(instance);
+          updateAltInputAriaExpanded(instance, false);
+
+          const originalId = instance.input.id;
+          if (originalId) {
+            instance.altInput.id = originalId;
+            instance.input.removeAttribute('id');
+            instance.input.setAttribute('data-original-id', originalId);
+            rbfLog.log('📋 Emergency accessibility: transferred id to alternate input');
+          }
+        } else {
+          rbfLog.warn('Emergency calendar altInput not available - accessibility fix not applied');
+        }
+
         setTimeout(() => {
           forceCalendarInteractivity(instance);
         }, 100);
+      },
+
+      onOpen: function(selectedDates, dateStr, instance) {
+        updateAltInputAriaExpanded(instance, true);
+
+        setTimeout(() => {
+          forceCalendarInteractivity(instance);
+        }, 50);
+
+        setTimeout(() => {
+          forceCalendarInteractivity(instance);
+        }, 200);
+      },
+
+      onClose: function(selectedDates, dateStr, instance) {
+        updateAltInputAriaExpanded(instance, false);
       }
     };
-    
+
     // Clean up any existing calendar instance
     if (fp) {
       try {
+        restoreOriginalDateInputAttributes(fp, 'in emergency cleanup');
         fp.destroy();
       } catch (error) {
-        console.warn('Error destroying previous calendar instance');
+        rbfLog.warn('Error destroying emergency calendar instance: ' + error.message);
       }
       fp = null;
     }
@@ -1843,19 +1990,7 @@ function initializeBookingForm($) {
       hideStep(el.dateStep);
       if (fp) {
         fp.clear();
-        // Restore the id to the original input before destroying
-        try {
-          if (fp.altInput && fp.input) {
-            const originalId = fp.input.getAttribute('data-original-id');
-            if (originalId) {
-              fp.input.id = originalId;
-              fp.altInput.removeAttribute('id');
-              rbfLog.log('📋 Restored id to original input in resetSteps');
-            }
-          }
-        } catch (error) {
-          rbfLog.warn('Error restoring id in resetSteps: ' + error.message);
-        }
+        restoreOriginalDateInputAttributes(fp, 'in resetSteps');
         fp.destroy();
         fp = null;
         datePickerInitPromise = null;
@@ -1958,19 +2093,7 @@ function initializeBookingForm($) {
     try {
       // Destroy existing instance
       if (fp) {
-        // Restore the id to the original input before destroying
-        try {
-          if (fp.altInput && fp.input) {
-            const originalId = fp.input.getAttribute('data-original-id');
-            if (originalId) {
-              fp.input.id = originalId;
-              fp.altInput.removeAttribute('id');
-              rbfLog.log('📋 Restored id to original input in reinitializeCalendar');
-            }
-          }
-        } catch (error) {
-          rbfLog.warn('Error restoring id in reinitializeCalendar: ' + error.message);
-        }
+        restoreOriginalDateInputAttributes(fp, 'in reinitializeCalendar');
         fp.destroy();
         fp = null;
       }
