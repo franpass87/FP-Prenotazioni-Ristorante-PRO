@@ -1328,6 +1328,17 @@
     animation: loading 1.5s infinite;
 }
 
+#rbf-time.rbf-loading {
+    color: var(--rbf-text-light);
+    font-style: italic;
+    background-image: none;
+    pointer-events: auto;
+}
+
+#rbf-time.rbf-loading::after {
+    display: none;
+}
+
 @keyframes loading {
     to {
         left: 100%;
@@ -1535,6 +1546,8 @@
     gap: 0.5rem;
     color: var(--rbf-primary);
     font-weight: 500;
+    pointer-events: none;
+    white-space: nowrap;
 }
 
 .rbf-loading-spinner {

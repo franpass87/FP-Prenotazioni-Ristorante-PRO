@@ -2297,9 +2297,6 @@ function initializeBookingForm($) {
 
     const previousSelection = preserveSelectedTime ? el.timeSelect.val() : null;
 
-    // Enhanced loading state for time selection with progress indication
-    showComponentLoading(el.timeStep[0], rbfData.labels.loading + ' orari disponibili...');
-
     el.timeSelect.html(`<option value="">${rbfData.labels.loading}</option>`).prop('disabled', true);
     el.timeSelect.addClass('rbf-loading');
 
@@ -2312,7 +2309,6 @@ function initializeBookingForm($) {
       let selectionPreserved = false;
 
       const loadingTimeout = setTimeout(function() {
-        hideComponentLoading(el.timeStep[0]);
         el.timeSelect.removeClass('rbf-loading');
         el.timeSelect.html('');
         el.timeSelect.append(new Option('Errore: timeout nel caricamento. Riprova.', ''));
@@ -2478,7 +2474,6 @@ function initializeBookingForm($) {
         }
       }).always(function() {
         clearTimeout(loadingTimeout);
-        hideComponentLoading(el.timeStep[0]);
         el.timeSelect.removeClass('rbf-loading');
         el.timeSelect.prop('disabled', false);
 
