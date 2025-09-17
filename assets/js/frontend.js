@@ -949,6 +949,41 @@ function initializeBookingForm($) {
             dayElem.classList.remove('rbf-component-loading', 'rbf-loading');
           }
           
+          // Add availability colors based on data
+          try {
+            const dateStr = formatLocalISO(dayElem.dateObj);
+            if (availabilityData && availabilityData[dateStr]) {
+              const availability = availabilityData[dateStr];
+              
+              // Remove any existing availability classes
+              dayElem.classList.remove('rbf-availability-available', 'rbf-availability-limited', 'rbf-availability-full');
+              
+              // Apply availability class based on level
+              if (availability.level === 'available') {
+                dayElem.classList.add('rbf-availability-available');
+              } else if (availability.level === 'limited') {
+                dayElem.classList.add('rbf-availability-limited');
+              } else if (availability.level === 'nearlyFull' || availability.level === 'full') {
+                dayElem.classList.add('rbf-availability-full');
+              }
+              
+              // Add hover tooltip for availability info
+              if (!dayElem.classList.contains('flatpickr-disabled')) {
+                dayElem.addEventListener('mouseenter', function(e) {
+                  if (availability) {
+                    showAvailabilityTooltip(e.target, availability);
+                  }
+                });
+                
+                dayElem.addEventListener('mouseleave', function() {
+                  hideAvailabilityTooltip();
+                });
+              }
+            }
+          } catch (error) {
+            rbfLog.warn(`Availability color error for date: ${error.message}`);
+          }
+          
           // Add visual indicators for special dates (non-blocking)
           try {
             addDateIndicators(dayElem);
