@@ -446,8 +446,9 @@
                             break;
                         case 'date':
                             const today = new Date();
+                            today.setHours(0,0,0,0);
                             const selectedDate = new Date(value);
-                            if (selectedDate < today.setHours(0,0,0,0)) {
+                            if (selectedDate < today) {
                                 isValid = false;
                                 errorMessage = 'Seleziona una data futura';
                             }
@@ -608,8 +609,13 @@
 
             // Test functions
             window.populateTestData = function() {
+                // Generate a future date (tomorrow)
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                const futureDate = tomorrow.toISOString().split('T')[0];
+                
                 document.getElementById('rbf_meal_pranzo').checked = true;
-                document.getElementById('rbf-date').value = '2024-12-25';
+                document.getElementById('rbf-date').value = futureDate;
                 document.getElementById('rbf-time').value = '12:30';
                 document.getElementById('rbf-people').value = '4';
                 document.getElementById('rbf-nome').value = 'Mario';

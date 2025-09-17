@@ -2261,6 +2261,8 @@ function initializeBookingForm($) {
         el.marketingCheckbox.prop('disabled', false);
         el.submitButton.show().prop('disabled', true);
         initializeTelInput();
+        // Check submit button state after showing it
+        setTimeout(() => updateSubmitButtonState(), 100);
       }, 500); // 500ms delay to let users see the people section
     }
   }
@@ -2269,7 +2271,7 @@ function initializeBookingForm($) {
    * Privacy checkbox handler
    */
   el.privacyCheckbox.on('change', function() {
-    el.submitButton.prop('disabled', !this.checked);
+    updateSubmitButtonState();
   });
 
   /**
@@ -3175,6 +3177,9 @@ function initializeBookingForm($) {
         this.showFieldSuccess(fieldName);
       }
 
+      // Update submit button state after validation
+      setTimeout(() => updateSubmitButtonState(), 100);
+
       return true;
     },
 
@@ -3183,21 +3188,25 @@ function initializeBookingForm($) {
       // Meal radio buttons validation
       el.mealRadios.on('change', function() {
         ValidationManager.validateField('rbf_meal', this.value, this);
+        updateSubmitButtonState();
       });
 
       // Date validation
       el.dateInput.on('change', function() {
         ValidationManager.validateField('rbf_data', this.value, this);
+        updateSubmitButtonState();
       });
 
       // Time validation
       el.timeSelect.on('change', function() {
         ValidationManager.validateField('rbf_orario', this.value, this);
+        updateSubmitButtonState();
       });
 
       // People validation
       el.peopleInput.on('change input', function() {
         ValidationManager.validateField('rbf_persone', this.value, this);
+        updateSubmitButtonState();
       });
 
       // Personal details validation
@@ -3211,6 +3220,7 @@ function initializeBookingForm($) {
             if (this.value.trim()) {
               ValidationManager.validateField(fieldName, this.value, this);
             }
+            updateSubmitButtonState();
           });
 
           // Clear validation on focus (give user a fresh start)
@@ -3226,6 +3236,7 @@ function initializeBookingForm($) {
               if (this.value.length > 0) {
                 timeout = setTimeout(() => {
                   ValidationManager.validateField(fieldName, this.value, this);
+                  updateSubmitButtonState();
                 }, 1000);
               }
             });
@@ -3236,6 +3247,7 @@ function initializeBookingForm($) {
       // Privacy checkbox validation
       el.privacyCheckbox.on('change', function() {
         ValidationManager.validateField('rbf_privacy', this.value, this);
+        updateSubmitButtonState();
       });
 
       rbfLog.log('Validation manager initialized');
@@ -3244,6 +3256,81 @@ function initializeBookingForm($) {
 
   // Initialize validation
   ValidationManager.init();
+
+  /**
+   * Comprehensive submit button validation function
+   */
+  function updateSubmitButtonState() {
+    const submitButton = el.submitButton;
+    if (!submitButton.length) return;
+
+    // Check if privacy checkbox is checked (required)
+    const privacyChecked = el.privacyCheckbox.is(':checked');
+    if (!privacyChecked) {
+      submitButton.prop('disabled', true);
+      return;
+    }
+
+    // Check all required fields validation
+    const allRequiredFieldsValid = Object.keys(ValidationManager.rules).every(fieldName => {
+      const rule = ValidationManager.rules[fieldName];
+      if (!rule.required) return true;
+
+      // Get field value based on field type
+      let value, element;
+      switch(fieldName) {
+        case 'rbf_meal':
+          element = el.mealRadios.filter(':checked')[0];
+          value = element ? element.value : '';
+          break;
+        case 'rbf_data':
+          element = el.dateInput[0];
+          value = el.dateInput.val();
+          break;
+        case 'rbf_orario':
+          element = el.timeSelect[0];
+          value = el.timeSelect.val();
+          break;
+        case 'rbf_persone':
+          element = el.peopleInput[0];
+          value = el.peopleInput.val();
+          break;
+        case 'rbf_nome':
+          element = document.getElementById('rbf-name');
+          value = element ? element.value : '';
+          break;
+        case 'rbf_cognome':
+          element = document.getElementById('rbf-surname');
+          value = element ? element.value : '';
+          break;
+        case 'rbf_email':
+          element = document.getElementById('rbf-email');
+          value = element ? element.value : '';
+          break;
+        case 'rbf_tel':
+          element = document.getElementById('rbf-tel');
+          value = element ? element.value : '';
+          break;
+        case 'rbf_privacy':
+          element = el.privacyCheckbox[0];
+          value = el.privacyCheckbox.is(':checked') ? 'on' : '';
+          break;
+        default:
+          return true; // Unknown field, assume valid
+      }
+
+      if (!element) return true; // Field not found, assume valid
+
+      // Run validation
+      const result = rule.validate(value, element);
+      return result.valid;
+    });
+
+    // Enable submit button only if all validations pass
+    submitButton.prop('disabled', !allRequiredFieldsValid);
+    
+    rbfLog.log('Submit button state updated: ' + (allRequiredFieldsValid ? 'enabled' : 'disabled'));
+  }
 
   /**
    * UTM parameters and click ID capture
