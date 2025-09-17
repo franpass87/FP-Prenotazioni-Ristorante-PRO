@@ -623,12 +623,17 @@ function initializeBookingForm($) {
       
       // Set minimum date based on advance time requirements
       const today = new Date();
-      const minDate = new Date(today.getTime() + (rbfData.minAdvanceMinutes || 60) * 60 * 1000);
+      const parsedMinAdvance = Number(rbfData.minAdvanceMinutes);
+      const hasMinAdvance = Number.isFinite(parsedMinAdvance) && parsedMinAdvance > 0;
+      const minDate = hasMinAdvance
+        ? new Date(today.getTime() + parsedMinAdvance * 60 * 1000)
+        : today;
       el.dateInput.attr('min', minDate.toISOString().split('T')[0]);
-      
-      // Set maximum date
-      const maxAdvanceMs = typeof maxAdvanceMinutes !== 'undefined' ? maxAdvanceMinutes * 60 * 1000 : 259200 * 60 * 1000; // Default 6 months
-      const maxDate = new Date(today.getTime() + maxAdvanceMs);
+
+      // Set maximum date to mirror Flatpickr behaviour
+      const maxDate = shouldApplyMaxAdvanceLimit
+        ? new Date(today.getTime() + maxAdvanceMinutes * 60 * 1000)
+        : new Date(today.getTime() + 365 * 24 * 60 * 60 * 1000);
       el.dateInput.attr('max', maxDate.toISOString().split('T')[0]);
       
       // Remove any existing change handlers to avoid duplicates
@@ -1315,35 +1320,6 @@ function initializeBookingForm($) {
         }
       }
     }
-  }
-
-  /**
-   * Fallback to HTML5 date input if flatpickr fails
-   */
-  function setupFallbackDateInput() {
-    rbfLog.warn('Setting up HTML5 date input fallback');
-    
-    el.dateInput.attr('type', 'date');
-    
-    // Set minimum date
-    const minDate = rbfData.minAdvanceMinutes ? 
-      new Date(new Date().getTime() + rbfData.minAdvanceMinutes * 60 * 1000) :
-      new Date();
-    el.dateInput.attr('min', minDate.toISOString().split('T')[0]);
-    
-    // Set maximum date (1 year from now)
-    const maxDate = new Date(new Date().getTime() + 365 * 24 * 60 * 60 * 1000);
-    el.dateInput.attr('max', maxDate.toISOString().split('T')[0]);
-    
-    // Add change handler
-    el.dateInput.on('change', function() {
-      if (this.value) {
-        rbfLog.log('Date selected via HTML5 input: ' + this.value);
-        onDateChange([new Date(this.value)]);
-      }
-    });
-    
-    rbfLog.log('HTML5 date input fallback configured');
   }
 
   /**
