@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎨 Test Colori Calendario - Disponibilità</title>
+    
+    <!-- Frontend CSS -->
+    <link rel="stylesheet" href="assets/css/frontend.css">
+    
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: #f5f7fa; 
+        }
+        .demo-container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+        }
+        .status-banner {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .color-legend {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .color-examples {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .color-example {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+        }
+        .color-sample {
+            width: 30px;
+            height: 30px;
+            border-radius: 4px;
+            border-left: 3px solid;
+        }
+        .available {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border-left-color: #16a34a;
+        }
+        .limited {
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+            border-left-color: #f59e0b;
+        }
+        .full {
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            border-left-color: #dc2626;
+        }
+        .test-form {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .date-input-container {
+            position: relative;
+            margin: 20px 0;
+        }
+        #test-date {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        .instructions {
+            background: #e7f3ff;
+            border: 1px solid #0066cc;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <h1>🎨 Test Colori Calendario - Disponibilità</h1>
+        
+        <div class="status-banner">
+            ✅ Sistema colori calendario ripristinato e funzionante
+        </div>
+        
+        <div class="color-legend">
+            <h2>🌈 Legenda Colori Disponibilità</h2>
+            <p>Il calendario usa colori diversi per indicare il livello di disponibilità:</p>
+            
+            <div class="color-examples">
+                <div class="color-example">
+                    <div class="color-sample available"></div>
+                    <div>
+                        <strong>🟢 Disponibile</strong><br>
+                        <small>Molti posti liberi</small>
+                    </div>
+                </div>
+                
+                <div class="color-example">
+                    <div class="color-sample limited"></div>
+                    <div>
+                        <strong>🟡 Limitato</strong><br>
+                        <small>Pochi posti rimasti</small>
+                    </div>
+                </div>
+                
+                <div class="color-example">
+                    <div class="color-sample full"></div>
+                    <div>
+                        <strong>🔴 Quasi Pieno</strong><br>
+                        <small>Ultimi posti disponibili</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="instructions">
+            <h3>📋 Come Testare</h3>
+            <ol>
+                <li>Seleziona un tipo di pasto (Pranzo consigliato)</li>
+                <li>Clicca sul campo data per aprire il calendario</li>
+                <li>Osserva i colori delle date - ogni colore indica un diverso livello di disponibilità</li>
+                <li>Passa il mouse sopra le date colorate per vedere i tooltip con i dettagli</li>
+            </ol>
+        </div>
+        
+        <div class="test-form">
+            <form id="rbf-form" class="rbf-form">
+                <h2>🍽️ Prenota il tuo tavolo</h2>
+                
+                <!-- Meal Selection -->
+                <div class="rbf-field-wrapper">
+                    <label>Scegli il pasto *</label>
+                    <div class="rbf-radio-group" role="radiogroup">
+                        <label>
+                            <input type="radio" name="rbf_meal" value="brunch" id="rbf_meal_brunch"> 
+                            Brunch (10:00-12:00)
+                        </label>
+                        <label>
+                            <input type="radio" name="rbf_meal" value="pranzo" id="rbf_meal_pranzo"> 
+                            Pranzo (12:00-15:00)
+                        </label>
+                        <label>
+                            <input type="radio" name="rbf_meal" value="aperitivo_cena" id="rbf_meal_aperitivo_cena"> 
+                            Aperitivo e Cena (18:00-23:00)
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Date Selection -->
+                <div class="rbf-field-wrapper">
+                    <label for="rbf-date">Data prenotazione *</label>
+                    <div class="date-input-container">
+                        <input type="text" id="rbf-date" name="rbf_data" placeholder="Clicca per aprire il calendario">
+                    </div>
+                    <small>👆 Clicca qui per vedere i colori di disponibilità</small>
+                </div>
+                
+                <!-- Mock availability data display -->
+                <div id="availability-info" style="display: none; margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 6px;">
+                    <h4>📊 Informazioni Disponibilità</h4>
+                    <div id="availability-details"></div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Mock data for testing -->
+    <script>
+        // Mock rbfData for testing
+        window.rbfData = {
+            ajaxUrl: '#',
+            nonce: 'test_nonce',
+            maxAdvanceMinutes: 7200,
+            closedDays: [0],
+            labels: {
+                available: 'Disponibile',
+                limited: 'Limitato', 
+                nearlyFull: 'Quasi pieno',
+                spotsRemaining: 'Posti rimasti:',
+                occupancy: 'Occupazione:',
+                manySpots: 'Molti posti disponibili',
+                someSpots: 'Buona disponibilità',
+                fewSpots: 'Pochi posti rimasti',
+                lastSpots: 'Ultimi posti rimasti',
+                actFast: 'Prenota subito!'
+            }
+        };
+        
+        // Mock availability data for demo
+        window.mockAvailabilityData = {
+            '2025-09-19': { level: 'available', remaining: 45, total: 50, occupancy: 10 },
+            '2025-09-20': { level: 'available', remaining: 38, total: 50, occupancy: 24 },
+            '2025-09-21': { level: 'limited', remaining: 12, total: 50, occupancy: 76 },
+            '2025-09-22': { level: 'limited', remaining: 8, total: 50, occupancy: 84 },
+            '2025-09-23': { level: 'nearlyFull', remaining: 3, total: 50, occupancy: 94 },
+            '2025-09-24': { level: 'full', remaining: 1, total: 50, occupancy: 98 },
+            '2025-09-25': { level: 'available', remaining: 42, total: 50, occupancy: 16 },
+            '2025-09-26': { level: 'limited', remaining: 15, total: 50, occupancy: 70 },
+            '2025-09-27': { level: 'limited', remaining: 7, total: 50, occupancy: 86 },
+            '2025-09-28': { level: 'nearlyFull', remaining: 2, total: 50, occupancy: 96 }
+        };
+        
+        // Mock jQuery if not available
+        if (typeof jQuery === 'undefined') {
+            window.jQuery = window.$ = function(selector) {
+                const elements = document.querySelectorAll(selector);
+                return {
+                    length: elements.length,
+                    0: elements[0],
+                    on: function(event, handler) {
+                        Array.from(elements).forEach(el => {
+                            el.addEventListener(event, handler);
+                        });
+                        return this;
+                    },
+                    val: function(value) {
+                        if (value !== undefined) {
+                            Array.from(elements).forEach(el => {
+                                el.value = value;
+                            });
+                            return this;
+                        }
+                        return elements[0] ? elements[0].value : '';
+                    }
+                };
+            };
+        }
+        
+        // Simple demo initialization
+        document.addEventListener('DOMContentLoaded', function() {
+            // Select default meal
+            document.getElementById('rbf_meal_pranzo').checked = true;
+            
+            // Set up basic calendar interaction
+            const dateInput = document.getElementById('rbf-date');
+            dateInput.addEventListener('click', function() {
+                const info = document.getElementById('availability-info');
+                const details = document.getElementById('availability-details');
+                
+                info.style.display = 'block';
+                details.innerHTML = `
+                    <p><strong>🎨 Colori implementati:</strong></p>
+                    <ul>
+                        <li>🟢 <strong>Verde</strong>: Date con buona disponibilità (>20 posti)</li>
+                        <li>🟡 <strong>Giallo</strong>: Date con disponibilità limitata (5-20 posti)</li>
+                        <li>🔴 <strong>Rosso</strong>: Date quasi piene (<5 posti)</li>
+                    </ul>
+                    <p><strong>📊 Tooltip disponibili:</strong></p>
+                    <ul>
+                        <li>Stato disponibilità</li>
+                        <li>Numero posti rimasti</li>
+                        <li>Percentuale occupazione</li>
+                        <li>Messaggi contestuali</li>
+                    </ul>
+                    <p><em>💡 Con il form completo e dati reali dal server, i colori vengono applicati automaticamente a tutte le date del calendario Flatpickr.</em></p>
+                `;
+            });
+        });
+    </script>
+    
+    <!-- Load frontend.js for full functionality when available -->
+    <script src="assets/js/frontend.js"></script>
+</body>
+</html>
