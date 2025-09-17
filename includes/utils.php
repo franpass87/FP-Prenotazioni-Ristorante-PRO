@@ -828,13 +828,42 @@ function rbf_handle_success($message, $data = [], $redirect_url = null) {
         wp_send_json_success(array_merge(['message' => $message], $data));
         return;
     }
-    
+
     // If redirect URL provided, redirect with success message
     if ($redirect_url) {
-        wp_safe_redirect(add_query_arg('rbf_success', urlencode($message), $redirect_url));
+        // Preserve existing query arguments from the redirect URL
+        $fragment = '';
+        $redirect_parts = explode('#', $redirect_url, 2);
+        if (count($redirect_parts) === 2) {
+            $fragment = $redirect_parts[1];
+        }
+
+        $base_parts = explode('?', $redirect_parts[0], 2);
+        $base_url = $base_parts[0];
+
+        $existing_args = [];
+        if (!empty($base_parts[1])) {
+            wp_parse_str($base_parts[1], $existing_args);
+        }
+
+        // Merge existing query arguments with caller-provided data
+        $query_args = array_merge($existing_args, $data);
+
+        // Inject default success flag only when not provided by caller or URL
+        if (!array_key_exists('rbf_success', $query_args)) {
+            $query_args['rbf_success'] = urlencode($message);
+        }
+
+        $final_url = add_query_arg($query_args, $base_url);
+
+        if (!empty($fragment)) {
+            $final_url .= '#' . $fragment;
+        }
+
+        wp_safe_redirect($final_url);
         exit;
     }
-    
+
     // Fallback: return success array
     return array_merge(['success' => true, 'message' => $message], $data);
 }
