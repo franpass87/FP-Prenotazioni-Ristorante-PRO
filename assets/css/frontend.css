@@ -279,10 +279,6 @@
     color: #ccc;
 }
 
-.rbf-people-selector button:first-child {
-    order: 3; /* Move minus button to the right */
-}
-
 .rbf-people-selector input {
     flex: 1;
     min-height: 50px;
@@ -292,11 +288,6 @@
     font-size: 18px;
     color: var(--rbf-text);
     background: white;
-    order: 2;
-}
-
-.rbf-people-selector button:last-child {
-    order: 1; /* Move plus button to the left */
 }
 
 #rbf-submit {
