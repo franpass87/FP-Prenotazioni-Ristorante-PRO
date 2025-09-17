@@ -58,17 +58,136 @@ function rbf_generate_event_id($event_type, $session_id = null) {
     if (!$session_id) {
         $session_id = rbf_generate_session_id();
     }
-    
+
     $microtime = microtime(true);
     $timestamp = floor($microtime);
     $microseconds = str_pad(floor(($microtime - $timestamp) * 1000000), 6, '0', STR_PAD_LEFT);
-    
-    return sprintf('rbf_%s_%s_%d_%s', 
-        sanitize_key($event_type), 
-        $session_id, 
+
+    return sprintf('rbf_%s_%s_%d_%s',
+        sanitize_key($event_type),
+        $session_id,
         $timestamp,
         $microseconds
     );
+}
+
+/**
+ * Sanitize GA4 client ID value
+ */
+function rbf_clean_ga_client_id($client_id) {
+    $client_id = preg_replace('/[^A-Za-z0-9\.\-_]/', '', (string) $client_id);
+    return $client_id ?: '';
+}
+
+/**
+ * Extract GA4 client ID from GA cookies
+ */
+function rbf_extract_ga_client_id_from_cookie_value($value) {
+    $parts = array_values(array_filter(explode('.', (string) $value), 'strlen'));
+    $count = count($parts);
+
+    if ($count >= 2) {
+        $client_id = $parts[$count - 2] . '.' . $parts[$count - 1];
+        return rbf_clean_ga_client_id($client_id);
+    }
+
+    return '';
+}
+
+/**
+ * Attempt to determine GA4 client ID from available cookies
+ */
+function rbf_get_ga_client_id_from_cookies() {
+    if (empty($_COOKIE) || !is_array($_COOKIE)) {
+        return '';
+    }
+
+    $preferred_names = [];
+    $config = rbf_get_ga4_config();
+
+    if (!empty($config['measurement_id'])) {
+        $suffix = preg_replace('/[^A-Z0-9_]/i', '', str_replace('G-', '', $config['measurement_id']));
+        if (!empty($suffix)) {
+            $preferred_names[] = '_ga_' . $suffix;
+        }
+    }
+
+    foreach ($preferred_names as $cookie_name) {
+        if (!empty($_COOKIE[$cookie_name])) {
+            $client_id = rbf_extract_ga_client_id_from_cookie_value($_COOKIE[$cookie_name]);
+            if ($client_id) {
+                return $client_id;
+            }
+        }
+    }
+
+    foreach ($_COOKIE as $name => $value) {
+        if (strpos($name, '_ga') !== 0) {
+            continue;
+        }
+
+        $client_id = rbf_extract_ga_client_id_from_cookie_value($value);
+        if ($client_id) {
+            return $client_id;
+        }
+    }
+
+    if (!empty($_COOKIE['rbf_ga_client_id'])) {
+        $client_id = rbf_clean_ga_client_id($_COOKIE['rbf_ga_client_id']);
+        if ($client_id) {
+            return $client_id;
+        }
+    }
+
+    return '';
+}
+
+/**
+ * Persist GA4 client ID for a session
+ */
+function rbf_store_ga_client_id_for_session($session_id, $client_id) {
+    $session_id = sanitize_key($session_id);
+    $client_id = rbf_clean_ga_client_id($client_id);
+
+    if (empty($session_id) || empty($client_id)) {
+        return;
+    }
+
+    $expiration = defined('MINUTE_IN_SECONDS') ? 30 * MINUTE_IN_SECONDS : 1800;
+    set_transient('rbf_ga4_client_' . $session_id, $client_id, $expiration);
+}
+
+/**
+ * Resolve GA4 client ID using stored values or fallbacks
+ */
+function rbf_resolve_ga_client_id($session_id, $provided_client_id = '') {
+    $session_id = sanitize_key($session_id);
+    $candidate = rbf_clean_ga_client_id($provided_client_id);
+
+    if ($candidate) {
+        if ($session_id) {
+            rbf_store_ga_client_id_for_session($session_id, $candidate);
+        }
+        return $candidate;
+    }
+
+    if ($session_id) {
+        $stored = get_transient('rbf_ga4_client_' . $session_id);
+        $stored = rbf_clean_ga_client_id($stored);
+        if ($stored) {
+            return $stored;
+        }
+    }
+
+    $cookie_client_id = rbf_get_ga_client_id_from_cookies();
+    if ($cookie_client_id) {
+        if ($session_id) {
+            rbf_store_ga_client_id_for_session($session_id, $cookie_client_id);
+        }
+        return $cookie_client_id;
+    }
+
+    return $session_id ? rbf_clean_ga_client_id($session_id) : '';
 }
 
 /**
@@ -155,24 +274,46 @@ function rbf_ajax_track_ga4_event() {
     }
     
     // Get and validate input
-    $event_name = sanitize_text_field($_POST['event_name'] ?? '');
-    $event_params = $_POST['event_params'] ?? [];
-    $session_id = sanitize_text_field($_POST['session_id'] ?? '');
-    $event_id = sanitize_text_field($_POST['event_id'] ?? '');
-    
+    $event_name = sanitize_text_field(wp_unslash($_POST['event_name'] ?? ''));
+
+    $event_params_raw = $_POST['event_params'] ?? [];
+    if (is_string($event_params_raw)) {
+        $decoded_params = json_decode(wp_unslash($event_params_raw), true);
+        $event_params = is_array($decoded_params) ? $decoded_params : [];
+    } else {
+        $event_params = wp_unslash($event_params_raw);
+    }
+
+    if (!is_array($event_params)) {
+        $event_params = [];
+    }
+
+    $session_id = sanitize_text_field(wp_unslash($_POST['session_id'] ?? ''));
+    $event_id = sanitize_text_field(wp_unslash($_POST['event_id'] ?? ''));
+    $client_id_input = isset($_POST['client_id']) ? wp_unslash($_POST['client_id']) : '';
+    $client_id = rbf_clean_ga_client_id($client_id_input);
+
+    if (!$client_id) {
+        $client_id = rbf_get_ga_client_id_from_cookies();
+    }
+
     if (empty($event_name) || empty($session_id)) {
         wp_send_json_error(['message' => 'Missing required parameters']);
         return;
     }
-    
+
     // Sanitize event parameters recursively preserving numeric types
     $sanitized_params = rbf_recursive_sanitize($event_params);
-    
+
+    if (!empty($session_id) && !empty($client_id)) {
+        rbf_store_ga_client_id_for_session($session_id, $client_id);
+    }
+
     // Send to GA4 Measurement Protocol if API secret is configured
     $config = rbf_get_ga4_config();
     if (!empty($config['api_secret'])) {
-        $result = rbf_send_ga4_measurement_protocol($event_name, $sanitized_params, $session_id, $event_id);
-        
+        $result = rbf_send_ga4_measurement_protocol($event_name, $sanitized_params, $session_id, $event_id, $client_id);
+
         if ($result['success']) {
             wp_send_json_success(['message' => 'Event tracked successfully']);
         } else {
@@ -187,21 +328,23 @@ function rbf_ajax_track_ga4_event() {
 /**
  * Send event to GA4 via Measurement Protocol
  */
-function rbf_send_ga4_measurement_protocol($event_name, $params, $session_id, $event_id) {
+function rbf_send_ga4_measurement_protocol($event_name, $params, $session_id, $event_id, $client_id = '') {
     $config = rbf_get_ga4_config();
-    
+
     if (empty($config['measurement_id']) || empty($config['api_secret'])) {
         return ['success' => false, 'error' => 'GA4 not configured'];
     }
-    
+
+    $resolved_client_id = rbf_resolve_ga_client_id($session_id, $client_id);
+
     $url = sprintf(
         'https://www.google-analytics.com/mp/collect?measurement_id=%s&api_secret=%s',
         $config['measurement_id'],
         $config['api_secret']
     );
-    
+
     $payload = [
-        'client_id' => $session_id,
+        'client_id' => $resolved_client_id ?: $session_id,
         'events' => [
             [
                 'name' => $event_name,
@@ -243,8 +386,9 @@ function rbf_send_ga4_measurement_protocol($event_name, $params, $session_id, $e
  */
 function rbf_track_booking_completion($booking_id, $booking_data) {
     $session_id = rbf_generate_session_id();
-    $event_id = rbf_generate_event_id('booking_complete', $session_id);
-    
+    $event_id = rbf_generate_event_id('booking_confirmed', $session_id);
+    $client_id = rbf_resolve_ga_client_id($session_id);
+
     $event_params = [
         'booking_id' => $booking_id,
         'value' => $booking_data['value'] ?? 0,
@@ -254,18 +398,20 @@ function rbf_track_booking_completion($booking_id, $booking_data) {
         'traffic_source' => $booking_data['bucket'] ?? 'organic',
         'vertical' => 'restaurant'
     ];
-    
+
     // Send via Measurement Protocol for server-side tracking
     $config = rbf_get_ga4_config();
     if (!empty($config['api_secret'])) {
-        rbf_send_ga4_measurement_protocol('booking_complete', $event_params, $session_id, $event_id);
+        rbf_send_ga4_measurement_protocol('booking_confirmed', $event_params, $session_id, $event_id, $client_id);
     }
-    
+
     // Store data for client-side tracking on success page
     set_transient('rbf_ga4_completion_' . $booking_id, [
         'event_params' => $event_params,
         'session_id' => $session_id,
-        'event_id' => $event_id
+        'event_id' => $event_id,
+        'client_id' => $client_id,
+        'event_name' => 'booking_confirmed'
     ], 300); // 5 minutes
 }
 
@@ -345,17 +491,32 @@ function rbf_ajax_get_booking_completion_data() {
     $completion_data = get_transient('rbf_ga4_completion_' . $booking_id);
     
     if ($completion_data && isset($completion_data['event_params'])) {
-        wp_send_json_success($completion_data['event_params']);
+        wp_send_json_success($completion_data);
     } else {
         // Fallback: reconstruct from booking data
-        $fallback_data = [
+        $session_id = rbf_generate_session_id();
+        $client_id = rbf_resolve_ga_client_id($session_id);
+
+        $fallback_params = [
             'booking_id' => $booking_id,
             'value' => 0,
             'currency' => 'EUR',
             'meal_type' => '',
             'people_count' => 1,
-            'traffic_source' => 'organic'
+            'traffic_source' => 'organic',
+            'funnel_step' => 7,
+            'step_name' => 'booking_confirmation',
+            'vertical' => 'restaurant'
         ];
+
+        $fallback_data = [
+            'event_params' => $fallback_params,
+            'session_id' => $session_id,
+            'event_id' => '',
+            'client_id' => $client_id,
+            'event_name' => 'booking_confirmed'
+        ];
+
         wp_send_json_success($fallback_data);
     }
 }

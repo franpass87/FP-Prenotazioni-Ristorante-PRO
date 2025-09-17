@@ -213,13 +213,28 @@ class RBF_GA4_Funnel_Tests {
             );
             
             $this->assert_true(
-                isset($transient_data['event_params']) && 
+                isset($transient_data['event_params']) &&
                 $transient_data['event_params']['value'] == 75.50,
                 "Transient should contain correct event parameters"
             );
-            
+
+            $this->assert_true(
+                !empty($transient_data['client_id']),
+                "Completion tracking should persist GA client ID"
+            );
+
+            $this->assert_true(
+                !empty($transient_data['event_id']),
+                "Completion tracking should store event ID for deduplication"
+            );
+
+            $this->assert_true(
+                ($transient_data['event_name'] ?? '') === 'booking_confirmed',
+                "Completion tracking should expose booking_confirmed event name"
+            );
+
             $this->test_results[$test_name] = ['status' => 'PASS', 'message' => 'Booking completion tracking working correctly'];
-            
+
         } catch (Exception $e) {
             $this->test_results[$test_name] = ['status' => 'FAIL', 'message' => $e->getMessage()];
         }

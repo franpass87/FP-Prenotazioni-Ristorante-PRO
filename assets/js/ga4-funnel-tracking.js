@@ -18,6 +18,8 @@
         measurementId: rbfGA4Funnel.measurementId,
         debug: rbfGA4Funnel.debug || false,
         trackedEvents: new Set(), // Prevent duplicate events
+        clientId: null,
+        clientIdRequestPending: false,
         
         /**
          * Log debug messages if debug mode is enabled
@@ -28,6 +30,138 @@
             }
         },
         
+        /**
+         * Store detected GA4 client ID and optionally persist it for reuse
+         */
+        setClientId: function(clientId, source = 'unknown') {
+            if (!clientId) {
+                return;
+            }
+
+            if (this.clientId === clientId) {
+                return;
+            }
+
+            this.clientId = clientId;
+            this.log(`GA4 client ID detected (${source})`, clientId);
+
+            try {
+                const maxAge = 30 * 60; // 30 minutes
+                document.cookie = `rbf_ga_client_id=${encodeURIComponent(clientId)}; path=/; max-age=${maxAge}`;
+            } catch (cookieError) {
+                this.log('Unable to persist GA4 client ID cookie', cookieError);
+            }
+        },
+
+        /**
+         * Build the GA4 measurement-specific cookie name
+         */
+        getMeasurementCookieName: function() {
+            if (!this.measurementId) {
+                return null;
+            }
+
+            return `_ga_${this.measurementId.replace(/^G-/, '').replace(/[^A-Z0-9_]/gi, '')}`;
+        },
+
+        /**
+         * Extract GA4 client ID from cookie value
+         */
+        parseGaCookieValue: function(value) {
+            if (!value) {
+                return null;
+            }
+
+            const parts = value.split('.').filter(Boolean);
+            if (parts.length >= 2) {
+                const last = parts.length - 1;
+                return `${parts[last - 1]}.${parts[last]}`;
+            }
+
+            return null;
+        },
+
+        /**
+         * Attempt to read GA4 client ID from available cookies
+         */
+        getClientIdFromCookie: function() {
+            if (typeof document === 'undefined' || !document.cookie) {
+                return null;
+            }
+
+            const measurementCookie = this.getMeasurementCookieName();
+            const cookies = document.cookie.split(';');
+            let fallbackClientId = null;
+
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (!cookie) {
+                    continue;
+                }
+
+                const separatorIndex = cookie.indexOf('=');
+                if (separatorIndex === -1) {
+                    continue;
+                }
+
+                const name = cookie.substring(0, separatorIndex);
+                const value = decodeURIComponent(cookie.substring(separatorIndex + 1));
+
+                if (measurementCookie && name === measurementCookie) {
+                    const parsed = this.parseGaCookieValue(value);
+                    if (parsed) {
+                        return parsed;
+                    }
+                }
+
+                if (!fallbackClientId && name.indexOf('_ga') === 0) {
+                    const parsedFallback = this.parseGaCookieValue(value);
+                    if (parsedFallback) {
+                        fallbackClientId = parsedFallback;
+                    }
+                }
+            }
+
+            return fallbackClientId;
+        },
+
+        /**
+         * Ensure the GA4 client ID is available when tracking events
+         */
+        requestClientId: function(force = false) {
+            if (!force && this.clientId) {
+                return this.clientId;
+            }
+
+            const cookieClientId = this.getClientIdFromCookie();
+            if (cookieClientId) {
+                this.setClientId(cookieClientId, 'cookie');
+            }
+
+            if (typeof gtag === 'function' && this.measurementId && (!this.clientIdRequestPending || force)) {
+                this.clientIdRequestPending = true;
+
+                try {
+                    gtag('get', this.measurementId, 'client_id', (clientId) => {
+                        this.clientIdRequestPending = false;
+                        if (clientId) {
+                            this.setClientId(clientId, 'gtag');
+                        } else if (!this.clientId) {
+                            const fallback = this.getClientIdFromCookie();
+                            if (fallback) {
+                                this.setClientId(fallback, 'cookie_fallback');
+                            }
+                        }
+                    });
+                } catch (error) {
+                    this.clientIdRequestPending = false;
+                    this.log('Error retrieving GA4 client ID via gtag', error);
+                }
+            }
+
+            return this.clientId;
+        },
+
         /**
          * Generate unique event ID for deduplication
          */
@@ -42,7 +176,9 @@
          * Track event via dataLayer and gtag (if available), and server-side (optional)
          */
         trackEvent: function(eventName, params = {}, options = {}) {
-            const eventId = this.generateEventId(eventName);
+            this.requestClientId();
+
+            const eventId = options.eventId || this.generateEventId(eventName);
             const dedupeKey = `${eventName}_${JSON.stringify(params)}`;
             
             // Prevent duplicate tracking of identical events
@@ -84,14 +220,15 @@
             
             // Also send to server for Measurement Protocol (if configured)
             if (options.serverSide !== false) {
-                this.sendToServer(eventName, enhancedParams, eventId);
+                const clientIdOverride = options.clientId || this.clientId;
+                this.sendToServer(eventName, enhancedParams, eventId, clientIdOverride);
             }
         },
         
         /**
          * Send event to server for Measurement Protocol tracking
          */
-        sendToServer: function(eventName, params, eventId) {
+        sendToServer: function(eventName, params, eventId, clientId) {
             // Check if jQuery and AJAX are available
             if (typeof $ === 'undefined' || typeof $.ajax !== 'function') {
                 this.log(`Server tracking skipped - jQuery AJAX not available for: ${eventName}`);
@@ -107,6 +244,7 @@
                     event_params: params,
                     session_id: this.sessionId,
                     event_id: eventId,
+                    client_id: clientId || '',
                     nonce: rbfGA4Funnel.nonce
                 },
                 success: (response) => {
@@ -199,17 +337,52 @@
         /**
          * Track booking confirmation
          */
-        trackBookingConfirmation: function(bookingData) {
-            this.trackEvent('booking_confirmed', {
-                booking_id: bookingData.booking_id || '',
-                value: parseFloat(bookingData.value) || 0,
-                currency: bookingData.currency || 'EUR',
-                meal_type: bookingData.meal_type || '',
-                people_count: parseInt(bookingData.people_count) || 1,
-                traffic_source: bookingData.traffic_source || 'organic',
-                funnel_step: 7,
-                step_name: 'booking_confirmation'
-            });
+        trackBookingConfirmation: function(bookingData = {}) {
+            const responseData = bookingData || {};
+            const eventParams = responseData.event_params ? { ...responseData.event_params } : {};
+
+            const candidateClientId = responseData.client_id || eventParams.client_id;
+            if (candidateClientId) {
+                this.setClientId(candidateClientId, 'booking_completion');
+            }
+
+            const ensureParam = (key, value, transform) => {
+                if (typeof eventParams[key] === 'undefined' && value !== undefined && value !== null && value !== '') {
+                    eventParams[key] = typeof transform === 'function' ? transform(value) : value;
+                }
+            };
+
+            ensureParam('booking_id', responseData.booking_id);
+            ensureParam('value', responseData.value, (val) => parseFloat(val) || 0);
+            ensureParam('currency', responseData.currency || 'EUR');
+            ensureParam('meal_type', responseData.meal_type || responseData.meal || '');
+            ensureParam('people_count', responseData.people_count || responseData.people, (val) => parseInt(val, 10) || 1);
+            ensureParam('traffic_source', responseData.traffic_source || responseData.bucket || 'organic');
+
+            if (typeof eventParams.funnel_step === 'undefined') {
+                eventParams.funnel_step = 7;
+            }
+
+            if (typeof eventParams.step_name === 'undefined') {
+                eventParams.step_name = 'booking_confirmation';
+            }
+
+            if (typeof eventParams.vertical === 'undefined') {
+                eventParams.vertical = 'restaurant';
+            }
+
+            const options = { serverSide: false };
+            if (responseData.event_id) {
+                options.eventId = responseData.event_id;
+            }
+
+            if (responseData.client_id) {
+                options.clientId = responseData.client_id;
+            }
+
+            const eventName = responseData.event_name || 'booking_confirmed';
+
+            this.trackEvent(eventName, eventParams, options);
         },
         
         /**
@@ -232,10 +405,13 @@
                 sessionId: this.sessionId,
                 measurementId: this.measurementId
             });
-            
+
+            // Attempt to retrieve GA4 client ID immediately
+            this.requestClientId();
+
             // Track initial form view
             this.trackFormView();
-            
+
             // Set up event listeners
             this.setupEventListeners();
         },
