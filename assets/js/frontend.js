@@ -1996,16 +1996,31 @@ function initializeBookingForm($) {
               // Rebuild flag selector button to prevent anchor jumps and improve accessibility
               const flagButton = el.telInput.closest('.iti').find('.iti__selected-flag');
               if (flagButton.length) {
-                flagButton
-                  .attr({
-                    role: 'button',
-                    title: rbfData.labels.selectPrefix || 'Seleziona prefisso',
-                    'aria-label': rbfData.labels.selectPrefix || 'Seleziona prefisso'
-                  })
-                  .on('click', function(e) {
-                    // Prevent the default anchor behavior which caused page jump
-                    e.preventDefault();
-                  });
+                const flagLabel = rbfData.labels.selectPrefix || 'Seleziona prefisso';
+
+                flagButton.attr({
+                  role: 'button',
+                  title: flagLabel,
+                  'aria-label': flagLabel,
+                  tabindex: flagButton.attr('tabindex') || '0'
+                });
+
+                const toggleDropdown = function(event) {
+                  if (event) {
+                    event.preventDefault();
+                  }
+
+                  if (iti && typeof iti.toggleCountryDropdown === 'function') {
+                    iti.toggleCountryDropdown();
+                  }
+                };
+
+                flagButton.on('click', toggleDropdown);
+                flagButton.on('keydown', function(event) {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    toggleDropdown(event);
+                  }
+                });
               }
 
             } else {
