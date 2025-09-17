@@ -393,6 +393,7 @@ function rbf_translate_string($text) {
         'ID GA4 non valido. Deve essere nel formato G-XXXXXXXXXX.' => 'Invalid GA4 ID. Must be in format G-XXXXXXXXXX.',
         'ID GTM non valido. Deve essere nel formato GTM-XXXXXXX.' => 'Invalid GTM ID. Must be in format GTM-XXXXXXX.',
         'Il numero di persone deve essere compreso tra 1 e 20.' => 'The number of people must be between 1 and 20.',
+        'Il numero di persone non può superare %d.' => 'The number of people cannot exceed %d.',
         'Spiacenti, non ci sono abbastanza posti. Rimasti: %d. Scegli un altro orario.' => 'Sorry, there are not enough seats available. Remaining: %d. Please choose another time.',
 
         // Frontend
