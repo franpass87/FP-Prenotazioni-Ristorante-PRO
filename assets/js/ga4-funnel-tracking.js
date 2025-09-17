@@ -20,6 +20,7 @@
         trackedEvents: new Set(), // Prevent duplicate events
         clientId: null,
         clientIdRequestPending: false,
+        gaSessionId: null,
         
         /**
          * Log debug messages if debug mode is enabled
@@ -54,6 +55,29 @@
         },
 
         /**
+         * Store detected GA4 session ID and optionally persist it for reuse
+         */
+        setGaSessionId: function(sessionId, source = 'unknown') {
+            if (!sessionId || !/^\d+$/.test(sessionId)) {
+                return;
+            }
+
+            if (this.gaSessionId === sessionId) {
+                return;
+            }
+
+            this.gaSessionId = sessionId;
+            this.log(`GA4 session ID detected (${source})`, sessionId);
+
+            try {
+                const maxAge = 30 * 60; // 30 minutes
+                document.cookie = `rbf_ga_session_id=${sessionId}; path=/; max-age=${maxAge}`;
+            } catch (cookieError) {
+                this.log('Unable to persist GA4 session ID cookie', cookieError);
+            }
+        },
+
+        /**
          * Build the GA4 measurement-specific cookie name
          */
         getMeasurementCookieName: function() {
@@ -76,6 +100,25 @@
             if (parts.length >= 2) {
                 const last = parts.length - 1;
                 return `${parts[last - 1]}.${parts[last]}`;
+            }
+
+            return null;
+        },
+
+        /**
+         * Extract GA4 session ID from measurement cookie value
+         */
+        parseGaSessionIdFromMeasurementCookie: function(value) {
+            if (!value || typeof value !== 'string') {
+                return null;
+            }
+
+            const parts = value.split('.').filter(Boolean);
+            if (parts.length >= 3 && /^GS/i.test(parts[0])) {
+                const sessionPart = parts[2];
+                if (/^\d+$/.test(sessionPart)) {
+                    return sessionPart;
+                }
             }
 
             return null;
@@ -108,6 +151,10 @@
                 const value = decodeURIComponent(cookie.substring(separatorIndex + 1));
 
                 if (measurementCookie && name === measurementCookie) {
+                    const measurementSession = this.parseGaSessionIdFromMeasurementCookie(value);
+                    if (measurementSession) {
+                        this.setGaSessionId(measurementSession, 'measurement_cookie');
+                    }
                     const parsed = this.parseGaCookieValue(value);
                     if (parsed) {
                         return parsed;
@@ -126,10 +173,80 @@
         },
 
         /**
+         * Attempt to resolve GA4 session ID from cookies
+         */
+        getGaSessionIdFromCookie: function() {
+            if (typeof document === 'undefined' || !document.cookie) {
+                return null;
+            }
+
+            const cookies = document.cookie.split(';');
+            const measurementCookie = this.getMeasurementCookieName();
+
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (!cookie) {
+                    continue;
+                }
+
+                const separatorIndex = cookie.indexOf('=');
+                if (separatorIndex === -1) {
+                    continue;
+                }
+
+                const name = cookie.substring(0, separatorIndex);
+                const value = decodeURIComponent(cookie.substring(separatorIndex + 1));
+
+                if (measurementCookie && name === measurementCookie) {
+                    const sessionId = this.parseGaSessionIdFromMeasurementCookie(value);
+                    if (sessionId) {
+                        return sessionId;
+                    }
+                }
+
+                if (name.indexOf('_ga_') === 0) {
+                    const sessionId = this.parseGaSessionIdFromMeasurementCookie(value);
+                    if (sessionId) {
+                        return sessionId;
+                    }
+                }
+            }
+
+            // Fallback to plugin-persisted cookie
+            const persisted = document.cookie.split(';').map((c) => c.trim()).find((c) => c.startsWith('rbf_ga_session_id='));
+            if (persisted) {
+                const persistedParts = persisted.split('=');
+                const persistedValue = decodeURIComponent(persistedParts.slice(1).join('=') || '');
+                if (/^\d+$/.test(persistedValue)) {
+                    return persistedValue;
+                }
+            }
+
+            return null;
+        },
+
+        /**
+         * Ensure GA4 session ID is available
+         */
+        ensureGaSessionId: function(force = false) {
+            if (!force && this.gaSessionId && /^\d+$/.test(this.gaSessionId)) {
+                return this.gaSessionId;
+            }
+
+            const cookieSessionId = this.getGaSessionIdFromCookie();
+            if (cookieSessionId) {
+                this.setGaSessionId(cookieSessionId, 'cookie');
+            }
+
+            return this.gaSessionId;
+        },
+
+        /**
          * Ensure the GA4 client ID is available when tracking events
          */
         requestClientId: function(force = false) {
             if (!force && this.clientId) {
+                this.ensureGaSessionId(force);
                 return this.clientId;
             }
 
@@ -137,6 +254,8 @@
             if (cookieClientId) {
                 this.setClientId(cookieClientId, 'cookie');
             }
+
+            this.ensureGaSessionId(force);
 
             if (typeof gtag === 'function' && this.measurementId && (!this.clientIdRequestPending || force)) {
                 this.clientIdRequestPending = true;
@@ -180,6 +299,7 @@
             this.requestClientId();
 
             let sessionId = this.sessionId;
+            let gaSessionId = this.ensureGaSessionId();
             if (options.sessionId && options.sessionId !== sessionId) {
                 this.log('Applying session ID override for event', { eventName, previous: sessionId, next: options.sessionId });
                 sessionId = options.sessionId;
@@ -187,6 +307,13 @@
             } else if (!sessionId && options.sessionId) {
                 sessionId = options.sessionId;
                 this.sessionId = sessionId;
+            }
+
+            if (options.gaSessionId && options.gaSessionId !== gaSessionId) {
+                this.setGaSessionId(options.gaSessionId, 'override');
+                gaSessionId = this.gaSessionId;
+            } else if (!gaSessionId) {
+                gaSessionId = this.ensureGaSessionId();
             }
 
             if (!sessionId) {
@@ -207,13 +334,18 @@
             // Add common parameters
             const enhancedParams = {
                 ...params,
-                session_id: sessionId,
+                rbf_session_id: sessionId,
                 event_id: eventId,
                 page_url: window.location.href,
                 page_title: document.title,
                 timestamp: Math.floor(Date.now() / 1000),
                 vertical: 'restaurant'
             };
+
+            if (gaSessionId) {
+                enhancedParams.session_id = gaSessionId;
+                enhancedParams.ga_session_id = gaSessionId;
+            }
             
             this.log(`Tracking event: ${eventName}`, enhancedParams);
 
@@ -236,14 +368,14 @@
             // Also send to server for Measurement Protocol (if configured)
             if (options.serverSide !== false) {
                 const clientIdOverride = options.clientId || this.clientId;
-                this.sendToServer(eventName, enhancedParams, eventId, clientIdOverride, sessionId);
+                this.sendToServer(eventName, enhancedParams, eventId, clientIdOverride, sessionId, gaSessionId);
             }
         },
 
         /**
          * Send event to server for Measurement Protocol tracking
          */
-        sendToServer: function(eventName, params, eventId, clientId, sessionIdOverride = null) {
+        sendToServer: function(eventName, params, eventId, clientId, sessionIdOverride = null, gaSessionIdOverride = null) {
             // Check if jQuery and AJAX are available
             if (typeof $ === 'undefined' || typeof $.ajax !== 'function') {
                 this.log(`Server tracking skipped - jQuery AJAX not available for: ${eventName}`);
@@ -251,6 +383,7 @@
             }
 
             const sessionId = sessionIdOverride || this.sessionId;
+            const gaSessionId = gaSessionIdOverride || this.gaSessionId || '';
 
             $.ajax({
                 url: rbfGA4Funnel.ajaxUrl,
@@ -262,6 +395,7 @@
                     session_id: sessionId,
                     event_id: eventId,
                     client_id: clientId || '',
+                    ga_session_id: gaSessionId,
                     nonce: rbfGA4Funnel.nonce
                 },
                 success: (response) => {
@@ -363,6 +497,10 @@
                 this.setClientId(candidateClientId, 'booking_completion');
             }
 
+            if (responseData.ga_session_id) {
+                this.setGaSessionId(responseData.ga_session_id, 'booking_completion');
+            }
+
             const ensureParam = (key, value, transform) => {
                 if (typeof eventParams[key] === 'undefined' && value !== undefined && value !== null && value !== '') {
                     eventParams[key] = typeof transform === 'function' ? transform(value) : value;
@@ -388,6 +526,14 @@
                 eventParams.vertical = 'restaurant';
             }
 
+            if (this.gaSessionId && typeof eventParams.session_id === 'undefined') {
+                eventParams.session_id = this.gaSessionId;
+            }
+
+            if (typeof eventParams.ga_session_id === 'undefined' && this.gaSessionId) {
+                eventParams.ga_session_id = this.gaSessionId;
+            }
+
             const options = { serverSide: false };
             if (responseData.session_id) {
                 options.sessionId = responseData.session_id;
@@ -398,6 +544,10 @@
 
             if (responseData.client_id) {
                 options.clientId = responseData.client_id;
+            }
+
+            if (responseData.ga_session_id) {
+                options.gaSessionId = responseData.ga_session_id;
             }
 
             const eventName = responseData.event_name || 'booking_confirmed';
