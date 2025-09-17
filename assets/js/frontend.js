@@ -2513,6 +2513,8 @@ function initializeBookingForm($) {
   function updatePeopleButtons() {
     const val = parseInt(el.peopleInput.val());
     const max = parseInt(el.peopleInput.attr('max'));
+    el.peopleInput.attr('aria-valuenow', val);
+    el.peopleInput.attr('aria-valuemax', max || '');
     el.peopleMinus.prop('disabled', val <= 1);
     el.peoplePlus.prop('disabled', val >= max);
   }
@@ -2524,16 +2526,20 @@ function initializeBookingForm($) {
     let val = parseInt(el.peopleInput.val());
     let max = parseInt(el.peopleInput.attr('max'));
     if (val < max) {
-      el.peopleInput.val(val + 1).trigger('input');
+      el.peopleInput.val(val + 1);
+      updatePeopleButtons();
+      el.peopleInput.trigger('input');
       // Show details step when user interacts with people selector
       showDetailsStepIfNeeded();
     }
   });
-  
+
   el.peopleMinus.on('click', function() {
     let val = parseInt(el.peopleInput.val());
     if (val > 1) {
-      el.peopleInput.val(val - 1).trigger('input');
+      el.peopleInput.val(val - 1);
+      updatePeopleButtons();
+      el.peopleInput.trigger('input');
       // Show details step when user interacts with people selector
       showDetailsStepIfNeeded();
     }
