@@ -144,6 +144,11 @@ function initializeBookingForm($) {
     submitButton: form.find('#rbf-submit')
   };
 
+  if (el.peopleInput.length) {
+    el.peopleInput.attr('max', peopleMaxLimit);
+    el.peopleInput.attr('aria-valuemax', peopleMaxLimit);
+  }
+
   const legendElement = form.find('.rbf-exception-legend');
 
   let fp = null;

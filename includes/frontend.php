@@ -146,10 +146,7 @@ function rbf_enqueue_frontend_assets() {
         $meal_availability[$meal['id']] = array_values(array_intersect($valid_day_keys, $available));
     }
 
-    $people_max = absint($options['max_people'] ?? 0);
-    if ($people_max <= 0) {
-        $people_max = 20;
-    }
+    $people_max = rbf_get_people_max_limit($options);
 
     wp_localize_script('rbf-frontend-js', 'rbfData', [
         'ajaxUrl' => admin_url('admin-ajax.php'),
