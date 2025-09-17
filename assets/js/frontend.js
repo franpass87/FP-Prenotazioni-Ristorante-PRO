@@ -1967,8 +1967,15 @@ function initializeBookingForm($) {
    * Update availability data for specific meal
    */
   function updateAvailabilityDataForMeal(selectedMeal) {
-    if (!fp) return;
-    
+    if (!fp) {
+      lazyLoadDatePicker().then(() => {
+        if (fp) {
+          updateAvailabilityDataForMeal(selectedMeal);
+        }
+      });
+      return;
+    }
+
     try {
       // Get the current view date - use fp.now or fallback to current date
       const viewDate = fp.now || new Date();
