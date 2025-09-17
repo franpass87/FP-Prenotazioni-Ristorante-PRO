@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📋 Legenda Colori Calendario - Guida Rapida</title>
+    
+    <!-- Frontend CSS -->
+    <link rel="stylesheet" href="assets/css/frontend.css">
+    
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: #f5f7fa; 
+        }
+        .legend-container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+        .legend-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        .legend-header h1 {
+            color: #495057;
+            margin: 0;
+            font-size: 24px;
+        }
+        .legend-subtitle {
+            color: #6c757d;
+            margin: 10px 0 0 0;
+            font-size: 14px;
+        }
+        .legend-section {
+            margin: 25px 0;
+        }
+        .legend-section h2 {
+            color: #495057;
+            font-size: 18px;
+            margin: 0 0 15px 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .legend-grid {
+            display: grid;
+            gap: 12px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+        }
+        .legend-color {
+            width: 50px;
+            height: 35px;
+            border-radius: 6px;
+            margin-right: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+            color: #495057;
+            position: relative;
+            flex-shrink: 0;
+        }
+        .legend-text {
+            flex: 1;
+        }
+        .legend-title {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 2px;
+        }
+        .legend-description {
+            font-size: 13px;
+            color: #6c757d;
+        }
+        
+        /* Apply actual calendar styles */
+        .color-available {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border-left: 4px solid #16a34a;
+        }
+        .color-limited {
+            background: linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%);
+            border-left: 4px solid #ea580c;
+        }
+        .color-full {
+            background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%);
+            border-left: 4px solid #dc2626;
+        }
+        .color-special {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border-left: 4px solid #16a34a;
+            border-top: 3px solid #8b5cf6;
+            border-radius: 6px 6px 0 0;
+        }
+        .color-extended {
+            background: linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%);
+            border-left: 4px solid #ea580c;
+            border-bottom: 3px solid #06b6d4;
+            border-radius: 0 0 6px 6px;
+        }
+        .color-holiday {
+            background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%);
+            border-left: 4px solid #dc2626;
+            border-right: 4px solid #f59e0b;
+        }
+        .color-holiday::after {
+            content: "🎉";
+            position: absolute;
+            top: 1px;
+            right: 1px;
+            font-size: 8px;
+        }
+        .color-closure {
+            background: linear-gradient(135deg, #f9fafb 0%, #e5e7eb 100%);
+            border: 2px solid #6b7280;
+            color: #6b7280;
+            text-decoration: line-through;
+        }
+        .color-closure::before {
+            content: "✕";
+            position: absolute;
+            top: 1px;
+            left: 1px;
+            font-size: 8px;
+            color: #dc2626;
+            font-weight: bold;
+        }
+        
+        .combination-note {
+            background: #e7f3ff;
+            border: 1px solid #b6e2ff;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .combination-note h3 {
+            color: #0066cc;
+            margin: 0 0 8px 0;
+            font-size: 16px;
+        }
+        .combination-note p {
+            color: #495057;
+            margin: 0;
+            font-size: 14px;
+        }
+        
+        .quick-ref {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 25px;
+            border-left: 4px solid #6c757d;
+        }
+        .quick-ref h3 {
+            color: #495057;
+            margin: 0 0 10px 0;
+            font-size: 16px;
+        }
+        .quick-ref p {
+            color: #6c757d;
+            margin: 5px 0;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="legend-container">
+        <div class="legend-header">
+            <h1>📋 Legenda Colori Calendario</h1>
+            <p class="legend-subtitle">Guida rapida per comprendere i colori delle date</p>
+        </div>
+
+        <div class="legend-section">
+            <h2>📊 Disponibilità Posti</h2>
+            <div class="legend-grid">
+                <div class="legend-item">
+                    <div class="legend-color color-available">15</div>
+                    <div class="legend-text">
+                        <div class="legend-title">🟢 Verde - Disponibile</div>
+                        <div class="legend-description">Molti posti liberi per la prenotazione</div>
+                    </div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color color-limited">5</div>
+                    <div class="legend-text">
+                        <div class="legend-title">🟠 Arancione - Disponibilità Limitata</div>
+                        <div class="legend-description">Pochi posti rimasti, prenota subito!</div>
+                    </div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color color-full">2</div>
+                    <div class="legend-text">
+                        <div class="legend-title">🔴 Rosso - Quasi Pieno</div>
+                        <div class="legend-description">Ultimi posti disponibili</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="legend-section">
+            <h2>🎪 Eventi e Situazioni Speciali</h2>
+            <div class="legend-grid">
+                <div class="legend-item">
+                    <div class="legend-color color-special">12</div>
+                    <div class="legend-text">
+                        <div class="legend-title">🟣 Viola - Evento Speciale</div>
+                        <div class="legend-description">Serate tematiche, degustazioni, eventi promozionali</div>
+                    </div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color color-extended">8</div>
+                    <div class="legend-text">
+                        <div class="legend-title">🔵 Ciano - Orari Estesi</div>
+                        <div class="legend-description">Orario di apertura prolungato per l'occasione</div>
+                    </div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color color-holiday">6</div>
+                    <div class="legend-text">
+                        <div class="legend-title">🟡 Giallo + 🎉 - Festività</div>
+                        <div class="legend-description">Giorni festivi con menù o servizio speciale</div>
+                    </div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color color-closure">-</div>
+                    <div class="legend-text">
+                        <div class="legend-title">⚫ Grigio + ✕ - Chiuso</div>
+                        <div class="legend-description">Giorno di chiusura, prenotazioni non disponibili</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="combination-note">
+            <h3>🤝 Combinazioni Intelligenti</h3>
+            <p>I colori possono combinarsi: ad esempio, una data può essere <strong>Verde (disponibile)</strong> e avere il <strong>bordo Viola (evento speciale)</strong> allo stesso tempo. Questo significa che c'è buona disponibilità per un evento speciale!</p>
+        </div>
+
+        <div class="quick-ref">
+            <h3>💡 Guida Rapida</h3>
+            <p><strong>Colore di sfondo</strong> = Quanti posti sono disponibili</p>
+            <p><strong>Bordi colorati</strong> = Che tipo di giornata/evento è</p>
+            <p><strong>Icone</strong> = Informazioni aggiuntive (festa 🎉, chiuso ✕)</p>
+        </div>
+    </div>
+</body>
+</html>
