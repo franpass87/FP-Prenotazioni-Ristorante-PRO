@@ -141,6 +141,7 @@ function initializeBookingForm($) {
   let stepTimeouts = new Map(); // Track timeouts for each step element
   let componentsLoading = new Set(); // Track which components are loading
   let availabilityData = {}; // Store availability data for calendar coloring
+  let availabilityRequest = null; // Track ongoing availability AJAX request
 
   // Autosave functionality variables
   let autosaveTimeout = null;
@@ -676,22 +677,46 @@ function initializeBookingForm($) {
         resolve({});
         return;
       }
-      
-      $.post(rbfData.ajaxUrl, {
-        action: 'rbf_get_calendar_availability',
-        _ajax_nonce: rbfData.nonce,
-        start_date: startDate,
-        end_date: endDate,
-        meal: meal
-      }, function(response) {
-        if (response.success) {
+
+      if (availabilityRequest && typeof availabilityRequest.abort === 'function') {
+        try {
+          availabilityRequest.abort();
+          rbfLog.log('⏹️ Previous availability request aborted');
+        } catch (error) {
+          rbfLog.warn('Failed to abort previous availability request: ' + error.message);
+        }
+      }
+
+      availabilityRequest = null;
+
+      const request = $.ajax({
+        url: rbfData.ajaxUrl,
+        method: 'POST',
+        data: {
+          action: 'rbf_get_calendar_availability',
+          _ajax_nonce: rbfData.nonce,
+          start_date: startDate,
+          end_date: endDate,
+          meal: meal
+        }
+      });
+
+      availabilityRequest = request;
+
+      request.done(function(response) {
+        if (response && response.success) {
           availabilityData = response.data;
-        } else {
+        } else if (response && response.success === false) {
           availabilityData = {};
         }
-        resolve();
-      }).fail(function() {
-        availabilityData = {};
+      }).fail(function(jqXHR, textStatus) {
+        if (textStatus !== 'abort') {
+          availabilityData = {};
+        }
+      }).always(function() {
+        if (availabilityRequest === request) {
+          availabilityRequest = null;
+        }
         resolve();
       });
     });
@@ -856,6 +881,14 @@ function initializeBookingForm($) {
     }
 
     try {
+      const refreshAvailabilityForVisibleMonth = () => {
+        const selectedMeal = el.mealRadios.filter(':checked').val();
+
+        if (selectedMeal) {
+          updateAvailabilityDataForMeal(selectedMeal);
+        }
+      };
+
       const flatpickrConfig = {
         // Basic configuration - keep it simple and reliable
         altInput: true,
@@ -900,9 +933,17 @@ function initializeBookingForm($) {
             return false;
           }
         }],
-        
+
+        onMonthChange: function() {
+          refreshAvailabilityForVisibleMonth();
+        },
+
+        onYearChange: function() {
+          refreshAvailabilityForVisibleMonth();
+        },
+
         onChange: onDateChange,
-        
+
         onReady: function(selectedDates, dateStr, instance) {
           rbfLog.log('✅ Enhanced calendar initialized successfully');
           
@@ -1970,10 +2011,33 @@ function initializeBookingForm($) {
     }
 
     try {
-      // Get the current view date - use fp.now or fallback to current date
-      const viewDate = fp.now || new Date();
-      const startDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
-      const endDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
+      if (!selectedMeal) {
+        rbfLog.warn('No meal provided for availability update');
+
+        if (availabilityRequest && typeof availabilityRequest.abort === 'function') {
+          try {
+            availabilityRequest.abort();
+            rbfLog.log('⏹️ Availability request aborted due to missing meal selection');
+          } catch (error) {
+            rbfLog.warn('Failed to abort availability request without meal: ' + error.message);
+          }
+        }
+
+        availabilityRequest = null;
+        availabilityData = {};
+
+        if (fp) {
+          fp.redraw();
+        }
+
+        return;
+      }
+
+      const fallbackDate = (fp.now instanceof Date) ? fp.now : new Date();
+      const targetYear = Number.isFinite(fp.currentYear) ? fp.currentYear : fallbackDate.getFullYear();
+      const targetMonth = Number.isFinite(fp.currentMonth) ? fp.currentMonth : fallbackDate.getMonth();
+      const startDate = new Date(targetYear, targetMonth, 1);
+      const endDate = new Date(targetYear, targetMonth + 1, 0);
 
       fetchAvailabilityData(
         formatLocalISO(startDate),
