@@ -1974,7 +1974,7 @@ function initializeBookingForm($) {
       const viewDate = fp.now || new Date();
       const startDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
       const endDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
-      
+
       fetchAvailabilityData(
         formatLocalISO(startDate),
         formatLocalISO(endDate),
@@ -1994,10 +1994,284 @@ function initializeBookingForm($) {
   }
 
   /**
+   * Retrieve the currently selected date information
+   */
+  function getSelectedDateInfo() {
+    if (fp && fp.selectedDates && fp.selectedDates.length) {
+      const dateObj = fp.selectedDates[0];
+      return {
+        dateObj,
+        dateString: formatLocalISO(dateObj)
+      };
+    }
+
+    const rawValue = el.dateInput.val();
+    if (!rawValue) {
+      return null;
+    }
+
+    let parsedDate = new Date(rawValue + 'T00:00:00');
+    if (Number.isNaN(parsedDate.getTime())) {
+      const parts = rawValue.split('-');
+      if (parts.length === 3) {
+        const [part1, part2, part3] = parts;
+        if (part1.length === 4) {
+          parsedDate = new Date(`${part1}-${part2}-${part3}T00:00:00`);
+        } else {
+          const day = parseInt(part1, 10);
+          const month = parseInt(part2, 10);
+          const year = parseInt(part3, 10);
+
+          if (!Number.isNaN(day) && !Number.isNaN(month) && !Number.isNaN(year)) {
+            parsedDate = new Date(year, month - 1, day);
+          }
+        }
+      }
+    }
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return null;
+    }
+
+    return {
+      dateObj: parsedDate,
+      dateString: formatLocalISO(parsedDate)
+    };
+  }
+
+  /**
+   * Retrieve the active people count with a safe fallback
+   */
+  function getSelectedPeopleCount() {
+    const parsed = parseInt(el.peopleInput.val(), 10);
+    return Math.max(1, Number.isNaN(parsed) ? 1 : parsed);
+  }
+
+  /**
+   * Load available times for the provided configuration
+   */
+  function loadAvailableTimes({ dateString, selectedMeal, preserveSelectedTime = false } = {}) {
+    if (!dateString || !selectedMeal) {
+      return Promise.resolve({ selectionPreserved: false });
+    }
+
+    // Remove any existing suggestions when reloading availability
+    $('.rbf-suggestions-container').remove();
+
+    // Ensure the time step is visible while loading
+    showStepWithoutScroll(el.timeStep, 3);
+
+    const previousSelection = preserveSelectedTime ? el.timeSelect.val() : null;
+
+    // Enhanced loading state for time selection with progress indication
+    showComponentLoading(el.timeStep[0], rbfData.labels.loading + ' orari disponibili...');
+
+    el.timeSelect.html(`<option value="">${rbfData.labels.loading}</option>`).prop('disabled', true);
+    el.timeSelect.addClass('rbf-loading');
+
+    const progressText = '⏳ Caricamento orari in corso...';
+    el.timeSelect.find('option').first().text(progressText);
+
+    const peopleCount = getSelectedPeopleCount();
+
+    return new Promise(resolve => {
+      let selectionPreserved = false;
+
+      const loadingTimeout = setTimeout(function() {
+        hideComponentLoading(el.timeStep[0]);
+        el.timeSelect.removeClass('rbf-loading');
+        el.timeSelect.html('');
+        el.timeSelect.append(new Option('Errore: timeout nel caricamento. Riprova.', ''));
+        el.timeSelect.prop('disabled', false);
+        rbfLog.warn('AJAX timeout: Loading took too long, forced cleanup');
+      }, 10000); // 10 second timeout
+
+      const request = $.post({
+        url: rbfData.ajaxUrl,
+        data: {
+          action: 'rbf_get_availability',
+          _ajax_nonce: rbfData.nonce,
+          date: dateString,
+          meal: selectedMeal,
+          people: peopleCount
+        },
+        timeout: 8000 // 8 second AJAX timeout
+      });
+
+      request.done(function(response) {
+        el.timeSelect.html('');
+
+        if (response.success) {
+          // Check if we have available times or suggestions
+          const hasAvailableTimes = response.data.available_times && response.data.available_times.length > 0;
+          const hasSuggestions = response.data.suggestions && response.data.suggestions.length > 0;
+
+          if (hasAvailableTimes) {
+            // Handle normal available times
+            el.timeSelect.append(new Option(rbfData.labels.chooseTime, ''));
+
+            // Simplified client-side logging (server handles all filtering logic)
+            const today = new Date();
+            const currentDate = dateString;
+            const todayString = formatLocalISO(today);
+            const isToday = (currentDate === todayString);
+
+            // Filter out past time slots only for today's date
+            let availableCount = 0;
+            const minTime = new Date(today.getTime() + rbfData.minAdvanceMinutes * 60 * 1000);
+
+            response.data.available_times.forEach(item => {
+              if (isToday) {
+                const [h, m] = item.time.split(':').map(Number);
+                const slotDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), h, m);
+                if (slotDate < minTime) {
+                  return; // Skip past times
+                }
+              }
+              const opt = new Option(item.time, `${item.slot}|${item.time}`);
+              el.timeSelect.append(opt);
+              availableCount++;
+            });
+
+            if (availableCount > 0) {
+              el.timeSelect.prop('disabled', false);
+
+              // Enhanced success feedback
+              const successMessage = `✅ ${availableCount} orari disponibili caricati per ${selectedMeal}`;
+              announceToScreenReader(successMessage);
+
+              // Show brief success indication (optional visual feedback)
+              if (rbfData.debug) {
+                console.log('RBF: Time slots loaded successfully', {
+                  meal: selectedMeal,
+                  date: dateString,
+                  count: availableCount
+                });
+              }
+            } else {
+              el.timeSelect.html('');
+              el.timeSelect.append(new Option(rbfData.labels.noTime, ''));
+              announceToScreenReader('Nessun orario disponibile per questa data');
+            }
+          } else if (hasSuggestions) {
+            // Handle suggestions when no times available
+            el.timeSelect.append(new Option(rbfData.labels.noTime, ''));
+            displayAlternativeSuggestions(response.data.suggestions, response.data.message);
+            announceToScreenReader(response.data.message || 'Nessun orario disponibile, ma ci sono alternative');
+          } else {
+            // Handle legacy response format (array of times)
+            if (response.data.length > 0) {
+              el.timeSelect.append(new Option(rbfData.labels.chooseTime, ''));
+
+              // Simplified client-side logging (server handles all filtering logic)
+              const today = new Date();
+              const currentDate = dateString;
+              const todayString = formatLocalISO(today);
+              const isToday = (currentDate === todayString);
+
+              // Filter out past time slots only for today's date
+              let availableCount = 0;
+              const minTime = new Date(today.getTime() + rbfData.minAdvanceMinutes * 60 * 1000);
+
+              response.data.forEach(item => {
+                if (isToday) {
+                  const [h, m] = item.time.split(':').map(Number);
+                  const slotDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), h, m);
+                  if (slotDate < minTime) {
+                    return; // Skip past times
+                  }
+                }
+                const opt = new Option(item.time, `${item.slot}|${item.time}`);
+                el.timeSelect.append(opt);
+                availableCount++;
+              });
+
+              if (availableCount > 0) {
+                el.timeSelect.prop('disabled', false);
+                announceToScreenReader(`${availableCount} orari disponibili caricati`);
+              } else {
+                el.timeSelect.html('');
+                el.timeSelect.append(new Option(rbfData.labels.noTime, ''));
+                announceToScreenReader('Nessun orario disponibile per questa data');
+              }
+            } else {
+              el.timeSelect.append(new Option(rbfData.labels.noTime, ''));
+              announceToScreenReader('Nessun orario disponibile per questa data');
+            }
+          }
+        } else {
+          el.timeSelect.append(new Option(rbfData.labels.noTime, ''));
+          announceToScreenReader('Nessun orario disponibile per questa data');
+        }
+      }).fail(function(xhr, status, error) {
+        el.timeSelect.html('');
+
+        // Enhanced error handling with specific messages
+        let errorMessage = 'Errore nel caricamento degli orari. Riprova.';
+
+        if (xhr.responseJSON && xhr.responseJSON.data) {
+          const errorData = xhr.responseJSON.data;
+          switch (errorData.code) {
+            case 'meal_not_configured':
+              errorMessage = 'Il servizio selezionato non è configurato. Contatta il ristorante.';
+              break;
+            case 'date_in_past':
+              errorMessage = 'Non è possibile prenotare per date passate.';
+              break;
+            case 'missing_params':
+              errorMessage = 'Parametri mancanti. Riprova selezionando data e pasto.';
+              break;
+            case 'meal_not_available':
+              errorMessage = 'Il servizio non è disponibile per questa data.';
+              break;
+            default:
+              errorMessage = errorData.message || errorMessage;
+          }
+        }
+
+        el.timeSelect.append(new Option(rbfData.labels.noTime, ''));
+
+        // Show user-friendly error message
+        announceToScreenReader(errorMessage);
+
+        // Log error for debugging (only if debug mode is enabled)
+        if (rbfData.debug) {
+          console.error('RBF Time Loading Error:', {
+            status: status,
+            error: error,
+            response: xhr.responseJSON
+          });
+        }
+      }).always(function() {
+        clearTimeout(loadingTimeout);
+        hideComponentLoading(el.timeStep[0]);
+        el.timeSelect.removeClass('rbf-loading');
+        el.timeSelect.prop('disabled', false);
+
+        if (preserveSelectedTime && previousSelection) {
+          const optionExists = el.timeSelect.find(`option[value="${previousSelection}"]`).length > 0;
+          if (optionExists) {
+            el.timeSelect.val(previousSelection);
+            selectionPreserved = true;
+          } else {
+            el.timeSelect.val('');
+          }
+        }
+
+        if (rbfData.debug) {
+          console.log('RBF: Time loading AJAX completed (always handler)');
+        }
+
+        resolve({ selectionPreserved });
+      });
+    });
+  }
+
+  /**
    * Handle date selection change
    */
   function onDateChange(selectedDates) {
-    if (!selectedDates.length) { 
+    if (!selectedDates.length) {
       el.mealNotice.hide(); 
       return; 
     }
@@ -2017,215 +2291,15 @@ function initializeBookingForm($) {
       }
       return;
     }
-    
+
     resetSteps(2);
-    
-    // Remove any existing suggestions when date changes
-    $('.rbf-suggestions-container').remove();
-    
     const date = selectedDates[0];
     const dateString = formatLocalISO(date);
-    showStepWithoutScroll(el.timeStep, 3);
-    
-    // Enhanced loading state for time selection with progress indication
-    showComponentLoading(el.timeStep[0], rbfData.labels.loading + ' orari disponibili...');
-    
-    el.timeSelect.html(`<option value="">${rbfData.labels.loading}</option>`).prop('disabled', true);
-    el.timeSelect.addClass('rbf-loading');
-    
-    // Add visual progress indicator to time select
-    const progressText = '⏳ Caricamento orari in corso...';
-    el.timeSelect.find('option').first().text(progressText);
 
-    // Add timeout to prevent infinite loading (FIX for loading issue)
-    let loadingTimeout = setTimeout(function() {
-      // Force cleanup if AJAX takes too long
-      hideComponentLoading(el.timeStep[0]);
-      el.timeSelect.removeClass('rbf-loading');
-      el.timeSelect.html('');
-      el.timeSelect.append(new Option('Errore: timeout nel caricamento. Riprova.', ''));
-      el.timeSelect.prop('disabled', false);
-      rbfLog.warn('AJAX timeout: Loading took too long, forced cleanup');
-    }, 10000); // 10 second timeout
-
-    // Get available times via AJAX
-    const ajaxRequest = $.post({
-      url: rbfData.ajaxUrl,
-      data: {
-        action: 'rbf_get_availability',
-        _ajax_nonce: rbfData.nonce,
-        date: dateString,
-        meal: selectedMeal
-      },
-      timeout: 8000 // 8 second AJAX timeout
-    }).done(function(response) {
-      // Clear timeout since request completed
-      clearTimeout(loadingTimeout);
-      // Hide loading state
-      hideComponentLoading(el.timeStep[0]);
-      
-      el.timeSelect.removeClass('rbf-loading');
-      el.timeSelect.html('');
-      
-      if (response.success) {
-        // Check if we have available times or suggestions
-        const hasAvailableTimes = response.data.available_times && response.data.available_times.length > 0;
-        const hasSuggestions = response.data.suggestions && response.data.suggestions.length > 0;
-        
-        if (hasAvailableTimes) {
-          // Handle normal available times
-          el.timeSelect.append(new Option(rbfData.labels.chooseTime, ''));
-          
-          // Simplified client-side logging (server handles all filtering logic)
-          const today = new Date();
-          const currentDate = dateString;
-          const todayString = formatLocalISO(today);
-          const isToday = (currentDate === todayString);
-          
-          // Filter out past time slots only for today's date
-          let availableCount = 0;
-          const minTime = new Date(today.getTime() + rbfData.minAdvanceMinutes * 60 * 1000);
-
-          response.data.available_times.forEach(item => {
-            if (isToday) {
-              const [h, m] = item.time.split(':').map(Number);
-              const slotDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), h, m);
-              if (slotDate < minTime) {
-                return; // Skip past times
-              }
-            }
-            const opt = new Option(item.time, `${item.slot}|${item.time}`);
-            el.timeSelect.append(opt);
-            availableCount++;
-          });
-
-          if (availableCount > 0) {
-            el.timeSelect.prop('disabled', false);
-            
-            // Enhanced success feedback
-            const successMessage = `✅ ${availableCount} orari disponibili caricati per ${selectedMeal}`;
-            announceToScreenReader(successMessage);
-            
-            // Show brief success indication (optional visual feedback)
-            if (rbfData.debug) {
-              console.log('RBF: Time slots loaded successfully', {
-                meal: selectedMeal,
-                date: dateString,
-                count: availableCount
-              });
-            }
-          } else {
-            el.timeSelect.html('');
-            el.timeSelect.append(new Option(rbfData.labels.noTime, ''));
-            announceToScreenReader('Nessun orario disponibile per questa data');
-          }
-        } else if (hasSuggestions) {
-          // Handle suggestions when no times available
-          el.timeSelect.append(new Option(rbfData.labels.noTime, ''));
-          displayAlternativeSuggestions(response.data.suggestions, response.data.message);
-          announceToScreenReader(response.data.message || 'Nessun orario disponibile, ma ci sono alternative');
-        } else {
-          // Handle legacy response format (array of times)
-          if (response.data.length > 0) {
-            el.timeSelect.append(new Option(rbfData.labels.chooseTime, ''));
-            
-            // Simplified client-side logging (server handles all filtering logic)
-            const today = new Date();
-            const currentDate = dateString;
-            const todayString = formatLocalISO(today);
-            const isToday = (currentDate === todayString);
-            
-            // Filter out past time slots only for today's date
-            let availableCount = 0;
-            const minTime = new Date(today.getTime() + rbfData.minAdvanceMinutes * 60 * 1000);
-
-            response.data.forEach(item => {
-              if (isToday) {
-                const [h, m] = item.time.split(':').map(Number);
-                const slotDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), h, m);
-                if (slotDate < minTime) {
-                  return; // Skip past times
-                }
-              }
-              const opt = new Option(item.time, `${item.slot}|${item.time}`);
-              el.timeSelect.append(opt);
-              availableCount++;
-            });
-
-            if (availableCount > 0) {
-              el.timeSelect.prop('disabled', false);
-              announceToScreenReader(`${availableCount} orari disponibili caricati`);
-            } else {
-              el.timeSelect.html('');
-              el.timeSelect.append(new Option(rbfData.labels.noTime, ''));
-              announceToScreenReader('Nessun orario disponibile per questa data');
-            }
-          } else {
-            el.timeSelect.append(new Option(rbfData.labels.noTime, ''));
-            announceToScreenReader('Nessun orario disponibile per questa data');
-          }
-        }
-      } else {
-        el.timeSelect.append(new Option(rbfData.labels.noTime, ''));
-        announceToScreenReader('Nessun orario disponibile per questa data');
-      }
-    }).fail(function(xhr, status, error) {
-      // Clear timeout since request completed (even with error)
-      clearTimeout(loadingTimeout);
-      
-      // Hide loading state
-      hideComponentLoading(el.timeStep[0]);
-      
-      // Handle AJAX errors
-      el.timeSelect.removeClass('rbf-loading');
-      el.timeSelect.html('');
-      
-      // Enhanced error handling with specific messages
-      let errorMessage = 'Errore nel caricamento degli orari. Riprova.';
-      
-      if (xhr.responseJSON && xhr.responseJSON.data) {
-        const errorData = xhr.responseJSON.data;
-        switch (errorData.code) {
-          case 'meal_not_configured':
-            errorMessage = 'Il servizio selezionato non è configurato. Contatta il ristorante.';
-            break;
-          case 'date_in_past':
-            errorMessage = 'Non è possibile prenotare per date passate.';
-            break;
-          case 'missing_params':
-            errorMessage = 'Parametri mancanti. Riprova selezionando data e pasto.';
-            break;
-          case 'meal_not_available':
-            errorMessage = 'Il servizio non è disponibile per questa data.';
-            break;
-          default:
-            errorMessage = errorData.message || errorMessage;
-        }
-      }
-      
-      el.timeSelect.append(new Option(rbfData.labels.noTime, ''));
-      
-      // Show user-friendly error message
-      announceToScreenReader(errorMessage);
-      
-      // Log error for debugging (only if debug mode is enabled)
-      if (rbfData.debug) {
-        console.error('RBF Time Loading Error:', {
-          status: status,
-          error: error,
-          response: xhr.responseJSON
-        });
-      }
-    }).always(function() {
-      // SAFETY: Always ensure loading state is cleared regardless of success/failure
-      clearTimeout(loadingTimeout);
-      hideComponentLoading(el.timeStep[0]);
-      el.timeSelect.removeClass('rbf-loading');
-      el.timeSelect.prop('disabled', false);
-      
-      if (rbfData.debug) {
-        console.log('RBF: Time loading AJAX completed (always handler)');
-      }
+    loadAvailableTimes({
+      dateString,
+      selectedMeal,
+      preserveSelectedTime: false
     });
   }
 
@@ -2279,8 +2353,25 @@ function initializeBookingForm($) {
   });
   
   el.peopleInput.on('input', function() {
+    const previousTimeSelection = el.timeSelect.val();
     updatePeopleButtons();
+
+    const selectedMeal = el.mealRadios.filter(':checked').val();
+    const dateInfo = getSelectedDateInfo();
+
     resetSteps(4);
+
+    if (selectedMeal && dateInfo) {
+      loadAvailableTimes({
+        dateString: dateInfo.dateString,
+        selectedMeal,
+        preserveSelectedTime: Boolean(previousTimeSelection)
+      }).then(result => {
+        if (result.selectionPreserved && previousTimeSelection) {
+          showDetailsStepIfNeeded();
+        }
+      });
+    }
   });
 
   /**
