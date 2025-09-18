@@ -1962,11 +1962,66 @@ function initializeBookingForm($) {
             });
 
             if (iti) {
+              const itiWrapper = el.telInput.closest('.iti');
+
+              const findDropdownContainer = () => {
+                const instanceId = el.telInput.attr('data-intl-tel-input-id');
+                if (!instanceId) {
+                  return $();
+                }
+
+                return $(`.iti.iti--container[data-intl-tel-input-id="${instanceId}"]`);
+              };
+
+              const hideSearchWithinScope = ($scope) => {
+                if (!$scope || !$scope.length) {
+                  return;
+                }
+
+                $scope.addClass('rbf-iti-simple');
+
+                const searchContainer = $scope.find('.iti__search-container');
+                if (searchContainer.length) {
+                  searchContainer.attr('aria-hidden', 'true');
+                  searchContainer.find('input, button').each(function() {
+                    const $element = $(this);
+                    $element.attr('tabindex', '-1');
+                    $element.attr('aria-hidden', 'true');
+                    $element.prop('disabled', true);
+                  });
+                  searchContainer.hide();
+                }
+
+                $scope.find('.iti__search-input').each(function() {
+                  const $searchInput = $(this);
+                  $searchInput.attr('tabindex', '-1');
+                  $searchInput.attr('aria-hidden', 'true');
+                  $searchInput.prop('disabled', true);
+                  $searchInput.val('');
+                  $searchInput.trigger('blur');
+                  $searchInput.hide();
+                });
+              };
+
+              const disableDropdownSearch = () => {
+                hideSearchWithinScope(itiWrapper);
+
+                const dropdownContainer = findDropdownContainer();
+                if (dropdownContainer.length) {
+                  hideSearchWithinScope(dropdownContainer);
+                }
+              };
+
+              disableDropdownSearch();
+              setTimeout(disableDropdownSearch, 0);
+              setTimeout(disableDropdownSearch, 250);
+              setTimeout(disableDropdownSearch, 500);
+
               // Enhanced event handling
               el.telInput[0].addEventListener('countrychange', function() {
                 const countryData = iti.getSelectedCountryData();
                 $('#rbf_country_code').val(countryData.iso2);
-                
+
                 // Announce to screen readers
                 announceToScreenReader(`Country selected: ${countryData.name}`);
               });
@@ -1974,14 +2029,21 @@ function initializeBookingForm($) {
               // Enhanced dropdown handling
               el.telInput[0].addEventListener('open:countrydropdown', function() {
                 // Ensure proper z-index
-                const dropdown = document.querySelector('.iti__country-list');
-                if (dropdown) {
-                  dropdown.style.zIndex = '9999';
+                const dropdownContainer = findDropdownContainer();
+                if (dropdownContainer.length) {
+                  dropdownContainer.css('z-index', '9999');
+                  const dropdownList = dropdownContainer.find('.iti__country-list');
+                  if (dropdownList.length) {
+                    dropdownList.css('z-index', '9999');
+                  }
                 }
+
+                disableDropdownSearch();
+                setTimeout(disableDropdownSearch, 0);
               });
-              
+
               el.telInput[0].addEventListener('close:countrydropdown', function() {
-                // Dropdown closed
+                disableDropdownSearch();
               });
               
               // Improved validation feedback
