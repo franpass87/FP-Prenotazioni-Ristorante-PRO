@@ -7,6 +7,79 @@
 echo "Weekly Staff View Drag & Drop Tests\n";
 echo "===================================\n\n";
 
+// Shared meal configurations used across the mock tests
+$meal_test_configs = [
+    'pranzo' => [
+        'id' => 'pranzo',
+        'name' => 'Pranzo',
+        'capacity' => 30,
+        'time_slots' => '12:00,12:30,13:00,13:30,14:00',
+        'overbooking_limit' => 10,
+        'available_days' => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+    ],
+    'cena' => [
+        'id' => 'cena',
+        'name' => 'Cena',
+        'capacity' => 40,
+        'time_slots' => '19:00,19:30,20:00,20:30,21:00',
+        'overbooking_limit' => 5,
+        'available_days' => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+    ],
+];
+
+// Helper to mirror the plugin's normalization of time slot definitions
+function drag_drop_normalize_time_slots($time_slots_string) {
+    if (!is_string($time_slots_string) || $time_slots_string === '') {
+        return [];
+    }
+
+    $normalized = [];
+    $seen = [];
+    $entries = array_map('trim', explode(',', $time_slots_string));
+    $increment = defined('HOUR_IN_SECONDS') ? HOUR_IN_SECONDS : 3600;
+
+    foreach ($entries as $entry) {
+        if ($entry === '') {
+            continue;
+        }
+
+        if (strpos($entry, '-') !== false) {
+            list($start, $end) = array_map('trim', explode('-', $entry, 2));
+
+            if ($start === '' || $end === '') {
+                continue;
+            }
+
+            $start_timestamp = strtotime($start);
+            $end_timestamp = strtotime($end);
+
+            if ($start_timestamp === false || $end_timestamp === false || $end_timestamp < $start_timestamp) {
+                continue;
+            }
+
+            for ($current = $start_timestamp; $current <= $end_timestamp; $current += $increment) {
+                $time = date('H:i', $current);
+                if (!isset($seen[$time])) {
+                    $normalized[] = $time;
+                    $seen[$time] = true;
+                }
+            }
+        } else {
+            $time = trim($entry);
+            if ($time === '') {
+                continue;
+            }
+
+            if (!isset($seen[$time])) {
+                $normalized[] = $time;
+                $seen[$time] = true;
+            }
+        }
+    }
+
+    return $normalized;
+}
+
 /**
  * Test 1: Basic Availability Check
  */
@@ -27,38 +100,28 @@ echo "  People: {$test_people}\n";
 
 // Simulate the availability check function
 function test_availability_check($date, $meal, $time, $people) {
-    // Mock meal configuration
-    $meals = [
-        'pranzo' => [
-            'id' => 'pranzo',
-            'name' => 'Pranzo',
-            'capacity' => 30,
-            'time_slots' => '12:00,12:30,13:00,13:30,14:00',
-            'overbooking_limit' => 10,
-            'available_days' => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
-        ]
-    ];
-    
+    global $meal_test_configs;
+
     // Basic validation
     if (empty($date) || empty($meal) || empty($time) || $people <= 0) {
         return ['valid' => false, 'reason' => 'Invalid parameters'];
     }
-    
+
     // Check if date is in the past
     if (strtotime($date) < strtotime('today')) {
         return ['valid' => false, 'reason' => 'Date is in the past'];
     }
     
     // Check meal exists
-    if (!isset($meals[$meal])) {
+    if (!isset($meal_test_configs[$meal])) {
         return ['valid' => false, 'reason' => 'Meal not found'];
     }
-    
-    $meal_config = $meals[$meal];
-    
+
+    $meal_config = $meal_test_configs[$meal];
+
     // Check time slot
-    $time_slots = explode(',', $meal_config['time_slots']);
-    if (!in_array($time, $time_slots)) {
+    $time_slots = drag_drop_normalize_time_slots($meal_config['time_slots'] ?? '');
+    if (empty($time_slots) || !in_array($time, $time_slots, true)) {
         return ['valid' => false, 'reason' => 'Time slot not available'];
     }
     
@@ -262,6 +325,38 @@ foreach ($edge_cases as $i => $case) {
     echo "\n";
 }
 
+/**
+ * Test 6: Time Slot Normalization
+ */
+echo "Test 6: Time Slot Normalization\n";
+echo "-------------------------------\n";
+
+$normalization_date = date('Y-m-d', strtotime('+5 days'));
+$original_cena_slots = $meal_test_configs['cena']['time_slots'];
+
+// Range definition should accept intermediate times
+$meal_test_configs['cena']['time_slots'] = '19:00-21:00';
+$range_result = test_availability_check($normalization_date, 'cena', '20:00', 2);
+if ($range_result['valid']) {
+    echo "Range 19:00-21:00 -> 20:00: ✅ ACCEPTED\n";
+} else {
+    echo "Range 19:00-21:00 -> 20:00: ❌ BLOCKED ({$range_result['reason']})\n";
+}
+
+// Simple times with padding should be recognized after trimming
+$meal_test_configs['cena']['time_slots'] = ' 21:30 , 22:30 ';
+$trim_result = test_availability_check($normalization_date, 'cena', '21:30', 2);
+if ($trim_result['valid']) {
+    echo "Trimmed single slot ' 21:30 ': ✅ ACCEPTED\n";
+} else {
+    echo "Trimmed single slot ' 21:30 ': ❌ BLOCKED ({$trim_result['reason']})\n";
+}
+
+// Restore original configuration
+$meal_test_configs['cena']['time_slots'] = $original_cena_slots;
+
+echo "\n";
+
 echo "✅ All drag & drop tests completed!\n\n";
 
 echo "Summary:\n";
@@ -271,4 +366,5 @@ echo "• Movement validation prevents invalid operations\n";
 echo "• Conflict detection identifies capacity issues\n";
 echo "• Buffer time validation prevents scheduling conflicts\n";
 echo "• Edge cases are handled appropriately\n";
+echo "• Time slot normalization handles ranges and trimmed entries\n";
 echo "• Ready for production use\n";

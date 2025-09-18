@@ -184,6 +184,65 @@ function rbf_get_valid_meal_ids() {
 }
 
 /**
+ * Normalize a comma-separated list of time slots into individual times.
+ * Supports both single times (e.g. "19:00") and ranges (e.g. "19:00-21:00").
+ *
+ * @param string $time_slots_csv Raw time slot definition from settings.
+ * @return array List of normalized H:i time strings.
+ */
+function rbf_normalize_time_slots($time_slots_csv) {
+    if (!is_string($time_slots_csv) || $time_slots_csv === '') {
+        return [];
+    }
+
+    $normalized = [];
+    $seen = [];
+    $entries = array_map('trim', explode(',', $time_slots_csv));
+    $increment = defined('HOUR_IN_SECONDS') ? HOUR_IN_SECONDS : 3600;
+
+    foreach ($entries as $entry) {
+        if ($entry === '') {
+            continue;
+        }
+
+        if (strpos($entry, '-') !== false) {
+            list($start, $end) = array_map('trim', explode('-', $entry, 2));
+
+            if ($start === '' || $end === '') {
+                continue;
+            }
+
+            $start_timestamp = strtotime($start);
+            $end_timestamp = strtotime($end);
+
+            if ($start_timestamp === false || $end_timestamp === false || $end_timestamp < $start_timestamp) {
+                continue;
+            }
+
+            for ($current = $start_timestamp; $current <= $end_timestamp; $current += $increment) {
+                $time = date('H:i', $current);
+                if (!isset($seen[$time])) {
+                    $normalized[] = $time;
+                    $seen[$time] = true;
+                }
+            }
+        } else {
+            $time = trim($entry);
+            if ($time === '') {
+                continue;
+            }
+
+            if (!isset($seen[$time])) {
+                $normalized[] = $time;
+                $seen[$time] = true;
+            }
+        }
+    }
+
+    return $normalized;
+}
+
+/**
  * Determine if restaurant is open for a given date and meal.
  * Encapsulates weekday and closed-date/range checks.
  *
@@ -2026,8 +2085,8 @@ function rbf_check_slot_availability($date, $meal, $time, $people) {
     }
     
     // Check if time is within meal time slots
-    $time_slots = explode(',', $meal_config['time_slots']);
-    if (!in_array($time, $time_slots)) {
+    $time_slots = rbf_normalize_time_slots($meal_config['time_slots'] ?? '');
+    if (empty($time_slots) || !in_array($time, $time_slots, true)) {
         return false;
     }
     
