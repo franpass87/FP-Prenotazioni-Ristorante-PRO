@@ -256,53 +256,23 @@ function rbf_get_available_time_slots($date, $meal, $people) {
         return $available_times;
     }
     
-    // Parse time slots (similar to existing logic in booking-handler.php)
+    // Normalize time slots to individual times to ensure consistent validation
     $times_csv = $meal_config['time_slots'] ?? '';
     if (empty($times_csv)) {
         return $available_times;
     }
-    
-    $times_array = array_map('trim', explode(',', $times_csv));
-    
-    foreach ($times_array as $time_str) {
-        $time_str = trim($time_str);
-        if (empty($time_str)) continue;
-        
-        // Handle both single times and ranges
-        if (strpos($time_str, '-') !== false) {
-            // Range format: generate slots
-            list($start, $end) = explode('-', $time_str, 2);
-            $start_time = trim($start);
-            $end_time = trim($end);
-            
-            $current = strtotime($start_time);
-            $end_timestamp = strtotime($end_time);
-            
-            while ($current <= $end_timestamp) {
-                $time = date('H:i', $current);
-                
-                // Check if this specific time slot has capacity
-                if (rbf_check_time_slot_capacity($date, $meal, $time, $people)) {
-                    $available_times[] = [
-                        'time' => $time,
-                        'display' => $time
-                    ];
-                }
-                
-                $current += 3600; // Add 1 hour
-            }
-        } else {
-            // Single time
-            $time = $time_str;
-            if (rbf_check_time_slot_capacity($date, $meal, $time, $people)) {
-                $available_times[] = [
-                    'time' => $time,
-                    'display' => $time
-                ];
-            }
+
+    $normalized_slots = rbf_normalize_time_slots($times_csv);
+
+    foreach ($normalized_slots as $time) {
+        if (rbf_check_time_slot_capacity($date, $meal, $time, $people)) {
+            $available_times[] = [
+                'time' => $time,
+                'display' => $time
+            ];
         }
     }
-    
+
     return $available_times;
 }
 
