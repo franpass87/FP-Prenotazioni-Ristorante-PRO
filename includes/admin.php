@@ -3266,15 +3266,50 @@ function rbf_move_booking_callback() {
         wp_send_json_error('Conflitto di capacità, riprova');
     }
 
+    // Calculate new table assignment for the target slot
+    $assignment = rbf_assign_tables_first_fit($people, $new_date, $new_time, $meal);
+
+    if (!$assignment) {
+        rbf_release_slot_capacity($new_date, $meal, $people);
+
+        if ($old_date && $meal && $people) {
+            $restored = rbf_reserve_slot_capacity($old_date, $meal, $people);
+            if (!$restored && function_exists('rbf_log')) {
+                rbf_log('RBF Move Booking: impossibile ripristinare la capacità per la prenotazione ' . $booking_id . ' su ' . $old_date . ' ' . $meal);
+            }
+        }
+
+        wp_send_json_error('Nessun tavolo disponibile per l’orario selezionato');
+    }
+
+    rbf_save_table_assignment($booking_id, $assignment);
+
+    update_post_meta($booking_id, 'rbf_table_assignment_type', $assignment['type']);
+    update_post_meta($booking_id, 'rbf_assigned_tables', $assignment['total_capacity']);
+
+    if ($assignment['type'] === 'joined' && isset($assignment['group_id'])) {
+        update_post_meta($booking_id, 'rbf_table_group_id', $assignment['group_id']);
+    } else {
+        delete_post_meta($booking_id, 'rbf_table_group_id');
+    }
+
     // Update booking data
     update_post_meta($booking_id, 'rbf_data', $new_date);
     update_post_meta($booking_id, 'rbf_time', $new_time);
+    update_post_meta($booking_id, 'rbf_orario', $new_time);
 
     // Invalidate availability caches now that the move succeeded
     if ($old_date && $meal) {
         delete_transient('rbf_avail_' . $old_date . '_' . $meal);
     }
     delete_transient('rbf_avail_' . $new_date . '_' . $meal);
+
+    if (function_exists('rbf_clear_calendar_cache')) {
+        if ($old_date && $meal) {
+            rbf_clear_calendar_cache($old_date, $meal);
+        }
+        rbf_clear_calendar_cache($new_date, $meal);
+    }
     
     // Update post title
     $first_name = get_post_meta($booking_id, 'rbf_nome', true);
