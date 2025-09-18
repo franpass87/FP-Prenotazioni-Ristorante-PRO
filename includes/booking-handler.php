@@ -295,41 +295,45 @@ function rbf_create_booking_post($data, $redirect_url, $anchor) {
 
     $valore_tot = $valore_pp * $people;
 
+    $meta_input = [
+        'rbf_data'          => $date,
+        'rbf_meal'          => $meal,
+        'rbf_orario'        => $time,
+        'rbf_time'          => $time,
+        'rbf_persone'       => $people,
+        'rbf_nome'          => $first_name,
+        'rbf_cognome'       => $last_name,
+        'rbf_email'         => $email,
+        'rbf_tel'           => $tel,
+        'rbf_allergie'      => $notes,
+        'rbf_lang'          => $lang,
+        'rbf_country_code'  => $country_code,
+        'rbf_brevo_lang'    => $brevo_lang,
+        'rbf_privacy'       => $privacy,
+        'rbf_marketing'     => $marketing,
+        'rbf_special_type'  => $sanitized_fields['rbf_special_type'] ?? '',
+        'rbf_special_label' => $sanitized_fields['rbf_special_label'] ?? '',
+        'rbf_source_bucket' => $src['bucket'],
+        'rbf_source'        => $src['source'],
+        'rbf_medium'        => $src['medium'],
+        'rbf_campaign'      => $src['campaign'],
+        'rbf_gclid'         => $gclid,
+        'rbf_fbclid'        => $fbclid,
+        'rbf_referrer'      => $referrer,
+        'rbf_booking_status'  => $booking_status,
+        'rbf_booking_created' => current_time('Y-m-d H:i:s'),
+        'rbf_booking_hash'    => wp_generate_password(16, false, false),
+    ];
+
+    // Persist calculated financial metadata for reliable fallbacks and reporting
+    $meta_input['rbf_valore_pp']  = $valore_pp;
+    $meta_input['rbf_valore_tot'] = $valore_tot;
+
     $post_id = wp_insert_post([
         'post_type'   => 'rbf_booking',
         'post_title'  => ucfirst($meal) . " per {$first_name} {$last_name} - {$date} {$time}",
         'post_status' => 'publish',
-        'meta_input'  => [
-            'rbf_data'          => $date,
-            'rbf_meal'          => $meal,
-            'rbf_orario'        => $time,
-            'rbf_time'          => $time,
-            'rbf_persone'       => $people,
-            'rbf_nome'          => $first_name,
-            'rbf_cognome'       => $last_name,
-            'rbf_email'         => $email,
-            'rbf_tel'           => $tel,
-            'rbf_allergie'      => $notes,
-            'rbf_lang'          => $lang,
-            'rbf_country_code'  => $country_code,
-            'rbf_brevo_lang'    => $brevo_lang,
-            'rbf_privacy'       => $privacy,
-            'rbf_marketing'     => $marketing,
-            'rbf_special_type'  => $sanitized_fields['rbf_special_type'] ?? '',
-            'rbf_special_label' => $sanitized_fields['rbf_special_label'] ?? '',
-            'rbf_source_bucket' => $src['bucket'],
-            'rbf_source'        => $src['source'],
-            'rbf_medium'        => $src['medium'],
-            'rbf_campaign'      => $src['campaign'],
-            'rbf_gclid'         => $gclid,
-            'rbf_fbclid'        => $fbclid,
-            'rbf_referrer'      => $referrer,
-            'rbf_booking_status'  => $booking_status,
-            'rbf_booking_created' => current_time('Y-m-d H:i:s'),
-            'rbf_booking_hash'    => wp_generate_password(16, false, false),
-            'rbf_valore_pp'       => $valore_pp,
-            'rbf_valore_tot'      => $valore_tot,
-        ],
+        'meta_input'  => $meta_input,
     ]);
 
     if (is_wp_error($post_id)) {
@@ -502,6 +506,118 @@ function rbf_send_notifications($data, $context) {
         ];
         rbf_track_booking_completion($post_id, $tracking_completion_data);
     }
+}
+
+/**
+ * Build normalized tracking data for a booking using stored metadata.
+ *
+ * @param int        $booking_id Booking post ID.
+ * @param array      $base_data  Optional base tracking data to merge.
+ * @param array|null $meta       Optional pre-fetched post meta array.
+ * @return array Normalized tracking dataset with financial fallbacks.
+ */
+function rbf_build_booking_tracking_data($booking_id, array $base_data = [], $meta = null) {
+    if (!$booking_id) {
+        return $base_data;
+    }
+
+    if (!is_array($meta)) {
+        $meta = get_post_meta($booking_id);
+    }
+
+    $tracking = array_merge([
+        'id'       => $booking_id,
+        'currency' => 'EUR',
+        'event_id' => 'rbf_' . $booking_id,
+    ], $base_data);
+
+    $meal_meta = $meta['rbf_meal'][0] ?? ($meta['rbf_orario'][0] ?? '');
+    if (empty($tracking['meal']) && !empty($meal_meta)) {
+        $tracking['meal'] = $meal_meta;
+    } elseif (empty($tracking['meal'])) {
+        $tracking['meal'] = 'pranzo';
+    }
+
+    $people_meta = isset($meta['rbf_persone'][0]) ? (int) $meta['rbf_persone'][0] : 0;
+    if (!isset($tracking['people']) || (int) $tracking['people'] <= 0) {
+        $tracking['people'] = $people_meta;
+    } else {
+        $tracking['people'] = (int) $tracking['people'];
+    }
+
+    if (empty($tracking['bucket'])) {
+        $tracking['bucket'] = $meta['rbf_source_bucket'][0] ?? 'organic';
+    }
+
+    if (!isset($tracking['gclid'])) {
+        $tracking['gclid'] = $meta['rbf_gclid'][0] ?? '';
+    }
+
+    if (!isset($tracking['fbclid'])) {
+        $tracking['fbclid'] = $meta['rbf_fbclid'][0] ?? '';
+    }
+
+    if (empty($tracking['currency']) && isset($meta['rbf_value_currency'][0])) {
+        $tracking['currency'] = $meta['rbf_value_currency'][0];
+    }
+
+    $value_meta      = isset($meta['rbf_valore_tot'][0]) ? (float) $meta['rbf_valore_tot'][0] : 0.0;
+    $unit_price_meta = isset($meta['rbf_valore_pp'][0]) ? (float) $meta['rbf_valore_pp'][0] : 0.0;
+
+    if (!isset($tracking['value']) || !is_numeric($tracking['value']) || $tracking['value'] <= 0) {
+        $tracking['value'] = $value_meta;
+    } else {
+        $tracking['value'] = (float) $tracking['value'];
+    }
+
+    if (!isset($tracking['unit_price']) || !is_numeric($tracking['unit_price']) || $tracking['unit_price'] <= 0) {
+        $tracking['unit_price'] = $unit_price_meta;
+    } else {
+        $tracking['unit_price'] = (float) $tracking['unit_price'];
+    }
+
+    $people_for_calc = (int) ($tracking['people'] ?? 0);
+    if ($people_for_calc <= 0 && $people_meta > 0) {
+        $people_for_calc = $people_meta;
+        $tracking['people'] = $people_meta;
+    }
+    $people_for_calc = max(1, $people_for_calc);
+
+    if ($tracking['unit_price'] <= 0 && $tracking['value'] > 0) {
+        $tracking['unit_price'] = $people_for_calc > 0 ? $tracking['value'] / $people_for_calc : 0.0;
+    }
+
+    if ($tracking['value'] <= 0 && $tracking['unit_price'] > 0) {
+        $tracking['value'] = $tracking['unit_price'] * $people_for_calc;
+    }
+
+    if ($tracking['unit_price'] <= 0 || $tracking['value'] <= 0) {
+        $meal_key = $tracking['meal'] ?? '';
+        if (!empty($meal_key)) {
+            $meal_config = rbf_get_meal_config($meal_key);
+            if ($meal_config && $tracking['unit_price'] <= 0) {
+                $tracking['unit_price'] = (float) $meal_config['price'];
+            }
+
+            if ($tracking['unit_price'] <= 0) {
+                $options = rbf_get_settings();
+                $meal_for_value = ($meal_key === 'brunch') ? 'pranzo' : $meal_key;
+                $option_price = (float) ($options['valore_' . $meal_for_value] ?? 0);
+                if ($option_price > 0) {
+                    $tracking['unit_price'] = $option_price;
+                }
+            }
+        }
+
+        if ($tracking['unit_price'] > 0 && $tracking['value'] <= 0) {
+            $tracking['value'] = $tracking['unit_price'] * $people_for_calc;
+        }
+    }
+
+    $tracking['value'] = max(0, (float) ($tracking['value'] ?? 0));
+    $tracking['unit_price'] = max(0, (float) ($tracking['unit_price'] ?? 0));
+
+    return $tracking;
 }
 
 /**

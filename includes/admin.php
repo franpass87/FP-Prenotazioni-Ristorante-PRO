@@ -151,28 +151,16 @@ function rbf_custom_column_data($column, $post_id) {
             break;
             
         case 'rbf_value':
-            $people = intval(get_post_meta($post_id, 'rbf_persone', true));
-            $meal   = get_post_meta($post_id, 'rbf_meal', true);
-
-            $valore_tot_meta = get_post_meta($post_id, 'rbf_valore_tot', true);
-            $valore_pp_meta  = get_post_meta($post_id, 'rbf_valore_pp', true);
-
-            $valore_tot = is_numeric($valore_tot_meta) ? (float) $valore_tot_meta : 0;
-            $valore_pp  = is_numeric($valore_pp_meta) ? (float) $valore_pp_meta : 0;
-
-            if ($valore_tot <= 0 || $valore_pp <= 0) {
-                // Fallback legacy calculation
-                $meal_config = rbf_get_meal_config($meal);
-                if ($meal_config) {
-                    $valore_pp = (float) $meal_config['price'];
-                }
-                if ($valore_pp <= 0 && $people > 0) {
-                    $valore_pp = $valore_tot > 0 ? $valore_tot / max(1, $people) : 0;
-                }
-                $valore_tot = $valore_pp * $people;
-            }
+            $value_data = rbf_build_booking_tracking_data($post_id);
+            $valore_tot = isset($value_data['value']) ? (float) $value_data['value'] : 0.0;
+            $valore_pp  = isset($value_data['unit_price']) ? (float) $value_data['unit_price'] : 0.0;
+            $people     = isset($value_data['people']) ? (int) $value_data['people'] : 0;
 
             if ($valore_tot > 0) {
+                if ($valore_pp <= 0 && $people > 0) {
+                    $valore_pp = $valore_tot / max(1, $people);
+                }
+
                 echo '<strong>€' . number_format($valore_tot, 2) . '</strong>';
                 echo '<br><small>€' . number_format($valore_pp, 2) . ' x ' . $people . '</small>';
             }

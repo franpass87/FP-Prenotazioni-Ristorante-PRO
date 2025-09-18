@@ -127,59 +127,42 @@ function rbf_add_booking_tracking_script() {
     if (isset($_GET['rbf_success'], $_GET['booking_id']) && is_numeric($_GET['booking_id'])) {
         $booking_id = intval($_GET['booking_id']);
         $tracking_data = get_transient('rbf_booking_data_' . $booking_id);
+        $meta = get_post_meta($booking_id);
 
-        // Fallback se manca il transient: ricostruisci dai meta
-        if (!$tracking_data || !is_array($tracking_data)) {
-            // Get all meta in single call for performance
-            $meta = get_post_meta($booking_id);
-            $value = isset($meta['rbf_valore_tot'][0]) ? (float) $meta['rbf_valore_tot'][0] : 0;
-            $meal = $meta['rbf_meal'][0] ?? ($meta['rbf_orario'][0] ?? 'pranzo');
-            $people = isset($meta['rbf_persone'][0]) ? (int) $meta['rbf_persone'][0] : 1;
-            $bucket = $meta['rbf_source_bucket'][0] ?? 'organic';
-            $gclid = $meta['rbf_gclid'][0] ?? '';
-            $fbclid = $meta['rbf_fbclid'][0] ?? '';
-
-            $unit_price_meta = isset($meta['rbf_valore_pp'][0]) ? (float) $meta['rbf_valore_pp'][0] : 0.0;
-            if ($unit_price_meta <= 0 && $people > 0) {
-                $unit_price_meta = $value / max(1, $people);
-            }
-
-            $tracking_data = [
-                'id' => $booking_id,
-                'value' => $value,
-                'currency' => 'EUR',
-                'meal' => $meal,
-                'people' => $people,
-                'bucket' => $bucket,
-                'gclid' => $gclid,
-                'fbclid' => $fbclid,
-                'event_id' => 'rbf_' . $booking_id,
-                'unit_price' => $unit_price_meta,
-            ];
+        if ($tracking_data && is_array($tracking_data)) {
+            $tracking_data = rbf_build_booking_tracking_data($booking_id, $tracking_data, $meta);
+        } else {
+            $tracking_data = rbf_build_booking_tracking_data($booking_id, [], $meta);
         }
 
-        $transaction_id = 'rbf_' . $tracking_data['id'];
-        $value = $tracking_data['value'];
-        $currency = $tracking_data['currency'];
-        $meal = $tracking_data['meal'];
-        $people = $tracking_data['people'];
-        $bucket = $tracking_data['bucket'];
-        $eventId = $tracking_data['event_id'];
-        $unitPrice = $tracking_data['unit_price'] ?? null;
+        $transaction_id = $tracking_data['transaction_id'] ?? ('rbf_' . $tracking_data['id']);
+        $value = $tracking_data['value'] ?? 0;
+        $currency = $tracking_data['currency'] ?? 'EUR';
+        $meal = $tracking_data['meal'] ?? 'pranzo';
+        $people = $tracking_data['people'] ?? 0;
+        $bucket = $tracking_data['bucket'] ?? 'organic';
+        $eventId = $tracking_data['event_id'] ?? $transaction_id;
+        $unit_price_value = $tracking_data['unit_price'] ?? 0;
+        $unitPrice = $unit_price_value > 0 ? $unit_price_value : null;
 
-        // Get gclid and fbclid for normalized bucket calculation
         $gclid = $tracking_data['gclid'] ?? '';
         $fbclid = $tracking_data['fbclid'] ?? '';
-        
-        // If not in transient data, fallback to meta
-        if (empty($gclid) && empty($fbclid)) {
-            $meta = get_post_meta($booking_id);
-            $gclid = $meta['rbf_gclid'][0] ?? '';
-            $fbclid = $meta['rbf_fbclid'][0] ?? '';
-        }
-        
+
         // Use centralized normalization function with priority gclid > fbclid > organic
         $bucketStd = rbf_normalize_bucket($gclid, $fbclid);
+
+        $email_meta = $meta['rbf_email'][0] ?? '';
+        $phone_meta = $meta['rbf_tel'][0] ?? '';
+        $first_name_meta = $meta['rbf_nome'][0] ?? '';
+        $last_name_meta = $meta['rbf_cognome'][0] ?? '';
+        $booking_date_meta = $meta['rbf_data'][0] ?? '';
+        $booking_time_meta = $meta['rbf_orario'][0] ?? '';
+
+        $customer_email_hash = hash('sha256', strtolower(trim((string) $email_meta)));
+        $customer_phone_clean = preg_replace('/[^\\d+]/', '', (string) $phone_meta);
+        $customer_phone_hash = hash('sha256', $customer_phone_clean);
+        $customer_first_name_hash = hash('sha256', strtolower(trim((string) $first_name_meta)));
+        $customer_last_name_hash = hash('sha256', strtolower(trim((string) $last_name_meta)));
         ?>
         <script>
             (function() {
@@ -234,10 +217,10 @@ function rbf_add_booking_tracking_script() {
                 vertical: 'restaurant',
                 unit_price: Number(unitPrice !== null ? unitPrice : (Number(value || 0) / Number(people || 1))),
                 // Enhanced conversion data for Google Ads
-                customer_email: '<?php echo hash('sha256', strtolower(trim(get_post_meta($booking_id, 'rbf_email', true)))); ?>',
-                customer_phone: '<?php echo hash('sha256', preg_replace('/[^\d+]/', '', get_post_meta($booking_id, 'rbf_tel', true))); ?>',
-                customer_first_name: '<?php echo hash('sha256', strtolower(trim(get_post_meta($booking_id, 'rbf_nome', true)))); ?>',
-                customer_last_name: '<?php echo hash('sha256', strtolower(trim(get_post_meta($booking_id, 'rbf_cognome', true)))); ?>'
+                customer_email: '<?php echo esc_js($customer_email_hash); ?>',
+                customer_phone: '<?php echo esc_js($customer_phone_hash); ?>',
+                customer_first_name: '<?php echo esc_js($customer_first_name_hash); ?>',
+                customer_last_name: '<?php echo esc_js($customer_last_name_hash); ?>'
               }, eventId);
 
               // Custom restaurant booking event with detailed attribution data
@@ -251,8 +234,8 @@ function rbf_add_booking_tracking_script() {
                 people: Number(people || 0),
                 unit_price: Number(unitPrice !== null ? unitPrice : (Number(value || 0) / Number(people || 1))),
                 vertical: 'restaurant',
-                booking_date: '<?php echo get_post_meta($booking_id, 'rbf_data', true); ?>',
-                booking_time: '<?php echo get_post_meta($booking_id, 'rbf_orario', true); ?>'
+                booking_date: '<?php echo esc_js($booking_date_meta); ?>',
+                booking_time: '<?php echo esc_js($booking_time_meta); ?>'
               }, eventId);
 
               // Google Ads specific conversion tracking with enhanced data (only if not in GTM hybrid mode)
@@ -264,10 +247,10 @@ function rbf_add_booking_tracking_script() {
                   currency: currency,
                   event_id: eventId,
                   customer_data: {
-                    email_address: '<?php echo hash('sha256', strtolower(trim(get_post_meta($booking_id, 'rbf_email', true)))); ?>',
-                    phone_number: '<?php echo hash('sha256', preg_replace('/[^\d+]/', '', get_post_meta($booking_id, 'rbf_tel', true))); ?>',
-                    first_name: '<?php echo hash('sha256', strtolower(trim(get_post_meta($booking_id, 'rbf_nome', true)))); ?>',
-                    last_name: '<?php echo hash('sha256', strtolower(trim(get_post_meta($booking_id, 'rbf_cognome', true)))); ?>'
+                    email_address: '<?php echo esc_js($customer_email_hash); ?>',
+                    phone_number: '<?php echo esc_js($customer_phone_hash); ?>',
+                    first_name: '<?php echo esc_js($customer_first_name_hash); ?>',
+                    last_name: '<?php echo esc_js($customer_last_name_hash); ?>'
                   }
                 });
               }
