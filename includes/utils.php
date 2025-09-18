@@ -1706,8 +1706,39 @@ function rbf_get_effective_capacity($meal_id) {
 }
 
 /**
+ * Sum the number of people for active (non-cancelled) bookings on a date/meal.
+ *
+ * @param string $date Date in Y-m-d format
+ * @param string $meal_id Meal identifier
+ * @return int Total guests counted for capacity calculations
+ */
+function rbf_sum_active_bookings($date, $meal_id) {
+    global $wpdb;
+
+    $query = "
+        SELECT COALESCE(SUM(pm_people.meta_value), 0)
+         FROM {$wpdb->posts} p
+         INNER JOIN {$wpdb->postmeta} pm_people ON p.ID = pm_people.post_id AND pm_people.meta_key = 'rbf_persone'
+         INNER JOIN {$wpdb->postmeta} pm_date ON p.ID = pm_date.post_id AND pm_date.meta_key = 'rbf_data'
+         INNER JOIN {$wpdb->postmeta} pm_meal ON p.ID = pm_meal.post_id AND pm_meal.meta_key = 'rbf_meal'
+         LEFT JOIN {$wpdb->postmeta} pm_status ON p.ID = pm_status.post_id AND pm_status.meta_key = 'rbf_booking_status'
+         WHERE p.post_type = 'rbf_booking' AND p.post_status = 'publish'
+         AND pm_date.meta_value = %s AND pm_meal.meta_value = %s
+         AND COALESCE(pm_status.meta_value, 'confirmed') <> 'cancelled'
+    ";
+
+    $total_people = $wpdb->get_var($wpdb->prepare(
+        $query,
+        $date,
+        $meal_id
+    ));
+
+    return (int) $total_people;
+}
+
+/**
  * Calculate occupancy percentage for a date and meal
- * 
+ *
  * @param string $date Date in Y-m-d format
  * @param string $meal_id Meal ID
  * @return float Occupancy percentage (0-100)
@@ -1718,21 +1749,11 @@ function rbf_calculate_occupancy_percentage($date, $meal_id) {
         return 0; // No capacity configured
     }
     
-    global $wpdb;
-    $spots_taken = $wpdb->get_var($wpdb->prepare(
-        "SELECT SUM(pm_people.meta_value)
-         FROM {$wpdb->posts} p
-         INNER JOIN {$wpdb->postmeta} pm_people ON p.ID = pm_people.post_id AND pm_people.meta_key = 'rbf_persone'
-         INNER JOIN {$wpdb->postmeta} pm_date ON p.ID = pm_date.post_id AND pm_date.meta_key = 'rbf_data'
-         INNER JOIN {$wpdb->postmeta} pm_slot ON p.ID = pm_slot.post_id AND pm_slot.meta_key = 'rbf_meal'
-         WHERE p.post_type = 'rbf_booking' AND p.post_status = 'publish'
-         AND pm_date.meta_value = %s AND pm_slot.meta_value = %s",
-        $date, $meal_id
-    ));
+    $spots_taken = rbf_sum_active_bookings($date, $meal_id);
     
-    $spots_taken = intval($spots_taken);
     return ($spots_taken / $total_capacity) * 100;
 }
+
 
 /**
  * Get availability status for a date and meal

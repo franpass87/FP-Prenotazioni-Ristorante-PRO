@@ -286,8 +286,6 @@ function rbf_get_available_time_slots($date, $meal, $people) {
  * @return bool True if capacity available
  */
 function rbf_check_time_slot_capacity($date, $meal, $time, $people) {
-    global $wpdb;
-    
     // Get effective capacity for this meal
     $total_capacity = rbf_get_effective_capacity($meal);
     if ($total_capacity <= 0) {
@@ -296,22 +294,12 @@ function rbf_check_time_slot_capacity($date, $meal, $time, $people) {
     
     // For capacity checking, we need to consider all bookings for this meal on this date
     // since the current system doesn't track individual time slots separately
-    $current_bookings = $wpdb->get_var($wpdb->prepare(
-        "SELECT SUM(pm_people.meta_value)
-         FROM {$wpdb->posts} p
-         INNER JOIN {$wpdb->postmeta} pm_people ON p.ID = pm_people.post_id AND pm_people.meta_key = 'rbf_persone'
-         INNER JOIN {$wpdb->postmeta} pm_date ON p.ID = pm_date.post_id AND pm_date.meta_key = 'rbf_data'
-         INNER JOIN {$wpdb->postmeta} pm_meal ON p.ID = pm_meal.post_id AND pm_meal.meta_key = 'rbf_meal'
-         WHERE p.post_type = 'rbf_booking' AND p.post_status = 'publish'
-         AND pm_date.meta_value = %s AND pm_meal.meta_value = %s",
-        $date, $meal
-    ));
-    
-    $current_bookings = intval($current_bookings);
+    $current_bookings = rbf_sum_active_bookings($date, $meal);
     $remaining_capacity = $total_capacity - $current_bookings;
     
     return $remaining_capacity >= $people;
 }
+
 
 /**
  * Check if restaurant is open on a specific date
