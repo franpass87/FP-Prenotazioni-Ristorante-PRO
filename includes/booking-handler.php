@@ -339,6 +339,22 @@ function rbf_create_booking_post($data, $redirect_url, $anchor) {
         }
     }
 
+    $booking_context = array_merge(
+        $data,
+        [
+            'post_id'          => $post_id,
+            'table_assignment' => $table_assignment,
+        ]
+    );
+
+    /**
+     * Fires immediately after a booking post has been created.
+     *
+     * @param int   $post_id         The ID of the booking post.
+     * @param array $booking_context Booking context data.
+     */
+    do_action('rbf_booking_created', $post_id, $booking_context);
+
     delete_transient('rbf_avail_' . $date . '_' . $slot);
     $options = rbf_get_settings();
 
