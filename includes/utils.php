@@ -1290,29 +1290,49 @@ function rbf_escape_for_ics($text) {
 }
 
 function rbf_update_booking_status($booking_id, $new_status, $note = '') {
-    $old_status = get_post_meta($booking_id, 'rbf_booking_status', true);
-    
-    // Update status
-    update_post_meta($booking_id, 'rbf_booking_status', $new_status);
-    update_post_meta($booking_id, 'rbf_status_updated', current_time('Y-m-d H:i:s'));
-    
-    // Add to history
+    $valid_statuses = array_keys(rbf_get_booking_statuses());
+    $valid_statuses[] = 'pending';
+
+    if (!in_array($new_status, $valid_statuses, true)) {
+        return false;
+    }
+
+    $booking = get_post($booking_id);
+    if (!$booking || $booking->post_type !== 'rbf_booking') {
+        return false;
+    }
+
+    $old_status_raw = get_post_meta($booking_id, 'rbf_booking_status', true);
+    $old_status = $old_status_raw ?: 'pending';
+
+    if ($old_status_raw !== $new_status) {
+        $updated = update_post_meta($booking_id, 'rbf_booking_status', $new_status);
+
+        if ($updated === false) {
+            return false;
+        }
+    }
+
+    $timestamp = current_time('Y-m-d H:i:s');
+    update_post_meta($booking_id, 'rbf_status_updated', $timestamp);
+
     $history = get_post_meta($booking_id, 'rbf_status_history', true);
-    if (!is_array($history)) $history = [];
-    
+    if (!is_array($history)) {
+        $history = [];
+    }
+
     $history[] = [
-        'timestamp' => current_time('Y-m-d H:i:s'),
-        'from' => $old_status ?: 'pending',
+        'timestamp' => $timestamp,
+        'from' => $old_status,
         'to' => $new_status,
         'note' => $note,
         'user' => get_current_user_id()
     ];
-    
+
     update_post_meta($booking_id, 'rbf_status_history', $history);
-    
-    // Trigger status change hook for notifications
+
     do_action('rbf_booking_status_changed', $booking_id, $old_status, $new_status, $note);
-    
+
     return true;
 }
 
