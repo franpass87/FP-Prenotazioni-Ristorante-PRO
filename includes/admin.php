@@ -1219,6 +1219,8 @@ function rbf_update_booking_data_callback() {
         wp_send_json_error('Prenotazione non trovata');
     }
     
+    $status_update_result = true;
+
     // Update customer name (split into first and last name)
     if (isset($booking_data['customer_name'])) {
         $name_parts = explode(' ', $booking_data['customer_name'], 2);
@@ -1260,7 +1262,11 @@ function rbf_update_booking_data_callback() {
     
     // Update status
     if (isset($booking_data['status']) && in_array($booking_data['status'], ['confirmed', 'cancelled', 'completed'])) {
-        rbf_update_booking_status($booking_id, $booking_data['status']);
+        $status_update_result = rbf_update_booking_status($booking_id, $booking_data['status']);
+
+        if (!$status_update_result) {
+            wp_send_json_error('Errore durante l\'aggiornamento dello stato');
+        }
     }
 
     if ($should_recalculate_value) {
@@ -1279,6 +1285,10 @@ function rbf_update_booking_data_callback() {
         $valore_tot = $valore_pp * $current_people;
         update_post_meta($booking_id, 'rbf_valore_pp', $valore_pp);
         update_post_meta($booking_id, 'rbf_valore_tot', $valore_tot);
+    }
+
+    if (!$status_update_result) {
+        wp_send_json_error('Errore durante l\'aggiornamento della prenotazione');
     }
 
     wp_send_json_success('Prenotazione aggiornata con successo');
