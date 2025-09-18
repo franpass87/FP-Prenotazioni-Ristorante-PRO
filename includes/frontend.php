@@ -1399,13 +1399,24 @@ function rbf_clear_calendar_cache($date = null, $meal = null) {
 }
 
 // Hook into booking creation/modification to clear cache
-add_action('rbf_booking_created', function($booking_id) {
-    $date = get_post_meta($booking_id, 'rbf_data', true);
-    $meal = get_post_meta($booking_id, 'rbf_meal', true);
+add_action('rbf_booking_created', function($booking_id, $booking_context = []) {
+    $date = '';
+    $meal = '';
+
+    if (is_array($booking_context)) {
+        $date = $booking_context['date'] ?? '';
+        $meal = $booking_context['meal'] ?? '';
+    }
+
+    if (empty($date) || empty($meal)) {
+        $date = get_post_meta($booking_id, 'rbf_data', true);
+        $meal = get_post_meta($booking_id, 'rbf_meal', true);
+    }
+
     if ($date && $meal) {
         rbf_clear_calendar_cache($date, $meal);
     }
-});
+}, 10, 2);
 
 add_action('rbf_booking_status_changed', function($booking_id, $new_status, $old_status) {
     $date = get_post_meta($booking_id, 'rbf_data', true);
