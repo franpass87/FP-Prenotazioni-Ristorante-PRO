@@ -1336,7 +1336,9 @@ function rbf_update_booking_data_callback() {
  */
 function rbf_add_booking_page_html() {
     $options = rbf_get_settings();
+    $active_meals = rbf_get_active_meals();
     $message = '';
+    $selected_meal = '';
 
     if (!empty($_POST) && check_admin_referer('rbf_add_backend_booking')) {
         $sanitized = rbf_sanitize_input_fields($_POST, [
@@ -1351,8 +1353,9 @@ function rbf_add_booking_page_html() {
             'rbf_allergie' => 'textarea',
             'rbf_lang' => 'text'
         ]);
-        
+
         $meal = $sanitized['rbf_meal'] ?? '';
+        $selected_meal = $meal;
         $date = $sanitized['rbf_data'] ?? '';
         $time = $sanitized['rbf_time'] ?? '';
         $people = $sanitized['rbf_persone'] ?? 0;
@@ -1365,104 +1368,114 @@ function rbf_add_booking_page_html() {
         $privacy = isset($_POST['rbf_privacy']) ? 'yes' : 'no';
         $marketing = isset($_POST['rbf_marketing']) ? 'yes' : 'no';
 
-        $title = (!empty($first_name) && !empty($last_name)) ? ucfirst($meal) . " per {$first_name} {$last_name} - {$date} {$time}" : "Prenotazione Manuale - {$date} {$time}";
-
-        $meal_config = rbf_get_meal_config($meal);
-        if ($meal_config) {
-            $valore_pp = (float) $meal_config['price'];
+        if (empty($active_meals)) {
+            $message = '<div class="notice notice-error"><p>' . esc_html(rbf_translate_string('Configura almeno un servizio attivo prima di aggiungere prenotazioni manuali.')) . '</p></div>';
         } else {
-            $meal_for_value = ($meal === 'brunch') ? 'pranzo' : $meal;
-            $valore_pp = (float) ($options['valore_' . $meal_for_value] ?? 0);
-        }
-        $valore_tot = $valore_pp * $people;
+            $valid_meal_ids = array_column($active_meals, 'id');
 
-        $booking_result = rbf_book_slot_optimistic($date, $meal, $people);
-
-        if (!$booking_result['success']) {
-            $error_code = $booking_result['error'] ?? '';
-            if ($error_code === 'insufficient_capacity') {
-                $remaining = intval($booking_result['remaining'] ?? 0);
-                $error_msg = sprintf(
-                    rbf_translate_string('Non ci sono abbastanza posti disponibili. Rimasti: %d.'),
-                    $remaining
-                );
-            } elseif ($error_code === 'version_conflict') {
-                $error_msg = rbf_translate_string('Conflitto di prenotazione rilevato. Aggiorna la pagina e riprova.');
-            } elseif ($error_code === 'invalid_parameters') {
-                $error_msg = rbf_translate_string('Parametri di prenotazione non validi.');
+            if (!in_array($meal, $valid_meal_ids, true)) {
+                $message = '<div class="notice notice-error"><p>' . esc_html(rbf_translate_string('Servizio non configurato.')) . '</p></div>';
             } else {
-                $error_msg = rbf_translate_string('Errore durante la prenotazione dello slot. Riprova.');
-            }
+                $title = (!empty($first_name) && !empty($last_name)) ? ucfirst($meal) . " per {$first_name} {$last_name} - {$date} {$time}" : "Prenotazione Manuale - {$date} {$time}";
 
-            $message = '<div class="notice notice-error"><p>' . esc_html($error_msg) . '</p></div>';
-        } else {
-            $post_id = wp_insert_post([
-                'post_type' => 'rbf_booking',
-                'post_title' => $title,
-                'post_status' => 'publish',
-                'meta_input' => [
-                    'rbf_data' => $date,
-                    'rbf_meal' => $meal,
-                    'rbf_orario' => $time,
-                    'rbf_time' => $time,
-                    'rbf_persone' => $people,
-                    'rbf_nome' => $first_name,
-                    'rbf_cognome' => $last_name,
-                    'rbf_email' => $email,
-                    'rbf_tel' => $tel,
-                    'rbf_allergie' => $notes,
-                    'rbf_lang' => $lang,
-                    'rbf_source_bucket' => 'backend',
-                    'rbf_source' => 'backend',
-                    'rbf_medium' => 'backend',
-                    'rbf_campaign' => '',
-                    'rbf_privacy' => $privacy,
-                    'rbf_marketing' => $marketing,
-                    // Enhanced booking system
-                    'rbf_booking_status' => 'confirmed', // Backend bookings start confirmed
-                    'rbf_booking_created' => current_time('Y-m-d H:i:s'),
-                    'rbf_booking_hash' => wp_generate_password(16, false, false),
-                    'rbf_valore_pp' => $valore_pp,
-                    'rbf_valore_tot' => $valore_tot,
-                ],
-            ]);
-
-            if (!is_wp_error($post_id)) {
-                if (isset($booking_result['version'])) {
-                    update_post_meta($post_id, 'rbf_slot_version', $booking_result['version']);
+                $meal_config = rbf_get_meal_config($meal);
+                if ($meal_config) {
+                    $valore_pp = (float) $meal_config['price'];
+                } else {
+                    $meal_for_value = ($meal === 'brunch') ? 'pranzo' : $meal;
+                    $valore_pp = (float) ($options['valore_' . $meal_for_value] ?? 0);
                 }
-                if (isset($booking_result['attempt'])) {
-                    update_post_meta($post_id, 'rbf_booking_attempt', $booking_result['attempt']);
+                $valore_tot = $valore_pp * $people;
+
+                $booking_result = rbf_book_slot_optimistic($date, $meal, $people);
+
+                if (!$booking_result['success']) {
+                    $error_code = $booking_result['error'] ?? '';
+                    if ($error_code === 'insufficient_capacity') {
+                        $remaining = intval($booking_result['remaining'] ?? 0);
+                        $error_msg = sprintf(
+                            rbf_translate_string('Non ci sono abbastanza posti disponibili. Rimasti: %d.'),
+                            $remaining
+                        );
+                    } elseif ($error_code === 'version_conflict') {
+                        $error_msg = rbf_translate_string('Conflitto di prenotazione rilevato. Aggiorna la pagina e riprova.');
+                    } elseif ($error_code === 'invalid_parameters') {
+                        $error_msg = rbf_translate_string('Parametri di prenotazione non validi.');
+                    } else {
+                        $error_msg = rbf_translate_string('Errore durante la prenotazione dello slot. Riprova.');
+                    }
+
+                    $message = '<div class="notice notice-error"><p>' . esc_html($error_msg) . '</p></div>';
+                } else {
+                    $post_id = wp_insert_post([
+                        'post_type' => 'rbf_booking',
+                        'post_title' => $title,
+                        'post_status' => 'publish',
+                        'meta_input' => [
+                            'rbf_data' => $date,
+                            'rbf_meal' => $meal,
+                            'rbf_orario' => $time,
+                            'rbf_time' => $time,
+                            'rbf_persone' => $people,
+                            'rbf_nome' => $first_name,
+                            'rbf_cognome' => $last_name,
+                            'rbf_email' => $email,
+                            'rbf_tel' => $tel,
+                            'rbf_allergie' => $notes,
+                            'rbf_lang' => $lang,
+                            'rbf_source_bucket' => 'backend',
+                            'rbf_source' => 'backend',
+                            'rbf_medium' => 'backend',
+                            'rbf_campaign' => '',
+                            'rbf_privacy' => $privacy,
+                            'rbf_marketing' => $marketing,
+                            // Enhanced booking system
+                            'rbf_booking_status' => 'confirmed', // Backend bookings start confirmed
+                            'rbf_booking_created' => current_time('Y-m-d H:i:s'),
+                            'rbf_booking_hash' => wp_generate_password(16, false, false),
+                            'rbf_valore_pp' => $valore_pp,
+                            'rbf_valore_tot' => $valore_tot,
+                        ],
+                    ]);
+
+                    if (!is_wp_error($post_id)) {
+                        if (isset($booking_result['version'])) {
+                            update_post_meta($post_id, 'rbf_slot_version', $booking_result['version']);
+                        }
+                        if (isset($booking_result['attempt'])) {
+                            update_post_meta($post_id, 'rbf_booking_attempt', $booking_result['attempt']);
+                        }
+
+                        $event_id   = 'rbf_' . $post_id;
+
+                        // Email + Brevo (functions will be loaded from integrations module)
+                        if (function_exists('rbf_send_admin_notification_email')) {
+                            rbf_send_admin_notification_email($first_name, $last_name, $email, $date, $time, $people, $notes, $tel, $meal);
+                        }
+                        if (function_exists('rbf_trigger_brevo_automation')) {
+                            rbf_trigger_brevo_automation($first_name, $last_name, $email, $date, $time, $people, $notes, $lang, $tel, $marketing, $meal);
+                        }
+
+                        // Transient per tracking (anche per inserimenti manuali)
+                        set_transient('rbf_booking_data_' . $post_id, [
+                            'id'       => $post_id,
+                            'value'    => $valore_tot,
+                            'currency' => 'EUR',
+                            'meal'     => $meal,
+                            'people'   => $people,
+                            'bucket'   => 'backend',
+                            'event_id' => $event_id,
+                            'unit_price' => $valore_pp,
+                        ], 60 * 15);
+
+                        delete_transient('rbf_avail_' . $date . '_' . $meal);
+
+                        $message = '<div class="notice notice-success"><p>Prenotazione aggiunta con successo! <a href="' . admin_url('post.php?post=' . $post_id . '&action=edit') . '">Modifica</a></p></div>';
+                    } else {
+                        rbf_release_slot_capacity($date, $meal, $people);
+                        $message = '<div class="notice notice-error"><p>Errore durante l\'aggiunta della prenotazione.</p></div>';
+                    }
                 }
-
-                $event_id   = 'rbf_' . $post_id;
-
-                // Email + Brevo (functions will be loaded from integrations module)
-                if (function_exists('rbf_send_admin_notification_email')) {
-                    rbf_send_admin_notification_email($first_name, $last_name, $email, $date, $time, $people, $notes, $tel, $meal);
-                }
-                if (function_exists('rbf_trigger_brevo_automation')) {
-                    rbf_trigger_brevo_automation($first_name, $last_name, $email, $date, $time, $people, $notes, $lang, $tel, $marketing, $meal);
-                }
-
-                // Transient per tracking (anche per inserimenti manuali)
-                set_transient('rbf_booking_data_' . $post_id, [
-                    'id'       => $post_id,
-                    'value'    => $valore_tot,
-                    'currency' => 'EUR',
-                    'meal'     => $meal,
-                    'people'   => $people,
-                    'bucket'   => 'backend',
-                    'event_id' => $event_id,
-                    'unit_price' => $valore_pp,
-                ], 60 * 15);
-
-                delete_transient('rbf_avail_' . $date . '_' . $meal);
-
-                $message = '<div class="notice notice-success"><p>Prenotazione aggiunta con successo! <a href="' . admin_url('post.php?post=' . $post_id . '&action=edit') . '">Modifica</a></p></div>';
-            } else {
-                rbf_release_slot_capacity($date, $meal, $people);
-                $message = '<div class="notice notice-error"><p>Errore durante l\'aggiunta della prenotazione.</p></div>';
             }
         }
     }
@@ -1471,42 +1484,46 @@ function rbf_add_booking_page_html() {
     <div class="rbf-admin-wrap">
         <h1><?php echo esc_html(rbf_translate_string('Aggiungi Nuova Prenotazione')); ?></h1>
         <?php echo wp_kses_post($message); ?>
-        <form method="post">
-            <?php wp_nonce_field('rbf_add_backend_booking'); ?>
-            <table class="form-table">
-                <tr><th><label for="rbf_meal"><?php echo esc_html(rbf_translate_string('Pasto')); ?></label></th>
-                    <td><select id="rbf_meal" name="rbf_meal">
-                        <option value=""><?php echo esc_html(rbf_translate_string('Scegli il pasto')); ?></option>
-                        <option value="pranzo"><?php echo esc_html(rbf_translate_string('Pranzo')); ?></option>
-                        <option value="aperitivo"><?php echo esc_html(rbf_translate_string('Aperitivo')); ?></option>
-                        <option value="cena"><?php echo esc_html(rbf_translate_string('Cena')); ?></option>
-                        <option value="brunch"><?php echo esc_html(rbf_translate_string('Brunch')); ?></option>
-                    </select></td></tr>
-                <tr><th><label for="rbf_data"><?php echo esc_html(rbf_translate_string('Data')); ?></label></th>
-                    <td><input type="date" id="rbf_data" name="rbf_data"></td></tr>
-                <tr><th><label for="rbf_time"><?php echo esc_html(rbf_translate_string('Orario')); ?></label></th>
-                    <td><input type="time" id="rbf_time" name="rbf_time"></td></tr>
-                <tr><th><label for="rbf_persone"><?php echo esc_html(rbf_translate_string('Persone')); ?></label></th>
-                    <td><input type="number" id="rbf_persone" name="rbf_persone" min="0"></td></tr>
-                <tr><th><label for="rbf_nome"><?php echo esc_html(rbf_translate_string('Nome')); ?></label></th>
-                    <td><input type="text" id="rbf_nome" name="rbf_nome"></td></tr>
-                <tr><th><label for="rbf_cognome"><?php echo esc_html(rbf_translate_string('Cognome')); ?></label></th>
-                    <td><input type="text" id="rbf_cognome" name="rbf_cognome"></td></tr>
-                <tr><th><label for="rbf_email"><?php echo esc_html(rbf_translate_string('Email')); ?></label></th>
-                    <td><input type="email" id="rbf_email" name="rbf_email"></td></tr>
-                <tr><th><label for="rbf_tel"><?php echo esc_html(rbf_translate_string('Telefono')); ?></label></th>
-                    <td><input type="tel" id="rbf_tel" name="rbf_tel"></td></tr>
-                <tr><th><label for="rbf_allergie"><?php echo esc_html(rbf_translate_string('Allergie/Note')); ?></label></th>
-                    <td><textarea id="rbf_allergie" name="rbf_allergie"></textarea></td></tr>
-                <tr><th><label for="rbf_lang"><?php echo esc_html(rbf_translate_string('Lingua')); ?></label></th>
-                    <td><select id="rbf_lang" name="rbf_lang"><option value="it">IT</option><option value="en">EN</option></select></td></tr>
-                <tr><th><?php echo esc_html(rbf_translate_string('Privacy')); ?></th>
-                    <td><label><input type="checkbox" name="rbf_privacy" value="yes"> <?php echo esc_html(rbf_translate_string('Accettata')); ?></label></td></tr>
-                <tr><th><?php echo esc_html(rbf_translate_string('Marketing')); ?></th>
-                    <td><label><input type="checkbox" name="rbf_marketing" value="yes"> <?php echo esc_html(rbf_translate_string('Accettato')); ?></label></td></tr>
-            </table>
-            <?php submit_button(rbf_translate_string('Aggiungi Prenotazione')); ?>
-        </form>
+
+        <?php if (empty($active_meals)) : ?>
+            <div class="notice notice-warning"><p><?php echo esc_html(rbf_translate_string('Configura almeno un servizio attivo prima di aggiungere prenotazioni manuali.')); ?></p></div>
+        <?php else : ?>
+            <form method="post">
+                <?php wp_nonce_field('rbf_add_backend_booking'); ?>
+                <table class="form-table">
+                    <tr><th><label for="rbf_meal"><?php echo esc_html(rbf_translate_string('Pasto')); ?></label></th>
+                        <td><select id="rbf_meal" name="rbf_meal">
+                            <option value=""><?php echo esc_html(rbf_translate_string('Scegli il pasto')); ?></option>
+                            <?php foreach ($active_meals as $meal_config) : ?>
+                                <option value="<?php echo esc_attr($meal_config['id']); ?>" <?php selected($selected_meal, $meal_config['id']); ?>><?php echo esc_html($meal_config['name'] ?? $meal_config['id']); ?></option>
+                            <?php endforeach; ?>
+                        </select></td></tr>
+                    <tr><th><label for="rbf_data"><?php echo esc_html(rbf_translate_string('Data')); ?></label></th>
+                        <td><input type="date" id="rbf_data" name="rbf_data"></td></tr>
+                    <tr><th><label for="rbf_time"><?php echo esc_html(rbf_translate_string('Orario')); ?></label></th>
+                        <td><input type="time" id="rbf_time" name="rbf_time"></td></tr>
+                    <tr><th><label for="rbf_persone"><?php echo esc_html(rbf_translate_string('Persone')); ?></label></th>
+                        <td><input type="number" id="rbf_persone" name="rbf_persone" min="0"></td></tr>
+                    <tr><th><label for="rbf_nome"><?php echo esc_html(rbf_translate_string('Nome')); ?></label></th>
+                        <td><input type="text" id="rbf_nome" name="rbf_nome"></td></tr>
+                    <tr><th><label for="rbf_cognome"><?php echo esc_html(rbf_translate_string('Cognome')); ?></label></th>
+                        <td><input type="text" id="rbf_cognome" name="rbf_cognome"></td></tr>
+                    <tr><th><label for="rbf_email"><?php echo esc_html(rbf_translate_string('Email')); ?></label></th>
+                        <td><input type="email" id="rbf_email" name="rbf_email"></td></tr>
+                    <tr><th><label for="rbf_tel"><?php echo esc_html(rbf_translate_string('Telefono')); ?></label></th>
+                        <td><input type="tel" id="rbf_tel" name="rbf_tel"></td></tr>
+                    <tr><th><label for="rbf_allergie"><?php echo esc_html(rbf_translate_string('Allergie/Note')); ?></label></th>
+                        <td><textarea id="rbf_allergie" name="rbf_allergie"></textarea></td></tr>
+                    <tr><th><label for="rbf_lang"><?php echo esc_html(rbf_translate_string('Lingua')); ?></label></th>
+                        <td><select id="rbf_lang" name="rbf_lang"><option value="it">IT</option><option value="en">EN</option></select></td></tr>
+                    <tr><th><?php echo esc_html(rbf_translate_string('Privacy')); ?></th>
+                        <td><label><input type="checkbox" name="rbf_privacy" value="yes"> <?php echo esc_html(rbf_translate_string('Accettata')); ?></label></td></tr>
+                    <tr><th><?php echo esc_html(rbf_translate_string('Marketing')); ?></th>
+                        <td><label><input type="checkbox" name="rbf_marketing" value="yes"> <?php echo esc_html(rbf_translate_string('Accettato')); ?></label></td></tr>
+                </table>
+                <?php submit_button(rbf_translate_string('Aggiungi Prenotazione')); ?>
+            </form>
+        <?php endif; ?>
     </div>
     <?php
 }
