@@ -132,12 +132,18 @@ function rbf_add_booking_tracking_script() {
         if (!$tracking_data || !is_array($tracking_data)) {
             // Get all meta in single call for performance
             $meta = get_post_meta($booking_id);
-            $value = $meta['rbf_valore_tot'][0] ?? 0;
+            $value = isset($meta['rbf_valore_tot'][0]) ? (float) $meta['rbf_valore_tot'][0] : 0;
             $meal = $meta['rbf_meal'][0] ?? ($meta['rbf_orario'][0] ?? 'pranzo');
-            $people = $meta['rbf_persone'][0] ?? 1;
+            $people = isset($meta['rbf_persone'][0]) ? (int) $meta['rbf_persone'][0] : 1;
             $bucket = $meta['rbf_source_bucket'][0] ?? 'organic';
             $gclid = $meta['rbf_gclid'][0] ?? '';
             $fbclid = $meta['rbf_fbclid'][0] ?? '';
+
+            $unit_price_meta = isset($meta['rbf_valore_pp'][0]) ? (float) $meta['rbf_valore_pp'][0] : 0.0;
+            if ($unit_price_meta <= 0 && $people > 0) {
+                $unit_price_meta = $value / max(1, $people);
+            }
+
             $tracking_data = [
                 'id' => $booking_id,
                 'value' => $value,
@@ -147,7 +153,8 @@ function rbf_add_booking_tracking_script() {
                 'bucket' => $bucket,
                 'gclid' => $gclid,
                 'fbclid' => $fbclid,
-                'event_id' => 'rbf_' . $booking_id
+                'event_id' => 'rbf_' . $booking_id,
+                'unit_price' => $unit_price_meta,
             ];
         }
 
@@ -158,6 +165,7 @@ function rbf_add_booking_tracking_script() {
         $people = $tracking_data['people'];
         $bucket = $tracking_data['bucket'];
         $eventId = $tracking_data['event_id'];
+        $unitPrice = $tracking_data['unit_price'] ?? null;
 
         // Get gclid and fbclid for normalized bucket calculation
         $gclid = $tracking_data['gclid'] ?? '';
@@ -183,6 +191,7 @@ function rbf_add_booking_tracking_script() {
               var bucket = <?php echo json_encode($bucket); ?>;
               var bucketStd = <?php echo json_encode($bucketStd); ?>;
               var eventId = <?php echo json_encode($eventId); ?>;
+              var unitPrice = <?php echo json_encode($unitPrice); ?>;
               var isGtmHybrid = <?php echo json_encode($options['gtm_hybrid'] === 'yes'); ?>;
               var gtmId = <?php echo json_encode($options['gtm_id'] ?? ''); ?>;
 
@@ -219,10 +228,11 @@ function rbf_add_booking_tracking_script() {
                   item_name: 'Prenotazione ' + meal,
                   category: 'booking',
                   quantity: Number(people || 0),
-                  price: Number(value || 0) / Number(people || 1)
+                  price: Number(unitPrice !== null ? unitPrice : (Number(value || 0) / Number(people || 1)))
                 }],
                 bucket: bucketStd,
                 vertical: 'restaurant',
+                unit_price: Number(unitPrice !== null ? unitPrice : (Number(value || 0) / Number(people || 1))),
                 // Enhanced conversion data for Google Ads
                 customer_email: '<?php echo hash('sha256', strtolower(trim(get_post_meta($booking_id, 'rbf_email', true)))); ?>',
                 customer_phone: '<?php echo hash('sha256', preg_replace('/[^\d+]/', '', get_post_meta($booking_id, 'rbf_tel', true))); ?>',
@@ -239,6 +249,7 @@ function rbf_add_booking_tracking_script() {
                 traffic_bucket: bucket,     // detailed (fborg/direct/other...)
                 meal: meal,
                 people: Number(people || 0),
+                unit_price: Number(unitPrice !== null ? unitPrice : (Number(value || 0) / Number(people || 1))),
                 vertical: 'restaurant',
                 booking_date: '<?php echo get_post_meta($booking_id, 'rbf_data', true); ?>',
                 booking_time: '<?php echo get_post_meta($booking_id, 'rbf_orario', true); ?>'

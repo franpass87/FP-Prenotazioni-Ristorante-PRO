@@ -152,12 +152,26 @@ function rbf_custom_column_data($column, $post_id) {
             
         case 'rbf_value':
             $people = intval(get_post_meta($post_id, 'rbf_persone', true));
-            $meal = get_post_meta($post_id, 'rbf_meal', true);
-            
-            // Get meal price from custom meal configuration
-            $meal_config = rbf_get_meal_config($meal);
-            $valore_pp = $meal_config ? (float) $meal_config['price'] : 0;
-            $valore_tot = $valore_pp * $people;
+            $meal   = get_post_meta($post_id, 'rbf_meal', true);
+
+            $valore_tot_meta = get_post_meta($post_id, 'rbf_valore_tot', true);
+            $valore_pp_meta  = get_post_meta($post_id, 'rbf_valore_pp', true);
+
+            $valore_tot = is_numeric($valore_tot_meta) ? (float) $valore_tot_meta : 0;
+            $valore_pp  = is_numeric($valore_pp_meta) ? (float) $valore_pp_meta : 0;
+
+            if ($valore_tot <= 0 || $valore_pp <= 0) {
+                // Fallback legacy calculation
+                $meal_config = rbf_get_meal_config($meal);
+                if ($meal_config) {
+                    $valore_pp = (float) $meal_config['price'];
+                }
+                if ($valore_pp <= 0 && $people > 0) {
+                    $valore_pp = $valore_tot > 0 ? $valore_tot / max(1, $people) : 0;
+                }
+                $valore_tot = $valore_pp * $people;
+            }
+
             if ($valore_tot > 0) {
                 echo '<strong>€' . number_format($valore_tot, 2) . '</strong>';
                 echo '<br><small>€' . number_format($valore_pp, 2) . ' x ' . $people . '</small>';
@@ -1254,11 +1268,14 @@ function rbf_update_booking_data_callback() {
         update_post_meta($booking_id, 'rbf_tel', $booking_data['customer_phone']);
     }
     
+    $should_recalculate_value = false;
+
     // Update people count
     if (isset($booking_data['people'])) {
         $people = $booking_data['people'];
         if ($people > 0 && $people <= 30) {
             update_post_meta($booking_id, 'rbf_persone', $people);
+            $should_recalculate_value = true;
         }
     }
     
@@ -1271,7 +1288,25 @@ function rbf_update_booking_data_callback() {
     if (isset($booking_data['status']) && in_array($booking_data['status'], ['confirmed', 'cancelled', 'completed'])) {
         update_post_meta($booking_id, 'rbf_booking_status', $booking_data['status']);
     }
-    
+
+    if ($should_recalculate_value) {
+        $current_people = intval(get_post_meta($booking_id, 'rbf_persone', true));
+        $meal = get_post_meta($booking_id, 'rbf_meal', true) ?: get_post_meta($booking_id, 'rbf_orario', true);
+
+        $options = rbf_get_settings();
+        $meal_config = rbf_get_meal_config($meal);
+        if ($meal_config) {
+            $valore_pp = (float) $meal_config['price'];
+        } else {
+            $meal_for_value = ($meal === 'brunch') ? 'pranzo' : $meal;
+            $valore_pp = (float) ($options['valore_' . $meal_for_value] ?? 0);
+        }
+
+        $valore_tot = $valore_pp * $current_people;
+        update_post_meta($booking_id, 'rbf_valore_pp', $valore_pp);
+        update_post_meta($booking_id, 'rbf_valore_tot', $valore_tot);
+    }
+
     wp_send_json_success('Prenotazione aggiornata con successo');
 }
 
@@ -1311,6 +1346,15 @@ function rbf_add_booking_page_html() {
 
         $title = (!empty($first_name) && !empty($last_name)) ? ucfirst($meal) . " per {$first_name} {$last_name} - {$date} {$time}" : "Prenotazione Manuale - {$date} {$time}";
 
+        $meal_config = rbf_get_meal_config($meal);
+        if ($meal_config) {
+            $valore_pp = (float) $meal_config['price'];
+        } else {
+            $meal_for_value = ($meal === 'brunch') ? 'pranzo' : $meal;
+            $valore_pp = (float) ($options['valore_' . $meal_for_value] ?? 0);
+        }
+        $valore_tot = $valore_pp * $people;
+
         $post_id = wp_insert_post([
             'post_type' => 'rbf_booking',
             'post_title' => $title,
@@ -1337,14 +1381,12 @@ function rbf_add_booking_page_html() {
                 'rbf_booking_status' => 'confirmed', // Backend bookings start confirmed
                 'rbf_booking_created' => current_time('Y-m-d H:i:s'),
                 'rbf_booking_hash' => wp_generate_password(16, false, false),
+                'rbf_valore_pp' => $valore_pp,
+                'rbf_valore_tot' => $valore_tot,
             ],
         ]);
 
         if (!is_wp_error($post_id)) {
-            // Get meal price from custom meal configuration
-            $meal_config = rbf_get_meal_config($meal);
-            $valore_pp = $meal_config ? (float) $meal_config['price'] : 0;
-            $valore_tot = $valore_pp * $people;
             $event_id   = 'rbf_' . $post_id;
 
             // Email + Brevo (functions will be loaded from integrations module)
@@ -1363,7 +1405,8 @@ function rbf_add_booking_page_html() {
                 'meal'     => $meal,
                 'people'   => $people,
                 'bucket'   => 'backend',
-                'event_id' => $event_id
+                'event_id' => $event_id,
+                'unit_price' => $valore_pp,
             ], 60 * 15);
 
             $message = '<div class="notice notice-success"><p>Prenotazione aggiunta con successo! <a href="' . admin_url('post.php?post=' . $post_id . '&action=edit') . '">Modifica</a></p></div>';
@@ -1685,9 +1728,10 @@ function rbf_get_booking_analytics($start_date, $end_date) {
     
     // Get all bookings in date range
     $bookings = $wpdb->get_results($wpdb->prepare(
-        "SELECT p.ID, pm_date.meta_value as booking_date, pm_people.meta_value as people, 
+        "SELECT p.ID, pm_date.meta_value as booking_date, pm_people.meta_value as people,
                 COALESCE(pm_meal.meta_value, pm_meal_legacy.meta_value) as meal, pm_status.meta_value as status,
-                pm_source.meta_value as source, pm_bucket.meta_value as bucket
+                pm_source.meta_value as source, pm_bucket.meta_value as bucket,
+                pm_value_tot.meta_value as booking_value, pm_value_pp.meta_value as booking_unit_value
          FROM {$wpdb->posts} p
          INNER JOIN {$wpdb->postmeta} pm_date ON p.ID = pm_date.post_id AND pm_date.meta_key = 'rbf_data'
          LEFT JOIN {$wpdb->postmeta} pm_people ON p.ID = pm_people.post_id AND pm_people.meta_key = 'rbf_persone'
@@ -1696,6 +1740,8 @@ function rbf_get_booking_analytics($start_date, $end_date) {
          LEFT JOIN {$wpdb->postmeta} pm_status ON p.ID = pm_status.post_id AND pm_status.meta_key = 'rbf_booking_status'
          LEFT JOIN {$wpdb->postmeta} pm_source ON p.ID = pm_source.post_id AND pm_source.meta_key = 'rbf_source'
          LEFT JOIN {$wpdb->postmeta} pm_bucket ON p.ID = pm_bucket.post_id AND pm_bucket.meta_key = 'rbf_source_bucket'
+         LEFT JOIN {$wpdb->postmeta} pm_value_tot ON p.ID = pm_value_tot.post_id AND pm_value_tot.meta_key = 'rbf_valore_tot'
+         LEFT JOIN {$wpdb->postmeta} pm_value_pp ON p.ID = pm_value_pp.post_id AND pm_value_pp.meta_key = 'rbf_valore_pp'
          WHERE p.post_type = 'rbf_booking' AND p.post_status = 'publish'
          AND pm_date.meta_value >= %s AND pm_date.meta_value <= %s
          ORDER BY pm_date.meta_value ASC",
@@ -1757,10 +1803,17 @@ function rbf_get_booking_analytics($start_date, $end_date) {
         $analytics['total_bookings']++;
         $analytics['total_people'] += $people;
         
-        // Revenue calculation using custom meal configuration
-        $meal_config = rbf_get_meal_config($meal);
-        $meal_value = $meal_config ? (float) $meal_config['price'] : 0;
-        $booking_revenue = $meal_value * $people;
+        // Revenue calculation prioritizing stored booking metadata
+        $booking_revenue = isset($booking->booking_value) ? (float) $booking->booking_value : 0;
+        if ($booking_revenue <= 0 && isset($booking->booking_unit_value) && (float) $booking->booking_unit_value > 0) {
+            $booking_revenue = (float) $booking->booking_unit_value * $people;
+        }
+        if ($booking_revenue <= 0) {
+            $meal_config = rbf_get_meal_config($meal);
+            $meal_value = $meal_config ? (float) $meal_config['price'] : 0;
+            $booking_revenue = $meal_value * $people;
+        }
+
         $analytics['total_revenue'] += $booking_revenue;
         
         // Status tracking
@@ -1932,7 +1985,9 @@ function rbf_handle_export_request($start_date, $end_date, $format, $status_filt
                 pm_bucket.meta_value as bucket,
                 pm_gclid.meta_value as gclid,
                 pm_fbclid.meta_value as fbclid,
-                pm_created.meta_value as created_date
+                pm_created.meta_value as created_date,
+                pm_value_tot.meta_value as value_tot,
+                pm_value_pp.meta_value as value_pp
          FROM {$wpdb->posts} p
          INNER JOIN {$wpdb->postmeta} pm_date ON p.ID = pm_date.post_id AND pm_date.meta_key = 'rbf_data'
          LEFT JOIN {$wpdb->postmeta} pm_time ON p.ID = pm_time.post_id AND pm_time.meta_key = 'rbf_time'
@@ -1955,6 +2010,8 @@ function rbf_handle_export_request($start_date, $end_date, $format, $status_filt
          LEFT JOIN {$wpdb->postmeta} pm_gclid ON p.ID = pm_gclid.post_id AND pm_gclid.meta_key = 'rbf_gclid'
          LEFT JOIN {$wpdb->postmeta} pm_fbclid ON p.ID = pm_fbclid.post_id AND pm_fbclid.meta_key = 'rbf_fbclid'
          LEFT JOIN {$wpdb->postmeta} pm_created ON p.ID = pm_created.post_id AND pm_created.meta_key = 'rbf_booking_created'
+         LEFT JOIN {$wpdb->postmeta} pm_value_tot ON p.ID = pm_value_tot.post_id AND pm_value_tot.meta_key = 'rbf_valore_tot'
+         LEFT JOIN {$wpdb->postmeta} pm_value_pp ON p.ID = pm_value_pp.post_id AND pm_value_pp.meta_key = 'rbf_valore_pp'
          WHERE p.post_type = 'rbf_booking' AND p.post_status = 'publish'
          AND pm_date.meta_value >= %s AND pm_date.meta_value <= %s
          {$where_status}
@@ -1990,7 +2047,7 @@ function rbf_export_csv($bookings, $start_date, $end_date) {
         'ID', 'Data Prenotazione', 'Orario', 'Nome', 'Cognome', 'Email', 'Telefono',
         'Persone', 'Servizio', 'Stato', 'Note/Allergie', 'Lingua', 'Privacy', 'Marketing',
         'Sorgente', 'Medium', 'Campagna', 'Bucket', 'Google Click ID', 'Facebook Click ID',
-        'Data Creazione', 'Data Invio'
+        'Data Creazione', 'Data Invio', 'Valore Totale', 'Prezzo Unitario'
     ];
     
     fputcsv($output, $headers);
@@ -2000,6 +2057,27 @@ function rbf_export_csv($bookings, $start_date, $end_date) {
         $statuses = rbf_get_booking_statuses();
         $status_label = $statuses[$booking->status ?? 'confirmed'] ?? ($booking->status ?? 'confirmed');
         
+        $people = intval($booking->people ?: 0);
+        $value_tot = isset($booking->value_tot) ? (float) $booking->value_tot : 0;
+        $value_pp = isset($booking->value_pp) ? (float) $booking->value_pp : 0;
+
+        if ($value_tot <= 0 && $value_pp > 0) {
+            $value_tot = $value_pp * $people;
+        }
+        if ($value_tot <= 0) {
+            $meal_config = rbf_get_meal_config($booking->meal);
+            $value_pp_fallback = $meal_config ? (float) $meal_config['price'] : 0;
+            if ($value_pp_fallback > 0) {
+                $value_tot = $value_pp_fallback * $people;
+                if ($value_pp <= 0) {
+                    $value_pp = $value_pp_fallback;
+                }
+            }
+        }
+        if ($value_pp <= 0 && $people > 0) {
+            $value_pp = $value_tot / max(1, $people);
+        }
+
         $row = [
             $booking->ID,
             $booking->booking_date,
@@ -2022,9 +2100,11 @@ function rbf_export_csv($bookings, $start_date, $end_date) {
             $booking->gclid,
             $booking->fbclid,
             $booking->created_date,
-            $booking->post_date
+            $booking->post_date,
+            number_format($value_tot, 2, '.', ''),
+            number_format($value_pp, 2, '.', '')
         ];
-        
+
         fputcsv($output, $row);
     }
     
@@ -2056,6 +2136,27 @@ function rbf_export_json($bookings, $start_date, $end_date) {
     $statuses = rbf_get_booking_statuses();
     
     foreach ($bookings as $booking) {
+        $people = intval($booking->people ?: 0);
+        $value_tot = isset($booking->value_tot) ? (float) $booking->value_tot : 0;
+        $value_pp = isset($booking->value_pp) ? (float) $booking->value_pp : 0;
+
+        if ($value_tot <= 0 && $value_pp > 0) {
+            $value_tot = $value_pp * $people;
+        }
+        if ($value_tot <= 0) {
+            $meal_config = rbf_get_meal_config($booking->meal);
+            $value_pp_fallback = $meal_config ? (float) $meal_config['price'] : 0;
+            if ($value_pp_fallback > 0) {
+                $value_tot = $value_pp_fallback * $people;
+                if ($value_pp <= 0) {
+                    $value_pp = $value_pp_fallback;
+                }
+            }
+        }
+        if ($value_pp <= 0 && $people > 0) {
+            $value_pp = $value_tot / max(1, $people);
+        }
+
         $export_data['bookings'][] = [
             'id' => intval($booking->ID),
             'title' => $booking->post_title,
@@ -2069,11 +2170,13 @@ function rbf_export_json($bookings, $start_date, $end_date) {
                 'language' => $booking->language ?: 'it'
             ],
             'booking_details' => [
-                'people' => intval($booking->people ?: 0),
+                'people' => $people,
                 'meal' => $booking->meal,
                 'status' => $booking->status ?: 'confirmed',
                 'status_label' => $statuses[$booking->status ?? 'confirmed'] ?? ($booking->status ?? 'confirmed'),
-                'notes' => $booking->notes
+                'notes' => $booking->notes,
+                'value_total' => round($value_tot, 2),
+                'value_per_person' => round($value_pp, 2)
             ],
             'consent' => [
                 'privacy' => $booking->privacy === 'yes',
