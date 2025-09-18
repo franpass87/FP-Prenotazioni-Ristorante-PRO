@@ -3253,16 +3253,28 @@ function rbf_move_booking_callback() {
     // Release old slot capacity
     if ($old_date && $meal && $people) {
         rbf_release_slot_capacity($old_date, $meal, $people);
-        delete_transient('rbf_avail_' . $old_date . '_' . $meal);
     }
-    
-    // Reserve new slot capacity
-    rbf_reserve_slot_capacity($new_date, $meal, $people);
-    delete_transient('rbf_avail_' . $new_date . '_' . $meal);
-    
+
+    // Reserve new slot capacity and ensure it succeeds
+    $reservation_success = rbf_reserve_slot_capacity($new_date, $meal, $people);
+
+    if (!$reservation_success) {
+        if ($old_date && $meal && $people) {
+            rbf_reserve_slot_capacity($old_date, $meal, $people);
+        }
+
+        wp_send_json_error('Conflitto di capacità, riprova');
+    }
+
     // Update booking data
     update_post_meta($booking_id, 'rbf_data', $new_date);
     update_post_meta($booking_id, 'rbf_time', $new_time);
+
+    // Invalidate availability caches now that the move succeeded
+    if ($old_date && $meal) {
+        delete_transient('rbf_avail_' . $old_date . '_' . $meal);
+    }
+    delete_transient('rbf_avail_' . $new_date . '_' . $meal);
     
     // Update post title
     $first_name = get_post_meta($booking_id, 'rbf_nome', true);
