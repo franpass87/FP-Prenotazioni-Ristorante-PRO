@@ -239,33 +239,52 @@ function rbf_book_slot_optimistic($date, $slot_id, $people, $max_retries = 3) {
  */
 function rbf_release_slot_capacity($date, $slot_id, $people) {
     global $wpdb;
-    
+
     $table_name = $wpdb->prefix . 'rbf_slot_versions';
-    
-    // Get current slot version
-    $slot_version = rbf_get_slot_version($date, $slot_id);
-    if (!$slot_version) {
-        return false;
+    $max_retries = 3;
+    $attempt = 0;
+
+    while ($attempt < $max_retries) {
+        $attempt++;
+
+        // Get current slot version
+        $slot_version = rbf_get_slot_version($date, $slot_id);
+        if (!$slot_version) {
+            return false;
+        }
+
+        $current_version = (int) $slot_version['version_number'];
+        $current_booked = (int) $slot_version['booked_capacity'];
+
+        // Prevent negative booked capacity when releasing seats
+        $new_booked = max(0, $current_booked - (int) $people);
+        $new_version = $current_version + 1;
+
+        $updated = $wpdb->update(
+            $table_name,
+            [
+                'booked_capacity' => $new_booked,
+                'version_number' => $new_version,
+            ],
+            [
+                'slot_date' => $date,
+                'slot_id' => $slot_id,
+                'version_number' => $current_version,
+            ],
+            ['%d', '%d'],
+            ['%s', '%s', '%d']
+        );
+
+        if ($updated === 1) {
+            return true;
+        }
+
+        if ($attempt < $max_retries) {
+            usleep(rand(10000, 50000));
+        }
     }
-    
-    $current_booked = max(0, $slot_version['booked_capacity'] - $people);
-    $new_version = $slot_version['version_number'] + 1;
-    
-    $updated = $wpdb->update(
-        $table_name,
-        [
-            'booked_capacity' => $current_booked,
-            'version_number' => $new_version,
-        ],
-        [
-            'slot_date' => $date,
-            'slot_id' => $slot_id,
-        ],
-        ['%d', '%d'],
-        ['%s', '%s']
-    );
-    
-    return $updated === 1;
+
+    return false;
 }
 
 /**
