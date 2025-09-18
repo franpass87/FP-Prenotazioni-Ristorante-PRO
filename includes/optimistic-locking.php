@@ -104,21 +104,9 @@ function rbf_get_slot_version($date, $slot_id) {
  * @return int Number of people already booked
  */
 function rbf_calculate_current_bookings($date, $slot_id) {
-    global $wpdb;
-    
-    $spots_taken = $wpdb->get_var($wpdb->prepare(
-        "SELECT COALESCE(SUM(pm_people.meta_value), 0)
-         FROM {$wpdb->posts} p
-         INNER JOIN {$wpdb->postmeta} pm_people ON p.ID = pm_people.post_id AND pm_people.meta_key = 'rbf_persone'
-         INNER JOIN {$wpdb->postmeta} pm_date ON p.ID = pm_date.post_id AND pm_date.meta_key = 'rbf_data'
-         INNER JOIN {$wpdb->postmeta} pm_slot ON p.ID = pm_slot.post_id AND pm_slot.meta_key = 'rbf_meal'
-         WHERE p.post_type = 'rbf_booking' AND p.post_status = 'publish'
-         AND pm_date.meta_value = %s AND pm_slot.meta_value = %s",
-        $date, $slot_id
-    ));
-    
-    return (int) $spots_taken;
+    return rbf_sum_active_bookings($date, $slot_id);
 }
+
 
 /**
  * Attempt to book slot with optimistic locking
