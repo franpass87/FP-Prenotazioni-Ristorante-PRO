@@ -785,6 +785,47 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12), 0 0 0 3px rgba(0, 0, 0, 0.1);
 }
 
+/* Simplified dropdown variant without search field */
+.rbf-iti-simple .iti__search-container,
+.rbf-iti-simple .iti__search-input {
+    display: none !important;
+}
+
+.rbf-iti-simple .iti__dropdown-content {
+    padding: 8px 0;
+    width: min(320px, 90vw) !important;
+    max-height: min(320px, 60vh);
+}
+
+.rbf-iti-simple .iti__country-list {
+    padding: 4px 0;
+    margin: 0;
+    width: min(320px, 90vw) !important;
+    max-height: min(280px, 55vh);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.rbf-iti-simple .iti__country {
+    padding: 10px 16px;
+}
+
+@media (max-width: 768px) {
+    .rbf-iti-simple .iti__dropdown-content {
+        width: min(280px, 92vw) !important;
+        max-height: min(260px, 50vh);
+    }
+
+    .rbf-iti-simple .iti__country-list {
+        width: min(280px, 92vw) !important;
+        max-height: min(240px, 50vh);
+    }
+
+    .rbf-iti-simple .iti__country {
+        padding: 12px 18px;
+    }
+}
+
 /* Add visual indicator for fallback mode */
 .rbf-tel-fallback::before {
     content: "⚠️ ";
