@@ -3245,7 +3245,13 @@ function rbf_move_booking_callback() {
     }
     
     // Check availability for new slot
-    $availability_check = rbf_check_slot_availability($new_date, $meal, $new_time, $people);
+    $availability_check = rbf_check_slot_availability(
+        $new_date,
+        $meal,
+        $new_time,
+        $people,
+        ($booking && $booking->post_type === 'rbf_booking') ? $booking_id : null
+    );
     if (!$availability_check) {
         wp_send_json_error('Nuovo slot non disponibile');
     }

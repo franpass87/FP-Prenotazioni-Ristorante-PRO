@@ -99,7 +99,7 @@ echo "  Time: {$test_time}\n";
 echo "  People: {$test_people}\n";
 
 // Simulate the availability check function
-function test_availability_check($date, $meal, $time, $people) {
+function test_availability_check($date, $meal, $time, $people, $options = []) {
     global $meal_test_configs;
 
     // Basic validation
@@ -130,8 +130,20 @@ function test_availability_check($date, $meal, $time, $people) {
     $overbooking = round($base_capacity * ($meal_config['overbooking_limit'] / 100));
     $total_capacity = $base_capacity + $overbooking;
     
-    // Mock current bookings (assume 15 people already booked)
-    $current_bookings = 15;
+    // Mock current bookings (configurable for tests)
+    $current_bookings = isset($options['current_bookings']) ? (int) $options['current_bookings'] : 15;
+
+    if (!empty($options['ignore_booking']) && is_array($options['ignore_booking'])) {
+        $booking_info = $options['ignore_booking'];
+        $booking_people = isset($booking_info['people']) ? (int) $booking_info['people'] : 0;
+        $booking_date = $booking_info['date'] ?? null;
+        $booking_meal = $booking_info['meal'] ?? null;
+
+        if ($booking_people > 0 && $booking_date === $date && $booking_meal === $meal) {
+            $current_bookings = max(0, $current_bookings - $booking_people);
+        }
+    }
+
     $remaining = $total_capacity - $current_bookings;
     
     if ($remaining >= $people) {
@@ -156,6 +168,8 @@ echo "\n";
 echo "Test 2: Drag & Drop Movement Scenarios\n";
 echo "---------------------------------------\n";
 
+$same_slot_date = date('Y-m-d', strtotime('+5 days'));
+
 // Test scenario data
 $booking_scenarios = [
     [
@@ -179,6 +193,25 @@ $booking_scenarios = [
         'meal' => 'cena'
     ],
     [
+        'id' => 'B004',
+        'name' => 'Luca Neri',
+        'people' => 4,
+        'from_date' => $same_slot_date,
+        'from_time' => '20:00',
+        'to_date' => $same_slot_date,
+        'to_time' => '20:30',
+        'meal' => 'cena',
+        'description' => 'Full capacity move within the same meal (should succeed)',
+        'options' => [
+            'current_bookings' => 42,
+            'ignore_booking' => [
+                'date' => $same_slot_date,
+                'meal' => 'cena',
+                'people' => 4,
+            ],
+        ],
+    ],
+    [
         'id' => 'B003',
         'name' => 'Giuseppe Verde',
         'people' => 8,
@@ -194,10 +227,28 @@ foreach ($booking_scenarios as $i => $scenario) {
     echo "Scenario " . ($i + 1) . ": {$scenario['name']} ({$scenario['people']} people)\n";
     echo "  From: {$scenario['from_date']} {$scenario['from_time']}\n";
     echo "  To: {$scenario['to_date']} {$scenario['to_time']}\n";
-    
+
+    if (!empty($scenario['description'])) {
+        echo "  Note: {$scenario['description']}\n";
+    }
+
+    $options = $scenario['options'] ?? [];
+
+    if (!empty($options['current_bookings'])) {
+        echo "  Simulated bookings before move: {$options['current_bookings']}\n";
+    }
+
+    if (!empty($options['ignore_booking']) && is_array($options['ignore_booking'])) {
+        $ignored = $options['ignore_booking'];
+        $ignored_people = $ignored['people'] ?? 0;
+        $ignored_date = $ignored['date'] ?? '';
+        $ignored_meal = $ignored['meal'] ?? '';
+        echo "  Ignoring during check: {$ignored_people} people on {$ignored_date} ({$ignored_meal})\n";
+    }
+
     // Check if movement is valid
-    $move_result = test_availability_check($scenario['to_date'], $scenario['meal'], $scenario['to_time'], $scenario['people']);
-    
+    $move_result = test_availability_check($scenario['to_date'], $scenario['meal'], $scenario['to_time'], $scenario['people'], $options);
+
     if ($move_result['valid']) {
         echo "  ✅ Movement ALLOWED\n";
         echo "  Remaining capacity after move: {$move_result['remaining_capacity']}\n";
@@ -363,6 +414,7 @@ echo "Summary:\n";
 echo "--------\n";
 echo "• Availability checking works correctly\n";
 echo "• Movement validation prevents invalid operations\n";
+echo "• Same-meal drag & drop remains possible even when the meal was full before the move\n";
 echo "• Conflict detection identifies capacity issues\n";
 echo "• Buffer time validation prevents scheduling conflicts\n";
 echo "• Edge cases are handled appropriately\n";

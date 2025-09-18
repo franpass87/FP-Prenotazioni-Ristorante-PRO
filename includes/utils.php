@@ -2047,24 +2047,25 @@ function rbf_verify_recaptcha($token, $action = 'booking_submit') {
 /**
  * Check slot availability for booking movement
  * Used by drag & drop functionality to validate if a slot can accommodate a booking
- * 
+ *
  * @param string $date Date in YYYY-MM-DD format
  * @param string $meal Meal type (pranzo, cena, etc.)
  * @param string $time Time in HH:MM format
  * @param int $people Number of people
+ * @param int|null $booking_id Optional booking ID to exclude from the availability calculation.
  * @return bool True if slot is available, false otherwise
  */
-function rbf_check_slot_availability($date, $meal, $time, $people) {
+function rbf_check_slot_availability($date, $meal, $time, $people, $booking_id = null) {
     // Basic input validation
     if (empty($date) || empty($meal) || empty($time) || $people <= 0) {
         return false;
     }
-    
+
     // Check if date is in the past
     if (strtotime($date) < strtotime('today')) {
         return false;
     }
-    
+
     // Get meal configuration
     $meals = rbf_get_active_meals();
     $meal_config = null;
@@ -2074,34 +2075,54 @@ function rbf_check_slot_availability($date, $meal, $time, $people) {
             break;
         }
     }
-    
+
     if (!$meal_config) {
         return false;
     }
-    
+
     // Check if meal is available on this day
     if (!rbf_is_meal_available_on_day($meal, $date)) {
         return false;
     }
-    
+
     // Check if time is within meal time slots
     $time_slots = rbf_normalize_time_slots($meal_config['time_slots'] ?? '');
     if (empty($time_slots) || !in_array($time, $time_slots, true)) {
         return false;
     }
-    
-    // Get current capacity usage (excluding the booking being moved)
+
+    // Get current capacity usage
     $current_bookings = rbf_calculate_current_bookings($date, $meal);
+
+    // Optionally subtract the booking being moved if it belongs to this slot
+    if (!empty($booking_id) && function_exists('get_post') && function_exists('get_post_meta')) {
+        $booking = get_post($booking_id);
+        if ($booking && $booking->post_type === 'rbf_booking') {
+            $booking_date = get_post_meta($booking_id, 'rbf_data', true);
+            $booking_meal = get_post_meta($booking_id, 'rbf_meal', true);
+            if ($booking_meal === '') {
+                $booking_meal = get_post_meta($booking_id, 'rbf_orario', true);
+            }
+
+            if ($booking_date === $date && $booking_meal === $meal) {
+                $booking_people = intval(get_post_meta($booking_id, 'rbf_persone', true));
+                if ($booking_people > 0) {
+                    $current_bookings = max(0, $current_bookings - $booking_people);
+                }
+            }
+        }
+    }
+
     $meal_capacity = intval($meal_config['capacity']);
-    
+
     // Calculate overbooking allowance
     $overbooking_limit = intval($meal_config['overbooking_limit'] ?? 0);
     $overbooking_spots = round($meal_capacity * ($overbooking_limit / 100));
     $effective_capacity = $meal_capacity + $overbooking_spots;
-    
+
     // Check if there's enough capacity
     $remaining_capacity = $effective_capacity - $current_bookings;
-    
+
     return $remaining_capacity >= $people;
 }
 
