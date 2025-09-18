@@ -1418,13 +1418,23 @@ add_action('rbf_booking_created', function($booking_id, $booking_context = []) {
     }
 }, 10, 2);
 
-add_action('rbf_booking_status_changed', function($booking_id, $new_status, $old_status) {
+add_action('rbf_booking_status_changed', function($booking_id, $old_status, $new_status, $note = '') {
     $date = get_post_meta($booking_id, 'rbf_data', true);
-    $meal = get_post_meta($booking_id, 'rbf_meal', true);
+    $meal = get_post_meta($booking_id, 'rbf_meal', true) ?: get_post_meta($booking_id, 'rbf_orario', true);
+
+    if ($new_status === 'cancelled' && $old_status !== 'cancelled' && $date && $meal) {
+        $people = intval(get_post_meta($booking_id, 'rbf_persone', true));
+
+        if ($people > 0) {
+            rbf_release_slot_capacity($date, $meal, $people);
+            delete_transient('rbf_avail_' . $date . '_' . $meal);
+        }
+    }
+
     if ($date && $meal) {
         rbf_clear_calendar_cache($date, $meal);
     }
-}, 10, 3);
+}, 10, 4);
 
 /**
  * AJAX handler to refresh calendar data (for real-time updates)
