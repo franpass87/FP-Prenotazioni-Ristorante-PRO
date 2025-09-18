@@ -446,6 +446,40 @@ function rbf_ajax_track_ga4_event() {
     // Sanitize event parameters recursively preserving numeric types
     $sanitized_params = rbf_recursive_sanitize($event_params);
 
+    // Derive GA session ID from event parameters when not explicitly provided
+    if (!$ga_session_id) {
+        if (isset($sanitized_params['ga_session_id'])) {
+            $candidate = $sanitized_params['ga_session_id'];
+        } elseif (isset($sanitized_params['session_id'])) {
+            $candidate = $sanitized_params['session_id'];
+        } else {
+            $candidate = '';
+        }
+
+        if (!is_array($candidate)) {
+            $ga_session_id = rbf_clean_ga_session_id($candidate);
+        }
+    }
+
+    // Ensure outgoing parameters never contain invalid GA session identifiers
+    if (isset($sanitized_params['ga_session_id'])) {
+        $clean_param_session = rbf_clean_ga_session_id($sanitized_params['ga_session_id']);
+        if ($clean_param_session) {
+            $sanitized_params['ga_session_id'] = $clean_param_session;
+        } else {
+            unset($sanitized_params['ga_session_id']);
+        }
+    }
+
+    if (isset($sanitized_params['session_id'])) {
+        $clean_param_session = rbf_clean_ga_session_id($sanitized_params['session_id']);
+        if ($clean_param_session) {
+            $sanitized_params['session_id'] = $clean_param_session;
+        } else {
+            unset($sanitized_params['session_id']);
+        }
+    }
+
     if (!empty($session_id) && (!empty($client_id) || !empty($ga_session_id))) {
         rbf_store_ga_client_id_for_session($session_id, $client_id, $ga_session_id);
     }

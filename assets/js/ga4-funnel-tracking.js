@@ -55,23 +55,36 @@
         },
 
         /**
+         * Normalizes a GA4 session ID ensuring it's numeric.
+         */
+        sanitizeGaSessionId: function(sessionId) {
+            if (!sessionId) {
+                return null;
+            }
+
+            const numeric = String(sessionId).trim().match(/^(\d+)$/);
+            return numeric ? numeric[1] : null;
+        },
+
+        /**
          * Store detected GA4 session ID and optionally persist it for reuse
          */
         setGaSessionId: function(sessionId, source = 'unknown') {
-            if (!sessionId || !/^\d+$/.test(sessionId)) {
+            const sanitized = this.sanitizeGaSessionId(sessionId);
+            if (!sanitized) {
                 return;
             }
 
-            if (this.gaSessionId === sessionId) {
+            if (this.gaSessionId === sanitized) {
                 return;
             }
 
-            this.gaSessionId = sessionId;
-            this.log(`GA4 session ID detected (${source})`, sessionId);
+            this.gaSessionId = sanitized;
+            this.log(`GA4 session ID detected (${source})`, sanitized);
 
             try {
                 const maxAge = 30 * 60; // 30 minutes
-                document.cookie = `rbf_ga_session_id=${sessionId}; path=/; max-age=${maxAge}`;
+                document.cookie = `rbf_ga_session_id=${sanitized}; path=/; max-age=${maxAge}`;
             } catch (cookieError) {
                 this.log('Unable to persist GA4 session ID cookie', cookieError);
             }
@@ -113,12 +126,10 @@
                 return null;
             }
 
-            const parts = value.split('.').filter(Boolean);
-            if (parts.length >= 3 && /^GS/i.test(parts[0])) {
-                const sessionPart = parts[2];
-                if (/^\d+$/.test(sessionPart)) {
-                    return sessionPart;
-                }
+            const normalizedValue = value.trim();
+            const match = normalizedValue.match(/^GS\d+\.\d+\.([0-9]+)/i);
+            if (match && match[1]) {
+                return match[1];
             }
 
             return null;
@@ -217,8 +228,9 @@
             if (persisted) {
                 const persistedParts = persisted.split('=');
                 const persistedValue = decodeURIComponent(persistedParts.slice(1).join('=') || '');
-                if (/^\d+$/.test(persistedValue)) {
-                    return persistedValue;
+                const sanitizedPersisted = this.sanitizeGaSessionId(persistedValue);
+                if (sanitizedPersisted) {
+                    return sanitizedPersisted;
                 }
             }
 
@@ -316,6 +328,8 @@
                 gaSessionId = this.ensureGaSessionId();
             }
 
+            const sanitizedGaSessionId = this.sanitizeGaSessionId(gaSessionId);
+
             if (!sessionId) {
                 sessionId = 'sessionless';
             }
@@ -342,9 +356,9 @@
                 vertical: 'restaurant'
             };
 
-            if (gaSessionId) {
-                enhancedParams.session_id = gaSessionId;
-                enhancedParams.ga_session_id = gaSessionId;
+            if (sanitizedGaSessionId) {
+                enhancedParams.session_id = sanitizedGaSessionId;
+                enhancedParams.ga_session_id = sanitizedGaSessionId;
             }
             
             this.log(`Tracking event: ${eventName}`, enhancedParams);
@@ -383,7 +397,8 @@
             }
 
             const sessionId = sessionIdOverride || this.sessionId;
-            const gaSessionId = gaSessionIdOverride || this.gaSessionId || '';
+            const gaSessionIdRaw = gaSessionIdOverride || this.gaSessionId || '';
+            const gaSessionId = this.sanitizeGaSessionId(gaSessionIdRaw) || '';
 
             $.ajax({
                 url: rbfGA4Funnel.ajaxUrl,
@@ -546,8 +561,9 @@
                 options.clientId = responseData.client_id;
             }
 
-            if (responseData.ga_session_id) {
-                options.gaSessionId = responseData.ga_session_id;
+            const completionGaSession = this.sanitizeGaSessionId(responseData.ga_session_id);
+            if (completionGaSession) {
+                options.gaSessionId = completionGaSession;
             }
 
             const eventName = responseData.event_name || 'booking_confirmed';
