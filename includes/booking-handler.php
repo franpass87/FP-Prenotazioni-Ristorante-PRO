@@ -282,6 +282,19 @@ function rbf_create_booking_post($data, $redirect_url, $anchor) {
     $booking_result   = $data['booking_result'];
     $booking_status   = $data['booking_status'];
 
+    $options = rbf_get_settings();
+
+    // Calcola il prezzo unitario e totale utilizzando le configurazioni disponibili
+    $meal_config = rbf_get_meal_config($meal);
+    if ($meal_config) {
+        $valore_pp = (float) $meal_config['price'];
+    } else {
+        $meal_for_value = ($meal === 'brunch') ? 'pranzo' : $meal;
+        $valore_pp = (float) ($options['valore_' . $meal_for_value] ?? 0);
+    }
+
+    $valore_tot = $valore_pp * $people;
+
     $post_id = wp_insert_post([
         'post_type'   => 'rbf_booking',
         'post_title'  => ucfirst($meal) . " per {$first_name} {$last_name} - {$date} {$time}",
@@ -314,6 +327,8 @@ function rbf_create_booking_post($data, $redirect_url, $anchor) {
             'rbf_booking_status'  => $booking_status,
             'rbf_booking_created' => current_time('Y-m-d H:i:s'),
             'rbf_booking_hash'    => wp_generate_password(16, false, false),
+            'rbf_valore_pp'       => $valore_pp,
+            'rbf_valore_tot'      => $valore_tot,
         ],
     ]);
 
@@ -356,18 +371,8 @@ function rbf_create_booking_post($data, $redirect_url, $anchor) {
     do_action('rbf_booking_created', $post_id, $booking_context);
 
     delete_transient('rbf_avail_' . $date . '_' . $slot);
-    $options = rbf_get_settings();
 
-    // Get price from configurable meal or fallback to legacy
-    $meal_config = rbf_get_meal_config($meal);
-    if ($meal_config) {
-        $valore_pp = (float) $meal_config['price'];
-    } else {
-        $meal_for_value = ($meal === 'brunch') ? 'pranzo' : $meal;
-        $valore_pp = (float) ($options['valore_' . $meal_for_value] ?? 0);
-    }
-
-    $valore_tot = $valore_pp * $people;
+    // I valori economici sono stati calcolati prima della creazione del post
     $event_id   = 'rbf_' . $post_id;
 
     set_transient('rbf_booking_data_' . $post_id, [
@@ -379,12 +384,14 @@ function rbf_create_booking_post($data, $redirect_url, $anchor) {
         'bucket'   => $src['bucket'],
         'gclid'    => $gclid,
         'fbclid'   => $fbclid,
-        'event_id' => $event_id
+        'event_id' => $event_id,
+        'unit_price' => $valore_pp,
     ], 60 * 15);
 
     return [
         'post_id'    => $post_id,
         'valore_tot' => $valore_tot,
+        'valore_pp'  => $valore_pp,
         'event_id'   => $event_id,
         'options'    => $options
     ];
