@@ -1250,8 +1250,45 @@ function rbf_update_booking_data_callback() {
     if (isset($booking_data['people'])) {
         $people = $booking_data['people'];
         if ($people > 0 && $people <= 30) {
+            $previous_people = intval(get_post_meta($booking_id, 'rbf_persone', true));
+            $delta_people = $people - $previous_people;
+
+            $booking_date = get_post_meta($booking_id, 'rbf_data', true);
+            $booking_meal = get_post_meta($booking_id, 'rbf_meal', true) ?: get_post_meta($booking_id, 'rbf_orario', true);
+
+            if ($delta_people > 0) {
+                if ($booking_date && $booking_meal) {
+                    $capacity_result = rbf_book_slot_optimistic($booking_date, $booking_meal, $delta_people);
+
+                    if (empty($capacity_result['success'])) {
+                        $error_message = rbf_translate_string('Errore durante l\'aggiornamento della capacità della prenotazione.');
+
+                        if (!empty($capacity_result['error']) && $capacity_result['error'] === 'insufficient_capacity') {
+                            $remaining = isset($capacity_result['remaining']) ? (int) $capacity_result['remaining'] : 0;
+                            $error_message = sprintf(
+                                rbf_translate_string('Spiacenti, non ci sono abbastanza posti. Rimasti: %d. Scegli un altro orario.'),
+                                max(0, $remaining)
+                            );
+                        } elseif (!empty($capacity_result['message'])) {
+                            $error_message = $capacity_result['message'];
+                        }
+
+                        wp_send_json_error($error_message);
+                    }
+                } else {
+                    wp_send_json_error(rbf_translate_string('Errore durante l\'aggiornamento della capacità della prenotazione.'));
+                }
+            } elseif ($delta_people < 0 && $booking_date && $booking_meal) {
+                rbf_release_slot_capacity($booking_date, $booking_meal, abs($delta_people));
+            }
+
             update_post_meta($booking_id, 'rbf_persone', $people);
             $should_recalculate_value = true;
+
+            if ($booking_date && $booking_meal) {
+                rbf_sync_slot_version($booking_date, $booking_meal);
+                delete_transient('rbf_avail_' . $booking_date . '_' . $booking_meal);
+            }
         }
     }
     

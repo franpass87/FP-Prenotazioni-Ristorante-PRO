@@ -479,6 +479,7 @@ function rbf_translate_string($text) {
         'Il numero di persone deve essere compreso tra 1 e %d.' => 'The number of people must be between 1 and %d.',
         'Il numero di persone deve essere compreso tra 1 e 20.' => 'The number of people must be between 1 and 20.',
         'Il numero di persone non può superare %d.' => 'The number of people cannot exceed %d.',
+        'Errore durante l\'aggiornamento della capacità della prenotazione.' => 'Error while updating the booking capacity.',
         'Spiacenti, non ci sono abbastanza posti. Rimasti: %d. Scegli un altro orario.' => 'Sorry, there are not enough seats available. Remaining: %d. Please choose another time.',
 
         // Frontend
