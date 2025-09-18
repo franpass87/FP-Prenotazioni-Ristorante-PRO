@@ -1175,27 +1175,13 @@ function rbf_update_booking_status_callback() {
         wp_send_json_error('Prenotazione non trovata');
     }
     
-    $updated = update_post_meta($booking_id, 'rbf_booking_status', $status);
-    
-    // Handle optimistic locking for cancellations
-    if ($status === 'cancelled') {
-        $date = get_post_meta($booking_id, 'rbf_data', true);
-        $slot = get_post_meta($booking_id, 'rbf_meal', true) ?: get_post_meta($booking_id, 'rbf_orario', true);
-        $people = get_post_meta($booking_id, 'rbf_persone', true);
-        
-        if ($date && $slot && $people) {
-            rbf_release_slot_capacity($date, $slot, intval($people));
-            
-            // Clear availability cache
-            delete_transient('rbf_avail_' . $date . '_' . $slot);
-        }
-    }
-    
-    if ($updated !== false) {
+    $updated = rbf_update_booking_status($booking_id, $status);
+
+    if ($updated) {
         wp_send_json_success('Stato aggiornato con successo');
-    } else {
-        wp_send_json_error('Errore durante l\'aggiornamento');
     }
+
+    wp_send_json_error('Errore durante l\'aggiornamento');
 }
 
 /**
@@ -1274,7 +1260,7 @@ function rbf_update_booking_data_callback() {
     
     // Update status
     if (isset($booking_data['status']) && in_array($booking_data['status'], ['confirmed', 'cancelled', 'completed'])) {
-        update_post_meta($booking_id, 'rbf_booking_status', $booking_data['status']);
+        rbf_update_booking_status($booking_id, $booking_data['status']);
     }
 
     if ($should_recalculate_value) {
