@@ -180,11 +180,31 @@ function rbf_add_booking_tracking_script() {
     $booking_date_meta = $meta['rbf_data'][0] ?? '';
     $booking_time_meta = $meta['rbf_orario'][0] ?? '';
 
-    $customer_email_hash = hash('sha256', strtolower(trim((string) $email_meta)));
+    $normalized_email = strtolower(trim((string) $email_meta));
+    $customer_email_hash = $normalized_email !== '' ? hash('sha256', $normalized_email) : '';
+
     $customer_phone_clean = preg_replace('/[^\\d+]/', '', (string) $phone_meta);
-    $customer_phone_hash = hash('sha256', $customer_phone_clean);
-    $customer_first_name_hash = hash('sha256', strtolower(trim((string) $first_name_meta)));
-    $customer_last_name_hash = hash('sha256', strtolower(trim((string) $last_name_meta)));
+    $customer_phone_hash = $customer_phone_clean !== '' ? hash('sha256', $customer_phone_clean) : '';
+
+    $normalized_first_name = strtolower(trim((string) $first_name_meta));
+    $customer_first_name_hash = $normalized_first_name !== '' ? hash('sha256', $normalized_first_name) : '';
+
+    $normalized_last_name = strtolower(trim((string) $last_name_meta));
+    $customer_last_name_hash = $normalized_last_name !== '' ? hash('sha256', $normalized_last_name) : '';
+
+    $customer_hashes = array_filter([
+        'customer_email' => $customer_email_hash,
+        'customer_phone' => $customer_phone_hash,
+        'customer_first_name' => $customer_first_name_hash,
+        'customer_last_name' => $customer_last_name_hash,
+    ]);
+
+    $customer_conversion_hashes = array_filter([
+        'email_address' => $customer_email_hash,
+        'phone_number' => $customer_phone_hash,
+        'first_name' => $customer_first_name_hash,
+        'last_name' => $customer_last_name_hash,
+    ]);
     ?>
     <script>
         (function() {
@@ -199,6 +219,8 @@ function rbf_add_booking_tracking_script() {
               var unitPrice = <?php echo json_encode($unitPrice); ?>;
               var isGtmHybrid = <?php echo json_encode($options['gtm_hybrid'] === 'yes'); ?>;
               var gtmId = <?php echo json_encode($options['gtm_id'] ?? ''); ?>;
+              var customerData = <?php echo wp_json_encode((object) $customer_hashes); ?>;
+              var customerConversionData = <?php echo wp_json_encode((object) $customer_conversion_hashes); ?>;
 
               function rbfTrackEvent(eventName, params, eventId, options) {
                 options = options || {};
@@ -224,7 +246,7 @@ function rbf_add_booking_tracking_script() {
               }
 
               // Standard GA4 purchase event with enhanced conversions data
-              rbfTrackEvent('purchase', {
+              var purchaseParams = {
                 transaction_id: transaction_id,
                 value: Number(value || 0),
                 currency: currency,
@@ -237,13 +259,15 @@ function rbf_add_booking_tracking_script() {
                 }],
                 bucket: bucketStd,
                 vertical: 'restaurant',
-                unit_price: Number(unitPrice !== null ? unitPrice : (Number(value || 0) / Number(people || 1))),
-                // Enhanced conversion data for Google Ads
-                customer_email: '<?php echo esc_js($customer_email_hash); ?>',
-                customer_phone: '<?php echo esc_js($customer_phone_hash); ?>',
-                customer_first_name: '<?php echo esc_js($customer_first_name_hash); ?>',
-                customer_last_name: '<?php echo esc_js($customer_last_name_hash); ?>'
-              }, eventId);
+                unit_price: Number(unitPrice !== null ? unitPrice : (Number(value || 0) / Number(people || 1)))
+              };
+
+              // Enhanced conversion data for Google Ads (only when available)
+              if (Object.keys(customerData).length > 0) {
+                Object.assign(purchaseParams, customerData);
+              }
+
+              rbfTrackEvent('purchase', purchaseParams, eventId);
 
               // Custom restaurant booking event with detailed attribution data
               rbfTrackEvent('restaurant_booking', {
@@ -262,19 +286,19 @@ function rbf_add_booking_tracking_script() {
 
               // Google Ads specific conversion tracking with enhanced data (only if not in GTM hybrid mode)
               if (!isGtmHybrid && bucketStd === 'gads' && typeof gtag === 'function') {
-                gtag('event', 'conversion', {
+                var conversionParams = {
                   send_to: 'AW-CONVERSION_ID/CONVERSION_LABEL', // Replace with actual conversion ID
                   transaction_id: transaction_id,
                   value: Number(value || 0),
                   currency: currency,
-                  event_id: eventId,
-                  customer_data: {
-                    email_address: '<?php echo esc_js($customer_email_hash); ?>',
-                    phone_number: '<?php echo esc_js($customer_phone_hash); ?>',
-                    first_name: '<?php echo esc_js($customer_first_name_hash); ?>',
-                    last_name: '<?php echo esc_js($customer_last_name_hash); ?>'
-                  }
-                });
+                  event_id: eventId
+                };
+
+                if (Object.keys(customerConversionData).length > 0) {
+                  conversionParams.customer_data = customerConversionData;
+                }
+
+                gtag('event', 'conversion', conversionParams);
               }
 
               <?php if ($meta_pixel_id) : ?>
