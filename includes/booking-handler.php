@@ -573,7 +573,8 @@ function rbf_send_notifications($data, $context) {
             'currency'=> 'EUR',
             'meal'    => $meal,
             'people'  => $people,
-            'bucket'  => $src['bucket']
+            'bucket'  => $src['bucket'],
+            'tracking_token' => $context['tracking_token'] ?? ''
         ];
         rbf_track_booking_completion($post_id, $tracking_completion_data);
     }

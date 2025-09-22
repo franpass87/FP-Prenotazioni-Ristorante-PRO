@@ -138,9 +138,10 @@ class RBF_GA4_Funnel_Tests {
                 'currency' => 'EUR',
                 'meal' => 'cena',
                 'people' => 2,
-                'bucket' => 'organic'
+                'bucket' => 'organic',
+                'tracking_token' => 'testtoken123'
             ];
-            
+
             // This should not throw errors
             rbf_track_booking_completion(123, $booking_data);
             
@@ -199,11 +200,12 @@ class RBF_GA4_Funnel_Tests {
                 'currency' => 'EUR',
                 'meal' => 'pranzo',
                 'people' => 3,
-                'bucket' => 'gads'
+                'bucket' => 'gads',
+                'tracking_token' => 'token456'
             ];
-            
+
             rbf_track_booking_completion($booking_id, $booking_data);
-            
+
             // Check if transient was set
             $transient_data = get_transient('rbf_ga4_completion_' . $booking_id);
             
@@ -216,6 +218,11 @@ class RBF_GA4_Funnel_Tests {
                 isset($transient_data['event_params']) &&
                 $transient_data['event_params']['value'] == 75.50,
                 "Transient should contain correct event parameters"
+            );
+
+            $this->assert_true(
+                isset($transient_data['tracking_token']) && $transient_data['tracking_token'] === 'token456',
+                'Transient should persist the tracking token for verification'
             );
 
             $this->assert_true(

@@ -712,7 +712,8 @@
     if (window.location.search.includes('rbf_success=1')) {
         const urlParams = new URLSearchParams(window.location.search);
         const bookingId = urlParams.get('booking_id');
-        
+        const bookingToken = urlParams.get('booking_token');
+
         // Check if we have booking data from server (if AJAX is available)
         if (bookingId && typeof $.ajax === 'function') {
             $.ajax({
@@ -721,6 +722,7 @@
                 data: {
                     action: 'rbf_get_booking_completion_data',
                     booking_id: bookingId,
+                    booking_token: bookingToken || '',
                     nonce: rbfGA4Funnel.nonce
                 },
                 success: function(response) {
