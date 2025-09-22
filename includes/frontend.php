@@ -577,7 +577,7 @@ function rbf_render_booking_form($atts = []) {
                                 if (current_user_can('manage_options')) {
                                     ?>
                                     <div class="notice notice-warning inline" style="margin: 0;">
-                                        <p><strong><?php echo esc_html(rbf_translate_string('Configurazione richiesta:')); ?></strong> <?php echo esc_html(rbf_translate_string('Nessun pasto è configurato. Per abilitare le prenotazioni, configura almeno un pasto nella sezione')); ?> <a href="<?php echo admin_url('admin.php?page=rbf-settings'); ?>"><?php echo esc_html(rbf_translate_string('Impostazioni Plugin')); ?></a>.</p>
+                                        <p><strong><?php echo esc_html(rbf_translate_string('Configurazione richiesta:')); ?></strong> <?php echo esc_html(rbf_translate_string('Nessun pasto è configurato. Per abilitare le prenotazioni, configura almeno un pasto nella sezione')); ?> <a href="<?php echo admin_url('admin.php?page=rbf_settings'); ?>"><?php echo esc_html(rbf_translate_string('Impostazioni Plugin')); ?></a>.</p>
                                     </div>
                                     <?php
                                 } else {
