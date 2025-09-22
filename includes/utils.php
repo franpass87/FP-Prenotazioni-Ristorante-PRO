@@ -1693,21 +1693,54 @@ function rbf_validate_buffer_time($date, $time, $meal_id, $people_count) {
         ];
     }
     
+    $status_table = $wpdb->prefix . 'rbf_booking_status';
+
+    static $status_source = null;
+    if ($status_source === null) {
+        $found_table = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $status_table));
+
+        if ($found_table === $status_table) {
+            $status_source = [
+                'join' => "LEFT JOIN $status_table bs ON p.ID = bs.booking_id",
+                'column' => 'bs.status'
+            ];
+        } else {
+            $status_source = [
+                'join' => "LEFT JOIN {$wpdb->postmeta} pm_status ON p.ID = pm_status.post_id AND pm_status.meta_key = 'rbf_booking_status'",
+                'column' => 'pm_status.meta_value'
+            ];
+        }
+    }
+
+    $status_join = $status_source['join'];
+    $status_column = $status_source['column'];
+
     // Get existing bookings for the same date and meal
+    $query = "
+        SELECT COALESCE(pm_time.meta_value, pm_time_legacy.meta_value) AS booking_time,
+               pm_people.meta_value AS people
+        FROM {$wpdb->posts} p
+        INNER JOIN {$wpdb->postmeta} pm_date ON p.ID = pm_date.post_id AND pm_date.meta_key = 'rbf_data'
+        LEFT JOIN {$wpdb->postmeta} pm_meal ON p.ID = pm_meal.post_id AND pm_meal.meta_key = 'rbf_meal'
+        LEFT JOIN {$wpdb->postmeta} pm_meal_legacy ON p.ID = pm_meal_legacy.post_id AND pm_meal_legacy.meta_key = 'rbf_orario'
+        LEFT JOIN {$wpdb->postmeta} pm_time ON p.ID = pm_time.post_id AND pm_time.meta_key = 'rbf_time'
+        LEFT JOIN {$wpdb->postmeta} pm_time_legacy ON p.ID = pm_time_legacy.post_id AND pm_time_legacy.meta_key = 'rbf_orario'
+        INNER JOIN {$wpdb->postmeta} pm_people ON p.ID = pm_people.post_id AND pm_people.meta_key = 'rbf_persone'
+        {$status_join}
+        WHERE p.post_type = 'rbf_booking' AND p.post_status = 'publish'
+          AND pm_date.meta_value = %s
+          AND COALESCE(pm_meal.meta_value, pm_meal_legacy.meta_value) = %s
+          AND COALESCE({$status_column}, 'confirmed') <> 'cancelled'
+    ";
+
     $existing_bookings = $wpdb->get_results($wpdb->prepare(
-        "SELECT pm_time.meta_value as time, pm_people.meta_value as people
-         FROM {$wpdb->posts} p
-         INNER JOIN {$wpdb->postmeta} pm_date ON p.ID = pm_date.post_id AND pm_date.meta_key = 'rbf_data'
-         INNER JOIN {$wpdb->postmeta} pm_meal ON p.ID = pm_meal.post_id AND pm_meal.meta_key = 'rbf_meal'
-         INNER JOIN {$wpdb->postmeta} pm_time ON p.ID = pm_time.post_id AND pm_time.meta_key = 'rbf_time'
-         INNER JOIN {$wpdb->postmeta} pm_people ON p.ID = pm_people.post_id AND pm_people.meta_key = 'rbf_persone'
-         WHERE p.post_type = 'rbf_booking' AND p.post_status = 'publish'
-         AND pm_date.meta_value = %s AND pm_meal.meta_value = %s",
-        $date, $meal_id
+        $query,
+        $date,
+        $meal_id
     ));
-    
+
     foreach ($existing_bookings as $existing) {
-        $existing_datetime = DateTime::createFromFormat('Y-m-d H:i', $date . ' ' . $existing->time, $tz);
+        $existing_datetime = DateTime::createFromFormat('Y-m-d H:i', $date . ' ' . $existing->booking_time, $tz);
         if (!$existing_datetime) continue;
         
         $existing_people = intval($existing->people);
