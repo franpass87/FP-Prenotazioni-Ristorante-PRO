@@ -152,6 +152,9 @@ function initializeBookingForm($) {
     el.peopleInput.attr('aria-valuemax', peopleMaxLimit);
   }
 
+  // Clean up any duplicated tooltip wrappers that might exist from previous versions
+  cleanupDuplicateFormTooltips();
+
   const legendElement = form.find('.rbf-exception-legend');
 
   let fp = null;
@@ -2947,38 +2950,121 @@ function initializeBookingForm($) {
   }
 
   /**
+   * Clean up duplicate tooltip wrappers and ensure ARIA associations remain valid
+   */
+  function cleanupDuplicateFormTooltips() {
+    if (!form.length) {
+      return;
+    }
+
+    const formElement = form[0];
+    const wrappers = formElement.querySelectorAll('.rbf-form-tooltip');
+
+    wrappers.forEach(wrapper => {
+      const parent = wrapper.parentElement;
+      if (parent && parent.classList.contains('rbf-form-tooltip')) {
+        while (wrapper.firstChild) {
+          parent.insertBefore(wrapper.firstChild, wrapper);
+        }
+        parent.removeChild(wrapper);
+      }
+    });
+
+    const cleanedWrappers = formElement.querySelectorAll('.rbf-form-tooltip');
+
+    cleanedWrappers.forEach(wrapper => {
+      const describedElement = wrapper.querySelector('[aria-describedby]');
+      let targetTooltip = null;
+
+      if (describedElement) {
+        const describedAttr = describedElement.getAttribute('aria-describedby');
+        if (describedAttr) {
+          const describedIds = describedAttr.split(/\s+/).filter(Boolean);
+          for (const id of describedIds) {
+            const candidate = document.getElementById(id);
+            if (candidate && wrapper.contains(candidate)) {
+              targetTooltip = candidate;
+              break;
+            }
+          }
+        }
+      }
+
+      const tooltipNodes = Array.from(wrapper.querySelectorAll('.rbf-tooltip-content'));
+
+      if (!targetTooltip && tooltipNodes.length) {
+        targetTooltip = tooltipNodes[0];
+      }
+
+      tooltipNodes.forEach(tooltipNode => {
+        if (tooltipNode !== targetTooltip) {
+          tooltipNode.remove();
+        }
+      });
+
+      if (describedElement && targetTooltip) {
+        if (!targetTooltip.id) {
+          targetTooltip.id = 'rbf-form-tooltip-' + Math.random().toString(36).substr(2, 9);
+        }
+        describedElement.setAttribute('aria-describedby', targetTooltip.id);
+      }
+    });
+  }
+
+  /**
    * Add contextual tooltip to form elements
    */
   function addFormTooltip(element, tooltipText, options = {}) {
     if (!element || !tooltipText) return;
-    
-    const wrapper = document.createElement('div');
-    wrapper.className = 'rbf-form-tooltip';
-    
-    // Replace element with wrapper containing element + tooltip
-    element.parentNode.insertBefore(wrapper, element);
-    wrapper.appendChild(element);
-    
-    const tooltip = document.createElement('div');
-    tooltip.className = 'rbf-tooltip-content';
+
+    let wrapper = element.closest('.rbf-form-tooltip');
+    let tooltip = wrapper ? wrapper.querySelector('.rbf-tooltip-content') : null;
+
+    if (!wrapper) {
+      wrapper = document.createElement('div');
+      wrapper.className = 'rbf-form-tooltip';
+
+      if (element.parentNode) {
+        element.parentNode.insertBefore(wrapper, element);
+      }
+      wrapper.appendChild(element);
+    } else if (tooltip && element.parentElement !== wrapper) {
+      wrapper.insertBefore(element, tooltip);
+    } else if (!tooltip && element.parentElement !== wrapper) {
+      wrapper.appendChild(element);
+    }
+
+    if (!tooltip) {
+      tooltip = document.createElement('div');
+      tooltip.className = 'rbf-tooltip-content';
+      wrapper.appendChild(tooltip);
+    }
+
     tooltip.textContent = tooltipText;
     tooltip.setAttribute('role', 'tooltip');
-    
-    const tooltipId = 'rbf-form-tooltip-' + Math.random().toString(36).substr(2, 9);
-    tooltip.id = tooltipId;
-    element.setAttribute('aria-describedby', tooltipId);
-    
-    wrapper.appendChild(tooltip);
-    
+
+    const existingTooltips = wrapper.querySelectorAll('.rbf-tooltip-content');
+    existingTooltips.forEach(node => {
+      if (node !== tooltip) {
+        node.remove();
+      }
+    });
+
+    if (!tooltip.id) {
+      tooltip.id = 'rbf-form-tooltip-' + Math.random().toString(36).substr(2, 9);
+    }
+    element.setAttribute('aria-describedby', tooltip.id);
+
     // Add dynamic content updates if specified
-    if (options.dynamicContent) {
+    if (options.dynamicContent && !element.dataset.rbfTooltipDynamicBound) {
       const updateTooltip = () => {
         const newText = options.dynamicContent(element);
         if (newText) tooltip.textContent = newText;
       };
-      
+
       element.addEventListener('input', updateTooltip);
       element.addEventListener('change', updateTooltip);
+      element.dataset.rbfTooltipDynamicBound = 'true';
     }
   }
 
@@ -2986,56 +3072,78 @@ function initializeBookingForm($) {
    * Initialize form tooltips after elements are ready
    */
   function initializeFormTooltips() {
+    cleanupDuplicateFormTooltips();
+
     // Time selection tooltip
     if (el.timeSelect.length) {
-      addFormTooltip(el.timeSelect[0], rbfData.labels.timeTooltip || 'Seleziona il tuo orario preferito', {
-        dynamicContent: (element) => {
-          const selectedOption = element.options[element.selectedIndex];
-          if (selectedOption && selectedOption.value) {
-            return rbfData.labels.timeSelected?.replace('{time}', selectedOption.text) || 
-                   `Orario selezionato: ${selectedOption.text}`;
+      const timeSelectElement = el.timeSelect[0];
+      if (timeSelectElement && !timeSelectElement.dataset.rbfTooltipInitialized) {
+        addFormTooltip(timeSelectElement, rbfData.labels.timeTooltip || 'Seleziona il tuo orario preferito', {
+          dynamicContent: (element) => {
+            const selectedOption = element.options[element.selectedIndex];
+            if (selectedOption && selectedOption.value) {
+              return rbfData.labels.timeSelected?.replace('{time}', selectedOption.text) ||
+                     `Orario selezionato: ${selectedOption.text}`;
+            }
+            return rbfData.labels.timeTooltip || 'Seleziona il tuo orario preferito';
           }
-          return rbfData.labels.timeTooltip || 'Seleziona il tuo orario preferito';
-        }
-      });
+        });
+        timeSelectElement.dataset.rbfTooltipInitialized = 'true';
+      }
     }
-    
-    // People count tooltip  
+
+    // People count tooltip
     if (el.peopleInput.length) {
-      addFormTooltip(el.peopleInput[0], rbfData.labels.peopleTooltip || 'Numero di persone per la prenotazione', {
-        dynamicContent: (element) => {
-          const count = parseInt(element.value) || 1;
-          const max = parseInt(element.getAttribute('max')) || 8;
-          
-          if (count === 1) {
-            return rbfData.labels.singlePerson || 'Prenotazione per 1 persona';
-          } else if (count >= max - 1) {
-            return rbfData.labels.nearMaxPeople || `Prenotazione per ${count} persone (quasi al massimo)`;
-          } else if (count >= 6) {
-            return rbfData.labels.largePeople || `Prenotazione per ${count} persone (gruppo numeroso)`;
-          } else {
-            return rbfData.labels.multiplePeople?.replace('{count}', count) || 
-                   `Prenotazione per ${count} persone`;
+      const peopleInputElement = el.peopleInput[0];
+      if (peopleInputElement && !peopleInputElement.dataset.rbfTooltipInitialized) {
+        addFormTooltip(peopleInputElement, rbfData.labels.peopleTooltip || 'Numero di persone per la prenotazione', {
+          dynamicContent: (element) => {
+            const count = parseInt(element.value) || 1;
+            const max = parseInt(element.getAttribute('max')) || 8;
+
+            if (count === 1) {
+              return rbfData.labels.singlePerson || 'Prenotazione per 1 persona';
+            } else if (count >= max - 1) {
+              return rbfData.labels.nearMaxPeople || `Prenotazione per ${count} persone (quasi al massimo)`;
+            } else if (count >= 6) {
+              return rbfData.labels.largePeople || `Prenotazione per ${count} persone (gruppo numeroso)`;
+            } else {
+              return rbfData.labels.multiplePeople?.replace('{count}', count) ||
+                     `Prenotazione per ${count} persone`;
+            }
           }
-        }
-      });
+        });
+        peopleInputElement.dataset.rbfTooltipInitialized = 'true';
+      }
     }
-    
+
     // Phone number tooltip
     if (el.telInput.length) {
-      addFormTooltip(el.telInput[0], rbfData.labels.phoneTooltip || 'Inserisci il tuo numero di telefono per confermare la prenotazione');
+      const telInputElement = el.telInput[0];
+      if (telInputElement && !telInputElement.dataset.rbfTooltipInitialized) {
+        addFormTooltip(telInputElement, rbfData.labels.phoneTooltip || 'Inserisci il tuo numero di telefono per confermare la prenotazione');
+        telInputElement.dataset.rbfTooltipInitialized = 'true';
+      }
     }
-    
+
     // Email tooltip
     const emailInput = el.detailsStep.find('input[type="email"]');
     if (emailInput.length) {
-      addFormTooltip(emailInput[0], rbfData.labels.emailTooltip || 'Riceverai una email di conferma della prenotazione');
+      const emailInputElement = emailInput[0];
+      if (emailInputElement && !emailInputElement.dataset.rbfTooltipInitialized) {
+        addFormTooltip(emailInputElement, rbfData.labels.emailTooltip || 'Riceverai una email di conferma della prenotazione');
+        emailInputElement.dataset.rbfTooltipInitialized = 'true';
+      }
     }
-    
+
     // Name tooltip
     const nameInput = el.detailsStep.find('input[name="rbf_name"]');
     if (nameInput.length) {
-      addFormTooltip(nameInput[0], rbfData.labels.nameTooltip || 'Il nome del titolare della prenotazione');
+      const nameInputElement = nameInput[0];
+      if (nameInputElement && !nameInputElement.dataset.rbfTooltipInitialized) {
+        addFormTooltip(nameInputElement, rbfData.labels.nameTooltip || 'Il nome del titolare della prenotazione');
+        nameInputElement.dataset.rbfTooltipInitialized = 'true';
+      }
     }
   }
   
