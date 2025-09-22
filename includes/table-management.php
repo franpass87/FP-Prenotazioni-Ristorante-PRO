@@ -339,16 +339,18 @@ function rbf_check_table_availability($date, $time, $meal) {
     $status_column = $status_source['column'];
 
     $assigned_tables = $wpdb->get_results($wpdb->prepare("
-        SELECT ta.table_id, ta.group_id, ta.assignment_type
+        SELECT DISTINCT ta.table_id, ta.group_id, ta.assignment_type
         FROM $assignments_table ta
         INNER JOIN {$wpdb->postmeta} pm_date ON ta.booking_id = pm_date.post_id AND pm_date.meta_key = 'rbf_data'
-        INNER JOIN {$wpdb->postmeta} pm_time ON ta.booking_id = pm_time.post_id AND pm_time.meta_key = 'rbf_orario'
-        INNER JOIN {$wpdb->postmeta} pm_meal ON ta.booking_id = pm_meal.post_id AND pm_meal.meta_key = 'rbf_meal'
+        LEFT JOIN {$wpdb->postmeta} pm_time ON ta.booking_id = pm_time.post_id AND pm_time.meta_key = 'rbf_time'
+        LEFT JOIN {$wpdb->postmeta} pm_time_legacy ON ta.booking_id = pm_time_legacy.post_id AND pm_time_legacy.meta_key = 'rbf_orario'
+        LEFT JOIN {$wpdb->postmeta} pm_meal ON ta.booking_id = pm_meal.post_id AND pm_meal.meta_key = 'rbf_meal'
+        LEFT JOIN {$wpdb->postmeta} pm_meal_legacy ON ta.booking_id = pm_meal_legacy.post_id AND pm_meal_legacy.meta_key = 'rbf_orario'
         {$status_join}
         INNER JOIN $bookings_table p ON ta.booking_id = p.ID
         WHERE pm_date.meta_value = %s
-        AND pm_time.meta_value = %s
-        AND pm_meal.meta_value = %s
+        AND COALESCE(pm_time.meta_value, pm_time_legacy.meta_value) = %s
+        AND COALESCE(pm_meal.meta_value, pm_meal_legacy.meta_value) = %s
         AND p.post_status = 'publish'
         AND COALESCE({$status_column}, 'confirmed') <> 'cancelled'
     ", $date, $time, $meal));
