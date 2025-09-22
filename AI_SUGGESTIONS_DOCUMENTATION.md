@@ -52,7 +52,7 @@ function rbf_get_alternative_suggestions($date, $meal, $people, $requested_time 
 #### Input Validation
 - Date format validation (Y-m-d)
 - Meal type validation against active meals
-- Party size constraints (1-20 people)
+- Party size constraints based on the configured maximum capacity
 
 #### Availability Checks
 - Restaurant opening hours
@@ -78,7 +78,7 @@ $suggestion['preference_score'] = base_score - (distance_penalty * multiplier);
 **Parameters**:
 - `$date` (string): Original requested date (Y-m-d)
 - `$meal` (string): Meal type identifier
-- `$people` (int): Number of people (1-20)
+- `$people` (int): Number of people (must respect the configured limit)
 - `$requested_time` (string): Original time for context (optional)
 
 **Returns**: Array of suggestion objects
