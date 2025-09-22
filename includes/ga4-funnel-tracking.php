@@ -587,6 +587,16 @@ function rbf_track_booking_completion($booking_id, $booking_data) {
     $client_id = rbf_resolve_ga_client_id($session_id);
     $ga_session_id = rbf_resolve_ga_session_id($session_id);
 
+    $tracking_token = '';
+    if (!empty($booking_data['tracking_token']) && is_string($booking_data['tracking_token'])) {
+        $tracking_token = sanitize_text_field($booking_data['tracking_token']);
+    } else {
+        $booking_transient = get_transient('rbf_booking_data_' . $booking_id);
+        if (is_array($booking_transient) && !empty($booking_transient['tracking_token'])) {
+            $tracking_token = sanitize_text_field((string) $booking_transient['tracking_token']);
+        }
+    }
+
     $event_params = [
         'booking_id' => $booking_id,
         'value' => $booking_data['value'] ?? 0,
@@ -615,14 +625,20 @@ function rbf_track_booking_completion($booking_id, $booking_data) {
     }
 
     // Store data for client-side tracking on success page
-    set_transient('rbf_ga4_completion_' . $booking_id, [
+    $completion_payload = [
         'event_params' => $event_params,
         'session_id' => $session_id,
         'event_id' => $event_id,
         'client_id' => $client_id,
         'ga_session_id' => $ga_session_id,
         'event_name' => 'booking_confirmed'
-    ], 300); // 5 minutes
+    ];
+
+    if ($tracking_token !== '') {
+        $completion_payload['tracking_token'] = $tracking_token;
+    }
+
+    set_transient('rbf_ga4_completion_' . $booking_id, $completion_payload, 300); // 5 minutes
 }
 
 /**
@@ -704,9 +720,39 @@ function rbf_ajax_get_booking_completion_data() {
         wp_send_json_error(['message' => 'Invalid booking ID']);
         return;
     }
-    
+
+    $booking_token_raw = $_POST['booking_token'] ?? '';
+    $booking_token = '';
+    if (is_string($booking_token_raw)) {
+        $booking_token = sanitize_text_field(wp_unslash($booking_token_raw));
+    }
+
+    if ($booking_token === '') {
+        wp_send_json_error(['message' => 'Missing booking token']);
+        return;
+    }
+
+    $completion_key = 'rbf_ga4_completion_' . $booking_id;
     // Get completion data from transient
-    $completion_data = get_transient('rbf_ga4_completion_' . $booking_id);
+    $completion_data = get_transient($completion_key);
+
+    $expected_token = '';
+    if (is_array($completion_data) && isset($completion_data['tracking_token'])) {
+        $expected_token = (string) $completion_data['tracking_token'];
+    }
+
+    if ($expected_token === '' || !hash_equals($expected_token, $booking_token)) {
+        wp_send_json_error(['message' => 'Invalid or expired booking token']);
+        return;
+    }
+
+    // Remove token after successful validation to minimize reuse window
+    unset($completion_data['tracking_token']);
+    if (is_array($completion_data) && !empty($completion_data)) {
+        set_transient($completion_key, $completion_data, 300);
+    } else {
+        delete_transient($completion_key);
+    }
 
     if (is_array($completion_data) && !empty($completion_data['event_params'])) {
         $event_params = is_array($completion_data['event_params']) ? $completion_data['event_params'] : [];
