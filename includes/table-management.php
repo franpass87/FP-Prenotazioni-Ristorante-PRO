@@ -427,56 +427,71 @@ function rbf_assign_tables_first_fit($people_count, $date, $time, $meal) {
  * Find optimal table combination within a group
  */
 function rbf_find_table_combination($available_tables, $people_count, $max_capacity) {
-    if (empty($available_tables) || $people_count > $max_capacity) {
+    if (empty($available_tables) || $people_count <= 0 || $people_count > $max_capacity) {
         return null;
     }
-    
+
     // Sort tables by capacity
     usort($available_tables, function($a, $b) {
         return $a->capacity - $b->capacity;
     });
-    
-    // Try combinations starting with smallest tables
-    $n = count($available_tables);
-    
-    // Try single table first
-    foreach ($available_tables as $table) {
-        if ($table->capacity >= $people_count && $people_count >= $table->min_capacity) {
+
+    // Filter tables that cannot accommodate the party size due to minimum capacity
+    $eligible_tables = array_values(array_filter($available_tables, function($table) use ($people_count) {
+        if (!isset($table->min_capacity)) {
+            return true;
+        }
+
+        return $table->min_capacity <= $people_count;
+    }));
+
+    if (empty($eligible_tables)) {
+        return null;
+    }
+
+    // Explore combinations starting from the required capacity up to the maximum allowed
+    for ($target_capacity = $people_count; $target_capacity <= $max_capacity; $target_capacity++) {
+        $combination = rbf_search_tables_for_capacity($eligible_tables, $target_capacity);
+
+        if ($combination !== null) {
+            $total_capacity = 0;
+            foreach ($combination as $table) {
+                $total_capacity += $table->capacity;
+            }
+
             return [
-                'tables' => [$table],
-                'total_capacity' => $table->capacity
+                'tables' => $combination,
+                'total_capacity' => $total_capacity
             ];
         }
     }
-    
-    // Try pairs
-    for ($i = 0; $i < $n - 1; $i++) {
-        for ($j = $i + 1; $j < $n; $j++) {
-            $total_capacity = $available_tables[$i]->capacity + $available_tables[$j]->capacity;
-            if ($total_capacity >= $people_count && $total_capacity <= $max_capacity) {
-                return [
-                    'tables' => [$available_tables[$i], $available_tables[$j]],
-                    'total_capacity' => $total_capacity
-                ];
-            }
+
+    return null;
+}
+
+function rbf_search_tables_for_capacity($tables, $target_capacity, $start_index = 0, $current_combination = [], $current_sum = 0) {
+    if ($current_sum === $target_capacity) {
+        return $current_combination;
+    }
+
+    $count = count($tables);
+    for ($i = $start_index; $i < $count; $i++) {
+        $table = $tables[$i];
+        $new_sum = $current_sum + $table->capacity;
+
+        if ($new_sum > $target_capacity) {
+            break;
+        }
+
+        $next_combination = $current_combination;
+        $next_combination[] = $table;
+
+        $result = rbf_search_tables_for_capacity($tables, $target_capacity, $i + 1, $next_combination, $new_sum);
+        if ($result !== null) {
+            return $result;
         }
     }
-    
-    // Try triplets (for large parties)
-    for ($i = 0; $i < $n - 2; $i++) {
-        for ($j = $i + 1; $j < $n - 1; $j++) {
-            for ($k = $j + 1; $k < $n; $k++) {
-                $total_capacity = $available_tables[$i]->capacity + $available_tables[$j]->capacity + $available_tables[$k]->capacity;
-                if ($total_capacity >= $people_count && $total_capacity <= $max_capacity) {
-                    return [
-                        'tables' => [$available_tables[$i], $available_tables[$j], $available_tables[$k]],
-                        'total_capacity' => $total_capacity
-                    ];
-                }
-            }
-        }
-    }
-    
+
     return null;
 }
 

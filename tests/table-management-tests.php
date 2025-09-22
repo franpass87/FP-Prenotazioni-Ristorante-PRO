@@ -35,10 +35,11 @@ class RBF_Table_Management_Tests {
         $this->test_first_fit_single_table();
         $this->test_first_fit_joined_tables();
         $this->test_table_combination_logic();
+        $this->test_large_party_combination();
         $this->test_capacity_constraints();
         $this->test_availability_check();
         $this->test_edge_cases();
-        
+
         echo "\n✅ All tests completed!\n";
     }
     
@@ -119,6 +120,28 @@ class RBF_Table_Management_Tests {
         $this->assert_equals($result['total_capacity'], 4, "Should choose optimal combination (2+2)");
         
         echo "✅ Table combination logic tests passed\n\n";
+    }
+
+    /**
+     * Ensure large parties can be seated using four-table combinations
+     */
+    public function test_large_party_combination() {
+        echo "🧪 Testing Large Party Combination Handling...\n";
+
+        $tables = [
+            (object) ['id' => 1, 'capacity' => 4, 'min_capacity' => 2, 'max_capacity' => 6],
+            (object) ['id' => 2, 'capacity' => 4, 'min_capacity' => 2, 'max_capacity' => 6],
+            (object) ['id' => 3, 'capacity' => 4, 'min_capacity' => 2, 'max_capacity' => 6],
+            (object) ['id' => 4, 'capacity' => 4, 'min_capacity' => 2, 'max_capacity' => 6],
+        ];
+
+        $result = $this->mock_find_table_combination($tables, 14, 16);
+
+        $this->assert_not_null($result, "Should find combination for 14 people");
+        $this->assert_equals(count($result['tables']), 4, "Should use all four tables for 14 people");
+        $this->assert_equals($result['total_capacity'], 16, "Total capacity should be the minimal sufficient value");
+
+        echo "✅ Large party combination tests passed\n\n";
     }
     
     /**
@@ -215,51 +238,65 @@ class RBF_Table_Management_Tests {
         if ($people_count <= 0 || empty($tables) || $people_count > $max_capacity) {
             return null;
         }
-        
+
         usort($tables, function($a, $b) {
             return $a->capacity - $b->capacity;
         });
-        
-        $n = count($tables);
-        
-        // Try single table first
-        foreach ($tables as $table) {
-            if ($table->capacity >= $people_count) {
+
+        $eligible_tables = array_values(array_filter($tables, function($table) use ($people_count) {
+            if (!isset($table->min_capacity)) {
+                return true;
+            }
+
+            return $table->min_capacity <= $people_count;
+        }));
+
+        if (empty($eligible_tables)) {
+            return null;
+        }
+
+        for ($target = $people_count; $target <= $max_capacity; $target++) {
+            $combination = $this->search_combination_for_capacity($eligible_tables, $target);
+
+            if ($combination !== null) {
+                $total_capacity = 0;
+                foreach ($combination as $table) {
+                    $total_capacity += $table->capacity;
+                }
+
                 return [
-                    'tables' => [$table],
-                    'total_capacity' => $table->capacity
+                    'tables' => $combination,
+                    'total_capacity' => $total_capacity
                 ];
             }
         }
-        
-        // Try pairs
-        for ($i = 0; $i < $n - 1; $i++) {
-            for ($j = $i + 1; $j < $n; $j++) {
-                $total = $tables[$i]->capacity + $tables[$j]->capacity;
-                if ($total >= $people_count && $total <= $max_capacity) {
-                    return [
-                        'tables' => [$tables[$i], $tables[$j]],
-                        'total_capacity' => $total
-                    ];
-                }
+
+        return null;
+    }
+
+    private function search_combination_for_capacity($tables, $target, $start_index = 0, $current_combination = [], $current_sum = 0) {
+        if ($current_sum === $target) {
+            return $current_combination;
+        }
+
+        $count = count($tables);
+        for ($i = $start_index; $i < $count; $i++) {
+            $table = $tables[$i];
+            $new_sum = $current_sum + $table->capacity;
+
+            if ($new_sum > $target) {
+                break;
+            }
+
+            $next_combination = $current_combination;
+            $next_combination[] = $table;
+
+            $result = $this->search_combination_for_capacity($tables, $target, $i + 1, $next_combination, $new_sum);
+            if ($result !== null) {
+                return $result;
             }
         }
-        
-        // Try triplets
-        for ($i = 0; $i < $n - 2; $i++) {
-            for ($j = $i + 1; $j < $n - 1; $j++) {
-                for ($k = $j + 1; $k < $n; $k++) {
-                    $total = $tables[$i]->capacity + $tables[$j]->capacity + $tables[$k]->capacity;
-                    if ($total >= $people_count && $total <= $max_capacity) {
-                        return [
-                            'tables' => [$tables[$i], $tables[$j], $tables[$k]],
-                            'total_capacity' => $total
-                        ];
-                    }
-                }
-            }
-        }
-        
+
         return null;
     }
     
