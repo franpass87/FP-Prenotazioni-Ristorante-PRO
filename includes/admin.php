@@ -1391,116 +1391,132 @@ function rbf_add_booking_page_html() {
                 }
                 $valore_tot = $valore_pp * $people;
 
-                $booking_result = rbf_book_slot_optimistic($date, $meal, $people);
-
-                if (!$booking_result['success']) {
-                    $error_code = $booking_result['error'] ?? '';
-                    if ($error_code === 'insufficient_capacity') {
-                        $remaining = intval($booking_result['remaining'] ?? 0);
-                        $error_msg = sprintf(
-                            rbf_translate_string('Non ci sono abbastanza posti disponibili. Rimasti: %d.'),
-                            $remaining
-                        );
-                    } elseif ($error_code === 'version_conflict') {
-                        $error_msg = rbf_translate_string('Conflitto di prenotazione rilevato. Aggiorna la pagina e riprova.');
-                    } elseif ($error_code === 'invalid_parameters') {
-                        $error_msg = rbf_translate_string('Parametri di prenotazione non validi.');
-                    } else {
-                        $error_msg = rbf_translate_string('Errore durante la prenotazione dello slot. Riprova.');
-                    }
-
+                $time_validation = rbf_validate_booking_time($date, $time);
+                if ($time_validation !== true) {
+                    $error_msg = is_array($time_validation)
+                        ? ($time_validation['message'] ?? rbf_translate_string('Orario non valido.'))
+                        : rbf_translate_string('Orario non valido.');
                     $message = '<div class="notice notice-error"><p>' . esc_html($error_msg) . '</p></div>';
                 } else {
-                    $post_id = wp_insert_post([
-                        'post_type' => 'rbf_booking',
-                        'post_title' => $title,
-                        'post_status' => 'publish',
-                        'meta_input' => [
-                            'rbf_data' => $date,
-                            'rbf_meal' => $meal,
-                            'rbf_orario' => $time,
-                            'rbf_time' => $time,
-                            'rbf_persone' => $people,
-                            'rbf_nome' => $first_name,
-                            'rbf_cognome' => $last_name,
-                            'rbf_email' => $email,
-                            'rbf_tel' => $tel,
-                            'rbf_allergie' => $notes,
-                            'rbf_lang' => $lang,
-                            'rbf_source_bucket' => 'backend',
-                            'rbf_source' => 'backend',
-                            'rbf_medium' => 'backend',
-                            'rbf_campaign' => '',
-                            'rbf_privacy' => $privacy,
-                            'rbf_marketing' => $marketing,
-                            // Enhanced booking system
-                            'rbf_booking_status' => 'confirmed', // Backend bookings start confirmed
-                            'rbf_booking_created' => current_time('Y-m-d H:i:s'),
-                            'rbf_booking_hash' => wp_generate_password(16, false, false),
-                            'rbf_valore_pp' => $valore_pp,
-                            'rbf_valore_tot' => $valore_tot,
-                        ],
-                    ]);
-
-                    if (!is_wp_error($post_id)) {
-                        if (isset($booking_result['version'])) {
-                            update_post_meta($post_id, 'rbf_slot_version', $booking_result['version']);
-                        }
-                        if (isset($booking_result['attempt'])) {
-                            update_post_meta($post_id, 'rbf_booking_attempt', $booking_result['attempt']);
-                        }
-
-                        $table_assignment = rbf_assign_tables_first_fit($people, $date, $time, $meal);
-
-                        if (!$table_assignment) {
-                            rbf_release_slot_capacity($date, $meal, $people);
-                            wp_delete_post($post_id, true);
-                            $message = '<div class="notice notice-error"><p>' . esc_html(rbf_translate_string('Impossibile assegnare tavoli disponibili per questa prenotazione. Riprova con un altro orario o verifica la configurazione dei tavoli.')) . '</p></div>';
-                        } else {
-                            rbf_save_table_assignment($post_id, $table_assignment);
-
-                            update_post_meta($post_id, 'rbf_table_assignment_type', $table_assignment['type']);
-                            update_post_meta($post_id, 'rbf_assigned_tables', $table_assignment['total_capacity']);
-
-                            if ($table_assignment['type'] === 'joined' && isset($table_assignment['group_id'])) {
-                                update_post_meta($post_id, 'rbf_table_group_id', $table_assignment['group_id']);
-                            }
-
-                            $event_id       = 'rbf_' . $post_id;
-                            $tracking_token = wp_generate_password(20, false, false);
-
-                            // Email + Brevo (functions will be loaded from integrations module)
-                            if (function_exists('rbf_send_admin_notification_email')) {
-                                rbf_send_admin_notification_email($first_name, $last_name, $email, $date, $time, $people, $notes, $tel, $meal);
-                            }
-                            if (function_exists('rbf_trigger_brevo_automation')) {
-                                rbf_trigger_brevo_automation($first_name, $last_name, $email, $date, $time, $people, $notes, $lang, $tel, $marketing, $meal);
-                            }
-
-                            // Transient per tracking (anche per inserimenti manuali)
-                            set_transient('rbf_booking_data_' . $post_id, [
-                                'id'             => $post_id,
-                                'value'          => $valore_tot,
-                                'currency'       => 'EUR',
-                                'meal'           => $meal,
-                                'people'         => $people,
-                                'bucket'         => 'backend',
-                                'event_id'       => $event_id,
-                                'unit_price'     => $valore_pp,
-                                'tracking_token' => $tracking_token,
-                            ], 60 * 15);
-
-                            if (function_exists('rbf_clear_calendar_cache')) {
-                                rbf_clear_calendar_cache($date, $meal);
-                            }
-
-                            delete_transient('rbf_avail_' . $date . '_' . $meal);
-
-                            $message = '<div class="notice notice-success"><p>Prenotazione aggiunta con successo! <a href="' . admin_url('post.php?post=' . $post_id . '&action=edit') . '">Modifica</a></p></div>';
-                        }
+                    $buffer_validation = rbf_validate_buffer_time($date, $time, $meal, $people);
+                    if ($buffer_validation !== true) {
+                        $buffer_msg = is_array($buffer_validation)
+                            ? ($buffer_validation['message'] ?? rbf_translate_string('Questo orario non rispetta il buffer richiesto. Scegli un altro orario.'))
+                            : rbf_translate_string('Questo orario non rispetta il buffer richiesto. Scegli un altro orario.');
+                        $message = '<div class="notice notice-error"><p>' . esc_html($buffer_msg) . '</p></div>';
                     } else {
-                        rbf_release_slot_capacity($date, $meal, $people);
-                        $message = '<div class="notice notice-error"><p>Errore durante l\'aggiunta della prenotazione.</p></div>';
+                        $booking_result = rbf_book_slot_optimistic($date, $meal, $people);
+
+                        if (!$booking_result['success']) {
+                            $error_code = $booking_result['error'] ?? '';
+                            if ($error_code === 'insufficient_capacity') {
+                                $remaining = intval($booking_result['remaining'] ?? 0);
+                                $error_msg = sprintf(
+                                    rbf_translate_string('Non ci sono abbastanza posti disponibili. Rimasti: %d.'),
+                                    $remaining
+                                );
+                            } elseif ($error_code === 'version_conflict') {
+                                $error_msg = rbf_translate_string('Conflitto di prenotazione rilevato. Aggiorna la pagina e riprova.');
+                            } elseif ($error_code === 'invalid_parameters') {
+                                $error_msg = rbf_translate_string('Parametri di prenotazione non validi.');
+                            } else {
+                                $error_msg = rbf_translate_string('Errore durante la prenotazione dello slot. Riprova.');
+                            }
+
+                            $message = '<div class="notice notice-error"><p>' . esc_html($error_msg) . '</p></div>';
+                        } else {
+                            $post_id = wp_insert_post([
+                                'post_type' => 'rbf_booking',
+                                'post_title' => $title,
+                                'post_status' => 'publish',
+                                'meta_input' => [
+                                    'rbf_data' => $date,
+                                    'rbf_meal' => $meal,
+                                    'rbf_orario' => $time,
+                                    'rbf_time' => $time,
+                                    'rbf_persone' => $people,
+                                    'rbf_nome' => $first_name,
+                                    'rbf_cognome' => $last_name,
+                                    'rbf_email' => $email,
+                                    'rbf_tel' => $tel,
+                                    'rbf_allergie' => $notes,
+                                    'rbf_lang' => $lang,
+                                    'rbf_source_bucket' => 'backend',
+                                    'rbf_source' => 'backend',
+                                    'rbf_medium' => 'backend',
+                                    'rbf_campaign' => '',
+                                    'rbf_privacy' => $privacy,
+                                    'rbf_marketing' => $marketing,
+                                    // Enhanced booking system
+                                    'rbf_booking_status' => 'confirmed', // Backend bookings start confirmed
+                                    'rbf_booking_created' => current_time('Y-m-d H:i:s'),
+                                    'rbf_booking_hash' => wp_generate_password(16, false, false),
+                                    'rbf_valore_pp' => $valore_pp,
+                                    'rbf_valore_tot' => $valore_tot,
+                                ],
+                            ]);
+
+                            if (!is_wp_error($post_id)) {
+                                if (isset($booking_result['version'])) {
+                                    update_post_meta($post_id, 'rbf_slot_version', $booking_result['version']);
+                                }
+                                if (isset($booking_result['attempt'])) {
+                                    update_post_meta($post_id, 'rbf_booking_attempt', $booking_result['attempt']);
+                                }
+
+                                $table_assignment = rbf_assign_tables_first_fit($people, $date, $time, $meal);
+
+                                if (!$table_assignment) {
+                                    rbf_release_slot_capacity($date, $meal, $people);
+                                    wp_delete_post($post_id, true);
+                                    $message = '<div class="notice notice-error"><p>' . esc_html(rbf_translate_string('Impossibile assegnare tavoli disponibili per questa prenotazione. Riprova con un altro orario o verifica la configurazione dei tavoli.')) . '</p></div>';
+                                } else {
+                                    rbf_save_table_assignment($post_id, $table_assignment);
+
+                                    update_post_meta($post_id, 'rbf_table_assignment_type', $table_assignment['type']);
+                                    update_post_meta($post_id, 'rbf_assigned_tables', $table_assignment['total_capacity']);
+
+                                    if ($table_assignment['type'] === 'joined' && isset($table_assignment['group_id'])) {
+                                        update_post_meta($post_id, 'rbf_table_group_id', $table_assignment['group_id']);
+                                    }
+
+                                    $event_id       = 'rbf_' . $post_id;
+                                    $tracking_token = wp_generate_password(20, false, false);
+
+                                    // Email + Brevo (functions will be loaded from integrations module)
+                                    if (function_exists('rbf_send_admin_notification_email')) {
+                                        rbf_send_admin_notification_email($first_name, $last_name, $email, $date, $time, $people, $notes, $tel, $meal);
+                                    }
+                                    if (function_exists('rbf_trigger_brevo_automation')) {
+                                        rbf_trigger_brevo_automation($first_name, $last_name, $email, $date, $time, $people, $notes, $lang, $tel, $marketing, $meal);
+                                    }
+
+                                    // Transient per tracking (anche per inserimenti manuali)
+                                    set_transient('rbf_booking_data_' . $post_id, [
+                                        'id'             => $post_id,
+                                        'value'          => $valore_tot,
+                                        'currency'       => 'EUR',
+                                        'meal'           => $meal,
+                                        'people'         => $people,
+                                        'bucket'         => 'backend',
+                                        'event_id'       => $event_id,
+                                        'unit_price'     => $valore_pp,
+                                        'tracking_token' => $tracking_token,
+                                    ], 60 * 15);
+
+                                    if (function_exists('rbf_clear_calendar_cache')) {
+                                        rbf_clear_calendar_cache($date, $meal);
+                                    }
+
+                                    delete_transient('rbf_avail_' . $date . '_' . $meal);
+
+                                    $message = '<div class="notice notice-success"><p>Prenotazione aggiunta con successo! <a href="' . admin_url('post.php?post=' . $post_id . '&action=edit') . '">Modifica</a></p></div>';
+                                }
+                            } else {
+                                rbf_release_slot_capacity($date, $meal, $people);
+                                $message = '<div class="notice notice-error"><p>Errore durante l\'aggiunta della prenotazione.</p></div>';
+                            }
+                        }
                     }
                 }
             }
