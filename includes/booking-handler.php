@@ -84,6 +84,13 @@ function rbf_validate_request($post, $redirect_url, $anchor) {
         'rbf_marketing'      => 'text'
     ]);
 
+    $privacy_raw = $sanitized_fields['rbf_privacy'] ?? '';
+    if ($privacy_raw !== 'yes') {
+        rbf_handle_error(rbf_translate_string('È necessario accettare l\'informativa sulla privacy per proseguire.'), 'privacy_validation', $redirect_url . $anchor);
+        return false;
+    }
+    $privacy = 'yes';
+
     $meal = $sanitized_fields['rbf_meal'];
     $date = $sanitized_fields['rbf_data'];
     $time_data = $sanitized_fields['rbf_orario'];
@@ -137,8 +144,6 @@ function rbf_validate_request($post, $redirect_url, $anchor) {
         $brevo_lang = 'it';
     }
 
-    $privacy_raw   = $sanitized_fields['rbf_privacy'] ?? 'no';
-    $privacy   = ($privacy_raw === 'yes' || $privacy_raw === 'no') ? $privacy_raw : 'no';
     $marketing_raw = $sanitized_fields['rbf_marketing'] ?? 'no';
     $marketing = ($marketing_raw === 'yes' || $marketing_raw === 'no') ? $marketing_raw : 'no';
 
