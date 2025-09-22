@@ -26,6 +26,44 @@ if (!function_exists('sanitize_text_field')) {
     function wp_strip_all_tags($string) { return strip_tags($string); }
 }
 
+if (!function_exists('wp_unslash')) {
+    function wp_unslash($value) {
+        if (is_array($value)) {
+            return array_map('wp_unslash', $value);
+        }
+
+        return stripslashes($value);
+    }
+}
+
+if (!function_exists('home_url')) {
+    function home_url($path = '', $scheme = null) {
+        $home = 'https://example.test';
+
+        if ($path) {
+            $home .= '/' . ltrim($path, '/');
+        }
+
+        return $home;
+    }
+}
+
+if (!function_exists('wp_parse_url')) {
+    function wp_parse_url($url, $component = -1) {
+        return parse_url($url, $component);
+    }
+}
+
+if (!function_exists('get_bloginfo')) {
+    function get_bloginfo($show = '', $filter = 'raw') {
+        if ($show === 'name') {
+            return 'RBF Test Site';
+        }
+
+        return '';
+    }
+}
+
 class RBF_Security_Sanitization_Tests {
     private $test_results = [];
     
@@ -249,13 +287,40 @@ class RBF_Security_Sanitization_Tests {
         $ics_content = rbf_generate_ics_content($booking_data);
         $this->assert_test(
             'ICS generation safety',
-            $ics_content !== false && 
+            $ics_content !== false &&
             strpos($ics_content, '<script>') === false &&
             strpos($ics_content, 'BEGIN:VCALENDAR') !== false &&
             strpos($ics_content, 'END:VCALENDAR') !== false,
             "Expected: safe ICS content, Got: " . substr($ics_content, 0, 100) . "..."
         );
-        
+
+        // Test UID sanitization against malicious host headers
+        $original_host = $_SERVER['HTTP_HOST'] ?? null;
+        $_SERVER['HTTP_HOST'] = "malicious.example\r\nX-Injected: attack";
+
+        $uid_booking_data = [
+            'date' => '2024-12-25',
+            'time' => '20:00',
+            'summary' => 'UID Sanitization Check',
+            'description' => 'Ensure host is sanitized',
+            'location' => 'Secure Location'
+        ];
+
+        $ics_with_malicious_host = rbf_generate_ics_content($uid_booking_data);
+        $uid_host = $this->extract_uid_host($ics_with_malicious_host);
+
+        $this->assert_test(
+            'ICS UID host sanitization',
+            $ics_with_malicious_host !== false && $uid_host !== '' && preg_match('/^[A-Za-z0-9.-]+$/', $uid_host) === 1,
+            "Expected sanitized host, Got: '$uid_host'"
+        );
+
+        if ($original_host !== null) {
+            $_SERVER['HTTP_HOST'] = $original_host;
+        } else {
+            unset($_SERVER['HTTP_HOST']);
+        }
+
         echo "✅ ICS generation security tests completed\n\n";
     }
     
@@ -382,16 +447,36 @@ class RBF_Security_Sanitization_Tests {
             '/on\w+\s*=/i',
             '/[\r\n]/',
         ];
-        
+
         foreach ($dangerous_patterns as $pattern) {
             if (preg_match($pattern, $output)) {
                 return false;
             }
         }
-        
+
         return true;
     }
-    
+
+    /**
+     * Extract the host portion from an ICS UID line
+     */
+    private function extract_uid_host($ics_content) {
+        if (!is_string($ics_content) || $ics_content === '') {
+            return '';
+        }
+
+        $lines = explode("\r\n", $ics_content);
+        foreach ($lines as $line) {
+            if (strpos($line, 'UID:') === 0) {
+                $uid_value = substr($line, 4);
+                $parts = explode('@', $uid_value);
+                return $parts[1] ?? '';
+            }
+        }
+
+        return '';
+    }
+
     /**
      * Assert test result
      */
@@ -626,9 +711,32 @@ if (function_exists('rbf_sanitize_input_fields')) {
             // ICS format requires specific escaping
             $sanitized_data[$key] = rbf_escape_for_ics($value);
         }
-        
+
         // Generate unique UID
-        $uid = uniqid('rbf_booking_', true) . '@' . $_SERVER['HTTP_HOST'];
+        $raw_host = isset($_SERVER['HTTP_HOST']) ? wp_unslash($_SERVER['HTTP_HOST']) : '';
+        $host = sanitize_text_field($raw_host);
+        $host = preg_replace('/[^A-Za-z0-9\.-]/', '', $host);
+
+        if ($host === '') {
+            $fallback_host = wp_parse_url(home_url(), PHP_URL_HOST);
+            if (!empty($fallback_host)) {
+                $fallback_host = sanitize_text_field($fallback_host);
+                $host = preg_replace('/[^A-Za-z0-9\.-]/', '', $fallback_host);
+            }
+        }
+
+        if ($host === '') {
+            $fallback_name = sanitize_text_field(get_bloginfo('name'));
+            $fallback_name = preg_replace('/[^A-Za-z0-9\.-]/', '', strtolower($fallback_name));
+            $fallback_name = substr($fallback_name, 0, 64);
+            if ($fallback_name === '') {
+                $fallback_name = 'rbf-booking';
+            }
+
+            $host = $fallback_name;
+        }
+
+        $uid = uniqid('rbf_booking_', true) . '@' . $host;
         
         // Format datetime for ICS
         $booking_datetime = DateTime::createFromFormat('Y-m-d H:i', $sanitized_data['date'] . ' ' . $sanitized_data['time']);
