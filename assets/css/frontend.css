@@ -2485,6 +2485,39 @@
     box-shadow: none;
 }
 
+/* Restore compact layout for the people selector controls */
+.rbf-people-selector > button {
+    width: 50px;
+    height: 50px;
+    min-width: 50px;
+    min-height: 50px;
+    padding: 0;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+    background: var(--rbf-bg-light);
+    color: var(--rbf-primary);
+    font-size: 20px;
+    font-weight: bold;
+    line-height: 1;
+    flex: 0 0 50px;
+}
+
+.rbf-people-selector > button:hover:not(:disabled) {
+    background: var(--rbf-primary);
+    color: white;
+    transform: none;
+    box-shadow: none;
+}
+
+.rbf-people-selector > button:disabled {
+    background: #f8f8f8;
+    color: #ccc;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
 /* Checkbox and radio accessibility */
 .rbf-form input[type="checkbox"],
 .rbf-form input[type="radio"] {
