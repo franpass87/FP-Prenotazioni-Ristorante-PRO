@@ -1462,8 +1462,31 @@ function rbf_generate_ics_content($booking_data) {
         $sanitized_data[$key] = rbf_escape_for_ics($value);
     }
     
-    // Generate unique UID
-    $uid = uniqid('rbf_booking_', true) . '@' . $_SERVER['HTTP_HOST'];
+    // Generate unique UID with sanitized host fallback handling
+    $raw_host = isset($_SERVER['HTTP_HOST']) ? wp_unslash($_SERVER['HTTP_HOST']) : '';
+    $host = sanitize_text_field($raw_host);
+    $host = preg_replace('/[^A-Za-z0-9\.-]/', '', $host);
+
+    if ($host === '') {
+        $fallback_host = wp_parse_url(home_url(), PHP_URL_HOST);
+        if (!empty($fallback_host)) {
+            $fallback_host = sanitize_text_field($fallback_host);
+            $host = preg_replace('/[^A-Za-z0-9\.-]/', '', $fallback_host);
+        }
+    }
+
+    if ($host === '') {
+        $fallback_name = sanitize_text_field(get_bloginfo('name'));
+        $fallback_name = preg_replace('/[^A-Za-z0-9\.-]/', '', strtolower($fallback_name));
+        $fallback_name = substr($fallback_name, 0, 64);
+        if ($fallback_name === '') {
+            $fallback_name = 'rbf-booking';
+        }
+
+        $host = $fallback_name;
+    }
+
+    $uid = uniqid('rbf_booking_', true) . '@' . $host;
     
     // Format datetime for ICS
     $booking_datetime = DateTime::createFromFormat('Y-m-d H:i', $sanitized_data['date'] . ' ' . $sanitized_data['time']);
