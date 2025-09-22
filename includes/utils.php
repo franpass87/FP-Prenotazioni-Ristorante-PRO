@@ -187,10 +187,11 @@ function rbf_get_valid_meal_ids() {
  * Normalize a comma-separated list of time slots into individual times.
  * Supports both single times (e.g. "19:00") and ranges (e.g. "19:00-21:00").
  *
- * @param string $time_slots_csv Raw time slot definition from settings.
+ * @param string     $time_slots_csv       Raw time slot definition from settings.
+ * @param int|float|null $slot_duration_minutes Optional slot duration in minutes used to expand ranges.
  * @return array List of normalized H:i time strings.
  */
-function rbf_normalize_time_slots($time_slots_csv) {
+function rbf_normalize_time_slots($time_slots_csv, $slot_duration_minutes = null) {
     if (!is_string($time_slots_csv) || $time_slots_csv === '') {
         return [];
     }
@@ -198,7 +199,24 @@ function rbf_normalize_time_slots($time_slots_csv) {
     $normalized = [];
     $seen = [];
     $entries = array_map('trim', explode(',', $time_slots_csv));
-    $increment = defined('HOUR_IN_SECONDS') ? HOUR_IN_SECONDS : 3600;
+    $minute_in_seconds = defined('MINUTE_IN_SECONDS') ? MINUTE_IN_SECONDS : 60;
+    $default_duration = 30;
+
+    if (is_numeric($slot_duration_minutes)) {
+        $duration_minutes = (float) $slot_duration_minutes;
+    } else {
+        $duration_minutes = null;
+    }
+
+    if ($duration_minutes === null || $duration_minutes <= 0) {
+        $duration_minutes = $default_duration;
+    }
+
+    $increment_seconds = (int) round($duration_minutes * $minute_in_seconds);
+
+    if ($increment_seconds <= 0) {
+        $increment_seconds = $default_duration * $minute_in_seconds;
+    }
 
     foreach ($entries as $entry) {
         if ($entry === '') {
@@ -219,12 +237,18 @@ function rbf_normalize_time_slots($time_slots_csv) {
                 continue;
             }
 
-            for ($current = $start_timestamp; $current <= $end_timestamp; $current += $increment) {
+            for ($current = $start_timestamp; $current <= $end_timestamp; $current += $increment_seconds) {
                 $time = date('H:i', $current);
                 if (!isset($seen[$time])) {
                     $normalized[] = $time;
                     $seen[$time] = true;
                 }
+            }
+
+            $end_time = date('H:i', $end_timestamp);
+            if (!isset($seen[$end_time])) {
+                $normalized[] = $end_time;
+                $seen[$end_time] = true;
             }
         } else {
             $time = trim($entry);
@@ -2441,7 +2465,8 @@ function rbf_check_slot_availability($date, $meal, $time, $people, $booking_id =
     }
 
     // Check if time is within meal time slots
-    $time_slots = rbf_normalize_time_slots($meal_config['time_slots'] ?? '');
+    $slot_duration_minutes = rbf_calculate_slot_duration($meal, $people);
+    $time_slots = rbf_normalize_time_slots($meal_config['time_slots'] ?? '', $slot_duration_minutes);
     if (empty($time_slots) || !in_array($time, $time_slots, true)) {
         return false;
     }
