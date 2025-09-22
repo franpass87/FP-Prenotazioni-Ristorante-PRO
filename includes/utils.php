@@ -1720,10 +1720,11 @@ function rbf_sum_active_bookings($date, $meal_id) {
          FROM {$wpdb->posts} p
          INNER JOIN {$wpdb->postmeta} pm_people ON p.ID = pm_people.post_id AND pm_people.meta_key = 'rbf_persone'
          INNER JOIN {$wpdb->postmeta} pm_date ON p.ID = pm_date.post_id AND pm_date.meta_key = 'rbf_data'
-         INNER JOIN {$wpdb->postmeta} pm_meal ON p.ID = pm_meal.post_id AND pm_meal.meta_key = 'rbf_meal'
+         LEFT JOIN {$wpdb->postmeta} pm_meal ON p.ID = pm_meal.post_id AND pm_meal.meta_key = 'rbf_meal'
+         LEFT JOIN {$wpdb->postmeta} pm_meal_legacy ON p.ID = pm_meal_legacy.post_id AND pm_meal_legacy.meta_key = 'rbf_orario'
          LEFT JOIN {$wpdb->postmeta} pm_status ON p.ID = pm_status.post_id AND pm_status.meta_key = 'rbf_booking_status'
          WHERE p.post_type = 'rbf_booking' AND p.post_status = 'publish'
-         AND pm_date.meta_value = %s AND pm_meal.meta_value = %s
+         AND pm_date.meta_value = %s AND COALESCE(pm_meal.meta_value, pm_meal_legacy.meta_value) = %s
          AND COALESCE(pm_status.meta_value, 'confirmed') <> 'cancelled'
     ";
 
