@@ -994,18 +994,20 @@ function initializeBookingForm($) {
       const tooltipRect = tooltip.getBoundingClientRect();
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
+      const scrollX = window.scrollX || document.documentElement.scrollLeft;
+      const scrollY = window.scrollY || document.documentElement.scrollTop;
 
-      let left = rect.left + rect.width / 2 - tooltipRect.width / 2;
-      let top = rect.top - tooltipRect.height - 10;
+      let left = rect.left + scrollX + rect.width / 2 - tooltipRect.width / 2;
+      let top = rect.top + scrollY - tooltipRect.height - 10;
 
-      if (left < 10) {
-        left = 10;
-      } else if (left + tooltipRect.width > viewportWidth - 10) {
-        left = viewportWidth - tooltipRect.width - 10;
+      if (left < scrollX + 10) {
+        left = scrollX + 10;
+      } else if (left + tooltipRect.width > scrollX + viewportWidth - 10) {
+        left = scrollX + viewportWidth - tooltipRect.width - 10;
       }
 
-      if (top < 10) {
-        top = rect.bottom + 10;
+      if (top < scrollY + 10) {
+        top = rect.bottom + scrollY + 10;
         tooltip.classList.add('rbf-tooltip-below');
       }
 
