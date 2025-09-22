@@ -408,15 +408,31 @@ function rbf_ajax_get_suggestions_callback() {
         wp_send_json_error(['message' => rbf_translate_string('Errore di sicurezza.')]);
         return;
     }
-    
+
+    // Load settings once to derive validation constraints
+    $settings = rbf_get_settings();
+    $people_max_limit = rbf_get_people_max_limit($settings);
+    $has_people_limit = ($people_max_limit > 0 && $people_max_limit < PHP_INT_MAX);
+
     // Validate required parameters
     $date = sanitize_text_field($_POST['date'] ?? '');
     $meal = sanitize_text_field($_POST['meal'] ?? '');
     $people = intval($_POST['people'] ?? 1);
     $requested_time = sanitize_text_field($_POST['time'] ?? '');
-    
-    if (empty($date) || empty($meal) || $people < 1 || $people > 20) {
-        wp_send_json_error(['message' => rbf_translate_string('Parametri non validi.')]);
+
+    $people_exceeds_limit = $has_people_limit && $people > $people_max_limit;
+
+    if (empty($date) || empty($meal) || $people < 1 || $people_exceeds_limit) {
+        $error_message = rbf_translate_string('Parametri non validi.');
+
+        if ($people_exceeds_limit) {
+            $error_message = sprintf(
+                rbf_translate_string('Parametri non validi: è consentito un massimo di %d persone.'),
+                $people_max_limit
+            );
+        }
+
+        wp_send_json_error(['message' => $error_message]);
         return;
     }
     

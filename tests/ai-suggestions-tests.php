@@ -118,15 +118,21 @@ function rbf_test_closed_restaurant_suggestions() {
  */
 function rbf_test_ajax_suggestions_endpoint() {
     try {
+        $settings = function_exists('rbf_get_settings') ? rbf_get_settings() : [];
+        $people_max_limit = function_exists('rbf_get_people_max_limit')
+            ? rbf_get_people_max_limit($settings)
+            : 20;
+        $people_for_request = max(1, min($people_max_limit, 25));
+
         // Simulate AJAX request data
         $_POST = [
             'nonce' => wp_create_nonce('rbf_ajax_nonce'),
             'date' => date('Y-m-d', strtotime('+5 days')),
             'meal' => 'pranzo',
-            'people' => 2,
+            'people' => $people_for_request,
             'time' => '13:00'
         ];
-        
+
         // Capture output
         ob_start();
         rbf_ajax_get_suggestions_callback();
@@ -138,8 +144,14 @@ function rbf_test_ajax_suggestions_endpoint() {
         if ($response && isset($response['success'])) {
             return [
                 'status' => 'pass',
-                'message' => 'AJAX endpoint responded successfully',
-                'response' => $response
+                'message' => sprintf(
+                    'AJAX endpoint responded successfully for %d people (limit %d)',
+                    $people_for_request,
+                    $people_max_limit
+                ),
+                'response' => $response,
+                'tested_people' => $people_for_request,
+                'configured_limit' => $people_max_limit
             ];
         } else {
             return [
