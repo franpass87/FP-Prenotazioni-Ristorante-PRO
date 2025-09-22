@@ -438,6 +438,27 @@ function rbf_translate_string($text) {
         'Giorni aperti' => 'Opening Days',
         'Lunedì'=>'Monday','Martedì'=>'Tuesday','Mercoledì'=>'Wednesday','Giovedì'=>'Thursday','Venerdì'=>'Friday','Sabato'=>'Saturday','Domenica'=>'Sunday',
         'Chiusure Straordinarie' => 'Extraordinary Closures',
+        'Italia' => 'Italy',
+        'Regno Unito' => 'United Kingdom',
+        'Stati Uniti' => 'United States',
+        'Francia' => 'France',
+        'Germania' => 'Germany',
+        'Spagna' => 'Spain',
+        'Svizzera' => 'Switzerland',
+        'Austria' => 'Austria',
+        'Paesi Bassi' => 'Netherlands',
+        'Belgio' => 'Belgium',
+        'Lussemburgo' => 'Luxembourg',
+        'Portogallo' => 'Portugal',
+        'Irlanda' => 'Ireland',
+        'Danimarca' => 'Denmark',
+        'Svezia' => 'Sweden',
+        'Norvegia' => 'Norway',
+        'Finlandia' => 'Finland',
+        'Grecia' => 'Greece',
+        'Monaco' => 'Monaco',
+        'San Marino' => 'San Marino',
+        'Città del Vaticano' => 'Vatican City',
         'Date Chiuse (una per riga, formato Y-m-d o Y-m-d - Y-m-d)' => 'Closed Dates (one per line, format Y-m-d or Y-m-d - Y-m-d)',
         'Limiti Temporali Prenotazioni' => 'Booking Time Limits',
         'Minuti minimi in anticipo per prenotare' => 'Minimum minutes in advance to book',
@@ -820,6 +841,146 @@ function rbf_validate_email($email) {
         return ['error' => true, 'message' => rbf_translate_string('Indirizzo email non valido.')];
     }
     return $email;
+}
+
+/**
+ * Normalize an international phone prefix ensuring it always starts with + and contains only digits.
+ */
+function rbf_normalize_phone_prefix($prefix) {
+    if (!is_string($prefix)) {
+        $prefix = '';
+    }
+
+    $prefix = trim($prefix);
+    $prefix = preg_replace('/[^0-9\+]/', '', $prefix);
+
+    if ($prefix === '') {
+        return '';
+    }
+
+    $prefix = ltrim($prefix, '+');
+
+    return '+' . $prefix;
+}
+
+/**
+ * Sanitize the local part of a phone number keeping only digits.
+ */
+function rbf_sanitize_phone_number_part($number) {
+    if (!is_string($number)) {
+        $number = '';
+    }
+
+    $number = trim($number);
+    $number = preg_replace('/[^0-9]/', '', $number);
+
+    // Limit to a reasonable length to avoid abuse
+    $number = substr($number, 0, 20);
+
+    return $number;
+}
+
+/**
+ * Format a sequence of digits with spaces every 3 characters for readability.
+ */
+function rbf_format_phone_digits($digits) {
+    $digits = preg_replace('/[^0-9]/', '', (string) $digits);
+
+    if ($digits === '') {
+        return '';
+    }
+
+    return trim(chunk_split($digits, 3, ' '));
+}
+
+/**
+ * Retrieve the curated list of phone prefixes supported by the booking form.
+ */
+function rbf_get_phone_prefixes() {
+    $prefixes = [
+        ['code' => 'it', 'prefix' => '+39',  'label' => rbf_translate_string('Italia'),          'example' => '347 123 4567', 'default' => true],
+        ['code' => 'gb', 'prefix' => '+44',  'label' => rbf_translate_string('Regno Unito'),    'example' => '7700 900123'],
+        ['code' => 'us', 'prefix' => '+1',   'label' => rbf_translate_string('Stati Uniti'),    'example' => '415 555 1234'],
+        ['code' => 'fr', 'prefix' => '+33',  'label' => rbf_translate_string('Francia'),        'example' => '06 12 34 56 78'],
+        ['code' => 'de', 'prefix' => '+49',  'label' => rbf_translate_string('Germania'),       'example' => '1512 3456789'],
+        ['code' => 'es', 'prefix' => '+34',  'label' => rbf_translate_string('Spagna'),         'example' => '612 345 678'],
+        ['code' => 'ch', 'prefix' => '+41',  'label' => rbf_translate_string('Svizzera'),       'example' => '079 123 45 67'],
+        ['code' => 'at', 'prefix' => '+43',  'label' => rbf_translate_string('Austria'),        'example' => '0664 1234567'],
+        ['code' => 'nl', 'prefix' => '+31',  'label' => rbf_translate_string('Paesi Bassi'),    'example' => '06 12345678'],
+        ['code' => 'be', 'prefix' => '+32',  'label' => rbf_translate_string('Belgio'),         'example' => '0471 12 34 56'],
+        ['code' => 'lu', 'prefix' => '+352', 'label' => rbf_translate_string('Lussemburgo'),    'example' => '621 123 456'],
+        ['code' => 'pt', 'prefix' => '+351', 'label' => rbf_translate_string('Portogallo'),     'example' => '912 345 678'],
+        ['code' => 'ie', 'prefix' => '+353', 'label' => rbf_translate_string('Irlanda'),        'example' => '085 123 4567'],
+        ['code' => 'dk', 'prefix' => '+45',  'label' => rbf_translate_string('Danimarca'),      'example' => '20 12 34 56'],
+        ['code' => 'se', 'prefix' => '+46',  'label' => rbf_translate_string('Svezia'),         'example' => '070 123 45 67'],
+        ['code' => 'no', 'prefix' => '+47',  'label' => rbf_translate_string('Norvegia'),       'example' => '412 34 567'],
+        ['code' => 'fi', 'prefix' => '+358', 'label' => rbf_translate_string('Finlandia'),      'example' => '040 1234567'],
+        ['code' => 'gr', 'prefix' => '+30',  'label' => rbf_translate_string('Grecia'),         'example' => '691 234 5678'],
+        ['code' => 'mc', 'prefix' => '+377', 'label' => rbf_translate_string('Monaco'),         'example' => '06 12 34 56'],
+        ['code' => 'sm', 'prefix' => '+378', 'label' => rbf_translate_string('San Marino'),     'example' => '66 12 34 56'],
+        ['code' => 'va', 'prefix' => '+379', 'label' => rbf_translate_string('Città del Vaticano'), 'example' => '06 6982 1234'],
+    ];
+
+    foreach ($prefixes as &$prefix) {
+        $prefix['prefix'] = rbf_normalize_phone_prefix($prefix['prefix']);
+    }
+    unset($prefix);
+
+    return apply_filters('rbf_phone_prefixes', $prefixes);
+}
+
+/**
+ * Get the configured default phone prefix entry.
+ */
+function rbf_get_default_phone_prefix() {
+    $prefixes = rbf_get_phone_prefixes();
+
+    foreach ($prefixes as $prefix) {
+        if (!empty($prefix['default'])) {
+            return $prefix;
+        }
+    }
+
+    return $prefixes[0] ?? ['code' => 'it', 'prefix' => '+39', 'label' => rbf_translate_string('Italia'), 'default' => true];
+}
+
+/**
+ * Validate and normalize the provided prefix returning the known configuration entry.
+ */
+function rbf_validate_phone_prefix_value($prefix_value) {
+    $normalized = rbf_normalize_phone_prefix($prefix_value);
+    $prefixes = rbf_get_phone_prefixes();
+
+    foreach ($prefixes as $prefix) {
+        if ($normalized !== '' && $normalized === $prefix['prefix']) {
+            return $prefix;
+        }
+    }
+
+    return rbf_get_default_phone_prefix();
+}
+
+/**
+ * Prepare phone data (prefix, number and formatted representation).
+ */
+function rbf_prepare_phone_number($prefix_value, $number_value) {
+    $prefix = rbf_validate_phone_prefix_value($prefix_value);
+    $number_digits = rbf_sanitize_phone_number_part($number_value);
+
+    $formatted_digits = rbf_format_phone_digits($number_digits);
+    $full_number = '';
+
+    if ($formatted_digits !== '') {
+        $full_number = trim($prefix['prefix'] . ' ' . $formatted_digits);
+    }
+
+    return [
+        'full' => $full_number,
+        'prefix' => $prefix['prefix'],
+        'number' => $number_digits,
+        'country_code' => $prefix['code'],
+        'label' => $prefix['label'],
+    ];
 }
 
 /**

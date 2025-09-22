@@ -137,8 +137,11 @@ function initializeBookingForm($) {
     peopleMinus: form.find('#rbf-people-minus'),
     peoplePlus: form.find('#rbf-people-plus'),
     detailsStep: form.find('#step-details'),
-    detailsInputs: form.find('#step-details input:not([type=checkbox]), #step-details textarea'),
+    detailsInputs: form.find('#step-details input:not([type=checkbox]), #step-details textarea, #step-details select'),
     telInput: form.find('#rbf-tel'),
+    telPrefix: form.find('#rbf-phone-prefix'),
+    phoneWrapper: form.find('.rbf-phone-wrapper'),
+    phoneFlag: form.find('.rbf-phone-flag'),
     privacyCheckbox: form.find('#rbf-privacy'),
     marketingCheckbox: form.find('#rbf-marketing'),
     submitButton: form.find('#rbf-submit')
@@ -153,7 +156,11 @@ function initializeBookingForm($) {
 
   let fp = null;
   let datePickerInitPromise = null;
-  let iti = null;
+  const phoneState = {
+    initialized: false,
+    lastPrefix: '',
+    lastDigits: ''
+  };
   let currentStep = 1;
   let stepTimeouts = new Map(); // Track timeouts for each step element
   let componentsLoading = new Set(); // Track which components are loading
@@ -196,6 +203,99 @@ function initializeBookingForm($) {
     } catch (error) {
       rbfLog.warn('Legend visibility update failed: ' + error.message);
     }
+  }
+
+  function sanitizePhoneDigits(value) {
+    if (typeof value !== 'string') {
+      return '';
+    }
+
+    return value.replace(/[^0-9]/g, '').slice(0, 20);
+  }
+
+  function formatPhoneDigitsForDisplay(value) {
+    const digits = sanitizePhoneDigits(value);
+    if (!digits) {
+      return '';
+    }
+
+    return digits.replace(/(\d{3})(?=\d)/g, '$1 ').trim();
+  }
+
+  function getSelectedPhonePrefix() {
+    if (!el.telPrefix || !el.telPrefix.length) {
+      return '';
+    }
+
+    const value = el.telPrefix.val();
+    return typeof value === 'string' ? value.trim() : '';
+  }
+
+  function getSelectedPhoneCountry() {
+    if (!el.telPrefix || !el.telPrefix.length) {
+      return '';
+    }
+
+    const select = el.telPrefix[0];
+    const option = select.selectedOptions && select.selectedOptions.length > 0
+      ? select.selectedOptions[0]
+      : select.options[select.selectedIndex];
+
+    if (!option) {
+      return '';
+    }
+
+    return (option.getAttribute('data-country') || '').toLowerCase();
+  }
+
+  function getSelectedPhoneLabel() {
+    if (!el.telPrefix || !el.telPrefix.length) {
+      return '';
+    }
+
+    const select = el.telPrefix[0];
+    const option = select.selectedOptions && select.selectedOptions.length > 0
+      ? select.selectedOptions[0]
+      : select.options[select.selectedIndex];
+
+    if (!option) {
+      return '';
+    }
+
+    return option.getAttribute('data-label') || option.textContent || '';
+  }
+
+  function getSelectedPhoneExample() {
+    if (!el.telPrefix || !el.telPrefix.length) {
+      return '';
+    }
+
+    const select = el.telPrefix[0];
+    const option = select.selectedOptions && select.selectedOptions.length > 0
+      ? select.selectedOptions[0]
+      : select.options[select.selectedIndex];
+
+    if (!option) {
+      return '';
+    }
+
+    return option.getAttribute('data-example') || '';
+  }
+
+  function getCombinedPhoneValue() {
+    if (!el.telInput.length) {
+      return '';
+    }
+
+    const digits = sanitizePhoneDigits(el.telInput.val());
+    const formattedDigits = formatPhoneDigitsForDisplay(digits);
+    const prefix = getSelectedPhonePrefix();
+
+    if (!formattedDigits) {
+      return prefix.trim();
+    }
+
+    return prefix ? `${prefix} ${formattedDigits}`.trim() : formattedDigits;
   }
 
   updateLegendVisibility();
@@ -316,8 +416,13 @@ function initializeBookingForm($) {
     const emailValue = form.find('#rbf-email').val();
     if (emailValue) data.email = emailValue;
     
-    const telValue = form.find('#rbf-tel').val();
-    if (telValue) data.tel = telValue;
+    const telDigits = sanitizePhoneDigits(el.telInput.val());
+    const telPrefix = getSelectedPhonePrefix();
+    const combinedPhone = getCombinedPhoneValue();
+
+    if (telPrefix) data.telPrefix = telPrefix;
+    if (telDigits) data.telNumber = telDigits;
+    if (combinedPhone) data.tel = combinedPhone;
     
     const notesValue = form.find('#rbf-notes').val();
     if (notesValue) data.notes = notesValue;
@@ -359,13 +464,28 @@ function initializeBookingForm($) {
     if (data.name) form.find('#rbf-name').val(data.name);
     if (data.surname) form.find('#rbf-surname').val(data.surname);
     if (data.email) form.find('#rbf-email').val(data.email);
-    if (data.tel) form.find('#rbf-tel').val(data.tel);
+    if (data.telPrefix && el.telPrefix.length) {
+      el.telPrefix.val(data.telPrefix);
+      phoneState.lastPrefix = data.telPrefix;
+    }
+    if (data.telNumber) {
+      const formattedTel = formatPhoneDigitsForDisplay(data.telNumber);
+      el.telInput.val(formattedTel);
+      phoneState.lastDigits = sanitizePhoneDigits(formattedTel);
+    } else if (data.tel) {
+      const fallbackDigits = sanitizePhoneDigits(data.tel);
+      const formattedTel = formatPhoneDigitsForDisplay(fallbackDigits);
+      el.telInput.val(formattedTel);
+      phoneState.lastDigits = sanitizePhoneDigits(formattedTel);
+    }
     if (data.notes) form.find('#rbf-notes').val(data.notes);
-    
+
     // Restore checkboxes
     if (data.privacy) el.privacyCheckbox.prop('checked', true);
     if (data.marketing) el.marketingCheckbox.prop('checked', true);
-    
+
+    initializeTelInput();
+
     rbfLog.log('Form data restored from autosave');
   }
 
@@ -404,6 +524,9 @@ function initializeBookingForm($) {
     
     // Personal details fields
     form.find('#rbf-name, #rbf-surname, #rbf-email, #rbf-tel').on('input', scheduleAutosave);
+    if (el.telPrefix && el.telPrefix.length) {
+      el.telPrefix.on('change', scheduleAutosave);
+    }
     form.find('#rbf-notes').on('input', scheduleAutosave);
     
     // Checkboxes
@@ -1592,68 +1715,8 @@ function initializeBookingForm($) {
    */
   function lazyLoadTelInput() {
     return new Promise((resolve) => {
-      const setupFallback = () => {
-        rbfLog.warn('intl-tel-input not available, setting up enhanced fallback');
-        if (el.telInput.length) {
-          // Enhanced fallback phone input
-          el.telInput.addClass('rbf-tel-fallback');
-          el.telInput.attr('type', 'tel');
-          el.telInput.attr('placeholder', rbfData.labels.phonePlaceholder || '+39 000 000 0000');
-          
-          // Add country code selector as a prefix
-          const wrapper = $('<div class="rbf-tel-wrapper"></div>');
-          const prefix = $('<div class="rbf-tel-prefix">🇮🇹 +39</div>');
-          
-          el.telInput.wrap(wrapper);
-          el.telInput.before(prefix);
-          
-          // Set default country code
-          if ($('#rbf_country_code').length === 0) {
-            $('<input type="hidden" id="rbf_country_code" name="rbf_country_code" value="it">').insertAfter(el.telInput);
-          } else {
-            $('#rbf_country_code').val('it');
-          }
-          
-          // Enhanced validation for fallback
-          el.telInput.on('input', function() {
-            const value = $(this).val();
-            // Basic Italian phone number validation
-            const isValid = /^[\d\s\-\+\(\)]{6,}$/.test(value);
-            $(this).toggleClass('rbf-invalid', !isValid && value.length > 0);
-          });
-          
-          rbfLog.log('Enhanced fallback phone input configured');
-        }
-        resolve();
-      };
-
-      if (typeof intlTelInput === 'undefined') {
-        // Try to load intl-tel-input with timeout
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/19.2.16/js/intlTelInput.min.js';
-        script.async = true;
-        
-        const loadTimeout = setTimeout(() => {
-          rbfLog.warn('intl-tel-input loading timeout, using fallback');
-          setupFallback();
-        }, 5000);
-        
-        script.onload = () => {
-          clearTimeout(loadTimeout);
-          initializeTelInput();
-          resolve();
-        };
-        
-        script.onerror = () => {
-          clearTimeout(loadTimeout);
-          setupFallback();
-        };
-        
-        document.head.appendChild(script);
-      } else {
-        initializeTelInput();
-        resolve();
-      }
+      initializeTelInput();
+      resolve();
     });
   }
 
@@ -1920,203 +1983,88 @@ function initializeBookingForm($) {
    * Initialize international telephone input with enhanced error handling and styling
    */
   function initializeTelInput() {
-    let retryCount = 0;
-    const maxRetries = 5;
-    
-    function attemptInit() {
-      // Check if intlTelInput is available
-      if (typeof intlTelInput === 'undefined') {
-        if (retryCount < maxRetries) {
-          retryCount++;
-          setTimeout(attemptInit, 1000 * retryCount); // Exponential backoff
-          return;
-        } else {
-          el.telInput.addClass('rbf-tel-fallback');
-          $('#rbf_country_code').val('it'); // Default to Italy
-          return;
+    if (!el.telInput.length) {
+      return;
+    }
+
+    const prefixSelect = el.telPrefix;
+    const wrapper = el.phoneWrapper;
+    const flagElement = el.phoneFlag;
+
+    const updateFlag = () => {
+      const countryCode = (getSelectedPhoneCountry() || 'it').toLowerCase();
+      if (wrapper && wrapper.length) {
+        wrapper.attr('data-flag', countryCode);
+      }
+      if (flagElement && flagElement.length) {
+        const baseClass = 'rbf-phone-flag iti__flag';
+        flagElement.attr('class', `${baseClass} iti__${countryCode}`);
+        flagElement.attr('data-flag', countryCode);
+      }
+    };
+
+    const updatePlaceholder = () => {
+      const example = getSelectedPhoneExample();
+      const fallback = (rbfData.labels && rbfData.labels.phonePlaceholder) || 'Inserisci il numero di telefono';
+      const placeholder = example || fallback;
+
+      el.telInput.attr('placeholder', placeholder);
+    };
+
+    const refreshPhoneUI = (announce = false) => {
+      updateFlag();
+      updatePlaceholder();
+      phoneState.lastPrefix = getSelectedPhonePrefix();
+
+      if (announce) {
+        const label = getSelectedPhoneLabel();
+        if (label) {
+          announceToScreenReader(label);
         }
       }
-      
-      // Use a small delay to ensure the element is fully visible
-      setTimeout(() => {
-        if (el.telInput.length && !iti) {
-          try {
-            // Enhanced initialization with better flag support
-            iti = intlTelInput(el.telInput[0], {
-              utilsScript: rbfData.utilsScript,
-              initialCountry: 'it',
-              preferredCountries: ['it', 'gb', 'us', 'de', 'fr', 'es', 'ch', 'at'],
-              separateDialCode: true,
-              nationalMode: false,
-              autoPlaceholder: 'aggressive',
-              allowDropdown: true,
-              showSelectedDialCode: true,
-              formatOnDisplay: true,
-              autoFormat: true,
-              // Enhanced flag container styling
-              // Attach dropdown directly to the input wrapper to avoid page jumps
-              // when the user clicks the flag button
-              customPlaceholder: function(selectedCountryPlaceholder, selectedCountryData) {
-                return rbfData.labels.phonePlaceholder || selectedCountryPlaceholder;
-              }
-            });
+    };
 
-            if (iti) {
-              const itiWrapper = el.telInput.closest('.iti');
+    const applyFormattedValue = (rawValue) => {
+      const formatted = formatPhoneDigitsForDisplay(rawValue);
+      el.telInput.val(formatted);
+      phoneState.lastDigits = sanitizePhoneDigits(formatted);
+      return formatted;
+    };
 
-              const findDropdownContainer = () => {
-                const instanceId = el.telInput.attr('data-intl-tel-input-id');
-                if (!instanceId) {
-                  return $();
-                }
+    const handleInputChange = () => {
+      const formatted = applyFormattedValue(el.telInput.val());
+      if (formatted.length) {
+        ValidationManager.validateField('rbf_tel_number', formatted, el.telInput[0]);
+      }
+      scheduleAutosave();
+      updateSubmitButtonState();
+    };
 
-                return $(`.iti.iti--container[data-intl-tel-input-id="${instanceId}"]`);
-              };
+    if (!phoneState.initialized) {
+      if (prefixSelect && prefixSelect.length) {
+        prefixSelect.on('change', () => {
+          refreshPhoneUI(true);
+          ValidationManager.validateField('rbf_tel_number', el.telInput.val(), el.telInput[0]);
+          scheduleAutosave();
+          updateSubmitButtonState();
+        });
+      }
 
-              const hideSearchWithinScope = ($scope) => {
-                if (!$scope || !$scope.length) {
-                  return;
-                }
+      el.telInput.on('input', handleInputChange);
+      el.telInput.on('blur', () => {
+        applyFormattedValue(el.telInput.val());
+        ValidationManager.validateField('rbf_tel_number', el.telInput.val(), el.telInput[0]);
+      });
 
-                $scope.addClass('rbf-iti-simple');
-
-                const searchContainer = $scope.find('.iti__search-container');
-                if (searchContainer.length) {
-                  searchContainer.attr('aria-hidden', 'true');
-                  searchContainer.find('input, button').each(function() {
-                    const $element = $(this);
-                    $element.attr('tabindex', '-1');
-                    $element.attr('aria-hidden', 'true');
-                    $element.prop('disabled', true);
-                  });
-                  searchContainer.hide();
-                }
-
-                $scope.find('.iti__search-input').each(function() {
-                  const $searchInput = $(this);
-                  $searchInput.attr('tabindex', '-1');
-                  $searchInput.attr('aria-hidden', 'true');
-                  $searchInput.prop('disabled', true);
-                  $searchInput.val('');
-                  $searchInput.trigger('blur');
-                  $searchInput.hide();
-                });
-              };
-
-              const disableDropdownSearch = () => {
-                hideSearchWithinScope(itiWrapper);
-
-                const dropdownContainer = findDropdownContainer();
-                if (dropdownContainer.length) {
-                  hideSearchWithinScope(dropdownContainer);
-                }
-              };
-
-              disableDropdownSearch();
-              setTimeout(disableDropdownSearch, 0);
-              setTimeout(disableDropdownSearch, 250);
-              setTimeout(disableDropdownSearch, 500);
-
-              // Enhanced event handling
-              el.telInput[0].addEventListener('countrychange', function() {
-                const countryData = iti.getSelectedCountryData();
-                $('#rbf_country_code').val(countryData.iso2);
-
-                // Announce to screen readers
-                announceToScreenReader(`Country selected: ${countryData.name}`);
-              });
-              
-              // Enhanced dropdown handling
-              el.telInput[0].addEventListener('open:countrydropdown', function() {
-                // Ensure proper z-index
-                const dropdownContainer = findDropdownContainer();
-                if (dropdownContainer.length) {
-                  dropdownContainer.css('z-index', '9999');
-                  const dropdownList = dropdownContainer.find('.iti__country-list');
-                  if (dropdownList.length) {
-                    dropdownList.css('z-index', '9999');
-                  }
-                }
-
-                disableDropdownSearch();
-                setTimeout(disableDropdownSearch, 0);
-              });
-
-              el.telInput[0].addEventListener('close:countrydropdown', function() {
-                disableDropdownSearch();
-              });
-              
-              // Improved validation feedback
-              el.telInput[0].addEventListener('blur', function() {
-                if (iti && el.telInput.val().trim()) {
-                  const isValid = iti.isValidNumber();
-                  if (!isValid) {
-                    el.telInput.addClass('rbf-tel-invalid');
-                  } else {
-                    el.telInput.removeClass('rbf-tel-invalid');
-                  }
-                }
-              });
-              
-              // Set initial country code
-              const initialCountryData = iti.getSelectedCountryData();
-              if (initialCountryData) {
-                $('#rbf_country_code').val(initialCountryData.iso2);
-              }
-              
-              // Remove fallback styling
-              el.telInput.removeClass('rbf-tel-fallback');
-              
-              // Add custom CSS class for styling
-              el.telInput.closest('.iti').addClass('rbf-iti-enhanced');
-
-              // Rebuild flag selector button to prevent anchor jumps and improve accessibility
-              const flagButton = el.telInput.closest('.iti').find('.iti__selected-flag');
-              if (flagButton.length) {
-                const flagLabel = rbfData.labels.selectPrefix || 'Seleziona prefisso';
-
-                flagButton.attr({
-                  role: 'button',
-                  title: flagLabel,
-                  'aria-label': flagLabel,
-                  tabindex: flagButton.attr('tabindex') || '0'
-                });
-
-                const toggleDropdown = function(event) {
-                  if (event) {
-                    event.preventDefault();
-                  }
-
-                  if (iti && typeof iti.toggleCountryDropdown === 'function') {
-                    iti.toggleCountryDropdown();
-                  }
-                };
-
-                flagButton.on('click', toggleDropdown);
-                flagButton.on('keydown', function(event) {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    toggleDropdown(event);
-                  }
-                });
-              }
-
-            } else {
-              el.telInput.addClass('rbf-tel-fallback');
-              $('#rbf_country_code').val('it');
-            }
-          } catch (error) {
-            el.telInput.addClass('rbf-tel-fallback');
-            $('#rbf_country_code').val('it');
-          }
-        } else if (!el.telInput.length) {
-          // Tel input element not found
-        } else if (iti) {
-          // intlTelInput already initialized
-        }
-      }, 500); // Increased delay for better element rendering
+      phoneState.initialized = true;
     }
-    
-    attemptInit();
+
+    const existingDigits = phoneState.lastDigits || sanitizePhoneDigits(el.telInput.val());
+    if (existingDigits) {
+      applyFormattedValue(existingDigits);
+    }
+
+    refreshPhoneUI();
   }
 
   /**
@@ -2762,31 +2710,16 @@ function initializeBookingForm($) {
       return;
     }
     
-    if (iti) {
-      // Validate phone number if intlTelInput is initialized
-      if (!iti.isValidNumber()) {
-        alert(rbfData.labels.invalidPhone);
-        return;
-      }
-      
-      // Set the full international number and country code
-      const fullNumber = iti.getNumber();
-      const countryData = iti.getSelectedCountryData();
-      
-      el.telInput.val(fullNumber);
-      $('#rbf_country_code').val(countryData.iso2);
-      
-    } else {
-      // Fallback: if intlTelInput is not initialized, default to Italy
-      $('#rbf_country_code').val('it');
-      
-      // Basic phone validation as fallback
-      const phoneValue = el.telInput.val().trim();
-      if (!phoneValue || phoneValue.length < 6) {
-        alert(rbfData.labels.invalidPhone);
-        return;
-      }
+    const phoneDigits = sanitizePhoneDigits(el.telInput.val());
+    if (!phoneDigits || phoneDigits.length < 8) {
+      alert(rbfData.labels.invalidPhone);
+      return;
     }
+
+    const formattedDigits = formatPhoneDigitsForDisplay(phoneDigits);
+    el.telInput.val(formattedDigits);
+    phoneState.lastDigits = phoneDigits;
+    phoneState.lastPrefix = getSelectedPhonePrefix();
     
     // All validations passed - show confirmation modal
     showBookingConfirmationModal();
@@ -3120,12 +3053,6 @@ function initializeBookingForm($) {
         if (document.activeElement && document.activeElement.closest('.flatpickr-calendar')) {
           document.activeElement.blur();
         }
-        // Close country dropdown if open
-        if ($('.iti__country-list:visible').length) {
-          if (iti) {
-            iti.close();
-          }
-        }
       }
     });
 
@@ -3340,22 +3267,19 @@ function initializeBookingForm($) {
     let lastFocusedElement = null;
 
     $(document).on('focus', 'input, select, button, [tabindex]', function() {
-      if (!$(this).closest('.iti__country-list, .flatpickr-calendar').length) {
+      if (!$(this).closest('.flatpickr-calendar').length) {
         lastFocusedElement = this;
       }
     });
 
     // Restore focus when closing dropdowns
     $(document).on('click', function(e) {
-      if (!$(e.target).closest('.iti, .flatpickr-calendar').length && lastFocusedElement) {
-        // Country dropdown closed
-        if ($('.iti__country-list:visible').length === 0) {
-          setTimeout(() => {
-            if (lastFocusedElement && $(lastFocusedElement).is(':visible')) {
-              lastFocusedElement.focus();
-            }
-          }, 100);
-        }
+      if (!$(e.target).closest('.flatpickr-calendar').length && lastFocusedElement) {
+        setTimeout(() => {
+          if (lastFocusedElement && $(lastFocusedElement).is(':visible')) {
+            lastFocusedElement.focus();
+          }
+        }, 100);
       }
     });
   }
@@ -3567,18 +3491,18 @@ function initializeBookingForm($) {
           });
         }
       },
-      'rbf_tel': {
+      'rbf_tel_number': {
         required: true,
         validate: function(value) {
-          if (!value) {
+          const digits = sanitizePhoneDigits(value);
+
+          if (!digits) {
             return { valid: false, message: rbfData.labels.phoneRequired || 'Il numero di telefono è obbligatorio.' };
           }
-          // Remove all non-numeric characters for validation
-          const cleaned = value.replace(/[^\d]/g, '');
-          if (cleaned.length < 8) {
+          if (digits.length < 8) {
             return { valid: false, message: rbfData.labels.phoneMinLength || 'Il numero di telefono deve contenere almeno 8 cifre.' };
           }
-          if (cleaned.length > 15) {
+          if (digits.length > 15) {
             return { valid: false, message: rbfData.labels.phoneMaxLength || 'Il numero di telefono non può superare 15 cifre.' };
           }
           return { valid: true };
@@ -3595,10 +3519,24 @@ function initializeBookingForm($) {
       }
     },
 
+    getFieldId: function(fieldName) {
+      if (fieldName === 'rbf_tel_number') {
+        return 'rbf-tel';
+      }
+      return fieldName.replace('rbf_', 'rbf-');
+    },
+
+    getErrorId: function(fieldName) {
+      if (fieldName === 'rbf_tel_number') {
+        return 'rbf-tel-error';
+      }
+      return fieldName + '-error';
+    },
+
     // Show field error
     showFieldError: function(fieldName, message) {
-      const errorElement = document.getElementById(fieldName + '-error');
-      const field = document.getElementById(fieldName.replace('rbf_', 'rbf-'));
+      const errorElement = document.getElementById(this.getErrorId(fieldName));
+      const field = document.getElementById(this.getFieldId(fieldName));
       
       if (errorElement) {
         errorElement.textContent = message;
@@ -3613,8 +3551,8 @@ function initializeBookingForm($) {
 
     // Show field success
     showFieldSuccess: function(fieldName) {
-      const errorElement = document.getElementById(fieldName + '-error');
-      const field = document.getElementById(fieldName.replace('rbf_', 'rbf-'));
+      const errorElement = document.getElementById(this.getErrorId(fieldName));
+      const field = document.getElementById(this.getFieldId(fieldName));
       
       if (errorElement) {
         errorElement.classList.remove('show');
@@ -3628,7 +3566,7 @@ function initializeBookingForm($) {
 
     // Show field validating state
     showFieldValidating: function(fieldName) {
-      const field = document.getElementById(fieldName.replace('rbf_', 'rbf-'));
+      const field = document.getElementById(this.getFieldId(fieldName));
       if (field) {
         field.classList.remove('rbf-field-invalid', 'rbf-field-valid');
         field.classList.add('rbf-field-validating');
@@ -3637,8 +3575,8 @@ function initializeBookingForm($) {
 
     // Clear field validation state
     clearFieldValidation: function(fieldName) {
-      const errorElement = document.getElementById(fieldName + '-error');
-      const field = document.getElementById(fieldName.replace('rbf_', 'rbf-'));
+      const errorElement = document.getElementById(this.getErrorId(fieldName));
+      const field = document.getElementById(this.getFieldId(fieldName));
       
       if (errorElement) {
         errorElement.classList.remove('show');
@@ -3713,8 +3651,11 @@ function initializeBookingForm($) {
       ['rbf-name', 'rbf-surname', 'rbf-email', 'rbf-tel'].forEach(function(fieldId) {
         const field = document.getElementById(fieldId);
         if (field) {
-          const fieldName = fieldId.replace('-', '_');
-          
+          let fieldName = fieldId.replace('-', '_');
+          if (fieldId === 'rbf-tel') {
+            fieldName = 'rbf_tel_number';
+          }
+
           // Validate on blur
           field.addEventListener('blur', function() {
             if (this.value.trim()) {
@@ -3807,7 +3748,7 @@ function initializeBookingForm($) {
           element = document.getElementById('rbf-email');
           value = element ? element.value : '';
           break;
-        case 'rbf_tel':
+        case 'rbf_tel_number':
           element = document.getElementById('rbf-tel');
           value = element ? element.value : '';
           break;

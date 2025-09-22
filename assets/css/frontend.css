@@ -1403,50 +1403,75 @@
     }
 }
 
-/* Enhanced fallback telephone input with prefix support */
-.rbf-tel-wrapper {
+/* Phone field wrapper with prefix selector */
+.rbf-phone-wrapper {
     position: relative;
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(140px, 190px) 1fr;
+    gap: 12px;
+    align-items: stretch;
+}
+
+.rbf-phone-prefix {
+    position: relative;
+}
+
+.rbf-phone-prefix select {
+    width: 100%;
+    min-height: var(--rbf-input-height);
+    padding: 14px 44px 14px 60px;
     border: 2px solid var(--rbf-border);
     border-radius: var(--rbf-radius);
-    overflow: hidden;
-    background: white;
+    background: #fff;
+    color: var(--rbf-text);
+    font-size: 16px;
+    font-family: inherit;
+    appearance: none;
     transition: var(--rbf-transition);
 }
 
-.rbf-tel-wrapper:focus-within {
-    border-color: var(--rbf-primary);
-    box-shadow: 0 0 0 3px rgba(44, 90, 160, 0.15);
-}
-
-.rbf-tel-prefix {
-    background: var(--rbf-primary);
-    color: white;
-    padding: 0 12px;
-    display: flex;
-    align-items: center;
-    font-weight: 600;
-    font-size: 14px;
-    border-right: 1px solid var(--rbf-border);
-    white-space: nowrap;
-}
-
-.rbf-tel-wrapper input {
-    border: none !important;
-    box-shadow: none !important;
-    margin: 0;
-    padding: var(--rbf-input-padding);
-    flex: 1;
-    background: transparent;
-}
-
-.rbf-tel-wrapper input:focus {
+.rbf-phone-prefix select:focus {
     outline: none;
-    box-shadow: none !important;
+    border-color: var(--rbf-primary);
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
 }
 
-.rbf-tel-wrapper input.rbf-invalid {
-    background: rgba(220, 53, 69, 0.1);
+.rbf-phone-prefix::after {
+    content: '\25BE';
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: var(--rbf-text-light);
+    font-size: 12px;
+}
+
+.rbf-phone-flag {
+    position: absolute;
+    left: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 20px;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+    background-size: cover;
+}
+
+.rbf-phone-wrapper input[type='tel'] {
+    min-height: var(--rbf-input-height);
+}
+
+@media (max-width: 640px) {
+    .rbf-phone-wrapper {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .rbf-phone-prefix select {
+        min-height: calc(var(--rbf-input-height) + 4px);
+    }
 }
 
 /* Enhanced date input fallback */
