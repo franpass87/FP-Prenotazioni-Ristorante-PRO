@@ -424,11 +424,14 @@ function rbf_create_booking_post($data, $redirect_url, $anchor) {
         }
     }
 
+    $tracking_token = wp_generate_password(20, false, false);
+
     $booking_context = array_merge(
         $data,
         [
             'post_id'          => $post_id,
             'table_assignment' => $table_assignment,
+            'tracking_token'   => $tracking_token,
         ]
     );
 
@@ -446,24 +449,26 @@ function rbf_create_booking_post($data, $redirect_url, $anchor) {
     $event_id   = 'rbf_' . $post_id;
 
     set_transient('rbf_booking_data_' . $post_id, [
-        'id'       => $post_id,
-        'value'    => $valore_tot,
-        'currency' => 'EUR',
-        'meal'     => $meal,
-        'people'   => $people,
-        'bucket'   => $src['bucket'],
-        'gclid'    => $gclid,
-        'fbclid'   => $fbclid,
-        'event_id' => $event_id,
-        'unit_price' => $valore_pp,
+        'id'            => $post_id,
+        'value'         => $valore_tot,
+        'currency'      => 'EUR',
+        'meal'          => $meal,
+        'people'        => $people,
+        'bucket'        => $src['bucket'],
+        'gclid'         => $gclid,
+        'fbclid'        => $fbclid,
+        'event_id'      => $event_id,
+        'unit_price'    => $valore_pp,
+        'tracking_token' => $tracking_token,
     ], 60 * 15);
 
     return [
-        'post_id'    => $post_id,
-        'valore_tot' => $valore_tot,
-        'valore_pp'  => $valore_pp,
-        'event_id'   => $event_id,
-        'options'    => $options
+        'post_id'        => $post_id,
+        'valore_tot'     => $valore_tot,
+        'valore_pp'      => $valore_pp,
+        'event_id'       => $event_id,
+        'options'        => $options,
+        'tracking_token' => $tracking_token,
     ];
 }
 
@@ -712,7 +717,11 @@ function rbf_handle_booking_submission() {
 
     rbf_send_notifications($data, $context);
 
-    $success_args = ['rbf_success' => '1', 'booking_id' => $context['post_id']];
+    $success_args = [
+        'rbf_success'   => '1',
+        'booking_id'    => $context['post_id'],
+        'booking_token' => $context['tracking_token'],
+    ];
     rbf_handle_success('Booking created successfully', $success_args, add_query_arg($success_args, $redirect_url . $anchor));
 }
 

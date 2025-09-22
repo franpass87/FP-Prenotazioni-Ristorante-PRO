@@ -1466,7 +1466,8 @@ function rbf_add_booking_page_html() {
                                 update_post_meta($post_id, 'rbf_table_group_id', $table_assignment['group_id']);
                             }
 
-                            $event_id   = 'rbf_' . $post_id;
+                            $event_id       = 'rbf_' . $post_id;
+                            $tracking_token = wp_generate_password(20, false, false);
 
                             // Email + Brevo (functions will be loaded from integrations module)
                             if (function_exists('rbf_send_admin_notification_email')) {
@@ -1478,14 +1479,15 @@ function rbf_add_booking_page_html() {
 
                             // Transient per tracking (anche per inserimenti manuali)
                             set_transient('rbf_booking_data_' . $post_id, [
-                                'id'       => $post_id,
-                                'value'    => $valore_tot,
-                                'currency' => 'EUR',
-                                'meal'     => $meal,
-                                'people'   => $people,
-                                'bucket'   => 'backend',
-                                'event_id' => $event_id,
-                                'unit_price' => $valore_pp,
+                                'id'             => $post_id,
+                                'value'          => $valore_tot,
+                                'currency'       => 'EUR',
+                                'meal'           => $meal,
+                                'people'         => $people,
+                                'bucket'         => 'backend',
+                                'event_id'       => $event_id,
+                                'unit_price'     => $valore_pp,
+                                'tracking_token' => $tracking_token,
                             ], 60 * 15);
 
                             if (function_exists('rbf_clear_calendar_cache')) {
