@@ -1537,11 +1537,30 @@ function initializeBookingForm($) {
       // EMERGENCY OVERRIDE: If we detect that everything is being disabled, just allow all dates
       if (window.rbfEmergencyMode === undefined) {
         window.rbfEmergencyMode = false;
+      }
+      if (window.rbfForceEmergencyMode === undefined) {
+        window.rbfForceEmergencyMode = false;
+      }
+      if (window.rbfDisabledCount === undefined) {
         window.rbfDisabledCount = 0;
+      }
+      if (window.rbfTotalCount === undefined) {
         window.rbfTotalCount = 0;
       }
-      
+      if (window.rbfEmergencyAlertShown === undefined) {
+        window.rbfEmergencyAlertShown = false;
+      }
+
       window.rbfTotalCount++;
+
+      const emergencyOverrideAllowed = Boolean(
+        (rbfData && (rbfData.allowEmergencyOverride || rbfData.debug)) ||
+        window.rbfForceEmergencyMode
+      );
+
+      if (!emergencyOverrideAllowed && window.rbfEmergencyMode) {
+        window.rbfEmergencyMode = false;
+      }
       
       // CRITICAL FIX: Detect and fix configuration where all days are disabled
       if (rbfData.closedDays && Array.isArray(rbfData.closedDays) && rbfData.closedDays.length >= 7) {
@@ -1631,13 +1650,31 @@ function initializeBookingForm($) {
       }
       
       // EMERGENCY CHECK: If too many dates are being disabled, switch to emergency mode
-      if (window.rbfTotalCount > 20 && (window.rbfDisabledCount / window.rbfTotalCount) > 0.8) {
-        rbfLog.error('Too many dates disabled, switching to emergency mode');
-        window.rbfEmergencyMode = true;
+      if (window.rbfTotalCount > 20) {
+        const disabledRatio = window.rbfTotalCount === 0
+          ? 0
+          : window.rbfDisabledCount / window.rbfTotalCount;
+
+        if (disabledRatio > 0.8) {
+          if (emergencyOverrideAllowed) {
+            if (!window.rbfEmergencyMode) {
+              rbfLog.error('Too many dates disabled, switching to emergency mode (override enabled)');
+            }
+            window.rbfEmergencyMode = true;
+          } else if (!window.rbfEmergencyAlertShown) {
+            rbfLog.warn(`High disabled date ratio detected (${Math.round(disabledRatio * 100)}%) but emergency override is disabled.`);
+            rbfLog.warn('Verify calendar configuration or enable allowEmergencyOverride/debug to force emergency mode.');
+            window.rbfEmergencyAlertShown = true;
+          }
+        } else if (window.rbfEmergencyAlertShown && disabledRatio <= 0.5) {
+          window.rbfEmergencyAlertShown = false;
+        }
       }
-      
-      // EMERGENCY MODE: Allow all dates if we're in emergency mode
-      if (window.rbfEmergencyMode) {
+
+      const emergencyModeActive = emergencyOverrideAllowed &&
+        (window.rbfEmergencyMode || window.rbfForceEmergencyMode);
+
+      if (emergencyModeActive) {
         if (rbfData.debug) rbfLog.log(`Date ${dateStr} allowed: EMERGENCY MODE ACTIVE`);
         return false;
       }

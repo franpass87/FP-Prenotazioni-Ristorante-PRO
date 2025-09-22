@@ -24,7 +24,8 @@
         <button onclick="runAllTests()">🚀 Esegui Tutti i Test</button>
         <button onclick="testEmergencyFix()">🚨 Test Emergency Fix</button>
         <button onclick="testNormalOperation()">✅ Test Funzionamento Normale</button>
-        
+        <button onclick="testLimitedOperation()">📅 Test Giorni Limitati</button>
+
         <div id="test-results"></div>
         <div id="test-log" class="log" style="margin-top: 20px;"></div>
     </div>
@@ -54,6 +55,14 @@
             logDiv.scrollTop = logDiv.scrollHeight;
         }
 
+        function resetEmergencyState() {
+            delete window.rbfTotalCount;
+            delete window.rbfDisabledCount;
+            delete window.rbfEmergencyMode;
+            delete window.rbfForceEmergencyMode;
+            delete window.rbfEmergencyAlertShown;
+        }
+
         function showResult(test, result, details) {
             const resultsDiv = document.getElementById('test-results');
             const className = result ? 'pass' : 'fail';
@@ -73,13 +82,33 @@
             try {
                 const dateStr = formatLocalISO(date);
                 const dayOfWeek = date.getDay();
-                
-                // Initialize counters if not exists
+
+                if (window.rbfEmergencyMode === undefined) {
+                    window.rbfEmergencyMode = false;
+                }
+                if (window.rbfForceEmergencyMode === undefined) {
+                    window.rbfForceEmergencyMode = false;
+                }
                 if (window.rbfTotalCount === undefined) {
                     window.rbfTotalCount = 0;
+                }
+                if (window.rbfDisabledCount === undefined) {
                     window.rbfDisabledCount = 0;
                 }
+                if (window.rbfEmergencyAlertShown === undefined) {
+                    window.rbfEmergencyAlertShown = false;
+                }
+
                 window.rbfTotalCount++;
+
+                const emergencyOverrideAllowed = Boolean(
+                    (rbfData && (rbfData.allowEmergencyOverride || rbfData.debug)) ||
+                    window.rbfForceEmergencyMode
+                );
+
+                if (!emergencyOverrideAllowed && window.rbfEmergencyMode) {
+                    window.rbfEmergencyMode = false;
+                }
                 
                 // CRITICAL FIX: Detect and fix configuration where all days are disabled
                 if (rbfData.closedDays && Array.isArray(rbfData.closedDays) && rbfData.closedDays.length >= 7) {
@@ -168,20 +197,56 @@
                     }
                 }
                 
+                if (window.rbfTotalCount > 20) {
+                    const disabledRatio = window.rbfTotalCount === 0 ? 0 : window.rbfDisabledCount / window.rbfTotalCount;
+                    if (disabledRatio > 0.8) {
+                        if (emergencyOverrideAllowed) {
+                            if (!window.rbfEmergencyMode) {
+                                rbfLog.error('Too many dates disabled, switching to emergency mode (test override enabled)');
+                            }
+                            window.rbfEmergencyMode = true;
+                        } else if (!window.rbfEmergencyAlertShown) {
+                            rbfLog.warn(`High disabled ratio detected (${Math.round(disabledRatio * 100)}%) but emergency override is disabled.`);
+                            rbfLog.warn('Legitimate limited schedules keep their restrictions without forcing emergency mode.');
+                            window.rbfEmergencyAlertShown = true;
+                        }
+                    } else if (window.rbfEmergencyAlertShown && disabledRatio <= 0.5) {
+                        window.rbfEmergencyAlertShown = false;
+                    }
+                }
+
+                const emergencyModeActive = emergencyOverrideAllowed &&
+                    (window.rbfEmergencyMode || window.rbfForceEmergencyMode);
+
+                if (emergencyModeActive) {
+                    if (rbfData.debug) rbfLog.log(`Date ${dateStr} allowed: EMERGENCY MODE ACTIVE`);
+                    return false;
+                }
+
                 // DEFAULT: Allow the date
                 if (rbfData.debug) rbfLog.log(`Date ${dateStr} allowed: no restrictions apply`);
                 return false;
-                
+
             } catch (error) {
                 rbfLog.error('Error in isDateDisabled: ' + error.message);
                 return false;
             }
         }
 
-        function testEmergencyFix() {
-            document.getElementById('test-results').innerHTML = '<h3>🚨 Test Emergency Fix</h3>';
-            document.getElementById('test-log').innerHTML = '';
-            
+        function testEmergencyFix(appendResults = false) {
+            const resultsDiv = document.getElementById('test-results');
+            const logDiv = document.getElementById('test-log');
+
+            if (!appendResults) {
+                resultsDiv.innerHTML = '<h3>🚨 Test Emergency Fix</h3>';
+                logDiv.innerHTML = '';
+            } else {
+                resultsDiv.innerHTML += '<h3>🚨 Test Emergency Fix</h3>';
+                addToLog('--- 🚨 Avvio Test Emergency Fix ---', 'log');
+            }
+
+            resetEmergencyState();
+
             // Create problematic rbfData with all days closed
             const problematicData = {
                 closedDays: [0, 1, 2, 3, 4, 5, 6], // All days closed!
@@ -191,7 +256,7 @@
                 debug: true
             };
             
-            addToLog('Testing with problematic data: ' + JSON.stringify(problematicData), 'log');
+            addToLog('Test con dati problematici: ' + JSON.stringify(problematicData), 'log');
             
             // Test several dates
             const testDates = [];
@@ -224,10 +289,20 @@
                 fixApplied && someAllowed ? 'Emergency fix working correctly' : 'Emergency fix failed');
         }
 
-        function testNormalOperation() {
-            document.getElementById('test-results').innerHTML = '<h3>✅ Test Normal Operation</h3>';
-            document.getElementById('test-log').innerHTML = '';
-            
+        function testNormalOperation(appendResults = false) {
+            const resultsDiv = document.getElementById('test-results');
+            const logDiv = document.getElementById('test-log');
+
+            if (!appendResults) {
+                resultsDiv.innerHTML = '<h3>✅ Test Funzionamento Normale</h3>';
+                logDiv.innerHTML = '';
+            } else {
+                resultsDiv.innerHTML += '<h3>✅ Test Funzionamento Normale</h3>';
+                addToLog('--- ✅ Avvio Test Funzionamento Normale ---', 'log');
+            }
+
+            resetEmergencyState();
+
             // Create normal rbfData
             const normalData = {
                 closedDays: [1], // Only Monday closed
@@ -236,8 +311,8 @@
                 exceptions: [],
                 debug: true
             };
-            
-            addToLog('Testing with normal data: ' + JSON.stringify(normalData), 'log');
+
+            addToLog('Test con dati normali: ' + JSON.stringify(normalData), 'log');
             
             // Test several dates
             const testDates = [];
@@ -273,9 +348,83 @@
                 noInterference && mostAllowed ? 'Normal operation preserved' : 'Normal operation affected');
         }
 
-        function testEdgeCases() {
-            document.getElementById('test-results').innerHTML += '<h3>🔧 Test Edge Cases</h3>';
-            
+        function testLimitedOperation(appendResults = false) {
+            const resultsDiv = document.getElementById('test-results');
+            const logDiv = document.getElementById('test-log');
+
+            if (!appendResults) {
+                resultsDiv.innerHTML = '<h3>📅 Test Configurazione Giorni Limitati</h3>';
+                logDiv.innerHTML = '';
+            } else {
+                resultsDiv.innerHTML += '<h3>📅 Test Configurazione Giorni Limitati</h3>';
+                addToLog('--- 📅 Avvio Test Giorni Limitati ---', 'log');
+            }
+
+            resetEmergencyState();
+
+            const limitedData = {
+                closedDays: [0, 1, 2, 3, 4, 5], // Solo il sabato aperto
+                closedSingles: [],
+                closedRanges: [],
+                exceptions: [],
+                allowEmergencyOverride: false,
+                debug: false
+            };
+
+            addToLog('Test configurazione giorni limitati: ' + JSON.stringify(limitedData), 'log');
+
+            const today = new Date();
+            const iterationDays = 35;
+            let allowedDates = 0;
+            let disabledDates = 0;
+            let saturdaysAvailable = 0;
+
+            for (let i = 0; i < iterationDays; i++) {
+                const testDate = new Date(today.getTime() + i * 24 * 60 * 60 * 1000);
+                if (testDate.getDay() === 6) {
+                    saturdaysAvailable++;
+                }
+
+                const isDisabled = isDateDisabled(testDate, limitedData);
+                if (isDisabled) {
+                    disabledDates++;
+                } else {
+                    allowedDates++;
+                }
+            }
+
+            const disabledRatio = Math.round((disabledDates / iterationDays) * 100);
+            const ratioExceeded = disabledRatio > 80;
+            const emergencyAllowed = limitedData.allowEmergencyOverride || limitedData.debug || window.rbfForceEmergencyMode;
+            const emergencyActive = emergencyAllowed && window.rbfEmergencyMode;
+
+            showResult('Rapporto date disabilitate > 80%', ratioExceeded,
+                `Rapporto calcolato: ${disabledRatio}% (${disabledDates}/${iterationDays})`);
+
+            showResult('Emergency mode resta disattivata', !emergencyActive,
+                !emergencyActive ? 'Override emergenza non attivato automaticamente.' : 'Emergency mode attivata inaspettatamente.');
+
+            showResult('Solo i giorni operativi sono disponibili', allowedDates === saturdaysAvailable,
+                `Date abilitate: ${allowedDates} vs sabati disponibili: ${saturdaysAvailable}`);
+
+            addToLog(`Limited schedule results → allowed: ${allowedDates}, disabled: ${disabledDates}, emergencyMode: ${window.rbfEmergencyMode}`,
+                window.rbfEmergencyMode ? 'warn' : 'log');
+        }
+
+        function testEdgeCases(appendResults = false) {
+            const resultsDiv = document.getElementById('test-results');
+            const logDiv = document.getElementById('test-log');
+
+            if (!appendResults) {
+                resultsDiv.innerHTML = '<h3>🔧 Test Edge Cases</h3>';
+                logDiv.innerHTML = '';
+            } else {
+                resultsDiv.innerHTML += '<h3>🔧 Test Edge Cases</h3>';
+                addToLog('--- 🔧 Avvio Test Edge Cases ---', 'log');
+            }
+
+            resetEmergencyState();
+
             // Test with extremely long range
             const longRangeData = {
                 closedDays: [],
@@ -296,16 +445,32 @@
         }
 
         function runAllTests() {
-            window.rbfTotalCount = 0;
-            window.rbfDisabledCount = 0;
-            
-            testEmergencyFix();
-            setTimeout(() => {
-                testNormalOperation();
-                setTimeout(() => {
-                    testEdgeCases();
-                }, 500);
-            }, 500);
+            const resultsDiv = document.getElementById('test-results');
+            const logDiv = document.getElementById('test-log');
+
+            resultsDiv.innerHTML = '';
+            logDiv.innerHTML = '';
+
+            const tests = [
+                () => testEmergencyFix(false),
+                () => testNormalOperation(true),
+                () => testLimitedOperation(true),
+                () => testEdgeCases(true)
+            ];
+
+            let index = 0;
+            const runNext = () => {
+                if (index >= tests.length) {
+                    addToLog('✅ Tutti i test completati.', 'log');
+                    return;
+                }
+
+                tests[index]();
+                index++;
+                setTimeout(runNext, 600);
+            };
+
+            runNext();
         }
     </script>
 </body>

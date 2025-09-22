@@ -121,6 +121,7 @@ function rbf_enqueue_frontend_assets() {
         'nonce' => wp_create_nonce('rbf_ajax_nonce'),
         'locale' => $locale, // it/en
         'debug' => defined('WP_DEBUG') && WP_DEBUG, // Enable debug mode if WP_DEBUG is on
+        'allowEmergencyOverride' => apply_filters('rbf_allow_emergency_override', defined('WP_DEBUG') && WP_DEBUG),
 
         // RENEWED: Enhanced data validation to ensure arrays are always arrays
         'closedDays' => rbf_ensure_array($closed_days),
