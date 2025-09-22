@@ -1078,7 +1078,11 @@ function rbf_weekly_staff_page_html() {
 add_action('wp_ajax_rbf_get_bookings_for_calendar', 'rbf_get_bookings_for_calendar_callback');
 function rbf_get_bookings_for_calendar_callback() {
     check_ajax_referer('rbf_calendar_nonce', '_ajax_nonce');
-    
+
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error('Permessi insufficienti', 403);
+    }
+
     $sanitized = rbf_sanitize_input_fields($_POST, [
         'start' => 'text',
         'end' => 'text'
@@ -3343,7 +3347,11 @@ function rbf_move_booking_callback() {
 add_action('wp_ajax_rbf_get_weekly_staff_bookings', 'rbf_get_weekly_staff_bookings_callback');
 function rbf_get_weekly_staff_bookings_callback() {
     check_ajax_referer('rbf_weekly_staff_nonce', '_ajax_nonce');
-    
+
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error('Permessi insufficienti', 403);
+    }
+
     $sanitized = rbf_sanitize_input_fields($_POST, [
         'start' => 'text',
         'end' => 'text'
