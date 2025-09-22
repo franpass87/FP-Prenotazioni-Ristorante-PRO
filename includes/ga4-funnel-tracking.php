@@ -771,17 +771,52 @@ function rbf_ajax_get_booking_completion_data() {
     $client_id = rbf_resolve_ga_client_id($session_id);
     $ga_session_id = rbf_resolve_ga_session_id($session_id);
 
+    $tracking_data = rbf_build_booking_tracking_data($booking_id, []);
+    if (!is_array($tracking_data)) {
+        $tracking_data = [];
+    }
+
+    $fallback_value = isset($tracking_data['value']) ? (float) $tracking_data['value'] : 0.0;
+    $fallback_currency = !empty($tracking_data['currency']) ? sanitize_text_field($tracking_data['currency']) : 'EUR';
+    $fallback_meal = !empty($tracking_data['meal']) ? sanitize_text_field($tracking_data['meal']) : '';
+    $fallback_people = isset($tracking_data['people']) ? (int) $tracking_data['people'] : 0;
+    if ($fallback_people <= 0) {
+        $fallback_people = 1;
+    }
+
+    $fallback_bucket = !empty($tracking_data['bucket']) ? sanitize_text_field($tracking_data['bucket']) : 'organic';
+    $fallback_unit_price = isset($tracking_data['unit_price']) ? (float) $tracking_data['unit_price'] : 0.0;
+    $fallback_gclid = isset($tracking_data['gclid']) ? sanitize_text_field($tracking_data['gclid']) : '';
+    $fallback_fbclid = isset($tracking_data['fbclid']) ? sanitize_text_field($tracking_data['fbclid']) : '';
+    $fallback_event_id = !empty($tracking_data['event_id']) ? sanitize_text_field($tracking_data['event_id']) : '';
+    if (!$fallback_event_id) {
+        $fallback_event_id = 'rbf_' . $booking_id;
+    }
+
     $fallback_params = [
         'booking_id' => $booking_id,
-        'value' => 0,
-        'currency' => 'EUR',
-        'meal_type' => '',
-        'people_count' => 1,
-        'traffic_source' => 'organic',
+        'value' => $fallback_value,
+        'currency' => $fallback_currency,
+        'meal_type' => $fallback_meal,
+        'meal' => $fallback_meal,
+        'people_count' => $fallback_people,
+        'people' => $fallback_people,
+        'traffic_source' => $fallback_bucket,
+        'bucket' => $fallback_bucket,
+        'unit_price' => $fallback_unit_price,
         'funnel_step' => 7,
         'step_name' => 'booking_confirmation',
-        'vertical' => 'restaurant'
+        'vertical' => 'restaurant',
+        'event_id' => $fallback_event_id,
     ];
+
+    if ($fallback_gclid !== '') {
+        $fallback_params['gclid'] = $fallback_gclid;
+    }
+
+    if ($fallback_fbclid !== '') {
+        $fallback_params['fbclid'] = $fallback_fbclid;
+    }
 
     if ($ga_session_id) {
         $fallback_params['session_id'] = $ga_session_id;
@@ -793,7 +828,7 @@ function rbf_ajax_get_booking_completion_data() {
     $fallback_data = [
         'event_params' => $fallback_params,
         'session_id' => $session_id,
-        'event_id' => rbf_generate_event_id('booking_confirmed', $session_id),
+        'event_id' => $fallback_event_id,
         'client_id' => $client_id,
         'ga_session_id' => $ga_session_id,
         'event_name' => 'booking_confirmed'
