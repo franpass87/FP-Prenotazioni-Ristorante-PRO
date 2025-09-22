@@ -377,6 +377,9 @@ function initializeBookingForm($) {
     return option.getAttribute('data-example') || '';
   }
 
+  // Minimum number of digits required before restoring fallback phone data
+  const MIN_PHONE_DIGITS_FOR_RESTORE = 3;
+
   function getCombinedPhoneValue() {
     if (!el.telInput.length) {
       return '';
@@ -387,7 +390,7 @@ function initializeBookingForm($) {
     const prefix = getSelectedPhonePrefix();
 
     if (!formattedDigits) {
-      return prefix.trim();
+      return '';
     }
 
     return prefix ? `${prefix} ${formattedDigits}`.trim() : formattedDigits;
@@ -569,9 +572,19 @@ function initializeBookingForm($) {
       phoneState.lastDigits = sanitizePhoneDigits(formattedTel);
     } else if (data.tel) {
       const fallbackDigits = sanitizePhoneDigits(data.tel);
-      const formattedTel = formatPhoneDigitsForDisplay(fallbackDigits);
-      el.telInput.val(formattedTel);
-      phoneState.lastDigits = sanitizePhoneDigits(formattedTel);
+
+      if (fallbackDigits && fallbackDigits.length >= MIN_PHONE_DIGITS_FOR_RESTORE) {
+        const formattedTel = formatPhoneDigitsForDisplay(fallbackDigits);
+        el.telInput.val(formattedTel);
+        phoneState.lastDigits = sanitizePhoneDigits(formattedTel);
+      } else {
+        el.telInput.val('');
+        phoneState.lastDigits = '';
+
+        if (AutoSave && typeof AutoSave.clear === 'function') {
+          AutoSave.clear();
+        }
+      }
     }
     if (data.notes) form.find('#rbf-notes').val(data.notes);
 
