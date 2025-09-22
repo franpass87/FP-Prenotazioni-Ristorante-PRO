@@ -1375,9 +1375,15 @@ function rbf_update_booking_status($booking_id, $new_status, $note = '') {
         if ($meal === '' || $meal === null) {
             $meal = get_post_meta($booking_id, 'rbf_orario', true);
         }
+
+        $time = get_post_meta($booking_id, 'rbf_time', true);
+        if ($time === '' || $time === null) {
+            $time = get_post_meta($booking_id, 'rbf_orario', true);
+        }
+
         $people = intval(get_post_meta($booking_id, 'rbf_persone', true));
 
-        if (empty($date) || empty($meal) || $people <= 0) {
+        if (empty($date) || empty($meal) || empty($time) || $people <= 0) {
             if (function_exists('rbf_log')) {
                 rbf_log('RBF Update Booking Status: missing data to re-activate booking ' . $booking_id . '.');
             }
@@ -1397,10 +1403,31 @@ function rbf_update_booking_status($booking_id, $new_status, $note = '') {
             return false;
         }
 
+        $assignment = rbf_assign_tables_first_fit($people, $date, $time, $meal);
+        if (!$assignment) {
+            if (function_exists('rbf_release_slot_capacity')) {
+                rbf_release_slot_capacity($date, $meal, $people);
+            }
+
+            if (function_exists('rbf_log')) {
+                rbf_log(sprintf(
+                    'RBF Update Booking Status: no tables available to re-activate booking %d on %s at %s (%s).',
+                    $booking_id,
+                    $date,
+                    $time,
+                    $meal
+                ));
+            }
+
+            return false;
+        }
+
         $reservation_context = [
             'date' => $date,
             'meal' => $meal,
             'people' => $people,
+            'time' => $time,
+            'assignment' => $assignment,
         ];
     }
 
@@ -1436,6 +1463,25 @@ function rbf_update_booking_status($booking_id, $new_status, $note = '') {
     ];
 
     update_post_meta($booking_id, 'rbf_status_history', $history);
+
+    if ($reservation_context && isset($reservation_context['assignment'])) {
+        rbf_save_table_assignment($booking_id, $reservation_context['assignment']);
+
+        update_post_meta($booking_id, 'rbf_table_assignment_type', $reservation_context['assignment']['type']);
+        update_post_meta($booking_id, 'rbf_assigned_tables', $reservation_context['assignment']['total_capacity']);
+
+        if ($reservation_context['assignment']['type'] === 'joined' && isset($reservation_context['assignment']['group_id'])) {
+            update_post_meta($booking_id, 'rbf_table_group_id', $reservation_context['assignment']['group_id']);
+        } else {
+            delete_post_meta($booking_id, 'rbf_table_group_id');
+        }
+
+        delete_transient('rbf_avail_' . $reservation_context['date'] . '_' . $reservation_context['meal']);
+
+        if (function_exists('rbf_clear_calendar_cache')) {
+            rbf_clear_calendar_cache($reservation_context['date'], $reservation_context['meal']);
+        }
+    }
 
     do_action('rbf_booking_status_changed', $booking_id, $old_status, $new_status, $note);
 
