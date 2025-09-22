@@ -2162,8 +2162,22 @@ function rbf_check_slot_availability($date, $meal, $time, $people, $booking_id =
         return false;
     }
 
-    // Check if date is in the past
-    if (strtotime($date) < strtotime('today')) {
+    // Check if date is in the past using WordPress timezone awareness
+    $tz = rbf_wp_timezone();
+
+    try {
+        $requested_day = DateTimeImmutable::createFromFormat('!Y-m-d', $date, $tz);
+    } catch (Exception $e) {
+        $requested_day = false;
+    }
+
+    if (!$requested_day) {
+        return false;
+    }
+
+    $today = (new DateTimeImmutable('now', $tz))->setTime(0, 0, 0);
+
+    if ($requested_day < $today) {
         return false;
     }
 
