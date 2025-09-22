@@ -1412,6 +1412,10 @@ add_action('rbf_booking_status_changed', function($booking_id, $old_status, $new
     $date = get_post_meta($booking_id, 'rbf_data', true);
     $meal = get_post_meta($booking_id, 'rbf_meal', true) ?: get_post_meta($booking_id, 'rbf_orario', true);
 
+    if ($new_status === 'cancelled' && function_exists('rbf_remove_table_assignment')) {
+        rbf_remove_table_assignment($booking_id);
+    }
+
     if ($new_status === 'cancelled' && $old_status !== 'cancelled' && $date && $meal) {
         $people = intval(get_post_meta($booking_id, 'rbf_persone', true));
 
