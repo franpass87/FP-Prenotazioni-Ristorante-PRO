@@ -106,6 +106,54 @@ function rbf_validate_request($post, $redirect_url, $anchor) {
         return false;
     }
     list($slot, $time) = explode('|', $time_data, 2);
+
+    $slot = trim($slot);
+    $normalized_slot = sanitize_key($slot);
+    $slot_config = null;
+
+    if ($normalized_slot !== '') {
+        $slot_config = rbf_get_meal_config($normalized_slot);
+
+        if (!$slot_config && $normalized_slot !== $slot) {
+            $slot_config = rbf_get_meal_config($slot);
+        }
+
+        if (!$slot_config) {
+            $active_meals = rbf_get_active_meals();
+            foreach ($active_meals as $meal_config_candidate) {
+                if (empty($meal_config_candidate['legacy_ids'])) {
+                    continue;
+                }
+
+                $legacy_ids = array_map('sanitize_key', (array) $meal_config_candidate['legacy_ids']);
+                if (in_array($normalized_slot, $legacy_ids, true)) {
+                    $slot_config = $meal_config_candidate;
+                    break;
+                }
+            }
+        }
+
+        if ($slot_config && !empty($slot_config['id'])) {
+            $normalized_slot = $slot_config['id'];
+        }
+    }
+
+    if ($normalized_slot === '') {
+        rbf_handle_error(rbf_translate_string('La fascia oraria selezionata non è valida.'), 'slot_validation', $redirect_url . $anchor);
+        return false;
+    }
+
+    if (!in_array($normalized_slot, $valid_meal_ids, true)) {
+        rbf_handle_error(rbf_translate_string('La fascia oraria selezionata non è valida.'), 'slot_validation', $redirect_url . $anchor);
+        return false;
+    }
+
+    if ($normalized_slot !== $meal) {
+        rbf_handle_error(rbf_translate_string('Il pasto selezionato non corrisponde alla fascia oraria scelta.'), 'slot_mismatch', $redirect_url . $anchor);
+        return false;
+    }
+
+    $slot = $normalized_slot;
     $people = $sanitized_fields['rbf_persone'];
 
     $people_max_limit = rbf_get_people_max_limit();
