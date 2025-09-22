@@ -72,23 +72,11 @@ function rbf_enqueue_frontend_assets() {
         }
     }
 
-    // intl-tel-input with enhanced error handling
-    $intl_tel_loaded = false;
+    // Flag sprite CSS from intl-tel-input is still used for visual consistency
     try {
         wp_enqueue_style('rbf-intl-tel-input-css','https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/19.2.16/css/intlTelInput.css',[], '19.2.16');
-        wp_enqueue_script('rbf-intl-tel-input','https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/19.2.16/js/intlTelInput.min.js',[], '19.2.16', true);
-        wp_enqueue_script(
-            'rbf-intl-tel-input-utils',
-            plugin_dir_url(dirname(__FILE__)) . 'assets/js/vendor/intl-tel-input-utils.js',
-            ['rbf-intl-tel-input'],
-            '19.2.16',
-            true
-        );
-        $intl_tel_loaded = true;
-        $deps[] = 'rbf-intl-tel-input';
-        $deps[] = 'rbf-intl-tel-input-utils';
     } catch (Exception $e) {
-        error_log('RBF: Failed to enqueue International Telephone Input: ' . $e->getMessage());
+        error_log('RBF: Failed to enqueue International Telephone Input styles: ' . $e->getMessage());
     }
 
     // Frontend styles
@@ -143,7 +131,6 @@ function rbf_enqueue_frontend_assets() {
         'minAdvanceMinutes' => max(0, absint($options['min_advance_minutes'] ?? 0)),
         'maxAdvanceMinutes' => max(0, absint($options['max_advance_minutes'] ?? $default_settings['max_advance_minutes'])),
         'peopleMax' => $people_max,
-        'utilsScript' => plugin_dir_url(dirname(__FILE__)) . 'assets/js/vendor/intl-tel-input-utils.js',
         
         // RENEWED: Enhanced meal data validation
         'mealTooltips' => rbf_ensure_array($meal_tooltips),
@@ -520,7 +507,10 @@ function rbf_render_booking_form($atts = []) {
     if (empty($special_label) && !empty($special_type) && isset($special_labels[$special_type])) {
         $special_label = $special_labels[$special_type];
     }
-    
+
+    $phone_prefixes = rbf_get_phone_prefixes();
+    $default_phone_prefix = rbf_get_default_phone_prefix();
+
     ob_start(); ?>
     <div class="rbf-form-container">
         <div id="rbf-message-anchor"></div>
@@ -731,7 +721,27 @@ function rbf_render_booking_form($atts = []) {
                         
                         <div class="rbf-field-wrapper">
                             <label for="rbf-tel"><?php echo esc_html(rbf_translate_string('Telefono')); ?><span class="rbf-required-indicator">*</span></label>
-                            <input type="tel" id="rbf-tel" name="rbf_tel" required disabled aria-required="true">
+                            <div class="rbf-phone-wrapper" data-flag="<?php echo esc_attr($default_phone_prefix['code'] ?? 'it'); ?>">
+                                <div class="rbf-phone-prefix">
+                                    <div class="rbf-phone-flag iti__flag iti__<?php echo esc_attr($default_phone_prefix['code'] ?? 'it'); ?>" aria-hidden="true"></div>
+                                    <span id="rbf-phone-prefix-label" class="sr-only"><?php echo esc_html(rbf_translate_string('Seleziona prefisso internazionale')); ?></span>
+                                    <select id="rbf-phone-prefix" name="rbf_phone_prefix" aria-labelledby="rbf-phone-prefix-label" disabled>
+                                        <?php foreach ($phone_prefixes as $prefix) :
+                                            $is_default = !empty($prefix['default']);
+                                            $country_code = esc_attr($prefix['code']);
+                                            $option_label = esc_html($prefix['label']);
+                                            $option_prefix = esc_attr($prefix['prefix']);
+                                            $option_example = !empty($prefix['example']) ? esc_attr($prefix['example']) : '';
+                                            $selected = ($default_phone_prefix['code'] ?? '') === $prefix['code'];
+                                            ?>
+                                            <option value="<?php echo $option_prefix; ?>" data-country="<?php echo $country_code; ?>" data-label="<?php echo $option_label; ?>" <?php if ($option_example) : ?>data-example="<?php echo $option_example; ?>"<?php endif; ?> <?php selected($selected || $is_default); ?>>
+                                                <?php echo $option_label . ' ' . $option_prefix; ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <input type="tel" id="rbf-tel" name="rbf_tel_number" inputmode="tel" autocomplete="tel" required disabled aria-required="true" placeholder="<?php echo esc_attr(rbf_translate_string('Inserisci il numero di telefono')); ?>">
+                            </div>
                             <div id="rbf-tel-error" class="rbf-field-error"></div>
                         </div>
                         
@@ -769,7 +779,6 @@ function rbf_render_booking_form($atts = []) {
                 <input type="hidden" name="rbf_referrer" id="rbf_referrer" value="">
 
                 <input type="hidden" name="rbf_lang" value="<?php echo esc_attr(rbf_current_lang()); ?>">
-                <input type="hidden" name="rbf_country_code" id="rbf_country_code" value="it">
                 
                 <!-- Anti-bot protection fields -->
                 <input type="hidden" name="rbf_form_timestamp" value="<?php echo esc_attr(time()); ?>">

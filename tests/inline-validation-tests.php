@@ -141,7 +141,7 @@ function test_rbf_javascript_validation() {
         'rbf_nome',
         'rbf_cognome',
         'rbf_email',
-        'rbf_tel',
+        'rbf_tel_number',
         'rbf_privacy'
     ];
     
@@ -240,7 +240,7 @@ function test_rbf_validation_rules() {
         // Required field checks
         'if (!value)',
         // Range checks
-        'people > 20',
+        'people > peopleMaxLimit',
         'people < 1'
     ];
     

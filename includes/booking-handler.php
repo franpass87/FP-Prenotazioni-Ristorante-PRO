@@ -48,7 +48,7 @@ function rbf_validate_request($post, $redirect_url, $anchor) {
         }
     }
 
-    $required = ['rbf_meal','rbf_data','rbf_orario','rbf_persone','rbf_nome','rbf_cognome','rbf_email','rbf_tel','rbf_privacy'];
+    $required = ['rbf_meal','rbf_data','rbf_orario','rbf_persone','rbf_nome','rbf_cognome','rbf_email','rbf_phone_prefix','rbf_tel_number','rbf_privacy'];
     foreach ($required as $f) {
         if (empty($post[$f])) {
             rbf_handle_error(rbf_translate_string('Tutti i campi sono obbligatori, inclusa l\'accettazione della privacy policy.'), 'validation', $redirect_url . $anchor);
@@ -66,7 +66,8 @@ function rbf_validate_request($post, $redirect_url, $anchor) {
         'rbf_cognome'        => 'name',
         'rbf_allergie'       => 'textarea',
         'rbf_lang'           => 'text',
-        'rbf_country_code'   => 'text',
+        'rbf_phone_prefix'   => 'text',
+        'rbf_tel_number'     => 'phone',
         'rbf_utm_source'     => 'text',
         'rbf_utm_medium'     => 'text',
         'rbf_utm_campaign'   => 'text',
@@ -169,11 +170,19 @@ function rbf_validate_request($post, $redirect_url, $anchor) {
         rbf_handle_error($email['message'], 'email_validation', $redirect_url . $anchor);
         return false;
     }
-    $tel = rbf_validate_phone($post['rbf_tel']);
-    if (is_array($tel) && isset($tel['error'])) {
-        rbf_handle_error($tel['message'], 'phone_validation', $redirect_url . $anchor);
+    $phone_data = rbf_prepare_phone_number($sanitized_fields['rbf_phone_prefix'] ?? '', $sanitized_fields['rbf_tel_number'] ?? '');
+
+    if (empty($phone_data['number'])) {
+        rbf_handle_error(rbf_translate_string('Il numero di telefono inserito non è valido.'), 'phone_validation', $redirect_url . $anchor);
         return false;
     }
+
+    $validated_tel = rbf_validate_phone($phone_data['full']);
+    if (is_array($validated_tel) && isset($validated_tel['error'])) {
+        rbf_handle_error($validated_tel['message'], 'phone_validation', $redirect_url . $anchor);
+        return false;
+    }
+    $tel = is_array($validated_tel) ? $phone_data['full'] : $validated_tel;
 
     $notes = $sanitized_fields['rbf_allergie'] ?? '';
     $form_lang = $sanitized_fields['rbf_lang'] ?? 'it';
@@ -181,8 +190,8 @@ function rbf_validate_request($post, $redirect_url, $anchor) {
     if ($normalized_lang !== 'en') {
         $normalized_lang = 'it';
     }
-    $country_code = strtolower($sanitized_fields['rbf_country_code'] ?? '');
-    if (empty($country_code)) {
+    $country_code = strtolower($phone_data['country_code'] ?? 'it');
+    if ($country_code === '') {
         $country_code = 'it';
     }
 
@@ -223,6 +232,8 @@ function rbf_validate_request($post, $redirect_url, $anchor) {
         'last_name'        => $last_name,
         'email'            => $email,
         'tel'              => $tel,
+        'tel_prefix'       => $phone_data['prefix'],
+        'tel_number'       => $phone_data['number'],
         'notes'            => $notes,
         'lang'             => $form_lang,
         'country_code'     => $country_code,
@@ -358,6 +369,8 @@ function rbf_create_booking_post($data, $redirect_url, $anchor) {
         'rbf_cognome'       => $last_name,
         'rbf_email'         => $email,
         'rbf_tel'           => $tel,
+        'rbf_tel_prefix'    => $data['tel_prefix'],
+        'rbf_tel_number'    => $data['tel_number'],
         'rbf_allergie'      => $notes,
         'rbf_lang'          => $lang,
         'rbf_country_code'  => $country_code,
