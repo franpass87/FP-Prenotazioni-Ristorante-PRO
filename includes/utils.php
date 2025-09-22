@@ -1365,10 +1365,56 @@ function rbf_update_booking_status($booking_id, $new_status, $note = '') {
     $old_status_raw = get_post_meta($booking_id, 'rbf_booking_status', true);
     $old_status = $old_status_raw ?: 'pending';
 
+    $active_statuses = apply_filters('rbf_booking_active_statuses', ['confirmed', 'pending', 'completed']);
+    $requires_reactivation = ($old_status === 'cancelled' && in_array($new_status, $active_statuses, true));
+    $reservation_context = null;
+
+    if ($requires_reactivation) {
+        $date = get_post_meta($booking_id, 'rbf_data', true);
+        $meal = get_post_meta($booking_id, 'rbf_meal', true);
+        if ($meal === '' || $meal === null) {
+            $meal = get_post_meta($booking_id, 'rbf_orario', true);
+        }
+        $people = intval(get_post_meta($booking_id, 'rbf_persone', true));
+
+        if (empty($date) || empty($meal) || $people <= 0) {
+            if (function_exists('rbf_log')) {
+                rbf_log('RBF Update Booking Status: missing data to re-activate booking ' . $booking_id . '.');
+            }
+            return false;
+        }
+
+        $reservation_success = rbf_reserve_slot_capacity($date, $meal, $people);
+        if (!$reservation_success) {
+            if (function_exists('rbf_log')) {
+                rbf_log(sprintf(
+                    'RBF Update Booking Status: failed to reserve capacity for booking %d on %s (%s).',
+                    $booking_id,
+                    $date,
+                    $meal
+                ));
+            }
+            return false;
+        }
+
+        $reservation_context = [
+            'date' => $date,
+            'meal' => $meal,
+            'people' => $people,
+        ];
+    }
+
     if ($old_status_raw !== $new_status) {
         $updated = update_post_meta($booking_id, 'rbf_booking_status', $new_status);
 
         if ($updated === false) {
+            if ($reservation_context && function_exists('rbf_release_slot_capacity')) {
+                rbf_release_slot_capacity(
+                    $reservation_context['date'],
+                    $reservation_context['meal'],
+                    $reservation_context['people']
+                );
+            }
             return false;
         }
     }
