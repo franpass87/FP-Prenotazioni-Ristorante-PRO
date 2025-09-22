@@ -15,7 +15,9 @@ $meal_test_configs = [
         'capacity' => 30,
         'time_slots' => '12:00,12:30,13:00,13:30,14:00',
         'overbooking_limit' => 10,
-        'available_days' => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+        'available_days' => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
+        'slot_duration_minutes' => 30,
+        'group_slot_duration_minutes' => 120,
     ],
     'cena' => [
         'id' => 'cena',
@@ -23,20 +25,39 @@ $meal_test_configs = [
         'capacity' => 40,
         'time_slots' => '19:00,19:30,20:00,20:30,21:00',
         'overbooking_limit' => 5,
-        'available_days' => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+        'available_days' => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
+        'slot_duration_minutes' => 45,
+        'group_slot_duration_minutes' => 120,
     ],
 ];
 
 // Helper to mirror the plugin's normalization of time slot definitions
-function drag_drop_normalize_time_slots($time_slots_string) {
+function drag_drop_normalize_time_slots($time_slots_string, $slot_duration_minutes = null) {
     if (!is_string($time_slots_string) || $time_slots_string === '') {
         return [];
+    }
+
+    $minute_in_seconds = defined('MINUTE_IN_SECONDS') ? MINUTE_IN_SECONDS : 60;
+    $default_duration = 30;
+
+    if (is_numeric($slot_duration_minutes)) {
+        $duration_minutes = (float) $slot_duration_minutes;
+    } else {
+        $duration_minutes = null;
+    }
+
+    if ($duration_minutes === null || $duration_minutes <= 0) {
+        $duration_minutes = $default_duration;
+    }
+
+    $increment_seconds = (int) round($duration_minutes * $minute_in_seconds);
+    if ($increment_seconds <= 0) {
+        $increment_seconds = $default_duration * $minute_in_seconds;
     }
 
     $normalized = [];
     $seen = [];
     $entries = array_map('trim', explode(',', $time_slots_string));
-    $increment = defined('HOUR_IN_SECONDS') ? HOUR_IN_SECONDS : 3600;
 
     foreach ($entries as $entry) {
         if ($entry === '') {
@@ -57,12 +78,18 @@ function drag_drop_normalize_time_slots($time_slots_string) {
                 continue;
             }
 
-            for ($current = $start_timestamp; $current <= $end_timestamp; $current += $increment) {
+            for ($current = $start_timestamp; $current <= $end_timestamp; $current += $increment_seconds) {
                 $time = date('H:i', $current);
                 if (!isset($seen[$time])) {
                     $normalized[] = $time;
                     $seen[$time] = true;
                 }
+            }
+
+            $end_time = date('H:i', $end_timestamp);
+            if (!isset($seen[$end_time])) {
+                $normalized[] = $end_time;
+                $seen[$end_time] = true;
             }
         } else {
             $time = trim($entry);
@@ -78,6 +105,38 @@ function drag_drop_normalize_time_slots($time_slots_string) {
     }
 
     return $normalized;
+}
+
+// Helper to mirror slot duration calculation for tests
+function drag_drop_calculate_slot_duration($meal_id, $people_count) {
+    global $meal_test_configs;
+
+    if (!isset($meal_test_configs[$meal_id])) {
+        return 30;
+    }
+
+    $meal_config = $meal_test_configs[$meal_id];
+    $base_duration = isset($meal_config['slot_duration_minutes'])
+        ? (int) $meal_config['slot_duration_minutes']
+        : 30;
+
+    if ($base_duration <= 0) {
+        $base_duration = 30;
+    }
+
+    if ($people_count > 6) {
+        $group_duration = isset($meal_config['group_slot_duration_minutes'])
+            ? (int) $meal_config['group_slot_duration_minutes']
+            : 120;
+
+        if ($group_duration <= 0) {
+            $group_duration = 120;
+        }
+
+        return $group_duration;
+    }
+
+    return $base_duration;
 }
 
 /**
@@ -120,7 +179,8 @@ function test_availability_check($date, $meal, $time, $people, $options = []) {
     $meal_config = $meal_test_configs[$meal];
 
     // Check time slot
-    $time_slots = drag_drop_normalize_time_slots($meal_config['time_slots'] ?? '');
+    $slot_duration = drag_drop_calculate_slot_duration($meal, $people);
+    $time_slots = drag_drop_normalize_time_slots($meal_config['time_slots'] ?? '', $slot_duration);
     if (empty($time_slots) || !in_array($time, $time_slots, true)) {
         return ['valid' => false, 'reason' => 'Time slot not available'];
     }
@@ -387,11 +447,18 @@ $original_cena_slots = $meal_test_configs['cena']['time_slots'];
 
 // Range definition should accept intermediate times
 $meal_test_configs['cena']['time_slots'] = '19:00-21:00';
-$range_result = test_availability_check($normalization_date, 'cena', '20:00', 2);
+$range_result = test_availability_check($normalization_date, 'cena', '20:30', 2);
 if ($range_result['valid']) {
-    echo "Range 19:00-21:00 -> 20:00: ✅ ACCEPTED\n";
+    echo "Range 19:00-21:00 -> 20:30 (45 min slots): ✅ ACCEPTED\n";
 } else {
-    echo "Range 19:00-21:00 -> 20:00: ❌ BLOCKED ({$range_result['reason']})\n";
+    echo "Range 19:00-21:00 -> 20:30 (45 min slots): ❌ BLOCKED ({$range_result['reason']})\n";
+}
+
+$range_end_result = test_availability_check($normalization_date, 'cena', '21:00', 2);
+if ($range_end_result['valid']) {
+    echo "Range 19:00-21:00 -> 21:00 (end included): ✅ ACCEPTED\n";
+} else {
+    echo "Range 19:00-21:00 -> 21:00 (end included): ❌ BLOCKED ({$range_end_result['reason']})\n";
 }
 
 // Simple times with padding should be recognized after trimming

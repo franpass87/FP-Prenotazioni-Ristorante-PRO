@@ -262,7 +262,8 @@ function rbf_get_available_time_slots($date, $meal, $people) {
         return $available_times;
     }
 
-    $normalized_slots = rbf_normalize_time_slots($times_csv);
+    $slot_duration_minutes = rbf_calculate_slot_duration($meal, $people);
+    $normalized_slots = rbf_normalize_time_slots($times_csv, $slot_duration_minutes);
 
     foreach ($normalized_slots as $time) {
         if (rbf_check_time_slot_capacity($date, $meal, $time, $people)) {
