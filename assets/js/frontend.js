@@ -96,6 +96,98 @@ function initializeBookingForm($) {
   const form = $('#rbf-form');
   if (!form.length) return;
 
+  const adminBannerState = {
+    displayedKeys: new Set()
+  };
+
+  function shouldDisplayAdminBanner() {
+    if (rbfData && rbfData.debug) {
+      return true;
+    }
+
+    try {
+      if (document && document.body && document.body.classList) {
+        const bodyClassList = document.body.classList;
+        if (
+          bodyClassList.contains('logged-in') ||
+          bodyClassList.contains('wp-admin') ||
+          bodyClassList.contains('role-admin') ||
+          bodyClassList.contains('administrator')
+        ) {
+          return true;
+        }
+      }
+    } catch (error) {
+      rbfLog.warn('Admin banner visibility check failed: ' + error.message);
+    }
+
+    if (window && window.rbfForceAdminBanner) {
+      return true;
+    }
+
+    return false;
+  }
+
+  function showAdminConfigurationBanner(message, options = {}) {
+    if (!form.length || !message || typeof message !== 'string') {
+      return;
+    }
+
+    const rawKey = (options && options.key) || message;
+    const normalizedKey = String(rawKey).replace(/[^a-z0-9_-]/gi, '_');
+
+    if (adminBannerState.displayedKeys.has(normalizedKey)) {
+      return;
+    }
+
+    if (!shouldDisplayAdminBanner()) {
+      window.rbfPendingAdminBanners = window.rbfPendingAdminBanners || [];
+      const alreadyQueued = window.rbfPendingAdminBanners.some(function(entry) {
+        return entry && entry.key === normalizedKey;
+      });
+      if (!alreadyQueued) {
+        window.rbfPendingAdminBanners.push({ message: message, key: normalizedKey });
+      }
+      return;
+    }
+
+    try {
+      const container = form.closest('.rbf-form-container');
+      const target = container.length ? container : form;
+
+      const banner = $('<div/>', {
+        class: 'rbf-admin-config-banner',
+        role: 'alert'
+      })
+        .attr('aria-live', 'polite')
+        .attr('data-rbf-admin-banner', normalizedKey)
+        .html(
+          '<strong>Configurazione calendario da verificare:</strong> ' + message
+        );
+
+      banner.css({
+        background: '#fff3cd',
+        border: '1px solid #ffeeba',
+        color: '#856404',
+        padding: '12px 16px',
+        borderRadius: '8px',
+        marginBottom: '16px',
+        fontSize: '14px',
+        lineHeight: '1.5'
+      });
+
+      target.prepend(banner);
+
+      adminBannerState.displayedKeys.add(normalizedKey);
+
+      window.rbfAdminConfigBannerVisible = true;
+      window.rbfAdminConfigBannerMessage = message;
+      window.rbfAdminConfigBannerKey = normalizedKey;
+    } catch (error) {
+      rbfLog.warn('Failed to display admin configuration banner: ' + error.message);
+    }
+  }
+
   const DEFAULT_MAX_ADVANCE_MINUTES = 259200;
   const parsedMaxAdvanceMinutes = Number(rbfData.maxAdvanceMinutes);
   const hasFiniteMaxAdvanceMinutes = Number.isFinite(parsedMaxAdvanceMinutes);
@@ -1542,34 +1634,76 @@ function initializeBookingForm($) {
       }
       
       window.rbfTotalCount++;
-      
-      // CRITICAL FIX: Detect and fix configuration where all days are disabled
-      if (rbfData.closedDays && Array.isArray(rbfData.closedDays) && rbfData.closedDays.length >= 7) {
-        rbfLog.error('CRITICAL ISSUE DETECTED: All 7 days marked as closed!');
-        rbfLog.error('Original closedDays: ' + JSON.stringify(rbfData.closedDays));
-        rbfLog.error('This would disable ALL calendar dates - applying emergency fix');
-        
-        // Emergency fix: Reset to only Monday closed (common restaurant closure)
-        rbfData.closedDays = [1]; // 1 = Monday
-        
-        rbfLog.warn('EMERGENCY FIX APPLIED: Only Monday will be closed now');
-        rbfLog.warn('Please check WordPress admin settings for restaurant opening hours');
+
+      if (window.rbfEmergencyModeLocked === undefined) {
+        window.rbfEmergencyModeLocked = false;
       }
-      
-      // ADDITIONAL SAFETY: Remove any invalid day values
-      if (rbfData.closedDays && Array.isArray(rbfData.closedDays)) {
-        const originalLength = rbfData.closedDays.length;
-        rbfData.closedDays = rbfData.closedDays.filter(day => 
+      if (window.rbfEmergencySuppressedLogged === undefined) {
+        window.rbfEmergencySuppressedLogged = false;
+      }
+      if (window.rbfAllDaysClosedLogged === undefined) {
+        window.rbfAllDaysClosedLogged = false;
+      }
+
+      const originalClosedDays = Array.isArray(rbfData.closedDays)
+        ? rbfData.closedDays.slice()
+        : [];
+
+      if (Array.isArray(rbfData.closedDays)) {
+        const filteredClosedDays = rbfData.closedDays.filter(day =>
           typeof day === 'number' && day >= 0 && day <= 6
         );
-        if (originalLength !== rbfData.closedDays.length) {
+
+        if (originalClosedDays.length !== filteredClosedDays.length) {
           rbfLog.warn('Removed invalid day values from closedDays');
+        }
+
+        rbfData.closedDays = filteredClosedDays;
+      } else {
+        rbfData.closedDays = [];
+      }
+
+      const sanitizedClosedDays = Array.isArray(rbfData.closedDays)
+        ? rbfData.closedDays
+        : [];
+      const allDaysClosed = sanitizedClosedDays.length >= 7;
+
+      if (allDaysClosed) {
+        if (!window.rbfAllDaysClosedLogged) {
+          rbfLog.error('CRITICAL ISSUE DETECTED: All 7 days marked as closed!');
+          rbfLog.error('Original closedDays: ' + JSON.stringify(originalClosedDays));
+          rbfLog.error('This configuration will disable ALL calendar dates until updated.');
+          rbfLog.warn('Admin configuration banner displayed for follow-up.');
+          rbfLog.warn('Please check WordPress admin settings for restaurant opening hours');
+          window.rbfAllDaysClosedLogged = true;
+        }
+
+        showAdminConfigurationBanner(
+          'Tutti i giorni del calendario risultano <strong>chiusi</strong>. Accedi al pannello di WordPress e verifica le impostazioni di apertura in <em>Prenotazioni &gt; Impostazioni</em> per riaprire le date disponibili.',
+          { key: 'calendar_all_days_closed' }
+        );
+
+        window.rbfEmergencyModeLocked = true;
+        if (window.rbfEmergencyMode) {
+          window.rbfEmergencyMode = false;
+        }
+        if (!window.rbfEmergencySuppressedLogged) {
+          rbfLog.warn('Emergency override disabled to respect fully closed configuration');
+          window.rbfEmergencySuppressedLogged = true;
+        }
+      } else {
+        if (window.rbfAllDaysClosedLogged) {
+          window.rbfAllDaysClosedLogged = false;
+        }
+        if (window.rbfEmergencyModeLocked) {
+          window.rbfEmergencyModeLocked = false;
+          window.rbfEmergencySuppressedLogged = false;
         }
       }
       
       // SIMPLE CHECK 1: General restaurant closed days
-      if (rbfData.closedDays && Array.isArray(rbfData.closedDays) && rbfData.closedDays.length > 0) {
-        if (rbfData.closedDays.includes(dayOfWeek)) {
+      if (sanitizedClosedDays.length > 0) {
+        if (sanitizedClosedDays.includes(dayOfWeek)) {
           window.rbfDisabledCount++;
           if (rbfData.debug) rbfLog.log(`Date ${dateStr} disabled: restaurant closed on day ${dayOfWeek}`);
           return true;
@@ -1631,15 +1765,23 @@ function initializeBookingForm($) {
       }
       
       // EMERGENCY CHECK: If too many dates are being disabled, switch to emergency mode
-      if (window.rbfTotalCount > 20 && (window.rbfDisabledCount / window.rbfTotalCount) > 0.8) {
+      if (
+        !window.rbfEmergencyModeLocked &&
+        window.rbfTotalCount > 20 &&
+        (window.rbfDisabledCount / window.rbfTotalCount) > 0.8
+      ) {
         rbfLog.error('Too many dates disabled, switching to emergency mode');
         window.rbfEmergencyMode = true;
       }
-      
+
       // EMERGENCY MODE: Allow all dates if we're in emergency mode
       if (window.rbfEmergencyMode) {
-        if (rbfData.debug) rbfLog.log(`Date ${dateStr} allowed: EMERGENCY MODE ACTIVE`);
-        return false;
+        if (!window.rbfEmergencyModeLocked) {
+          if (rbfData.debug) rbfLog.log(`Date ${dateStr} allowed: EMERGENCY MODE ACTIVE`);
+          return false;
+        } else if (rbfData.debug) {
+          rbfLog.log(`Date ${dateStr} evaluated: emergency override suppressed to respect configuration`);
+        }
       }
       
       // SIMPLE CHECK 4: Special exceptions (only closure and holiday)
