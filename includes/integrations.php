@@ -124,48 +124,70 @@ function rbf_add_booking_tracking_script() {
     $options = rbf_get_settings();
     $meta_pixel_id = $options['meta_pixel_id'] ?? '';
 
-    if (isset($_GET['rbf_success'], $_GET['booking_id']) && is_numeric($_GET['booking_id'])) {
-        $booking_id = intval($_GET['booking_id']);
-        $tracking_data = get_transient('rbf_booking_data_' . $booking_id);
-        $meta = get_post_meta($booking_id);
+    if (!isset($_GET['rbf_success'], $_GET['booking_id'], $_GET['booking_token'])) {
+        return;
+    }
 
-        if ($tracking_data && is_array($tracking_data)) {
-            $tracking_data = rbf_build_booking_tracking_data($booking_id, $tracking_data, $meta);
-        } else {
-            $tracking_data = rbf_build_booking_tracking_data($booking_id, [], $meta);
-        }
+    $booking_id = absint($_GET['booking_id']);
+    if (!$booking_id) {
+        return;
+    }
 
-        $transaction_id = $tracking_data['transaction_id'] ?? ('rbf_' . $tracking_data['id']);
-        $value = $tracking_data['value'] ?? 0;
-        $currency = $tracking_data['currency'] ?? 'EUR';
-        $meal = $tracking_data['meal'] ?? 'pranzo';
-        $people = $tracking_data['people'] ?? 0;
-        $bucket = $tracking_data['bucket'] ?? 'organic';
-        $eventId = $tracking_data['event_id'] ?? $transaction_id;
-        $unit_price_value = $tracking_data['unit_price'] ?? 0;
-        $unitPrice = $unit_price_value > 0 ? $unit_price_value : null;
+    $raw_token = wp_unslash($_GET['booking_token']);
+    $booking_token = is_string($raw_token) ? sanitize_text_field($raw_token) : '';
+    if ($booking_token === '') {
+        return;
+    }
 
-        $gclid = $tracking_data['gclid'] ?? '';
-        $fbclid = $tracking_data['fbclid'] ?? '';
+    $transient_key = 'rbf_booking_data_' . $booking_id;
+    $transient_data = get_transient($transient_key);
 
-        // Use centralized normalization function with priority gclid > fbclid > organic
-        $bucketStd = rbf_normalize_bucket($gclid, $fbclid);
+    if (!is_array($transient_data)) {
+        return;
+    }
 
-        $email_meta = $meta['rbf_email'][0] ?? '';
-        $phone_meta = $meta['rbf_tel'][0] ?? '';
-        $first_name_meta = $meta['rbf_nome'][0] ?? '';
-        $last_name_meta = $meta['rbf_cognome'][0] ?? '';
-        $booking_date_meta = $meta['rbf_data'][0] ?? '';
-        $booking_time_meta = $meta['rbf_orario'][0] ?? '';
+    $expected_token = isset($transient_data['tracking_token']) ? (string) $transient_data['tracking_token'] : '';
+    if ($expected_token === '' || !hash_equals($expected_token, $booking_token)) {
+        return;
+    }
 
-        $customer_email_hash = hash('sha256', strtolower(trim((string) $email_meta)));
-        $customer_phone_clean = preg_replace('/[^\\d+]/', '', (string) $phone_meta);
-        $customer_phone_hash = hash('sha256', $customer_phone_clean);
-        $customer_first_name_hash = hash('sha256', strtolower(trim((string) $first_name_meta)));
-        $customer_last_name_hash = hash('sha256', strtolower(trim((string) $last_name_meta)));
-        ?>
-        <script>
-            (function() {
+    unset($transient_data['tracking_token']);
+    delete_transient($transient_key);
+
+    $meta = get_post_meta($booking_id);
+    $tracking_data = rbf_build_booking_tracking_data($booking_id, $transient_data, $meta);
+
+    $transaction_id = $tracking_data['transaction_id'] ?? ('rbf_' . $tracking_data['id']);
+    $value = $tracking_data['value'] ?? 0;
+    $currency = $tracking_data['currency'] ?? 'EUR';
+    $meal = $tracking_data['meal'] ?? 'pranzo';
+    $people = $tracking_data['people'] ?? 0;
+    $bucket = $tracking_data['bucket'] ?? 'organic';
+    $eventId = $tracking_data['event_id'] ?? $transaction_id;
+    $unit_price_value = $tracking_data['unit_price'] ?? 0;
+    $unitPrice = $unit_price_value > 0 ? $unit_price_value : null;
+
+    $gclid = $tracking_data['gclid'] ?? '';
+    $fbclid = $tracking_data['fbclid'] ?? '';
+
+    // Use centralized normalization function with priority gclid > fbclid > organic
+    $bucketStd = rbf_normalize_bucket($gclid, $fbclid);
+
+    $email_meta = $meta['rbf_email'][0] ?? '';
+    $phone_meta = $meta['rbf_tel'][0] ?? '';
+    $first_name_meta = $meta['rbf_nome'][0] ?? '';
+    $last_name_meta = $meta['rbf_cognome'][0] ?? '';
+    $booking_date_meta = $meta['rbf_data'][0] ?? '';
+    $booking_time_meta = $meta['rbf_orario'][0] ?? '';
+
+    $customer_email_hash = hash('sha256', strtolower(trim((string) $email_meta)));
+    $customer_phone_clean = preg_replace('/[^\\d+]/', '', (string) $phone_meta);
+    $customer_phone_hash = hash('sha256', $customer_phone_clean);
+    $customer_first_name_hash = hash('sha256', strtolower(trim((string) $first_name_meta)));
+    $customer_last_name_hash = hash('sha256', strtolower(trim((string) $last_name_meta)));
+    ?>
+    <script>
+        (function() {
               var value = <?php echo json_encode($value); ?>;
               var currency = <?php echo json_encode($currency); ?>;
               var transaction_id = <?php echo json_encode($transaction_id); ?>;
@@ -289,8 +311,6 @@ function rbf_add_booking_tracking_script() {
             })();
         </script>
         <?php
-        delete_transient('rbf_booking_data_' . $booking_id);
-    }
 }
 
 /**
