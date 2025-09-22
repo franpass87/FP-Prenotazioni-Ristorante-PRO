@@ -2455,7 +2455,7 @@
 }
 
 /* Accessible button styling */
-.rbf-form button,
+.rbf-form button:not(.rbf-people-selector button),
 .rbf-form input[type="submit"] {
     min-height: 44px;
     padding: 12px 24px;
@@ -2469,14 +2469,14 @@
     color: white;
 }
 
-.rbf-form button:hover,
+.rbf-form button:not(.rbf-people-selector button):hover,
 .rbf-form input[type="submit"]:hover {
     background: var(--rbf-primary-light);
     transform: translateY(-1px);
     box-shadow: var(--rbf-shadow-hover);
 }
 
-.rbf-form button:disabled,
+.rbf-form button:not(.rbf-people-selector button):disabled,
 .rbf-form input[type="submit"]:disabled {
     background: var(--rbf-border);
     color: var(--rbf-text-light);
