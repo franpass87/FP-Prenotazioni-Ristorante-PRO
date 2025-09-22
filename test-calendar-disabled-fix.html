@@ -22,7 +22,7 @@
         <p>Questo test verifica che il fix per il problema "tutte le date disabilitate" funzioni correttamente.</p>
         
         <button onclick="runAllTests()">🚀 Esegui Tutti i Test</button>
-        <button onclick="testEmergencyFix()">🚨 Test Emergency Fix</button>
+        <button onclick="testAllDaysClosedConfig()">🚨 Test Configurazione Giorni Chiusi</button>
         <button onclick="testNormalOperation()">✅ Test Funzionamento Normale</button>
         
         <div id="test-results"></div>
@@ -30,7 +30,12 @@
     </div>
 
     <script>
-        // Mock logging functions
+        document.body.classList.add('logged-in');
+
+        const ADMIN_BANNER_KEY = 'calendar_all_days_closed';
+        const ADMIN_BANNER_MESSAGE =
+            'Tutti i giorni del calendario risultano <strong>chiusi</strong>. Accedi al pannello di WordPress e verifica le impostazioni di apertura in <em>Prenotazioni &gt; Impostazioni</em> per riaprire le date disponibili. Il calendario resterà non prenotabile finché non aggiorni la configurazione.';
+
         const rbfLog = {
             error: function(message) {
                 console.error('RBF: ' + message);
@@ -61,87 +66,172 @@
             resultsDiv.innerHTML += `<div class="test-result ${className}">${icon} ${test}: ${details}</div>`;
         }
 
-        // Simulate the formatLocalISO function
         function formatLocalISO(date) {
             return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
                 .toISOString()
                 .split('T')[0];
         }
 
-        // Simulate the FIXED isDateDisabled function
+        const adminBannerState = {
+            keys: new Set(),
+            messages: []
+        };
+
+        function resetOutputs() {
+            document.getElementById('test-results').innerHTML = '';
+            document.getElementById('test-log').innerHTML = '';
+        }
+
+        function resetAdminBannerState() {
+            adminBannerState.messages = [];
+            adminBannerState.keys.clear();
+            document.querySelectorAll('.admin-banner').forEach(function(banner) {
+                banner.remove();
+            });
+            window.rbfAdminConfigBannerVisible = false;
+            window.rbfAdminConfigBannerMessage = null;
+            window.rbfAdminConfigBannerKey = null;
+        }
+
+        function showAdminConfigurationBanner(message, options = {}) {
+            const rawKey = (options && options.key) || message;
+            const normalizedKey = String(rawKey).replace(/[^a-z0-9_-]/gi, '_');
+
+            if (adminBannerState.keys.has(normalizedKey)) {
+                return;
+            }
+
+            const container = document.querySelector('.container');
+            if (!container) {
+                return;
+            }
+
+            adminBannerState.keys.add(normalizedKey);
+            adminBannerState.messages.push({ key: normalizedKey, message: message });
+
+            const banner = document.createElement('div');
+            banner.className = 'admin-banner';
+            banner.dataset.rbfAdminBanner = normalizedKey;
+            banner.setAttribute('role', 'alert');
+            banner.setAttribute('aria-live', 'polite');
+            banner.innerHTML = `<strong>Configurazione calendario da verificare:</strong> ${message}`;
+            banner.style.cssText = 'background:#fff3cd;border:1px solid #ffeeba;color:#856404;padding:12px 16px;border-radius:8px;margin-bottom:16px;font-weight:500;line-height:1.5;';
+
+            container.prepend(banner);
+
+            addToLog(`ADMIN BANNER: ${message}`, 'warn');
+            window.rbfAdminConfigBannerVisible = true;
+            window.rbfAdminConfigBannerMessage = message;
+            window.rbfAdminConfigBannerKey = normalizedKey;
+        }
+
+        function resetGlobalState() {
+            window.rbfTotalCount = 0;
+            window.rbfDisabledCount = 0;
+            window.rbfEmergencyMode = false;
+            window.rbfEmergencyModeLocked = false;
+            window.rbfEmergencySuppressedLogged = false;
+            window.rbfAllDaysClosedLogged = false;
+        }
+
         function isDateDisabled(date, rbfData) {
             try {
                 const dateStr = formatLocalISO(date);
                 const dayOfWeek = date.getDay();
-                
-                // Initialize counters if not exists
+
                 if (window.rbfTotalCount === undefined) {
                     window.rbfTotalCount = 0;
                     window.rbfDisabledCount = 0;
                 }
-                window.rbfTotalCount++;
-                
-                // CRITICAL FIX: Detect and fix configuration where all days are disabled
-                if (rbfData.closedDays && Array.isArray(rbfData.closedDays) && rbfData.closedDays.length >= 7) {
-                    rbfLog.error('CRITICAL ISSUE DETECTED: All 7 days marked as closed!');
-                    rbfLog.error('Original closedDays: ' + JSON.stringify(rbfData.closedDays));
-                    rbfLog.error('This would disable ALL calendar dates - applying emergency fix');
-                    
-                    // Emergency fix: Reset to only Monday closed (common restaurant closure)
-                    rbfData.closedDays = [1]; // 1 = Monday
-                    
-                    rbfLog.warn('EMERGENCY FIX APPLIED: Only Monday will be closed now');
-                    rbfLog.warn('Please check WordPress admin settings for restaurant opening hours');
+                if (window.rbfEmergencyMode === undefined) {
+                    window.rbfEmergencyMode = false;
                 }
-                
-                // ADDITIONAL SAFETY: Remove any invalid day values
-                if (rbfData.closedDays && Array.isArray(rbfData.closedDays)) {
-                    const originalLength = rbfData.closedDays.length;
-                    rbfData.closedDays = rbfData.closedDays.filter(day => 
+                if (window.rbfEmergencyModeLocked === undefined) {
+                    window.rbfEmergencyModeLocked = false;
+                }
+                if (window.rbfEmergencySuppressedLogged === undefined) {
+                    window.rbfEmergencySuppressedLogged = false;
+                }
+                if (window.rbfAllDaysClosedLogged === undefined) {
+                    window.rbfAllDaysClosedLogged = false;
+                }
+
+                window.rbfTotalCount++;
+
+                const originalClosedDays = Array.isArray(rbfData.closedDays) ? [...rbfData.closedDays] : [];
+
+                if (Array.isArray(rbfData.closedDays)) {
+                    const filteredClosedDays = rbfData.closedDays.filter(day =>
                         typeof day === 'number' && day >= 0 && day <= 6
                     );
-                    if (originalLength !== rbfData.closedDays.length) {
+                    if (originalClosedDays.length !== filteredClosedDays.length) {
                         rbfLog.warn('Removed invalid day values from closedDays');
                     }
+                    rbfData.closedDays = filteredClosedDays;
+                } else {
+                    rbfData.closedDays = [];
                 }
-                
-                // SIMPLE CHECK 1: General restaurant closed days
-                if (rbfData.closedDays && Array.isArray(rbfData.closedDays) && rbfData.closedDays.length > 0) {
-                    if (rbfData.closedDays.includes(dayOfWeek)) {
-                        window.rbfDisabledCount++;
-                        if (rbfData.debug) rbfLog.log(`Date ${dateStr} disabled: restaurant closed on day ${dayOfWeek}`);
-                        return true;
+
+                const sanitizedClosedDays = Array.isArray(rbfData.closedDays) ? rbfData.closedDays : [];
+                const allDaysClosed = sanitizedClosedDays.length >= 7;
+
+                if (allDaysClosed) {
+                    if (!window.rbfAllDaysClosedLogged) {
+                        rbfLog.error('CRITICAL ISSUE DETECTED: All 7 days marked as closed!');
+                        rbfLog.error('Original closedDays: ' + JSON.stringify(originalClosedDays));
+                        rbfLog.error('This configuration will disable ALL calendar dates until updated.');
+                        rbfLog.warn('Admin configuration banner displayed for follow-up.');
+                        rbfLog.warn('Please check WordPress admin settings for restaurant opening hours');
+                        window.rbfAllDaysClosedLogged = true;
+                    }
+
+                    showAdminConfigurationBanner(ADMIN_BANNER_MESSAGE, { key: ADMIN_BANNER_KEY });
+
+                    window.rbfEmergencyModeLocked = true;
+                    if (window.rbfEmergencyMode) {
+                        window.rbfEmergencyMode = false;
+                    }
+                    if (!window.rbfEmergencySuppressedLogged) {
+                        rbfLog.warn('Emergency override disabled to respect fully closed configuration');
+                        window.rbfEmergencySuppressedLogged = true;
+                    }
+                } else {
+                    if (window.rbfAllDaysClosedLogged) {
+                        window.rbfAllDaysClosedLogged = false;
+                    }
+                    if (window.rbfEmergencyModeLocked) {
+                        window.rbfEmergencyModeLocked = false;
+                        window.rbfEmergencySuppressedLogged = false;
                     }
                 }
-                
-                // SIMPLE CHECK 2: Specific closed dates (with safety limits)
+
+                if (sanitizedClosedDays.includes(dayOfWeek)) {
+                    window.rbfDisabledCount++;
+                    return true;
+                }
+
                 if (rbfData.closedSingles && Array.isArray(rbfData.closedSingles) && rbfData.closedSingles.length > 0) {
-                    // SAFETY CHECK: Warn if too many individual dates are closed
                     if (rbfData.closedSingles.length > 100) {
                         rbfLog.warn(`WARNING: ${rbfData.closedSingles.length} individual dates are closed - this might be excessive`);
                         rbfLog.warn('Consider using date ranges instead of individual dates for better performance');
                     }
-                    
+
                     if (rbfData.closedSingles.includes(dateStr)) {
                         window.rbfDisabledCount++;
-                        if (rbfData.debug) rbfLog.log(`Date ${dateStr} disabled: specific closure date`);
                         return true;
                     }
                 }
-                
-                // SIMPLE CHECK 3: Closed date ranges (with safety checks)
+
                 if (rbfData.closedRanges && Array.isArray(rbfData.closedRanges) && rbfData.closedRanges.length > 0) {
-                    // SAFETY CHECK: Remove extremely long ranges that might disable everything
                     const originalRanges = rbfData.closedRanges.length;
                     rbfData.closedRanges = rbfData.closedRanges.filter(range => {
                         if (!range || !range.from || !range.to) return false;
-                        
+
                         try {
                             const fromDate = new Date(range.from);
                             const toDate = new Date(range.to);
                             const diffDays = Math.ceil((toDate - fromDate) / (1000 * 60 * 60 * 24));
-                            
-                            // Remove ranges longer than 2 years (probably erroneous)
+
                             if (diffDays > 730) {
                                 rbfLog.warn(`Removed extremely long closed range: ${range.from} to ${range.to} (${diffDays} days)`);
                                 return false;
@@ -152,158 +242,187 @@
                             return false;
                         }
                     });
-                    
+
                     if (originalRanges !== rbfData.closedRanges.length) {
                         rbfLog.warn(`Cleaned closedRanges: removed ${originalRanges - rbfData.closedRanges.length} problematic ranges`);
                     }
-                    
+
                     for (let range of rbfData.closedRanges) {
                         if (range && range.from && range.to) {
                             if (dateStr >= range.from && dateStr <= range.to) {
                                 window.rbfDisabledCount++;
-                                if (rbfData.debug) rbfLog.log(`Date ${dateStr} disabled: within closed range ${range.from} to ${range.to}`);
                                 return true;
                             }
                         }
                     }
                 }
-                
-                // DEFAULT: Allow the date
-                if (rbfData.debug) rbfLog.log(`Date ${dateStr} allowed: no restrictions apply`);
+
+                if (
+                    !window.rbfEmergencyModeLocked &&
+                    window.rbfTotalCount > 20 &&
+                    (window.rbfDisabledCount / window.rbfTotalCount) > 0.8
+                ) {
+                    rbfLog.error('Too many dates disabled, switching to emergency mode');
+                    window.rbfEmergencyMode = true;
+                }
+
+                if (window.rbfEmergencyMode && !window.rbfEmergencyModeLocked) {
+                    return false;
+                }
+
                 return false;
-                
             } catch (error) {
                 rbfLog.error('Error in isDateDisabled: ' + error.message);
                 return false;
             }
         }
 
-        function testEmergencyFix() {
-            document.getElementById('test-results').innerHTML = '<h3>🚨 Test Emergency Fix</h3>';
-            document.getElementById('test-log').innerHTML = '';
-            
-            // Create problematic rbfData with all days closed
+        function testAllDaysClosedConfig(options = {}) {
+            const opts = Object.assign({ resetOutput: true }, options);
+            if (opts.resetOutput) {
+                resetOutputs();
+            }
+            resetGlobalState();
+            resetAdminBannerState();
+
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML += '<h3>🚨 Test Configurazione Giorni Chiusi</h3>';
+
+            if (opts.resetOutput) {
+                document.getElementById('test-log').innerHTML = '';
+            }
+
             const problematicData = {
-                closedDays: [0, 1, 2, 3, 4, 5, 6], // All days closed!
+                closedDays: [0, 1, 2, 3, 4, 5, 6],
                 closedSingles: [],
                 closedRanges: [],
                 exceptions: [],
                 debug: true
             };
-            
+
             addToLog('Testing with problematic data: ' + JSON.stringify(problematicData), 'log');
-            
-            // Test several dates
+
             const testDates = [];
             const today = new Date();
             for (let i = 0; i < 7; i++) {
                 testDates.push(new Date(today.getTime() + i * 24 * 60 * 60 * 1000));
             }
-            
-            let allowedDates = 0;
-            let originalClosedDays = [...problematicData.closedDays];
-            
+
+            const originalClosedDays = [...problematicData.closedDays];
+            let disabledCount = 0;
+
             for (let date of testDates) {
-                const isDisabled = isDateDisabled(date, problematicData);
-                if (!isDisabled) {
-                    allowedDates++;
+                const disabled = isDateDisabled(date, problematicData);
+                if (disabled) {
+                    disabledCount++;
                 }
             }
-            
-            // Check if fix was applied
-            const fixApplied = JSON.stringify(problematicData.closedDays) !== JSON.stringify(originalClosedDays);
-            const someAllowed = allowedDates > 0;
-            
-            showResult('Emergency fix triggered', fixApplied, 
-                fixApplied ? `closedDays changed from [${originalClosedDays}] to [${problematicData.closedDays}]` : 'Fix not applied');
-            
-            showResult('Some dates allowed after fix', someAllowed, 
-                `${allowedDates} out of 7 test dates are now allowed`);
-                
-            showResult('Overall emergency fix test', fixApplied && someAllowed, 
-                fixApplied && someAllowed ? 'Emergency fix working correctly' : 'Emergency fix failed');
+
+            const configUnchanged = JSON.stringify(problematicData.closedDays) === JSON.stringify(originalClosedDays);
+            const allDisabled = disabledCount === testDates.length;
+            const bannerShown = adminBannerState.messages.some(msg => msg.key === ADMIN_BANNER_KEY);
+
+            showResult('Configurazione invariata', configUnchanged,
+                configUnchanged ? 'closedDays invariato' : 'closedDays modificato inaspettatamente');
+            showResult('Tutte le date restano chiuse', allDisabled,
+                `${disabledCount} su ${testDates.length} date disabilitate`);
+            showResult('Banner amministratore attivo', bannerShown,
+                bannerShown ? 'Banner visibile per gli amministratori' : 'Banner non rilevato');
         }
 
-        function testNormalOperation() {
-            document.getElementById('test-results').innerHTML = '<h3>✅ Test Normal Operation</h3>';
-            document.getElementById('test-log').innerHTML = '';
-            
-            // Create normal rbfData
+        function testNormalOperation(options = {}) {
+            const opts = Object.assign({ resetOutput: true }, options);
+            if (opts.resetOutput) {
+                resetOutputs();
+            }
+            resetGlobalState();
+            resetAdminBannerState();
+
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML += '<h3>✅ Test Funzionamento Normale</h3>';
+
+            if (opts.resetOutput) {
+                document.getElementById('test-log').innerHTML = '';
+            }
+
             const normalData = {
-                closedDays: [1], // Only Monday closed
+                closedDays: [1],
                 closedSingles: [],
                 closedRanges: [],
                 exceptions: [],
                 debug: true
             };
-            
+
             addToLog('Testing with normal data: ' + JSON.stringify(normalData), 'log');
-            
-            // Test several dates
+
             const testDates = [];
             const today = new Date();
             for (let i = 0; i < 7; i++) {
                 testDates.push(new Date(today.getTime() + i * 24 * 60 * 60 * 1000));
             }
-            
+
+            const originalClosedDays = [...normalData.closedDays];
             let allowedDates = 0;
             let mondaysDisabled = 0;
-            let originalClosedDays = [...normalData.closedDays];
-            
+
             for (let date of testDates) {
-                const isDisabled = isDateDisabled(date, normalData);
-                if (!isDisabled) {
+                const disabled = isDateDisabled(date, normalData);
+                if (!disabled) {
                     allowedDates++;
                 } else if (date.getDay() === 1) {
                     mondaysDisabled++;
                 }
             }
-            
-            // Check that fix didn't interfere with normal operation
-            const noInterference = JSON.stringify(normalData.closedDays) === JSON.stringify(originalClosedDays);
-            const mostAllowed = allowedDates >= 6; // At least 6 out of 7 days should be allowed
-            
-            showResult('No interference with normal config', noInterference, 
-                noInterference ? 'closedDays unchanged' : 'Unexpected change to normal config');
-            
-            showResult('Most dates allowed', mostAllowed, 
-                `${allowedDates} out of 7 test dates are allowed`);
-                
-            showResult('Overall normal operation test', noInterference && mostAllowed, 
-                noInterference && mostAllowed ? 'Normal operation preserved' : 'Normal operation affected');
+
+            const configUnchanged = JSON.stringify(normalData.closedDays) === JSON.stringify(originalClosedDays);
+            const expectedMondayClosures = mondaysDisabled === testDates.filter(d => d.getDay() === 1).length;
+            const bannerShown = adminBannerState.messages.length > 0;
+
+            showResult('Configurazione invariata', configUnchanged,
+                configUnchanged ? 'closedDays invariato' : 'closedDays modificato inaspettatamente');
+            showResult('Disponibilità coerente', allowedDates >= testDates.length - 1,
+                `${allowedDates} su ${testDates.length} date disponibili`);
+            showResult('Chiusura del lunedì confermata', expectedMondayClosures,
+                expectedMondayClosures ? 'Solo il lunedì risulta chiuso' : 'Chiusura giorni errata');
+            showResult('Banner assente su configurazione valida', !bannerShown,
+                !bannerShown ? 'Nessun avviso amministratore' : 'Banner mostrato senza necessità');
         }
 
-        function testEdgeCases() {
-            document.getElementById('test-results').innerHTML += '<h3>🔧 Test Edge Cases</h3>';
-            
-            // Test with extremely long range
+        function testEdgeCases(options = {}) {
+            const opts = Object.assign({ resetOutput: true }, options);
+            if (opts.resetOutput) {
+                resetOutputs();
+            }
+            resetGlobalState();
+            resetAdminBannerState();
+
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML += '<h3>🔧 Test Edge Cases</h3>';
+
             const longRangeData = {
                 closedDays: [],
                 closedSingles: [],
                 closedRanges: [
-                    { from: '2020-01-01', to: '2030-12-31' } // 10+ year range!
+                    { from: '2020-01-01', to: '2030-12-31' }
                 ],
                 exceptions: [],
                 debug: true
             };
-            
-            const today = new Date();
-            const isDisabled = isDateDisabled(today, longRangeData);
+
+            isDateDisabled(new Date(), longRangeData);
             const rangeRemoved = longRangeData.closedRanges.length === 0;
-            
-            showResult('Long range removal', rangeRemoved, 
+
+            showResult('Long range removal', rangeRemoved,
                 rangeRemoved ? 'Extremely long range was removed' : 'Long range not detected');
         }
 
         function runAllTests() {
-            window.rbfTotalCount = 0;
-            window.rbfDisabledCount = 0;
-            
-            testEmergencyFix();
+            resetOutputs();
+            testAllDaysClosedConfig({ resetOutput: false });
             setTimeout(() => {
-                testNormalOperation();
+                testNormalOperation({ resetOutput: false });
                 setTimeout(() => {
-                    testEdgeCases();
+                    testEdgeCases({ resetOutput: false });
                 }, 500);
             }, 500);
         }
