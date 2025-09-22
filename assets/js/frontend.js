@@ -1653,13 +1653,41 @@ function initializeBookingForm($) {
         }
       }
       
-      // SKIP MEAL AVAILABILITY CHECK FOR NOW - it was causing issues
-      // TODO: Re-enable once core calendar is working
-      
+      // MEAL AVAILABILITY CHECK: ensure selected meal operates on this day
+      const selectedMeal = el.mealRadios && el.mealRadios.length
+        ? el.mealRadios.filter(':checked').val()
+        : null;
+      const daySlug = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][dayOfWeek];
+
+      if (!selectedMeal) {
+        if (rbfData.debug) {
+          rbfLog.log(`Date ${dateStr} allowed: no meal selected, skipping meal availability check`);
+        }
+        return false;
+      } else {
+        const mealAvailability = rbfData.mealAvailability && rbfData.mealAvailability[selectedMeal];
+
+        if (!mealAvailability || !Array.isArray(mealAvailability)) {
+          window.rbfDisabledCount++;
+          if (rbfData.debug) {
+            rbfLog.log(`Date ${dateStr} disabled: meal ${selectedMeal} has no availability configuration`);
+          }
+          return true;
+        }
+
+        if (daySlug && !mealAvailability.includes(daySlug)) {
+          window.rbfDisabledCount++;
+          if (rbfData.debug) {
+            rbfLog.log(`Date ${dateStr} disabled: meal ${selectedMeal} not available on ${daySlug}`);
+          }
+          return true;
+        }
+      }
+
       // DEFAULT: Allow the date
       if (rbfData.debug) rbfLog.log(`Date ${dateStr} allowed: no restrictions apply`);
       return false;
-      
+
     } catch (error) {
       rbfLog.error('Error in isDateDisabled: ' + error.message);
       // EMERGENCY: Always allow date on error
