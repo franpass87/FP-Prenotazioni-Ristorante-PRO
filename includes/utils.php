@@ -1880,15 +1880,16 @@ function rbf_calculate_slot_duration($meal_id, $people_count) {
 /**
  * Check if a time slot conflicts with buffer requirements
  * 
- * @param string $date Date in Y-m-d format
- * @param string $time Time in H:i format
- * @param string $meal_id Meal ID
- * @param int $people_count Number of people
+ * @param string   $date               Date in Y-m-d format
+ * @param string   $time               Time in H:i format
+ * @param string   $meal_id            Meal ID
+ * @param int      $people_count       Number of people
+ * @param int|null $ignore_booking_id  Optional booking ID to ignore during validation
  * @return array|true Returns array with error info if conflict, true if valid
  */
-function rbf_validate_buffer_time($date, $time, $meal_id, $people_count) {
+function rbf_validate_buffer_time($date, $time, $meal_id, $people_count, $ignore_booking_id = null) {
     global $wpdb;
-    
+
     $required_buffer = rbf_calculate_buffer_time($meal_id, $people_count);
     $tz = rbf_wp_timezone();
     $booking_datetime = DateTime::createFromFormat('Y-m-d H:i', $date . ' ' . $time, $tz);
@@ -1940,11 +1941,19 @@ function rbf_validate_buffer_time($date, $time, $meal_id, $people_count) {
           AND COALESCE({$status_column}, 'confirmed') <> 'cancelled'
     ";
 
-    $existing_bookings = $wpdb->get_results($wpdb->prepare(
-        $query,
-        $date,
-        $meal_id
-    ));
+    $prepare_args = [$date, $meal_id];
+
+    if ($ignore_booking_id !== null) {
+        $query .= "\n          AND p.ID <> %d";
+        $prepare_args[] = intval($ignore_booking_id);
+    }
+
+    $prepared_query = call_user_func_array([
+        $wpdb,
+        'prepare'
+    ], array_merge([$query], $prepare_args));
+
+    $existing_bookings = $wpdb->get_results($prepared_query);
 
     foreach ($existing_bookings as $existing) {
         $existing_datetime = DateTime::createFromFormat('Y-m-d H:i', $date . ' ' . $existing->booking_time, $tz);
@@ -2410,6 +2419,11 @@ function rbf_check_slot_availability($date, $meal, $time, $people, $booking_id =
     // Check if time is within meal time slots
     $time_slots = rbf_normalize_time_slots($meal_config['time_slots'] ?? '');
     if (empty($time_slots) || !in_array($time, $time_slots, true)) {
+        return false;
+    }
+
+    $buffer_validation = rbf_validate_buffer_time($date, $time, $meal, $people, $booking_id);
+    if ($buffer_validation !== true) {
         return false;
     }
 

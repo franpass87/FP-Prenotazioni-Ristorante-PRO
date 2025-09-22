@@ -3280,7 +3280,12 @@ function rbf_move_booking_callback() {
     if (!$availability_check) {
         wp_send_json_error('Nuovo slot non disponibile');
     }
-    
+
+    $buffer_validation = rbf_validate_buffer_time($new_date, $new_time, $meal, $people, $booking_id);
+    if ($buffer_validation !== true) {
+        wp_send_json_error($buffer_validation['message']);
+    }
+
     // Release old slot capacity
     if ($old_date && $meal && $people) {
         rbf_release_slot_capacity($old_date, $meal, $people);
