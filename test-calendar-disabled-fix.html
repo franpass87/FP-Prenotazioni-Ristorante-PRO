@@ -35,6 +35,9 @@
         const ADMIN_BANNER_KEY = 'calendar_all_days_closed';
         const ADMIN_BANNER_MESSAGE =
             'Tutti i giorni del calendario risultano <strong>chiusi</strong>. Accedi al pannello di WordPress e verifica le impostazioni di apertura in <em>Prenotazioni &gt; Impostazioni</em> per riaprire le date disponibili. Il calendario resterà non prenotabile finché non aggiorni la configurazione.';
+        const EMERGENCY_ALERT_KEY = 'calendar_high_disabled_ratio';
+        const EMERGENCY_ALERT_MESSAGE =
+            "Più dell'80% delle date risulta <strong>chiuso</strong>. Verifica le impostazioni di apertura o abilita temporaneamente la modalità di emergenza impostando <code>forceEmergencyOverride</code> su <strong>true</strong> in rbfData.";
 
         const rbfLog = {
             error: function(message) {
@@ -132,6 +135,10 @@
             window.rbfEmergencyModeLocked = false;
             window.rbfEmergencySuppressedLogged = false;
             window.rbfAllDaysClosedLogged = false;
+            window.rbfForceEmergencyMode = false;
+            window.rbfEmergencyOverrideDetected = false;
+            window.rbfEmergencyOverrideConsentLogged = false;
+            window.rbfEmergencyOverrideConsentMissingLogged = false;
         }
 
         function isDateDisabled(date, rbfData) {
@@ -154,6 +161,18 @@
                 }
                 if (window.rbfAllDaysClosedLogged === undefined) {
                     window.rbfAllDaysClosedLogged = false;
+                }
+                if (window.rbfForceEmergencyMode === undefined) {
+                    window.rbfForceEmergencyMode = false;
+                }
+                if (window.rbfEmergencyOverrideDetected === undefined) {
+                    window.rbfEmergencyOverrideDetected = false;
+                }
+                if (window.rbfEmergencyOverrideConsentLogged === undefined) {
+                    window.rbfEmergencyOverrideConsentLogged = false;
+                }
+                if (window.rbfEmergencyOverrideConsentMissingLogged === undefined) {
+                    window.rbfEmergencyOverrideConsentMissingLogged = false;
                 }
 
                 window.rbfTotalCount++;
@@ -205,12 +224,14 @@
                     }
                 }
 
-                if (sanitizedClosedDays.includes(dayOfWeek)) {
+                let isDateCurrentlyDisabled = false;
+
+                if (!isDateCurrentlyDisabled && sanitizedClosedDays.includes(dayOfWeek)) {
                     window.rbfDisabledCount++;
-                    return true;
+                    isDateCurrentlyDisabled = true;
                 }
 
-                if (rbfData.closedSingles && Array.isArray(rbfData.closedSingles) && rbfData.closedSingles.length > 0) {
+                if (!isDateCurrentlyDisabled && rbfData.closedSingles && Array.isArray(rbfData.closedSingles) && rbfData.closedSingles.length > 0) {
                     if (rbfData.closedSingles.length > 100) {
                         rbfLog.warn(`WARNING: ${rbfData.closedSingles.length} individual dates are closed - this might be excessive`);
                         rbfLog.warn('Consider using date ranges instead of individual dates for better performance');
@@ -218,11 +239,11 @@
 
                     if (rbfData.closedSingles.includes(dateStr)) {
                         window.rbfDisabledCount++;
-                        return true;
+                        isDateCurrentlyDisabled = true;
                     }
                 }
 
-                if (rbfData.closedRanges && Array.isArray(rbfData.closedRanges) && rbfData.closedRanges.length > 0) {
+                if (!isDateCurrentlyDisabled && rbfData.closedRanges && Array.isArray(rbfData.closedRanges) && rbfData.closedRanges.length > 0) {
                     const originalRanges = rbfData.closedRanges.length;
                     rbfData.closedRanges = rbfData.closedRanges.filter(range => {
                         if (!range || !range.from || !range.to) return false;
@@ -251,26 +272,96 @@
                         if (range && range.from && range.to) {
                             if (dateStr >= range.from && dateStr <= range.to) {
                                 window.rbfDisabledCount++;
-                                return true;
+                                isDateCurrentlyDisabled = true;
+                                break;
                             }
                         }
                     }
                 }
 
-                if (
+                const disabledRatio = window.rbfTotalCount > 0
+                    ? window.rbfDisabledCount / window.rbfTotalCount
+                    : 0;
+
+                const emergencyThresholdReached =
                     !window.rbfEmergencyModeLocked &&
                     window.rbfTotalCount > 20 &&
-                    (window.rbfDisabledCount / window.rbfTotalCount) > 0.8
-                ) {
-                    rbfLog.error('Too many dates disabled, switching to emergency mode');
-                    window.rbfEmergencyMode = true;
+                    disabledRatio > 0.8;
+
+                if (emergencyThresholdReached) {
+                    if (!window.rbfEmergencyOverrideDetected) {
+                        rbfLog.error('Safety check: more than 80% of evaluated dates are closed.');
+                        rbfLog.warn('Emergency override requires explicit consent (set forceEmergencyOverride = true) before unlocking dates.');
+                    }
+
+                    showAdminConfigurationBanner(EMERGENCY_ALERT_MESSAGE, { key: EMERGENCY_ALERT_KEY });
+
+                    window.rbfEmergencyOverrideDetected = true;
+                } else if (window.rbfEmergencyOverrideDetected) {
+                    rbfLog.log('Emergency override detection reset: disabled ratio back under threshold');
+                    window.rbfEmergencyOverrideDetected = false;
+                    window.rbfEmergencyOverrideConsentLogged = false;
+                    window.rbfEmergencyOverrideConsentMissingLogged = false;
+                }
+
+                const manualOverrideActive = window.rbfForceEmergencyMode === true || window.rbfEmergencyMode === true;
+                const configOverrideConsent = !!(rbfData && rbfData.forceEmergencyOverride === true);
+
+                const shouldApplyEmergencyOverride =
+                    !window.rbfEmergencyModeLocked &&
+                    (manualOverrideActive ||
+                        (window.rbfEmergencyOverrideDetected && configOverrideConsent));
+
+                if (shouldApplyEmergencyOverride) {
+                    if (!window.rbfEmergencyMode) {
+                        window.rbfEmergencyMode = true;
+                    }
+
+                    if (
+                        window.rbfEmergencyOverrideDetected &&
+                        configOverrideConsent &&
+                        !window.rbfEmergencyOverrideConsentLogged
+                    ) {
+                        rbfLog.warn('Emergency override activated with explicit consent (forceEmergencyOverride = true).');
+                        window.rbfEmergencyOverrideConsentLogged = true;
+                        window.rbfEmergencyOverrideConsentMissingLogged = false;
+                    } else if (
+                        manualOverrideActive &&
+                        !window.rbfEmergencyOverrideConsentLogged
+                    ) {
+                        if (window.rbfForceEmergencyMode === true) {
+                            rbfLog.warn('Emergency override manually forced via window.rbfForceEmergencyMode.');
+                        } else {
+                            rbfLog.warn('Emergency override manually activated via window.rbfEmergencyMode.');
+                        }
+                        window.rbfEmergencyOverrideConsentLogged = true;
+                        window.rbfEmergencyOverrideConsentMissingLogged = false;
+                    }
+                } else {
+                    if (window.rbfEmergencyMode && !window.rbfEmergencyModeLocked) {
+                        window.rbfEmergencyMode = false;
+                    }
+
+                    if (
+                        window.rbfEmergencyOverrideDetected &&
+                        !configOverrideConsent &&
+                        !manualOverrideActive &&
+                        !window.rbfEmergencyOverrideConsentMissingLogged
+                    ) {
+                        rbfLog.warn('Emergency override not activated: waiting for explicit consent (set forceEmergencyOverride = true or use console override).');
+                        window.rbfEmergencyOverrideConsentMissingLogged = true;
+                    }
+
+                    if (!manualOverrideActive && !configOverrideConsent) {
+                        window.rbfEmergencyOverrideConsentLogged = false;
+                    }
                 }
 
                 if (window.rbfEmergencyMode && !window.rbfEmergencyModeLocked) {
                     return false;
                 }
 
-                return false;
+                return isDateCurrentlyDisabled;
             } catch (error) {
                 rbfLog.error('Error in isDateDisabled: ' + error.message);
                 return false;
@@ -416,13 +507,120 @@
                 rangeRemoved ? 'Extremely long range was removed' : 'Long range not detected');
         }
 
+        function testHighClosureRatioWithoutConsent(options = {}) {
+            const opts = Object.assign({ resetOutput: true }, options);
+            if (opts.resetOutput) {
+                resetOutputs();
+            }
+            resetGlobalState();
+            resetAdminBannerState();
+
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML += '<h3>🛡️ Test Elevata Chiusura senza Consenso</h3>';
+
+            if (opts.resetOutput) {
+                document.getElementById('test-log').innerHTML = '';
+            }
+
+            const restrictiveData = {
+                closedDays: [1, 2, 3, 4, 5, 6],
+                closedSingles: [],
+                closedRanges: [],
+                exceptions: [],
+                debug: true
+            };
+
+            const monthDays = Array.from({ length: 31 }, (_, index) => new Date(2024, 0, index + 1));
+            let mondayDisabled = false;
+            let sundayDisabled = false;
+
+            monthDays.forEach(date => {
+                const disabled = isDateDisabled(date, restrictiveData);
+                if (date.getDay() === 1 && disabled) {
+                    mondayDisabled = true;
+                }
+                if (date.getDay() === 0 && disabled) {
+                    sundayDisabled = true;
+                }
+            });
+
+            const overrideInactive = window.rbfEmergencyMode === false;
+            const bannerShown = adminBannerState.messages.some(msg => msg.key === EMERGENCY_ALERT_KEY);
+
+            showResult('Lunedì resta disabilitato', mondayDisabled,
+                mondayDisabled ? 'La configurazione è rispettata' : 'Il lunedì è stato riaperto inaspettatamente');
+            showResult('Domenica resta disponibile', !sundayDisabled,
+                !sundayDisabled ? 'Almeno una domenica è prenotabile' : 'Anche la domenica risulta chiusa');
+            showResult('Override emergenza disattivo', overrideInactive,
+                overrideInactive ? 'Nessun override automatico applicato' : 'Override attivo senza consenso');
+            showResult('Banner amministratore visibile', bannerShown,
+                bannerShown ? 'Avviso per controllare la configurazione' : 'Banner non mostrato');
+        }
+
+        function testHighClosureRatioWithConsent(options = {}) {
+            const opts = Object.assign({ resetOutput: true }, options);
+            if (opts.resetOutput) {
+                resetOutputs();
+            }
+            resetGlobalState();
+            resetAdminBannerState();
+
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML += '<h3>✅ Test Override con Consenso</h3>';
+
+            if (opts.resetOutput) {
+                document.getElementById('test-log').innerHTML = '';
+            }
+
+            const consentData = {
+                closedDays: [1, 2, 3, 4, 5, 6],
+                closedSingles: [],
+                closedRanges: [],
+                exceptions: [],
+                forceEmergencyOverride: true,
+                debug: true
+            };
+
+            const monthDays = Array.from({ length: 31 }, (_, index) => new Date(2024, 0, index + 1));
+            let mondayAllowed = false;
+            let sundayAllowed = false;
+
+            monthDays.forEach(date => {
+                const disabled = isDateDisabled(date, consentData);
+                if (date.getDay() === 1 && !disabled) {
+                    mondayAllowed = true;
+                }
+                if (date.getDay() === 0 && !disabled) {
+                    sundayAllowed = true;
+                }
+            });
+
+            const overrideActive = window.rbfEmergencyMode === true;
+            const bannerShown = adminBannerState.messages.some(msg => msg.key === EMERGENCY_ALERT_KEY);
+
+            showResult('Lunedì riaperto con consenso', mondayAllowed,
+                mondayAllowed ? 'Override applicato consapevolmente' : 'Lunedì ancora non disponibile');
+            showResult('Domenica ancora prenotabile', sundayAllowed,
+                sundayAllowed ? 'Giornata aperta confermata' : 'Domenica risulta chiusa');
+            showResult('Override emergenza attivo', overrideActive,
+                overrideActive ? 'Consentito da forceEmergencyOverride' : 'Override non attivo');
+            showResult('Banner amministratore visibile', bannerShown,
+                bannerShown ? 'Avviso presente per monitoraggio' : 'Banner non mostrato');
+        }
+
         function runAllTests() {
             resetOutputs();
             testAllDaysClosedConfig({ resetOutput: false });
             setTimeout(() => {
                 testNormalOperation({ resetOutput: false });
                 setTimeout(() => {
-                    testEdgeCases({ resetOutput: false });
+                    testHighClosureRatioWithoutConsent({ resetOutput: false });
+                    setTimeout(() => {
+                        testHighClosureRatioWithConsent({ resetOutput: false });
+                        setTimeout(() => {
+                            testEdgeCases({ resetOutput: false });
+                        }, 500);
+                    }, 500);
                 }, 500);
             }, 500);
         }
