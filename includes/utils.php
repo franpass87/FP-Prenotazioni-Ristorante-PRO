@@ -2390,13 +2390,27 @@ function rbf_validate_buffer_time($date, $time, $meal_id, $people_count, $ignore
             ];
         }
     }
-    
+
     return true;
 }
 
 /**
+ * Check if a specific time slot satisfies buffer requirements.
+ *
+ * @param string   $date              Date in Y-m-d format.
+ * @param string   $time              Time in H:i format.
+ * @param string   $meal_id           Meal identifier.
+ * @param int      $people_count      Number of guests for the request.
+ * @param int|null $ignore_booking_id Optional booking ID to ignore.
+ * @return bool True when the slot is buffer-compliant.
+ */
+function rbf_is_buffer_time_valid($date, $time, $meal_id, $people_count, $ignore_booking_id = null) {
+    return rbf_validate_buffer_time($date, $time, $meal_id, $people_count, $ignore_booking_id) === true;
+}
+
+/**
  * Get effective capacity with overbooking limit
- * 
+ *
  * @param string $meal_id Meal ID
  * @return int Effective capacity including overbooking
  */

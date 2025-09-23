@@ -317,12 +317,18 @@ function rbf_get_available_time_slots($date, $meal, $people) {
     $normalized_slots = rbf_normalize_time_slots($times_csv, $slot_duration_minutes);
 
     foreach ($normalized_slots as $time) {
-        if (rbf_check_time_slot_capacity($date, $meal, $time, $people)) {
-            $available_times[] = [
-                'time' => $time,
-                'display' => $time
-            ];
+        if (!rbf_check_time_slot_capacity($date, $meal, $time, $people)) {
+            continue;
         }
+
+        if (!rbf_is_buffer_time_valid($date, $time, $meal, $people)) {
+            continue;
+        }
+
+        $available_times[] = [
+            'time' => $time,
+            'display' => $time
+        ];
     }
 
     return $available_times;
