@@ -11,21 +11,25 @@ if (!defined('ABSPATH')) {
 
 require_once __DIR__ . '/../includes/utils.php';
 
+$rbf_test_settings = [
+    'open_mon' => 'yes',
+    'open_tue' => 'no',
+    'open_wed' => 'yes',
+    'open_thu' => 'yes',
+    'open_fri' => 'yes',
+    'open_sat' => 'yes',
+    'open_sun' => 'yes',
+    'closed_dates' => "2024-12-25\n2024-08-15 - 2024-08-20",
+    'notification_email' => 'admin@example.com'
+];
+
 // --- WordPress function stubs for test environment ---
 if (!function_exists('get_option')) {
     function get_option($name, $default = []) {
+        global $rbf_test_settings;
+
         if ($name === 'rbf_settings') {
-            return [
-                'open_mon' => 'yes',
-                'open_tue' => 'no',
-                'open_wed' => 'yes',
-                'open_thu' => 'yes',
-                'open_fri' => 'yes',
-                'open_sat' => 'yes',
-                'open_sun' => 'yes',
-                'closed_dates' => "2024-12-25\n2024-08-15 - 2024-08-20",
-                'notification_email' => 'admin@example.com'
-            ];
+            return $rbf_test_settings;
         }
         if ($name === 'admin_email') {
             return 'admin@example.com';
@@ -42,7 +46,11 @@ if (!function_exists('get_option')) {
 
 if (!function_exists('update_option')) {
     function update_option($name, $value) {
-        // no-op for tests
+        global $rbf_test_settings;
+
+        if ($name === 'rbf_settings' && is_array($value)) {
+            $rbf_test_settings = $value;
+        }
     }
 }
 
@@ -83,6 +91,26 @@ $tests = [
 ];
 
 foreach ($tests as $case) {
+    list($date, $meal, $expected, $label) = $case;
+    $result = rbf_is_restaurant_open($date, $meal);
+    $status = ($result === $expected) ? '✅' : '❌';
+    echo sprintf("%s %s => %s\n", $status, $label, $result ? 'open' : 'closed');
+}
+
+echo "\n";
+
+echo "Truthiness Normalization Checks\n";
+echo "-------------------------------\n";
+
+$rbf_test_settings['open_tue'] = '1';
+$rbf_test_settings['open_sat'] = 'ON';
+
+$truthy_tests = [
+    ['2024-12-24', 'pranzo', true,  'Tuesday open when using "1"'],
+    ['2024-12-28', 'pranzo', true,  'Saturday open when using "ON"'],
+];
+
+foreach ($truthy_tests as $case) {
     list($date, $meal, $expected, $label) = $case;
     $result = rbf_is_restaurant_open($date, $meal);
     $status = ($result === $expected) ? '✅' : '❌';

@@ -394,7 +394,11 @@ function rbf_is_restaurant_open($date, $meal) {
         return false;
     }
 
-    if (($options["open_{$day_key}"] ?? 'no') !== 'yes') {
+    $open_status = strtolower((string) ($options["open_{$day_key}"] ?? 'no'));
+    // Accept the same truthy values used by the frontend toggles: yes, 1, true, on.
+    $truthy_open_values = ['yes', '1', 'true', 'on'];
+
+    if (!in_array($open_status, $truthy_open_values, true)) {
         return false;
     }
 
