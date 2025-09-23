@@ -418,6 +418,7 @@ function rbf_translate_string($text) {
 
     static $translations = [
         // Backend UI
+        'Apri pagina di conferma' => 'Open confirmation page',
         'Prenotazioni' => 'Bookings',
         'Tutte le Prenotazioni' => 'All Bookings',
         'Prenotazione' => 'Booking',
@@ -1122,6 +1123,103 @@ function rbf_handle_success($message, $data = [], $redirect_url = null) {
 
     // Fallback: return success array
     return array_merge(['success' => true, 'message' => $message], $data);
+}
+
+/**
+ * Hash a booking tracking token before persisting it to the database.
+ *
+ * @param string $token Raw tracking token generated for the booking.
+ * @return string Sanitized hash or empty string when token is invalid.
+ */
+function rbf_hash_tracking_token($token) {
+    if (!is_string($token)) {
+        return '';
+    }
+
+    $token = trim($token);
+    if ($token === '') {
+        return '';
+    }
+
+    return hash('sha256', $token);
+}
+
+/**
+ * Persist a booking tracking token hash.
+ *
+ * @param int    $booking_id    Booking post ID.
+ * @param string $tracking_token Raw tracking token to hash and store.
+ * @return void
+ */
+function rbf_store_booking_tracking_token($booking_id, $tracking_token) {
+    $booking_id = absint($booking_id);
+    if (!$booking_id) {
+        return;
+    }
+
+    $hash = rbf_hash_tracking_token($tracking_token);
+    if ($hash === '') {
+        delete_post_meta($booking_id, 'rbf_tracking_token');
+        return;
+    }
+
+    update_post_meta($booking_id, 'rbf_tracking_token', $hash);
+}
+
+/**
+ * Remove the stored tracking token hash for a booking.
+ *
+ * @param int $booking_id Booking post ID.
+ * @return void
+ */
+function rbf_clear_booking_tracking_token($booking_id) {
+    $booking_id = absint($booking_id);
+    if (!$booking_id) {
+        return;
+    }
+
+    delete_post_meta($booking_id, 'rbf_tracking_token');
+}
+
+/**
+ * Build a shareable success URL for a manually created booking.
+ *
+ * @param int         $booking_id     Booking post ID.
+ * @param string      $tracking_token Raw tracking token.
+ * @param string|null $base_url       Optional base URL for the success page.
+ * @return string Success URL or empty string when data is insufficient.
+ */
+function rbf_get_manual_booking_success_url($booking_id, $tracking_token, $base_url = null) {
+    $booking_id = absint($booking_id);
+    $tracking_token = is_string($tracking_token) ? $tracking_token : '';
+
+    if (!$booking_id || $tracking_token === '') {
+        return '';
+    }
+
+    if (!is_string($base_url) || $base_url === '') {
+        $base_url = home_url('/');
+    }
+
+    /**
+     * Allow customization of the manual booking success base URL.
+     *
+     * @param string $base_url   Default base URL.
+     * @param int    $booking_id Booking post ID.
+     */
+    $base_url = apply_filters('rbf_manual_booking_success_base_url', $base_url, $booking_id);
+
+    if (empty($base_url)) {
+        return '';
+    }
+
+    $success_args = [
+        'rbf_success'   => '1',
+        'booking_id'    => $booking_id,
+        'booking_token' => $tracking_token,
+    ];
+
+    return add_query_arg($success_args, $base_url);
 }
 
 /**
