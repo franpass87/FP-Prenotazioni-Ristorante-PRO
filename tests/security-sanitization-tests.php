@@ -82,11 +82,39 @@ if (!function_exists('rbf_wp_timezone')) {
 if (!function_exists('rbf_get_meal_config')) {
     function rbf_get_meal_config($meal_id) {
         $configs = $GLOBALS['rbf_test_meal_configs'] ?? [
-            'dinner' => ['slot_duration_minutes' => 110],
-            'lunch'  => ['slot_duration_minutes' => 75],
+            'dinner' => [
+                'slot_duration_minutes' => 110,
+                'name' => 'Dinner',
+            ],
+            'lunch'  => [
+                'slot_duration_minutes' => 75,
+                'name' => 'Lunch',
+            ],
         ];
 
         return $configs[$meal_id] ?? null;
+    }
+}
+
+if (!function_exists('rbf_current_lang')) {
+    function rbf_current_lang() {
+        $locale = $GLOBALS['rbf_test_locale'] ?? 'it';
+        return in_array($locale, ['it', 'en'], true) ? $locale : 'it';
+    }
+}
+
+if (!function_exists('rbf_translate_string')) {
+    function rbf_translate_string($text) {
+        if (rbf_current_lang() !== 'en') {
+            return $text;
+        }
+
+        static $translations = [
+            'Prenotazione Ristorante - %s' => 'Reservation - %s',
+            'Prenotazione presso %s\nNome: %s %s\nPersone: %d\nPasto: %s\nNote: %s' => 'Reservation at %s\nName: %s %s\nGuests: %d\nMeal: %s\nNotes: %s',
+        ];
+
+        return $translations[$text] ?? $text;
     }
 }
 
@@ -349,6 +377,64 @@ class RBF_Security_Sanitization_Tests {
         } finally {
             date_default_timezone_set($original_timezone);
         }
+
+        // Test custom meal names in ICS summary and description
+        $GLOBALS['rbf_test_meal_configs'] = [
+            'chef-special' => [
+                'slot_duration_minutes' => 135,
+                'name' => "Chef's Table Experience",
+            ],
+        ];
+
+        $custom_ics = rbf_generate_booking_ics(
+            'Alice',
+            'Wonder',
+            'alice@example.com',
+            '2024-12-31',
+            '21:00',
+            2,
+            'Senza arachidi',
+            'chef-special'
+        );
+
+        $this->assert_test(
+            'ICS custom meal name in summary',
+            is_string($custom_ics) && strpos($custom_ics, "SUMMARY:Prenotazione Ristorante - Chef's Table Experience") !== false,
+            is_string($custom_ics) ? "Summary output: " . substr($custom_ics, 0, 120) . "..." : 'No ICS generated'
+        );
+
+        $this->assert_test(
+            'ICS custom meal name in description',
+            is_string($custom_ics) && strpos($custom_ics, "Pasto: Chef's Table Experience") !== false,
+            is_string($custom_ics) ? "Description output: " . substr($custom_ics, 0, 120) . "..." : 'No ICS generated'
+        );
+
+        $GLOBALS['rbf_test_locale'] = 'en';
+
+        $custom_ics_en = rbf_generate_booking_ics(
+            'Alice',
+            'Wonder',
+            'alice@example.com',
+            '2024-12-31',
+            '21:00',
+            2,
+            'No peanuts',
+            'chef-special'
+        );
+
+        $this->assert_test(
+            'ICS summary translated in English',
+            is_string($custom_ics_en) && strpos($custom_ics_en, "SUMMARY:Reservation - Chef's Table Experience") !== false,
+            is_string($custom_ics_en) ? "English summary output: " . substr($custom_ics_en, 0, 120) . "..." : 'No ICS generated'
+        );
+
+        $this->assert_test(
+            'ICS description translated in English',
+            is_string($custom_ics_en) && strpos($custom_ics_en, "Meal: Chef's Table Experience") !== false && strpos($custom_ics_en, 'Notes: No peanuts') !== false,
+            is_string($custom_ics_en) ? "English description output: " . substr($custom_ics_en, 0, 120) . "..." : 'No ICS generated'
+        );
+
+        unset($GLOBALS['rbf_test_locale'], $GLOBALS['rbf_test_meal_configs']);
 
         // Test UID sanitization against malicious host headers
         $original_host = $_SERVER['HTTP_HOST'] ?? null;
@@ -754,6 +840,77 @@ if (function_exists('rbf_sanitize_input_fields')) {
                 return sanitize_text_field($value);
             default:
                 return esc_html($value);
+        }
+    }
+
+    if (!function_exists('rbf_generate_booking_ics')) {
+        function rbf_generate_booking_ics($first_name, $last_name, $email, $date, $time, $people, $notes, $meal) {
+            $restaurant_name = get_bloginfo('name');
+
+            $slot_duration = null;
+            if (function_exists('rbf_calculate_slot_duration')) {
+                $slot_duration = (int) rbf_calculate_slot_duration($meal, (int) $people);
+            } elseif (function_exists('rbf_get_meal_config')) {
+                $meal_config = rbf_get_meal_config($meal);
+                if (is_array($meal_config) && isset($meal_config['slot_duration_minutes'])) {
+                    $slot_duration = (int) $meal_config['slot_duration_minutes'];
+                }
+            }
+
+            if ($slot_duration !== null && $slot_duration <= 0) {
+                $slot_duration = null;
+            }
+
+            $meal_name = $meal;
+            if (function_exists('rbf_get_meal_config')) {
+                $meal_config = rbf_get_meal_config($meal);
+                if (is_array($meal_config)) {
+                    $configured_name = isset($meal_config['name']) ? (string) $meal_config['name'] : '';
+                    if ($configured_name !== '') {
+                        $meal_name = $configured_name;
+                    }
+                }
+            }
+
+            if (!is_string($meal_name) || $meal_name === '') {
+                $meal_name = is_scalar($meal) ? (string) $meal : '';
+            }
+
+            $notes_text = is_scalar($notes) ? (string) $notes : '';
+            $first_name_text = is_scalar($first_name) ? (string) $first_name : '';
+            $last_name_text = is_scalar($last_name) ? (string) $last_name : '';
+            $restaurant_name_text = is_scalar($restaurant_name) ? (string) $restaurant_name : '';
+
+            $summary = sprintf(
+                rbf_translate_string('Prenotazione Ristorante - %s'),
+                $meal_name
+            );
+
+            $description = sprintf(
+                rbf_translate_string("Prenotazione presso %s\\nNome: %s %s\\nPersone: %d\\nPasto: %s\\nNote: %s"),
+                $restaurant_name_text,
+                $first_name_text,
+                $last_name_text,
+                (int) $people,
+                $meal_name,
+                $notes_text
+            );
+
+            $booking_data = [
+                'date' => $date,
+                'time' => $time,
+                'summary' => $summary,
+                'description' => $description,
+                'location' => $restaurant_name_text,
+                'meal_id' => $meal,
+                'people' => $people,
+            ];
+
+            if ($slot_duration !== null) {
+                $booking_data['slot_duration_minutes'] = $slot_duration;
+            }
+
+            return rbf_generate_ics_content($booking_data);
         }
     }
 
