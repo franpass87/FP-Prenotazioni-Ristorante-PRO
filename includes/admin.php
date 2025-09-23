@@ -1153,7 +1153,7 @@ function rbf_get_bookings_for_calendar_callback() {
         $meta = get_post_meta($booking->ID);
         
         $date = $meta['rbf_data'][0] ?? '';
-        $time = $meta['rbf_time'][0] ?? '';
+        $time = $meta['rbf_time'][0] ?? ($meta['rbf_orario'][0] ?? '');
         $people = $meta['rbf_persone'][0] ?? '';
         $first_name = $meta['rbf_nome'][0] ?? '';
         $last_name = $meta['rbf_cognome'][0] ?? '';
@@ -3465,7 +3465,7 @@ function rbf_get_weekly_staff_bookings_callback() {
         $meta = get_post_meta($booking->ID);
         
         $date = $meta['rbf_data'][0] ?? '';
-        $time = $meta['rbf_time'][0] ?? '';
+        $time = $meta['rbf_time'][0] ?? ($meta['rbf_orario'][0] ?? '');
         $people = $meta['rbf_persone'][0] ?? '';
         $first_name = $meta['rbf_nome'][0] ?? '';
         $last_name = $meta['rbf_cognome'][0] ?? '';
