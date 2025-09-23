@@ -352,13 +352,12 @@ function rbf_render_customer_booking_management() {
     $formatted_date = date('d/m/Y', strtotime($date));
     $formatted_created = $created ? date('d/m/Y H:i', strtotime($created)) : '';
     
-    $meals = [
-        'pranzo' => rbf_translate_string('Pranzo'),
-        'cena' => rbf_translate_string('Cena'),
-        'aperitivo' => rbf_translate_string('Aperitivo'),
-        'brunch' => rbf_translate_string('Brunch')
-    ];
-    $meal_label = $meals[$meal] ?? ucfirst($meal);
+    $meal_config = rbf_get_meal_config($meal);
+    if ($meal_config && isset($meal_config['name']) && $meal_config['name'] !== '') {
+        $meal_label = $meal_config['name'];
+    } else {
+        $meal_label = $meal;
+    }
     
     // Handle cancellation request
     if (isset($_POST['cancel_booking']) && wp_verify_nonce($_POST['_wpnonce'], 'cancel_booking_' . $booking_id)) {
