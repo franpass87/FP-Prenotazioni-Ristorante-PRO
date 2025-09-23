@@ -241,7 +241,11 @@ function rbf_get_meal_config($meal_id) {
 }
 
 /**
- * Validate if a meal is available on a specific day
+ * Validate if a meal is available on a specific day.
+ *
+ * When a meal has no configured available days the function logs the situation
+ * (when debugging is enabled) and treats the meal as unavailable to avoid
+ * exposing times that cannot be booked safely.
  */
 function rbf_is_meal_available_on_day($meal_id, $date) {
     $meal_config = rbf_get_meal_config($meal_id);
@@ -267,8 +271,27 @@ function rbf_is_meal_available_on_day($meal_id, $date) {
         4 => 'thu', 5 => 'fri', 6 => 'sat'
     ];
 
+    $available_days = $meal_config['available_days'] ?? [];
+
+    if (!is_array($available_days)) {
+        $available_days = (array) $available_days;
+    }
+
+    $valid_days = array_values($day_mapping);
+    $available_days = array_values(array_intersect($available_days, $valid_days));
+
+    if (empty($available_days)) {
+        rbf_log(sprintf(
+            'RBF Plugin: Meal "%s" has no available days configured. Marking %s as unavailable.',
+            $meal_id,
+            $date
+        ));
+        return false;
+    }
+
     $day_key = $day_mapping[$day_of_week];
-    return in_array($day_key, $meal_config['available_days']);
+
+    return in_array($day_key, $available_days, true);
 }
 
 /**
