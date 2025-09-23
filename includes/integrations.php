@@ -142,20 +142,48 @@ function rbf_add_booking_tracking_script() {
     $transient_key = 'rbf_booking_data_' . $booking_id;
     $transient_data = get_transient($transient_key);
 
-    if (!is_array($transient_data)) {
-        return;
+    $stored_hash = (string) get_post_meta($booking_id, 'rbf_tracking_token', true);
+    $incoming_hash = rbf_hash_tracking_token($booking_token);
+    $hash_matches = ($stored_hash !== '' && $incoming_hash !== '' && hash_equals($stored_hash, $incoming_hash));
+
+    $meta = null;
+    $tracking_data = null;
+
+    if (is_array($transient_data)) {
+        $expected_token = isset($transient_data['tracking_token']) ? (string) $transient_data['tracking_token'] : '';
+        if ($expected_token !== '' && hash_equals($expected_token, $booking_token)) {
+            if ($stored_hash !== '' && !$hash_matches) {
+                return;
+            }
+
+            unset($transient_data['tracking_token']);
+            $meta = get_post_meta($booking_id);
+            $tracking_data = rbf_build_booking_tracking_data($booking_id, $transient_data, $meta);
+        }
     }
 
-    $expected_token = isset($transient_data['tracking_token']) ? (string) $transient_data['tracking_token'] : '';
-    if ($expected_token === '' || !hash_equals($expected_token, $booking_token)) {
-        return;
+    if ($tracking_data === null) {
+        if (!$hash_matches) {
+            return;
+        }
+
+        if ($meta === null) {
+            $meta = get_post_meta($booking_id);
+        }
+
+        $tracking_data = rbf_build_booking_tracking_data($booking_id, [], $meta);
     }
 
-    unset($transient_data['tracking_token']);
     delete_transient($transient_key);
+    rbf_clear_booking_tracking_token($booking_id);
 
-    $meta = get_post_meta($booking_id);
-    $tracking_data = rbf_build_booking_tracking_data($booking_id, $transient_data, $meta);
+    if (!is_array($tracking_data) || empty($tracking_data)) {
+        return;
+    }
+
+    if ($meta === null) {
+        $meta = get_post_meta($booking_id);
+    }
 
     $transaction_id = $tracking_data['transaction_id'] ?? ('rbf_' . $tracking_data['id']);
     $value = $tracking_data['value'] ?? 0;

@@ -1468,6 +1468,9 @@ function rbf_add_booking_page_html() {
 
                             $message = '<div class="notice notice-error"><p>' . esc_html($error_msg) . '</p></div>';
                         } else {
+                            $tracking_token = wp_generate_password(20, false, false);
+                            $tracking_token_hash = rbf_hash_tracking_token($tracking_token);
+
                             $post_id = wp_insert_post([
                                 'post_type' => 'rbf_booking',
                                 'post_title' => $title,
@@ -1496,6 +1499,7 @@ function rbf_add_booking_page_html() {
                                     'rbf_booking_hash' => wp_generate_password(16, false, false),
                                     'rbf_valore_pp' => $valore_pp,
                                     'rbf_valore_tot' => $valore_tot,
+                                    'rbf_tracking_token' => $tracking_token_hash,
                                 ],
                             ]);
 
@@ -1524,7 +1528,8 @@ function rbf_add_booking_page_html() {
                                     }
 
                                     $event_id       = 'rbf_' . $post_id;
-                                    $tracking_token = wp_generate_password(20, false, false);
+
+                                    rbf_store_booking_tracking_token($post_id, $tracking_token);
 
                                     // Email + Brevo (functions will be loaded from integrations module)
                                     if (function_exists('rbf_send_admin_notification_email')) {
@@ -1553,7 +1558,13 @@ function rbf_add_booking_page_html() {
 
                                     delete_transient('rbf_avail_' . $date . '_' . $meal);
 
-                                    $message = '<div class="notice notice-success"><p>Prenotazione aggiunta con successo! <a href="' . admin_url('post.php?post=' . $post_id . '&action=edit') . '">Modifica</a></p></div>';
+                                    $success_url = rbf_get_manual_booking_success_url($post_id, $tracking_token);
+                                    $success_link = '';
+                                    if ($success_url !== '') {
+                                        $success_link = ' | <a href="' . esc_url($success_url) . '" target="_blank" rel="noopener noreferrer">' . esc_html(rbf_translate_string('Apri pagina di conferma')) . '</a>';
+                                    }
+
+                                    $message = '<div class="notice notice-success"><p>Prenotazione aggiunta con successo! <a href="' . admin_url('post.php?post=' . $post_id . '&action=edit') . '">Modifica</a>' . $success_link . '</p></div>';
                                 }
                             } else {
                                 rbf_release_slot_capacity($date, $meal, $people);

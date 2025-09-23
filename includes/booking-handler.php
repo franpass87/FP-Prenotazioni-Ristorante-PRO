@@ -348,6 +348,9 @@ function rbf_create_booking_post($data, $redirect_url, $anchor) {
 
     $options = rbf_get_settings();
 
+    $tracking_token = wp_generate_password(20, false, false);
+    $tracking_token_hash = rbf_hash_tracking_token($tracking_token);
+
     // Calcola il prezzo unitario e totale utilizzando le configurazioni disponibili
     $meal_config = rbf_get_meal_config($meal);
     if ($meal_config) {
@@ -389,6 +392,7 @@ function rbf_create_booking_post($data, $redirect_url, $anchor) {
         'rbf_booking_status'  => $booking_status,
         'rbf_booking_created' => current_time('Y-m-d H:i:s'),
         'rbf_booking_hash'    => wp_generate_password(16, false, false),
+        'rbf_tracking_token'  => $tracking_token_hash,
     ];
 
     // Persist calculated financial metadata for reliable fallbacks and reporting
@@ -424,7 +428,7 @@ function rbf_create_booking_post($data, $redirect_url, $anchor) {
         }
     }
 
-    $tracking_token = wp_generate_password(20, false, false);
+    rbf_store_booking_tracking_token($post_id, $tracking_token);
 
     $booking_context = array_merge(
         $data,
