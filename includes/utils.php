@@ -165,13 +165,25 @@ function rbf_is_meal_available_on_day($meal_id, $date) {
     if (!$meal_config) {
         return false;
     }
-    
-    $day_of_week = (int) date('w', strtotime($date));
+
+    $timezone = rbf_wp_timezone();
+    $date_object = DateTimeImmutable::createFromFormat('!Y-m-d', $date, $timezone);
+
+    if (!$date_object) {
+        return false;
+    }
+
+    $errors = DateTimeImmutable::getLastErrors();
+    if ($errors && ($errors['warning_count'] > 0 || $errors['error_count'] > 0)) {
+        return false;
+    }
+
+    $day_of_week = (int) $date_object->format('w');
     $day_mapping = [
         0 => 'sun', 1 => 'mon', 2 => 'tue', 3 => 'wed',
         4 => 'thu', 5 => 'fri', 6 => 'sat'
     ];
-    
+
     $day_key = $day_mapping[$day_of_week];
     return in_array($day_key, $meal_config['available_days']);
 }
@@ -279,9 +291,25 @@ function rbf_is_restaurant_open($date, $meal) {
     $options = rbf_get_settings();
 
     // Check day of week availability
-    $day_of_week = date('w', strtotime($date));
+    $timezone = rbf_wp_timezone();
+    $date_object = DateTimeImmutable::createFromFormat('!Y-m-d', $date, $timezone);
+
+    if (!$date_object) {
+        return false;
+    }
+
+    $errors = DateTimeImmutable::getLastErrors();
+    if ($errors && ($errors['warning_count'] > 0 || $errors['error_count'] > 0)) {
+        return false;
+    }
+
     $day_keys = ['sun','mon','tue','wed','thu','fri','sat'];
-    $day_key = $day_keys[$day_of_week];
+    $day_of_week = (int) $date_object->format('w');
+    $day_key = $day_keys[$day_of_week] ?? null;
+
+    if ($day_key === null) {
+        return false;
+    }
 
     if (($options["open_{$day_key}"] ?? 'no') !== 'yes') {
         return false;
