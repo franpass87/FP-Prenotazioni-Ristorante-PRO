@@ -64,6 +64,46 @@ if (!function_exists('get_bloginfo')) {
     }
 }
 
+if (!isset($rbf_test_options) || !is_array($rbf_test_options)) {
+    $rbf_test_options = [];
+}
+
+if (!function_exists('get_option')) {
+    function get_option($option, $default = null) {
+        global $rbf_test_options;
+
+        if (isset($rbf_test_options[$option])) {
+            return $rbf_test_options[$option];
+        }
+
+        return $default;
+    }
+}
+
+if (!function_exists('rbf_wp_timezone')) {
+    function rbf_wp_timezone() {
+        try {
+            if (function_exists('get_option')) {
+                $tz_string = get_option('timezone_string');
+                if ($tz_string) {
+                    return new DateTimeZone($tz_string);
+                }
+
+                $offset = (float) get_option('gmt_offset', 0);
+                $hours = (int) $offset;
+                $minutes = abs($offset - $hours) * 60;
+                $sign = $offset < 0 ? '-' : '+';
+
+                return new DateTimeZone(sprintf('%s%02d:%02d', $sign, abs($hours), $minutes));
+            }
+        } catch (Exception $e) {
+            // Fallback to UTC on any failure when creating the timezone
+        }
+
+        return new DateTimeZone('UTC');
+    }
+}
+
 class RBF_Security_Sanitization_Tests {
     private $test_results = [];
     
@@ -294,9 +334,13 @@ class RBF_Security_Sanitization_Tests {
             "Expected: safe ICS content, Got: " . substr($ics_content, 0, 100) . "..."
         );
 
+        global $rbf_test_options;
         $original_timezone = date_default_timezone_get();
+        $original_options = $rbf_test_options;
+
         try {
             date_default_timezone_set('Europe/Rome');
+            $rbf_test_options['timezone_string'] = 'Europe/Rome';
 
             $localized_booking_data = [
                 'date' => '2024-12-25',
@@ -309,17 +353,33 @@ class RBF_Security_Sanitization_Tests {
             $localized_ics = rbf_generate_ics_content($localized_booking_data);
             $expected_start = 'DTSTART:20241225T190000Z';
             $expected_end = 'DTEND:20241225T210000Z';
+            $expected_local_start = $localized_booking_data['date'] . ' ' . $localized_booking_data['time'];
             $ics_snippet = is_string($localized_ics) ? substr($localized_ics, 0, 120) . '...' : 'No ICS generated';
+
+            $local_start_formatted = 'unavailable';
+            $local_start_matches = false;
+
+            if (is_string($localized_ics) && preg_match('/DTSTART:(\d{8}T\d{6}Z)/', $localized_ics, $start_match)) {
+                $start_utc = DateTimeImmutable::createFromFormat('Ymd\THis\Z', $start_match[1], new DateTimeZone('UTC'));
+                $start_errors = DateTimeImmutable::getLastErrors();
+
+                if ($start_utc && (!$start_errors || (($start_errors['error_count'] ?? 0) === 0))) {
+                    $local_start_formatted = $start_utc->setTimezone(rbf_wp_timezone())->format('Y-m-d H:i');
+                    $local_start_matches = ($local_start_formatted === $expected_local_start);
+                }
+            }
 
             $this->assert_test(
                 'ICS timezone conversion for localized site',
                 $localized_ics !== false &&
                 strpos($localized_ics, $expected_start) !== false &&
-                strpos($localized_ics, $expected_end) !== false,
-                "Expected UTC times {$expected_start} / {$expected_end}, Got: {$ics_snippet}"
+                strpos($localized_ics, $expected_end) !== false &&
+                $local_start_matches,
+                "Expected UTC times {$expected_start} / {$expected_end} and local {$expected_local_start}, Got: {$ics_snippet}; local: {$local_start_formatted}"
             );
         } finally {
             date_default_timezone_set($original_timezone);
+            $rbf_test_options = $original_options;
         }
 
         // Test UID sanitization against malicious host headers
@@ -767,21 +827,35 @@ if (function_exists('rbf_sanitize_input_fields')) {
         $uid = uniqid('rbf_booking_', true) . '@' . $host;
         
         // Format datetime for ICS
-        $booking_datetime = DateTime::createFromFormat('Y-m-d H:i', $sanitized_data['date'] . ' ' . $sanitized_data['time']);
+        $date_value = $sanitized_data['date'] ?? '';
+        $time_value = $sanitized_data['time'] ?? '';
+
+        if ($date_value === '' || $time_value === '') {
+            return false;
+        }
+
+        $wordpress_timezone = rbf_wp_timezone();
+        $booking_datetime = DateTimeImmutable::createFromFormat(
+            'Y-m-d H:i',
+            $date_value . ' ' . $time_value,
+            $wordpress_timezone
+        );
+
         if (!$booking_datetime) {
             return false;
         }
-        
-        $start_datetime = clone $booking_datetime;
-        $end_datetime = clone $booking_datetime;
-        $end_datetime->add(new DateInterval('PT2H')); // 2 hour duration
+
+        $parse_errors = DateTimeImmutable::getLastErrors();
+        if ($parse_errors && (($parse_errors['error_count'] ?? 0) > 0)) {
+            return false;
+        }
+
+        $local_start = $booking_datetime;
+        $local_end = $booking_datetime->add(new DateInterval('PT2H')); // 2 hour duration
 
         $utc_timezone = new DateTimeZone('UTC');
-        $start_datetime->setTimezone($utc_timezone);
-        $end_datetime->setTimezone($utc_timezone);
-
-        $start_time = $start_datetime->format('Ymd\THis\Z');
-        $end_time = $end_datetime->format('Ymd\THis\Z');
+        $start_time = $local_start->setTimezone($utc_timezone)->format('Ymd\THis\Z');
+        $end_time = $local_end->setTimezone($utc_timezone)->format('Ymd\THis\Z');
         $created_time = gmdate('Ymd\THis\Z');
         
         $ics_content = "BEGIN:VCALENDAR\r\n";

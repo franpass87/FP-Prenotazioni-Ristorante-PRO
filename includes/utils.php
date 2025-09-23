@@ -1788,21 +1788,35 @@ function rbf_generate_ics_content($booking_data) {
     $uid = uniqid('rbf_booking_', true) . '@' . $host;
     
     // Format datetime for ICS
-    $booking_datetime = DateTime::createFromFormat('Y-m-d H:i', $sanitized_data['date'] . ' ' . $sanitized_data['time']);
+    $date_value = $sanitized_data['date'] ?? '';
+    $time_value = $sanitized_data['time'] ?? '';
+
+    if ($date_value === '' || $time_value === '') {
+        return false;
+    }
+
+    $wordpress_timezone = rbf_wp_timezone();
+    $booking_datetime = DateTimeImmutable::createFromFormat(
+        'Y-m-d H:i',
+        $date_value . ' ' . $time_value,
+        $wordpress_timezone
+    );
+
     if (!$booking_datetime) {
         return false;
     }
-    
-    $start_datetime = clone $booking_datetime;
-    $end_datetime = clone $booking_datetime;
-    $end_datetime->add(new DateInterval('PT2H')); // 2 hour duration
+
+    $parse_errors = DateTimeImmutable::getLastErrors();
+    if ($parse_errors && (($parse_errors['error_count'] ?? 0) > 0)) {
+        return false;
+    }
+
+    $local_start = $booking_datetime;
+    $local_end = $booking_datetime->add(new DateInterval('PT2H')); // 2 hour duration
 
     $utc_timezone = new DateTimeZone('UTC');
-    $start_datetime->setTimezone($utc_timezone);
-    $end_datetime->setTimezone($utc_timezone);
-
-    $start_time = $start_datetime->format('Ymd\THis\Z');
-    $end_time = $end_datetime->format('Ymd\THis\Z');
+    $start_time = $local_start->setTimezone($utc_timezone)->format('Ymd\THis\Z');
+    $end_time = $local_end->setTimezone($utc_timezone)->format('Ymd\THis\Z');
     $created_time = gmdate('Ymd\THis\Z');
     
     $ics_content = "BEGIN:VCALENDAR\r\n";
