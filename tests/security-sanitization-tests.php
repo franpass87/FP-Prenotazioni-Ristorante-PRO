@@ -64,6 +64,32 @@ if (!function_exists('get_bloginfo')) {
     }
 }
 
+if (!function_exists('rbf_wp_timezone')) {
+    function rbf_wp_timezone() {
+        try {
+            $timezone = date_default_timezone_get();
+            if (!is_string($timezone) || $timezone === '') {
+                $timezone = 'UTC';
+            }
+
+            return new DateTimeZone($timezone);
+        } catch (Exception $e) {
+            return new DateTimeZone('UTC');
+        }
+    }
+}
+
+if (!function_exists('rbf_get_meal_config')) {
+    function rbf_get_meal_config($meal_id) {
+        $configs = $GLOBALS['rbf_test_meal_configs'] ?? [
+            'dinner' => ['slot_duration_minutes' => 110],
+            'lunch'  => ['slot_duration_minutes' => 75],
+        ];
+
+        return $configs[$meal_id] ?? null;
+    }
+}
+
 class RBF_Security_Sanitization_Tests {
     private $test_results = [];
     
@@ -303,12 +329,14 @@ class RBF_Security_Sanitization_Tests {
                 'time' => '20:00',
                 'summary' => 'Localized Timezone Booking',
                 'description' => 'Ensure ICS uses UTC conversion',
-                'location' => 'Rome, Italy'
+                'location' => 'Rome, Italy',
+                'meal_id' => 'dinner',
+                'people' => 2,
             ];
 
             $localized_ics = rbf_generate_ics_content($localized_booking_data);
             $expected_start = 'DTSTART:20241225T190000Z';
-            $expected_end = 'DTEND:20241225T210000Z';
+            $expected_end = 'DTEND:20241225T205000Z';
             $ics_snippet = is_string($localized_ics) ? substr($localized_ics, 0, 120) . '...' : 'No ICS generated';
 
             $this->assert_test(
@@ -765,16 +793,85 @@ if (function_exists('rbf_sanitize_input_fields')) {
         }
 
         $uid = uniqid('rbf_booking_', true) . '@' . $host;
-        
-        // Format datetime for ICS
-        $booking_datetime = DateTime::createFromFormat('Y-m-d H:i', $sanitized_data['date'] . ' ' . $sanitized_data['time']);
+
+        // Format datetime for ICS using the configured timezone
+        $raw_date = isset($booking_data['date']) ? (string) $booking_data['date'] : '';
+        $raw_time = isset($booking_data['time']) ? (string) $booking_data['time'] : '';
+
+        if ($raw_date === '' || $raw_time === '') {
+            return false;
+        }
+
+        $timezone = rbf_wp_timezone();
+        if (!($timezone instanceof DateTimeZone)) {
+            $timezone = new DateTimeZone('UTC');
+        }
+
+        $booking_datetime = DateTime::createFromFormat('Y-m-d H:i', $raw_date . ' ' . $raw_time, $timezone);
         if (!$booking_datetime) {
             return false;
         }
-        
+
+        $errors = DateTime::getLastErrors();
+        if ($errors && ($errors['warning_count'] > 0 || $errors['error_count'] > 0)) {
+            return false;
+        }
+
         $start_datetime = clone $booking_datetime;
+
+        // Determine duration from configuration when available
+        $duration_minutes = null;
+
+        if (isset($booking_data['slot_duration_minutes']) && is_numeric($booking_data['slot_duration_minutes'])) {
+            $duration_minutes = (int) $booking_data['slot_duration_minutes'];
+        }
+
+        if ($duration_minutes === null || $duration_minutes <= 0) {
+            $meal_candidates = [];
+
+            foreach (['meal_id', 'meal', 'slot'] as $meal_key) {
+                if (!empty($booking_data[$meal_key])) {
+                    $meal_candidates[] = $booking_data[$meal_key];
+                }
+            }
+
+            $seen_meals = [];
+            foreach ($meal_candidates as $candidate) {
+                $meal_id = is_string($candidate) ? trim($candidate) : '';
+
+                if ($meal_id === '' || isset($seen_meals[$meal_id])) {
+                    continue;
+                }
+
+                $seen_meals[$meal_id] = true;
+
+                if (isset($booking_data['people']) && is_numeric($booking_data['people']) && function_exists('rbf_calculate_slot_duration')) {
+                    $maybe_duration = (int) rbf_calculate_slot_duration($meal_id, (int) $booking_data['people']);
+                    if ($maybe_duration > 0) {
+                        $duration_minutes = $maybe_duration;
+                        break;
+                    }
+                }
+
+                if (function_exists('rbf_get_meal_config')) {
+                    $meal_config = rbf_get_meal_config($meal_id);
+                    if (is_array($meal_config) && isset($meal_config['slot_duration_minutes'])) {
+                        $maybe_duration = (int) $meal_config['slot_duration_minutes'];
+                        if ($maybe_duration > 0) {
+                            $duration_minutes = $maybe_duration;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!is_int($duration_minutes) || $duration_minutes <= 0) {
+            $duration_minutes = 90;
+        }
+
         $end_datetime = clone $booking_datetime;
-        $end_datetime->add(new DateInterval('PT2H')); // 2 hour duration
+        $end_datetime->add(new DateInterval('PT' . $duration_minutes . 'M'));
 
         $utc_timezone = new DateTimeZone('UTC');
         $start_datetime->setTimezone($utc_timezone);

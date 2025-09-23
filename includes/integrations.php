@@ -456,18 +456,37 @@ HTML;
  * Generate and offer ICS calendar file for booking
  */
 function rbf_generate_booking_ics($first_name, $last_name, $email, $date, $time, $people, $notes, $meal) {
-    $options = rbf_get_settings();
     $restaurant_name = get_bloginfo('name');
-    
+
+    $slot_duration = null;
+    if (function_exists('rbf_calculate_slot_duration')) {
+        $slot_duration = (int) rbf_calculate_slot_duration($meal, (int) $people);
+    } elseif (function_exists('rbf_get_meal_config')) {
+        $meal_config = rbf_get_meal_config($meal);
+        if (is_array($meal_config) && isset($meal_config['slot_duration_minutes'])) {
+            $slot_duration = (int) $meal_config['slot_duration_minutes'];
+        }
+    }
+
+    if ($slot_duration !== null && $slot_duration <= 0) {
+        $slot_duration = null;
+    }
+
     // Prepare booking data for ICS generation
     $booking_data = [
         'date' => $date,
         'time' => $time,
         'summary' => "Prenotazione Ristorante - {$meal}",
         'description' => "Prenotazione presso {$restaurant_name}\\nNome: {$first_name} {$last_name}\\nPersone: {$people}\\nNote: {$notes}",
-        'location' => $restaurant_name
+        'location' => $restaurant_name,
+        'meal_id' => $meal,
+        'people' => $people,
     ];
-    
+
+    if ($slot_duration !== null) {
+        $booking_data['slot_duration_minutes'] = $slot_duration;
+    }
+
     return rbf_generate_ics_content($booking_data);
 }
 
