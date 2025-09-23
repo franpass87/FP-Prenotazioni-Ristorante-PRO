@@ -1399,9 +1399,42 @@ function rbf_ajax_get_availability() {
     // Check for cache first
     $cache_key = rbf_build_times_cache_key($meal, $date, $people);
     $cached_data = get_transient($cache_key);
-    
+
     if ($cached_data !== false) {
-        wp_send_json_success($cached_data);
+        $filtered_cached_data = $cached_data;
+
+        if (is_array($cached_data) && isset($cached_data['available_times']) && is_array($cached_data['available_times'])) {
+            $filtered_times = [];
+
+            foreach ($cached_data['available_times'] as $time_entry) {
+                if (!is_array($time_entry)) {
+                    $filtered_times[] = $time_entry;
+                    continue;
+                }
+
+                $raw_time = $time_entry['value'] ?? $time_entry['time'] ?? null;
+
+                if ($raw_time && !rbf_is_buffer_time_valid($date, $raw_time, $meal, $people)) {
+                    continue;
+                }
+
+                $filtered_times[] = $time_entry;
+            }
+
+            if (count($filtered_times) !== count($cached_data['available_times'])) {
+                $filtered_cached_data['available_times'] = array_values($filtered_times);
+
+                if (empty($filtered_times)) {
+                    $filtered_cached_data['message'] = rbf_translate_string('Nessun orario disponibile per questa data');
+                }
+            }
+        }
+
+        if ($filtered_cached_data !== $cached_data) {
+            set_transient($cache_key, $filtered_cached_data, 5 * MINUTE_IN_SECONDS);
+        }
+
+        wp_send_json_success($filtered_cached_data);
         return;
     }
     
