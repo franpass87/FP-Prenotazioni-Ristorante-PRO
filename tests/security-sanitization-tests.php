@@ -294,6 +294,34 @@ class RBF_Security_Sanitization_Tests {
             "Expected: safe ICS content, Got: " . substr($ics_content, 0, 100) . "..."
         );
 
+        $original_timezone = date_default_timezone_get();
+        try {
+            date_default_timezone_set('Europe/Rome');
+
+            $localized_booking_data = [
+                'date' => '2024-12-25',
+                'time' => '20:00',
+                'summary' => 'Localized Timezone Booking',
+                'description' => 'Ensure ICS uses UTC conversion',
+                'location' => 'Rome, Italy'
+            ];
+
+            $localized_ics = rbf_generate_ics_content($localized_booking_data);
+            $expected_start = 'DTSTART:20241225T190000Z';
+            $expected_end = 'DTEND:20241225T210000Z';
+            $ics_snippet = is_string($localized_ics) ? substr($localized_ics, 0, 120) . '...' : 'No ICS generated';
+
+            $this->assert_test(
+                'ICS timezone conversion for localized site',
+                $localized_ics !== false &&
+                strpos($localized_ics, $expected_start) !== false &&
+                strpos($localized_ics, $expected_end) !== false,
+                "Expected UTC times {$expected_start} / {$expected_end}, Got: {$ics_snippet}"
+            );
+        } finally {
+            date_default_timezone_set($original_timezone);
+        }
+
         // Test UID sanitization against malicious host headers
         $original_host = $_SERVER['HTTP_HOST'] ?? null;
         $_SERVER['HTTP_HOST'] = "malicious.example\r\nX-Injected: attack";
@@ -744,8 +772,16 @@ if (function_exists('rbf_sanitize_input_fields')) {
             return false;
         }
         
-        $start_time = $booking_datetime->format('Ymd\THis\Z');
-        $end_time = $booking_datetime->add(new DateInterval('PT2H'))->format('Ymd\THis\Z'); // 2 hour duration
+        $start_datetime = clone $booking_datetime;
+        $end_datetime = clone $booking_datetime;
+        $end_datetime->add(new DateInterval('PT2H')); // 2 hour duration
+
+        $utc_timezone = new DateTimeZone('UTC');
+        $start_datetime->setTimezone($utc_timezone);
+        $end_datetime->setTimezone($utc_timezone);
+
+        $start_time = $start_datetime->format('Ymd\THis\Z');
+        $end_time = $end_datetime->format('Ymd\THis\Z');
         $created_time = gmdate('Ymd\THis\Z');
         
         $ics_content = "BEGIN:VCALENDAR\r\n";

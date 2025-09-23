@@ -1528,8 +1528,16 @@ function rbf_generate_ics_content($booking_data) {
         return false;
     }
     
-    $start_time = $booking_datetime->format('Ymd\THis\Z');
-    $end_time = $booking_datetime->add(new DateInterval('PT2H'))->format('Ymd\THis\Z'); // 2 hour duration
+    $start_datetime = clone $booking_datetime;
+    $end_datetime = clone $booking_datetime;
+    $end_datetime->add(new DateInterval('PT2H')); // 2 hour duration
+
+    $utc_timezone = new DateTimeZone('UTC');
+    $start_datetime->setTimezone($utc_timezone);
+    $end_datetime->setTimezone($utc_timezone);
+
+    $start_time = $start_datetime->format('Ymd\THis\Z');
+    $end_time = $end_datetime->format('Ymd\THis\Z');
     $created_time = gmdate('Ymd\THis\Z');
     
     $ics_content = "BEGIN:VCALENDAR\r\n";
