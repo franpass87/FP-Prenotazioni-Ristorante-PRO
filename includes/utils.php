@@ -787,7 +787,9 @@ function rbf_translate_string($text) {
         'Cena' => 'Dinner',
         'Brunch' => 'Brunch',
         'Il brunch è disponibile solo la domenica.' => 'Brunch is only available on Sundays.',
-        
+        'Prenotazione Ristorante - %s' => 'Reservation - %s',
+        'Prenotazione presso %s\nNome: %s %s\nPersone: %d\nPasto: %s\nNote: %s' => 'Reservation at %s\nName: %s %s\nGuests: %d\nMeal: %s\nNotes: %s',
+
         // New accessibility and UX strings
         'Progresso prenotazione' => 'Booking progress',
         'Dati personali' => 'Personal details',

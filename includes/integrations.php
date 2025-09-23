@@ -472,12 +472,44 @@ function rbf_generate_booking_ics($first_name, $last_name, $email, $date, $time,
         $slot_duration = null;
     }
 
+    $meal_name = $meal;
+    if (function_exists('rbf_get_meal_config')) {
+        $meal_config = rbf_get_meal_config($meal);
+        if (is_array($meal_config)) {
+            $configured_name = isset($meal_config['name']) ? (string) $meal_config['name'] : '';
+            if ($configured_name !== '') {
+                $meal_name = $configured_name;
+            }
+        }
+    }
+
+    if (!is_string($meal_name) || $meal_name === '') {
+        $meal_name = is_scalar($meal) ? (string) $meal : '';
+    }
+
+    $summary = sprintf(
+        rbf_translate_string('Prenotazione Ristorante - %s'),
+        $meal_name
+    );
+
+    $notes_text = is_scalar($notes) ? (string) $notes : '';
+
+    $description = sprintf(
+        rbf_translate_string("Prenotazione presso %s\\nNome: %s %s\\nPersone: %d\\nPasto: %s\\nNote: %s"),
+        (string) $restaurant_name,
+        is_scalar($first_name) ? (string) $first_name : '',
+        is_scalar($last_name) ? (string) $last_name : '',
+        (int) $people,
+        $meal_name,
+        $notes_text
+    );
+
     // Prepare booking data for ICS generation
     $booking_data = [
         'date' => $date,
         'time' => $time,
-        'summary' => "Prenotazione Ristorante - {$meal}",
-        'description' => "Prenotazione presso {$restaurant_name}\\nNome: {$first_name} {$last_name}\\nPersone: {$people}\\nNote: {$notes}",
+        'summary' => $summary,
+        'description' => $description,
         'location' => $restaurant_name,
         'meal_id' => $meal,
         'people' => $people,
