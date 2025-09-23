@@ -374,7 +374,10 @@ function rbf_is_restaurant_open_on_date($date) {
     $day_keys = ['sun','mon','tue','wed','thu','fri','sat'];
     $day_key = $day_keys[$day_of_week];
 
-    if (($options["open_{$day_key}"] ?? 'no') !== 'yes') {
+    $open_value = strtolower((string) ($options["open_{$day_key}"] ?? 'no'));
+    $truthy_open_values = ['yes', '1', 'true', 'on']; // Match frontend truthy handling for open days
+
+    if (!in_array($open_value, $truthy_open_values, true)) {
         return false;
     }
     
