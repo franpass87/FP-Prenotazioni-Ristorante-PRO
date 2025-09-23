@@ -114,37 +114,63 @@ function rbf_suggest_same_day_alternatives($date, $original_meal, $people, $meal
  */
 function rbf_suggest_nearby_dates($original_date, $meal, $people, $days_range = 3) {
     $suggestions = [];
-    $original_timestamp = strtotime($original_date);
-    
+    $tz = rbf_wp_timezone();
+    $original_date_obj = DateTimeImmutable::createFromFormat('!Y-m-d', $original_date, $tz);
+
+    if (!$original_date_obj) {
+        return $suggestions;
+    }
+
+    $today = (new DateTimeImmutable('now', $tz))->setTime(0, 0);
+
     // Check dates after the original date (prioritize future dates)
     for ($i = 1; $i <= $days_range; $i++) {
-        $check_date = date('Y-m-d', $original_timestamp + ($i * DAY_IN_SECONDS));
-        
-        $suggestion = rbf_check_date_availability($check_date, $meal, $people, $original_date);
+        $check_date_obj = $original_date_obj->add(new DateInterval("P{$i}D"));
+        $check_date = $check_date_obj->format('Y-m-d');
+
+        $suggestion = rbf_check_date_availability(
+            $check_date,
+            $meal,
+            $people,
+            $original_date,
+            $check_date_obj,
+            $original_date_obj
+        );
+
         if ($suggestion) {
             $suggestion['preference_score'] = 80 - ($i * 5); // Decrease score with distance
             $suggestions[] = $suggestion;
         }
     }
-    
+
     // Check dates before the original date (only if we need more suggestions)
     if (count($suggestions) < 2) {
         for ($i = 1; $i <= $days_range; $i++) {
-            $check_date = date('Y-m-d', $original_timestamp - ($i * DAY_IN_SECONDS));
-            
+            $check_date_obj = $original_date_obj->sub(new DateInterval("P{$i}D"));
+
             // Don't suggest dates in the past
-            if (strtotime($check_date) < strtotime(date('Y-m-d'))) {
+            if ($check_date_obj < $today) {
                 continue;
             }
-            
-            $suggestion = rbf_check_date_availability($check_date, $meal, $people, $original_date);
+
+            $check_date = $check_date_obj->format('Y-m-d');
+
+            $suggestion = rbf_check_date_availability(
+                $check_date,
+                $meal,
+                $people,
+                $original_date,
+                $check_date_obj,
+                $original_date_obj
+            );
+
             if ($suggestion) {
                 $suggestion['preference_score'] = 70 - ($i * 5); // Lower score for earlier dates
                 $suggestions[] = $suggestion;
             }
         }
     }
-    
+
     return $suggestions;
 }
 
@@ -159,12 +185,26 @@ function rbf_suggest_nearby_dates($original_date, $meal, $people, $days_range = 
  */
 function rbf_suggest_same_weekday($original_date, $meal, $people, $weeks_ahead = 2) {
     $suggestions = [];
-    $original_timestamp = strtotime($original_date);
-    
+    $tz = rbf_wp_timezone();
+    $original_date_obj = DateTimeImmutable::createFromFormat('!Y-m-d', $original_date, $tz);
+
+    if (!$original_date_obj) {
+        return $suggestions;
+    }
+
     for ($week = 1; $week <= $weeks_ahead; $week++) {
-        $check_date = date('Y-m-d', $original_timestamp + ($week * WEEK_IN_SECONDS));
-        
-        $suggestion = rbf_check_date_availability($check_date, $meal, $people, $original_date);
+        $check_date_obj = $original_date_obj->add(new DateInterval("P{$week}W"));
+        $check_date = $check_date_obj->format('Y-m-d');
+
+        $suggestion = rbf_check_date_availability(
+            $check_date,
+            $meal,
+            $people,
+            $original_date,
+            $check_date_obj,
+            $original_date_obj
+        );
+
         if ($suggestion) {
             $suggestion['reason'] = sprintf(
                 rbf_translate_string('Stesso giorno della settimana, %d settimana dopo'),
@@ -174,7 +214,7 @@ function rbf_suggest_same_weekday($original_date, $meal, $people, $weeks_ahead =
             $suggestions[] = $suggestion;
         }
     }
-    
+
     return $suggestions;
 }
 
@@ -187,7 +227,15 @@ function rbf_suggest_same_weekday($original_date, $meal, $people, $weeks_ahead =
  * @param string $original_date Original requested date for context
  * @return array|null Suggestion array or null if not available
  */
-function rbf_check_date_availability($date, $meal, $people, $original_date) {
+function rbf_check_date_availability($date, $meal, $people, $original_date, ?DateTimeImmutable $date_obj = null, ?DateTimeImmutable $original_date_obj = null) {
+    $tz = rbf_wp_timezone();
+    $date_obj = $date_obj ?? DateTimeImmutable::createFromFormat('!Y-m-d', $date, $tz);
+    $original_date_obj = $original_date_obj ?? DateTimeImmutable::createFromFormat('!Y-m-d', $original_date, $tz);
+
+    if (!$date_obj || !$original_date_obj) {
+        return null;
+    }
+
     // Check if restaurant is open on this date
     if (!rbf_is_restaurant_open_on_date($date)) {
         return null;
@@ -216,9 +264,10 @@ function rbf_check_date_availability($date, $meal, $people, $original_date) {
     $meal_config = rbf_get_meal_config($meal);
     
     // Calculate days difference for reason text
-    $days_diff = (strtotime($date) - strtotime($original_date)) / DAY_IN_SECONDS;
+    $diff_interval = $original_date_obj->diff($date_obj);
+    $days_diff = (int) $diff_interval->format('%r%a');
     $reason = '';
-    
+
     if ($days_diff == 1) {
         $reason = rbf_translate_string('Il giorno successivo');
     } elseif ($days_diff == -1) {
@@ -312,12 +361,19 @@ function rbf_check_time_slot_capacity($date, $meal, $time, $people) {
  */
 function rbf_is_restaurant_open_on_date($date) {
     $options = rbf_get_settings();
-    
-    // Check day of week
-    $day_of_week = date('w', strtotime($date));
+
+    // Check day of week using WordPress timezone
+    $tz = rbf_wp_timezone();
+    $date_obj = DateTimeImmutable::createFromFormat('!Y-m-d', $date, $tz);
+
+    if (!$date_obj) {
+        return false;
+    }
+
+    $day_of_week = (int) $date_obj->format('w');
     $day_keys = ['sun','mon','tue','wed','thu','fri','sat'];
     $day_key = $day_keys[$day_of_week];
-    
+
     if (($options["open_{$day_key}"] ?? 'no') !== 'yes') {
         return false;
     }
@@ -380,23 +436,29 @@ function rbf_compare_suggestion_preference($a, $b) {
  * @return string Formatted date
  */
 function rbf_format_date_display($date) {
-    $timestamp = strtotime($date);
+    $tz = rbf_wp_timezone();
+    $date_obj = DateTimeImmutable::createFromFormat('!Y-m-d', $date, $tz);
+
+    if (!$date_obj) {
+        return $date;
+    }
+
     $locale = rbf_current_lang();
-    
+
     if ($locale === 'it') {
         // Italian format: "Lunedì 15 Gennaio"
         $day_names = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
         $month_names = ['', 'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
                        'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
-        
-        $day_name = $day_names[date('w', $timestamp)];
-        $day = date('j', $timestamp);
-        $month_name = $month_names[date('n', $timestamp)];
-        
+
+        $day_name = $day_names[(int) $date_obj->format('w')];
+        $day = (int) $date_obj->format('j');
+        $month_name = $month_names[(int) $date_obj->format('n')];
+
         return "{$day_name} {$day} {$month_name}";
     } else {
         // English format: "Monday, January 15"
-        return date('l, F j', $timestamp);
+        return $date_obj->format('l, F j');
     }
 }
 
