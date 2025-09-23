@@ -1714,42 +1714,44 @@ function initializeBookingForm($) {
         }
       }
       
+      let isDateCurrentlyDisabled = false;
+
       // SIMPLE CHECK 1: General restaurant closed days
-      if (sanitizedClosedDays.length > 0) {
+      if (!isDateCurrentlyDisabled && sanitizedClosedDays.length > 0) {
         if (sanitizedClosedDays.includes(dayOfWeek)) {
           window.rbfDisabledCount++;
           if (rbfData.debug) rbfLog.log(`Date ${dateStr} disabled: restaurant closed on day ${dayOfWeek}`);
-          return true;
+          isDateCurrentlyDisabled = true;
         }
       }
-      
+
       // SIMPLE CHECK 2: Specific closed dates (with safety limits)
-      if (rbfData.closedSingles && Array.isArray(rbfData.closedSingles) && rbfData.closedSingles.length > 0) {
+      if (!isDateCurrentlyDisabled && rbfData.closedSingles && Array.isArray(rbfData.closedSingles) && rbfData.closedSingles.length > 0) {
         // SAFETY CHECK: Warn if too many individual dates are closed
         if (rbfData.closedSingles.length > 100) {
           rbfLog.warn(`WARNING: ${rbfData.closedSingles.length} individual dates are closed - this might be excessive`);
           rbfLog.warn('Consider using date ranges instead of individual dates for better performance');
         }
-        
+
         if (rbfData.closedSingles.includes(dateStr)) {
           window.rbfDisabledCount++;
           if (rbfData.debug) rbfLog.log(`Date ${dateStr} disabled: specific closure date`);
-          return true;
+          isDateCurrentlyDisabled = true;
         }
       }
-      
+
       // SIMPLE CHECK 3: Closed date ranges (with safety checks)
-      if (rbfData.closedRanges && Array.isArray(rbfData.closedRanges) && rbfData.closedRanges.length > 0) {
+      if (!isDateCurrentlyDisabled && rbfData.closedRanges && Array.isArray(rbfData.closedRanges) && rbfData.closedRanges.length > 0) {
         // SAFETY CHECK: Remove extremely long ranges that might disable everything
         const originalRanges = rbfData.closedRanges.length;
         rbfData.closedRanges = rbfData.closedRanges.filter(range => {
           if (!range || !range.from || !range.to) return false;
-          
+
           try {
             const fromDate = new Date(range.from);
             const toDate = new Date(range.to);
             const diffDays = Math.ceil((toDate - fromDate) / (1000 * 60 * 60 * 24));
-            
+
             // Remove ranges longer than 2 years (probably erroneous)
             if (diffDays > 730) {
               rbfLog.warn(`Removed extremely long closed range: ${range.from} to ${range.to} (${diffDays} days)`);
@@ -1761,33 +1763,117 @@ function initializeBookingForm($) {
             return false;
           }
         });
-        
+
         if (originalRanges !== rbfData.closedRanges.length) {
           rbfLog.warn(`Cleaned closedRanges: removed ${originalRanges - rbfData.closedRanges.length} problematic ranges`);
         }
-        
+
         for (let range of rbfData.closedRanges) {
           if (range && range.from && range.to) {
             if (dateStr >= range.from && dateStr <= range.to) {
               window.rbfDisabledCount++;
               if (rbfData.debug) rbfLog.log(`Date ${dateStr} disabled: within closed range ${range.from} to ${range.to}`);
-              return true;
+              isDateCurrentlyDisabled = true;
+              break;
             }
           }
         }
       }
       
-      // EMERGENCY CHECK: If too many dates are being disabled, switch to emergency mode
-      if (
-        !window.rbfEmergencyModeLocked &&
-        window.rbfTotalCount > 20 &&
-        (window.rbfDisabledCount / window.rbfTotalCount) > 0.8
-      ) {
-        rbfLog.error('Too many dates disabled, switching to emergency mode');
-        window.rbfEmergencyMode = true;
+      const disabledRatio = window.rbfTotalCount > 0
+        ? window.rbfDisabledCount / window.rbfTotalCount
+        : 0;
+
+      if (window.rbfEmergencyOverrideDetected === undefined) {
+        window.rbfEmergencyOverrideDetected = false;
+      }
+      if (window.rbfEmergencyOverrideConsentLogged === undefined) {
+        window.rbfEmergencyOverrideConsentLogged = false;
+      }
+      if (window.rbfEmergencyOverrideConsentMissingLogged === undefined) {
+        window.rbfEmergencyOverrideConsentMissingLogged = false;
       }
 
-      // EMERGENCY MODE: Allow all dates if we're in emergency mode
+      const emergencyThresholdReached =
+        !window.rbfEmergencyModeLocked &&
+        window.rbfTotalCount > 20 &&
+        disabledRatio > 0.8;
+
+      if (emergencyThresholdReached) {
+        if (!window.rbfEmergencyOverrideDetected) {
+          rbfLog.error('Safety check: more than 80% of evaluated dates are closed.');
+          rbfLog.warn('Emergency override requires explicit consent (set rbfData.forceEmergencyOverride = true) before unlocking dates.');
+        }
+
+        showAdminConfigurationBanner(
+          "Più dell'80% delle date risulta <strong>chiuso</strong>. Verifica le impostazioni di apertura o abilita temporaneamente la modalità di emergenza impostando <code>forceEmergencyOverride</code> su <strong>true</strong> in rbfData.",
+          { key: 'calendar_high_disabled_ratio' }
+        );
+
+        window.rbfEmergencyOverrideDetected = true;
+      } else if (window.rbfEmergencyOverrideDetected) {
+        if (rbfData.debug) {
+          rbfLog.log('Emergency override detection reset: disabled ratio back under threshold');
+        }
+        window.rbfEmergencyOverrideDetected = false;
+        window.rbfEmergencyOverrideConsentLogged = false;
+        window.rbfEmergencyOverrideConsentMissingLogged = false;
+      }
+
+      const manualOverrideActive = window.rbfForceEmergencyMode === true || window.rbfEmergencyMode === true;
+      const configOverrideConsent = !!(rbfData && rbfData.forceEmergencyOverride === true);
+
+      const shouldApplyEmergencyOverride =
+        !window.rbfEmergencyModeLocked &&
+        (manualOverrideActive ||
+          (window.rbfEmergencyOverrideDetected && configOverrideConsent));
+
+      if (shouldApplyEmergencyOverride) {
+        if (!window.rbfEmergencyMode) {
+          window.rbfEmergencyMode = true;
+        }
+
+        if (
+          window.rbfEmergencyOverrideDetected &&
+          configOverrideConsent &&
+          !window.rbfEmergencyOverrideConsentLogged
+        ) {
+          rbfLog.warn('Emergency override activated with explicit consent (forceEmergencyOverride = true).');
+          window.rbfEmergencyOverrideConsentLogged = true;
+          window.rbfEmergencyOverrideConsentMissingLogged = false;
+        } else if (
+          manualOverrideActive &&
+          !window.rbfEmergencyOverrideConsentLogged
+        ) {
+          if (window.rbfForceEmergencyMode === true) {
+            rbfLog.warn('Emergency override manually forced via window.rbfForceEmergencyMode.');
+          } else {
+            rbfLog.warn('Emergency override manually activated via window.rbfEmergencyMode.');
+          }
+          window.rbfEmergencyOverrideConsentLogged = true;
+          window.rbfEmergencyOverrideConsentMissingLogged = false;
+        }
+      } else {
+        if (window.rbfEmergencyMode && !window.rbfEmergencyModeLocked) {
+          window.rbfEmergencyMode = false;
+        }
+
+        if (
+          window.rbfEmergencyOverrideDetected &&
+          !configOverrideConsent &&
+          !manualOverrideActive &&
+          !window.rbfEmergencyOverrideConsentMissingLogged
+        ) {
+          rbfLog.warn('Emergency override not activated: waiting for explicit consent (set rbfData.forceEmergencyOverride = true or use console override).');
+          window.rbfEmergencyOverrideConsentMissingLogged = true;
+        }
+
+        if (!manualOverrideActive && !configOverrideConsent) {
+          window.rbfEmergencyOverrideConsentLogged = false;
+        }
+      }
+
+      // EMERGENCY MODE: Allow all dates only when explicitly activated
       if (window.rbfEmergencyMode) {
         if (!window.rbfEmergencyModeLocked) {
           if (rbfData.debug) rbfLog.log(`Date ${dateStr} allowed: EMERGENCY MODE ACTIVE`);
@@ -1798,18 +1884,19 @@ function initializeBookingForm($) {
       }
       
       // SIMPLE CHECK 4: Special exceptions (only closure and holiday)
-      if (rbfData.exceptions && Array.isArray(rbfData.exceptions) && rbfData.exceptions.length > 0) {
+      if (!isDateCurrentlyDisabled && rbfData.exceptions && Array.isArray(rbfData.exceptions) && rbfData.exceptions.length > 0) {
         for (let exception of rbfData.exceptions) {
           if (exception && exception.date === dateStr) {
             if (exception.type === 'closure' || exception.type === 'holiday') {
               window.rbfDisabledCount++;
               if (rbfData.debug) rbfLog.log(`Date ${dateStr} disabled: ${exception.type} exception`);
-              return true;
+              isDateCurrentlyDisabled = true;
+              break;
             }
           }
         }
       }
-      
+
       // MEAL AVAILABILITY CHECK: ensure selected meal operates on this day
       const selectedMeal = el.mealRadios && el.mealRadios.length
         ? el.mealRadios.filter(':checked').val()
@@ -1817,11 +1904,10 @@ function initializeBookingForm($) {
       const daySlug = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][dayOfWeek];
 
       if (!selectedMeal) {
-        if (rbfData.debug) {
+        if (!isDateCurrentlyDisabled && rbfData.debug) {
           rbfLog.log(`Date ${dateStr} allowed: no meal selected, skipping meal availability check`);
         }
-        return false;
-      } else {
+      } else if (!isDateCurrentlyDisabled) {
         const mealAvailability = rbfData.mealAvailability && rbfData.mealAvailability[selectedMeal];
 
         if (!mealAvailability || !Array.isArray(mealAvailability)) {
@@ -1829,21 +1915,21 @@ function initializeBookingForm($) {
           if (rbfData.debug) {
             rbfLog.log(`Date ${dateStr} disabled: meal ${selectedMeal} has no availability configuration`);
           }
-          return true;
-        }
-
-        if (daySlug && !mealAvailability.includes(daySlug)) {
+          isDateCurrentlyDisabled = true;
+        } else if (daySlug && !mealAvailability.includes(daySlug)) {
           window.rbfDisabledCount++;
           if (rbfData.debug) {
             rbfLog.log(`Date ${dateStr} disabled: meal ${selectedMeal} not available on ${daySlug}`);
           }
-          return true;
+          isDateCurrentlyDisabled = true;
         }
       }
 
-      // DEFAULT: Allow the date
-      if (rbfData.debug) rbfLog.log(`Date ${dateStr} allowed: no restrictions apply`);
-      return false;
+      // DEFAULT: Allow the date unless restrictions apply
+      if (!isDateCurrentlyDisabled && rbfData.debug) {
+        rbfLog.log(`Date ${dateStr} allowed: no restrictions apply`);
+      }
+      return isDateCurrentlyDisabled;
 
     } catch (error) {
       rbfLog.error('Error in isDateDisabled: ' + error.message);

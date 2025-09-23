@@ -30,6 +30,10 @@ function resetState() {
   globalThis.rbfEmergencyModeLocked = false;
   globalThis.rbfEmergencySuppressedLogged = false;
   globalThis.rbfAllDaysClosedLogged = false;
+  globalThis.rbfForceEmergencyMode = false;
+  globalThis.rbfEmergencyOverrideDetected = false;
+  globalThis.rbfEmergencyOverrideConsentLogged = false;
+  globalThis.rbfEmergencyOverrideConsentMissingLogged = false;
   adminBannerMessages.length = 0;
   adminBannerKeys.clear();
 }
@@ -60,6 +64,18 @@ function isDateDisabled(date, data) {
     }
     if (globalThis.rbfAllDaysClosedLogged === undefined) {
       globalThis.rbfAllDaysClosedLogged = false;
+    }
+    if (globalThis.rbfForceEmergencyMode === undefined) {
+      globalThis.rbfForceEmergencyMode = false;
+    }
+    if (globalThis.rbfEmergencyOverrideDetected === undefined) {
+      globalThis.rbfEmergencyOverrideDetected = false;
+    }
+    if (globalThis.rbfEmergencyOverrideConsentLogged === undefined) {
+      globalThis.rbfEmergencyOverrideConsentLogged = false;
+    }
+    if (globalThis.rbfEmergencyOverrideConsentMissingLogged === undefined) {
+      globalThis.rbfEmergencyOverrideConsentMissingLogged = false;
     }
 
     globalThis.rbfTotalCount++;
@@ -111,17 +127,19 @@ function isDateDisabled(date, data) {
       }
     }
 
-    if (closedDays.includes(dayOfWeek)) {
+    let isDateCurrentlyDisabled = false;
+
+    if (!isDateCurrentlyDisabled && closedDays.includes(dayOfWeek)) {
       globalThis.rbfDisabledCount++;
-      return true;
+      isDateCurrentlyDisabled = true;
     }
 
-    if (Array.isArray(data.closedSingles) && data.closedSingles.includes(dateStr)) {
+    if (!isDateCurrentlyDisabled && Array.isArray(data.closedSingles) && data.closedSingles.includes(dateStr)) {
       globalThis.rbfDisabledCount++;
-      return true;
+      isDateCurrentlyDisabled = true;
     }
 
-    if (Array.isArray(data.closedRanges) && data.closedRanges.length > 0) {
+    if (!isDateCurrentlyDisabled && Array.isArray(data.closedRanges) && data.closedRanges.length > 0) {
       data.closedRanges = data.closedRanges.filter(range => {
         if (!range || !range.from || !range.to) return false;
 
@@ -145,26 +163,99 @@ function isDateDisabled(date, data) {
         if (range && range.from && range.to) {
           if (dateStr >= range.from && dateStr <= range.to) {
             globalThis.rbfDisabledCount++;
-            return true;
+            isDateCurrentlyDisabled = true;
+            break;
           }
         }
       }
     }
 
-    if (
+    const disabledRatio = globalThis.rbfTotalCount > 0
+      ? globalThis.rbfDisabledCount / globalThis.rbfTotalCount
+      : 0;
+
+    const emergencyThresholdReached =
       !globalThis.rbfEmergencyModeLocked &&
       globalThis.rbfTotalCount > 20 &&
-      (globalThis.rbfDisabledCount / globalThis.rbfTotalCount) > 0.8
-    ) {
-      rbfLog.error('Too many dates disabled, switching to emergency mode');
-      globalThis.rbfEmergencyMode = true;
+      disabledRatio > 0.8;
+
+    if (emergencyThresholdReached) {
+      if (!globalThis.rbfEmergencyOverrideDetected) {
+        rbfLog.error('Safety check: more than 80% of evaluated dates are closed.');
+        rbfLog.warn('Emergency override requires explicit consent (set forceEmergencyOverride = true) before unlocking dates.');
+      }
+
+      showAdminConfigurationBanner(
+        "Più dell'80% delle date risulta <strong>chiuso</strong>. Verifica le impostazioni di apertura o abilita temporaneamente la modalità di emergenza impostando <code>forceEmergencyOverride</code> su <strong>true</strong> in rbfData.",
+        { key: 'calendar_high_disabled_ratio' }
+      );
+
+      globalThis.rbfEmergencyOverrideDetected = true;
+    } else if (globalThis.rbfEmergencyOverrideDetected) {
+      rbfLog.log('Emergency override detection reset: disabled ratio back under threshold');
+      globalThis.rbfEmergencyOverrideDetected = false;
+      globalThis.rbfEmergencyOverrideConsentLogged = false;
+      globalThis.rbfEmergencyOverrideConsentMissingLogged = false;
+    }
+
+    const manualOverrideActive = globalThis.rbfForceEmergencyMode === true || globalThis.rbfEmergencyMode === true;
+    const configOverrideConsent = !!(data && data.forceEmergencyOverride === true);
+
+    const shouldApplyEmergencyOverride =
+      !globalThis.rbfEmergencyModeLocked &&
+      (manualOverrideActive ||
+        (globalThis.rbfEmergencyOverrideDetected && configOverrideConsent));
+
+    if (shouldApplyEmergencyOverride) {
+      if (!globalThis.rbfEmergencyMode) {
+        globalThis.rbfEmergencyMode = true;
+      }
+
+      if (
+        globalThis.rbfEmergencyOverrideDetected &&
+        configOverrideConsent &&
+        !globalThis.rbfEmergencyOverrideConsentLogged
+      ) {
+        rbfLog.warn('Emergency override activated with explicit consent (forceEmergencyOverride = true).');
+        globalThis.rbfEmergencyOverrideConsentLogged = true;
+        globalThis.rbfEmergencyOverrideConsentMissingLogged = false;
+      } else if (
+        manualOverrideActive &&
+        !globalThis.rbfEmergencyOverrideConsentLogged
+      ) {
+        if (globalThis.rbfForceEmergencyMode === true) {
+          rbfLog.warn('Emergency override manually forced via rbfForceEmergencyMode.');
+        } else {
+          rbfLog.warn('Emergency override manually activated via rbfEmergencyMode.');
+        }
+        globalThis.rbfEmergencyOverrideConsentLogged = true;
+        globalThis.rbfEmergencyOverrideConsentMissingLogged = false;
+      }
+    } else {
+      if (globalThis.rbfEmergencyMode && !globalThis.rbfEmergencyModeLocked) {
+        globalThis.rbfEmergencyMode = false;
+      }
+
+      if (
+        globalThis.rbfEmergencyOverrideDetected &&
+        !configOverrideConsent &&
+        !manualOverrideActive &&
+        !globalThis.rbfEmergencyOverrideConsentMissingLogged
+      ) {
+        rbfLog.warn('Emergency override not activated: waiting for explicit consent (set forceEmergencyOverride = true or use manual override).');
+        globalThis.rbfEmergencyOverrideConsentMissingLogged = true;
+      }
+
+      if (!manualOverrideActive && !configOverrideConsent) {
+        globalThis.rbfEmergencyOverrideConsentLogged = false;
+      }
     }
 
     if (globalThis.rbfEmergencyMode && !globalThis.rbfEmergencyModeLocked) {
       return false;
     }
 
-    return false;
+    return isDateCurrentlyDisabled;
   } catch (error) {
     rbfLog.error('Error in isDateDisabled: ' + error.message);
     return false;
@@ -233,6 +324,68 @@ console.log('  All dates disabled:', allDisabled ? '✅' : '❌');
 console.log('  Admin banner shown:', bannerShown ? '✅' : '❌');
 
 if (!configUnchanged || !allDisabled || !bannerShown) {
+  allPassed = false;
+}
+
+console.log('\nTesting: High closure ratio without consent (only Sunday open)');
+resetState();
+const limitedOpenConfig = {
+  closedDays: [1, 2, 3, 4, 5, 6],
+  closedSingles: [],
+  closedRanges: []
+};
+
+const sampleMonth = Array.from({ length: 31 }, (_, index) => new Date(2024, 0, index + 1));
+let mondayDisabled = false;
+let sundayDisabled = false;
+
+sampleMonth.forEach(date => {
+  const disabled = isDateDisabled(date, limitedOpenConfig);
+  if (date.getDay() === 1 && disabled) {
+    mondayDisabled = true;
+  }
+  if (date.getDay() === 0 && disabled) {
+    sundayDisabled = true;
+  }
+});
+
+const overrideStayedOff = globalThis.rbfEmergencyMode === false;
+console.log('  Monday remains disabled:', mondayDisabled ? '✅' : '❌');
+console.log('  Sunday remains enabled:', sundayDisabled ? '❌' : '✅');
+console.log('  Emergency override inactive:', overrideStayedOff ? '✅' : '❌');
+
+if (!mondayDisabled || sundayDisabled || !overrideStayedOff) {
+  allPassed = false;
+}
+
+console.log('\nTesting: High closure ratio with explicit consent');
+resetState();
+const consentConfig = {
+  closedDays: [1, 2, 3, 4, 5, 6],
+  closedSingles: [],
+  closedRanges: [],
+  forceEmergencyOverride: true
+};
+
+let mondayAllowed = false;
+let sundayAllowed = false;
+
+sampleMonth.forEach(date => {
+  const disabled = isDateDisabled(date, consentConfig);
+  if (date.getDay() === 1 && !disabled) {
+    mondayAllowed = true;
+  }
+  if (date.getDay() === 0 && !disabled) {
+    sundayAllowed = true;
+  }
+});
+
+const overrideActivated = globalThis.rbfEmergencyMode === true;
+console.log('  Monday opened with override:', mondayAllowed ? '✅' : '❌');
+console.log('  Sunday still available:', sundayAllowed ? '✅' : '❌');
+console.log('  Emergency override active:', overrideActivated ? '✅' : '❌');
+
+if (!mondayAllowed || !sundayAllowed || !overrideActivated) {
   allPassed = false;
 }
 
