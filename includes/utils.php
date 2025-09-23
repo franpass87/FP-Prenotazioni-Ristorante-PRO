@@ -2700,7 +2700,12 @@ function rbf_check_slot_availability($date, $meal, $time, $people, $booking_id =
     // Calculate overbooking allowance
     $overbooking_limit = intval($meal_config['overbooking_limit'] ?? 0);
     $overbooking_spots = round($meal_capacity * ($overbooking_limit / 100));
-    $effective_capacity = $meal_capacity + $overbooking_spots;
+    $effective_capacity = (int) ($meal_capacity + $overbooking_spots);
+
+    if ($effective_capacity <= 0) {
+        // Unlimited or undefined capacity should always be considered available
+        return true;
+    }
 
     // Check if there's enough capacity
     $remaining_capacity = $effective_capacity - $current_bookings;

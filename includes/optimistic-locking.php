@@ -147,29 +147,33 @@ function rbf_book_slot_optimistic($date, $slot_id, $people, $max_retries = 3) {
             ];
         }
         
-        $current_version = $slot_version['version_number'];
-        $total_capacity = $slot_version['total_capacity'];
-        $current_booked = $slot_version['booked_capacity'];
-        
-        // Check if enough capacity is available
-        $remaining_capacity = $total_capacity - $current_booked;
-        if ($remaining_capacity < $people) {
-            return [
-                'success' => false,
-                'error' => 'insufficient_capacity',
-                'message' => sprintf(
-                    'Not enough spots available. Requested: %d, Available: %d',
-                    $people, $remaining_capacity
-                ),
-                'remaining' => $remaining_capacity,
-                'attempt' => $attempt
-            ];
+        $current_version = (int) $slot_version['version_number'];
+        $total_capacity = (int) $slot_version['total_capacity'];
+        $current_booked = (int) $slot_version['booked_capacity'];
+
+        $has_finite_capacity = $total_capacity > 0;
+
+        if ($has_finite_capacity) {
+            // Check if enough capacity is available only when capacity is finite
+            $remaining_capacity = $total_capacity - $current_booked;
+            if ($remaining_capacity < $people) {
+                return [
+                    'success' => false,
+                    'error' => 'insufficient_capacity',
+                    'message' => sprintf(
+                        'Not enough spots available. Requested: %d, Available: %d',
+                        $people, $remaining_capacity
+                    ),
+                    'remaining' => $remaining_capacity,
+                    'attempt' => $attempt
+                ];
+            }
         }
-        
+
         // Attempt to update with version check (optimistic locking)
         $new_booked = $current_booked + $people;
         $new_version = $current_version + 1;
-        
+
         $updated = $wpdb->update(
             $table_name,
             [
@@ -187,13 +191,17 @@ function rbf_book_slot_optimistic($date, $slot_id, $people, $max_retries = 3) {
         
         // Check if update was successful (version matched)
         if ($updated === 1) {
+            $remaining_after_update = $has_finite_capacity
+                ? max(0, $total_capacity - $new_booked)
+                : null;
+
             // Success! The version matched and we got the lock
             return [
                 'success' => true,
                 'version' => $new_version,
                 'previous_version' => $current_version,
                 'new_booked_capacity' => $new_booked,
-                'remaining_capacity' => $total_capacity - $new_booked,
+                'remaining_capacity' => $remaining_after_update,
                 'attempt' => $attempt
             ];
         }
