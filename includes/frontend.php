@@ -1273,18 +1273,20 @@ function rbf_ajax_get_calendar_availability() {
         return;
     }
     
-    // Validate date format
-    if (!DateTime::createFromFormat('Y-m-d', $start_date) || !DateTime::createFromFormat('Y-m-d', $end_date)) {
+    $timezone = rbf_wp_timezone();
+    $start_date_obj = DateTimeImmutable::createFromFormat('!Y-m-d', $start_date, $timezone);
+    $end_date_obj = DateTimeImmutable::createFromFormat('!Y-m-d', $end_date, $timezone);
+    $current_date = DateTimeImmutable::createFromFormat('!Y-m-d', $start_date, $timezone);
+
+    if (!$start_date_obj || !$end_date_obj || !$current_date) {
         wp_send_json_error([
             'message' => rbf_translate_string('Formato data non valido'),
             'code' => 'invalid_date_format'
         ]);
         return;
     }
-    
+
     // Check for reasonable date range (max 3 months)
-    $start_date_obj = new DateTime($start_date);
-    $end_date_obj = new DateTime($end_date);
     $date_diff = $start_date_obj->diff($end_date_obj);
     
     if ($date_diff->days > 90) {
@@ -1308,18 +1310,16 @@ function rbf_ajax_get_calendar_availability() {
     
     try {
         // Generate availability data for each date in the range
-        $current_date = new DateTime($start_date);
-        
         while ($current_date <= $end_date_obj) {
             $date_str = $current_date->format('Y-m-d');
-            
+
             // Check if meal is available on this day
             if (rbf_is_meal_available_on_day($meal, $date_str)) {
                 $availability_status = rbf_get_availability_status($date_str, $meal);
                 $availability_data[$date_str] = $availability_status;
             }
-            
-            $current_date->modify('+1 day');
+
+            $current_date = $current_date->modify('+1 day');
         }
         
         // Cache results for 10 minutes
@@ -1374,8 +1374,9 @@ function rbf_ajax_get_availability() {
         return;
     }
     
-    // Validate date format
-    $date_obj = DateTime::createFromFormat('Y-m-d', $date);
+    $timezone = rbf_wp_timezone();
+    // Validate date format with WordPress timezone context
+    $date_obj = DateTimeImmutable::createFromFormat('!Y-m-d', $date, $timezone);
     if (!$date_obj) {
         wp_send_json_error([
             'message' => rbf_translate_string('Formato data non valido'),
@@ -1383,11 +1384,10 @@ function rbf_ajax_get_availability() {
         ]);
         return;
     }
-    
+
     // Check if date is not in the past
-    $today = new DateTime('now', rbf_wp_timezone());
-    $today->setTime(0, 0, 0);
-    
+    $today = (new DateTimeImmutable('now', $timezone))->setTime(0, 0, 0);
+
     if ($date_obj < $today) {
         wp_send_json_error([
             'message' => rbf_translate_string('Non è possibile prenotare per date passate'),
