@@ -2110,6 +2110,7 @@ function rbf_get_availability_status($date, $meal_id) {
     $occupancy = rbf_calculate_occupancy_percentage($date, $meal_id);
     $total_capacity = rbf_get_effective_capacity($meal_id);
     $remaining = rbf_get_remaining_capacity($date, $meal_id);
+    $has_finite_capacity = $total_capacity > 0;
     
     // Define thresholds
     $level = 'available';  // green
@@ -2119,11 +2120,14 @@ function rbf_get_availability_status($date, $meal_id) {
         $level = 'limited';  // yellow
     }
     
+    $remaining_for_output = $has_finite_capacity ? (int) $remaining : null;
+    $total_for_output = $has_finite_capacity ? (int) $total_capacity : null;
+
     return [
         'level' => $level,
         'occupancy' => round($occupancy, 1),
-        'remaining' => $remaining,
-        'total' => $total_capacity
+        'remaining' => $remaining_for_output,
+        'total' => $total_for_output
     ];
 }
 
