@@ -115,6 +115,7 @@ function rbf_enqueue_frontend_assets() {
     }
 
     $people_max = rbf_get_people_max_limit($options);
+    $has_people_limit = ($people_max > 0 && $people_max < PHP_INT_MAX);
 
     wp_localize_script('rbf-frontend-js', 'rbfData', [
         'ajaxUrl' => admin_url('admin-ajax.php'),
@@ -131,11 +132,12 @@ function rbf_enqueue_frontend_assets() {
         'minAdvanceMinutes' => max(0, absint($options['min_advance_minutes'] ?? 0)),
         'maxAdvanceMinutes' => max(0, absint($options['max_advance_minutes'] ?? $default_settings['max_advance_minutes'])),
         'peopleMax' => $people_max,
-        
+        'peopleMaxIsUnlimited' => !$has_people_limit,
+
         // RENEWED: Enhanced meal data validation
         'mealTooltips' => rbf_ensure_array($meal_tooltips),
         'mealAvailability' => rbf_ensure_meal_availability($meal_availability),
-        
+
         'labels' => [
             'loading' => rbf_translate_string('Caricamento...'),
             'chooseTime' => rbf_translate_string('Scegli un orario...'),
@@ -152,7 +154,9 @@ function rbf_enqueue_frontend_assets() {
             'dateInPast' => rbf_translate_string('La data selezionata non può essere nel passato.'),
             'timeRequired' => rbf_translate_string('Seleziona un orario per continuare.'),
             'peopleMinimum' => rbf_translate_string('Il numero di persone deve essere almeno 1.'),
-            'peopleMaximum' => sprintf(rbf_translate_string('Il numero di persone non può superare %d.'), $people_max),
+            'peopleMaximum' => $has_people_limit
+                ? sprintf(rbf_translate_string('Il numero di persone non può superare %d.'), $people_max)
+                : '',
             'nameRequired' => rbf_translate_string('Il nome deve contenere almeno 2 caratteri.'),
             'nameInvalid' => rbf_translate_string('Il nome può contenere solo lettere, spazi, apostrofi e trattini.'),
             'surnameRequired' => rbf_translate_string('Il cognome deve contenere almeno 2 caratteri.'),
