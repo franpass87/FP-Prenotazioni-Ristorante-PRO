@@ -432,9 +432,29 @@ function rbf_render_customer_booking_management() {
         <?php
         // Show appropriate actions based on status and date
         $tz = rbf_wp_timezone();
-        $booking_date = DateTime::createFromFormat('Y-m-d', $date, $tz);
-        $today = new DateTime('now', $tz);
-        $can_cancel = in_array($status, ['confirmed']) && $booking_date > $today;
+        $booking_datetime = null;
+        if (!empty($date)) {
+            $time_for_datetime = $time;
+            if (!is_string($time_for_datetime)) {
+                $time_for_datetime = (string) $time_for_datetime;
+            }
+            $time_for_datetime = trim($time_for_datetime);
+            if ($time_for_datetime === '') {
+                $time_for_datetime = '00:00';
+            }
+
+            $datetime_string = trim($date . ' ' . $time_for_datetime);
+            $booking_datetime = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $datetime_string, $tz);
+            if (!$booking_datetime) {
+                $booking_datetime = DateTimeImmutable::createFromFormat('Y-m-d H:i', $datetime_string, $tz);
+            }
+            if (!$booking_datetime) {
+                $booking_datetime = DateTimeImmutable::createFromFormat('Y-m-d', $date, $tz);
+            }
+        }
+
+        $now = new DateTimeImmutable('now', $tz);
+        $can_cancel = in_array($status, ['confirmed']) && $booking_datetime instanceof DateTimeImmutable && $booking_datetime > $now;
         
         if ($can_cancel) : ?>
             <div class="rbf-booking-actions" style="background: #fff3cd; padding: 15px; border-radius: 8px; border: 1px solid #ffeaa7;">
@@ -466,7 +486,7 @@ function rbf_render_customer_booking_management() {
                     <?php echo esc_html(rbf_translate_string('Grazie per aver scelto il nostro ristorante! Speriamo di rivederti presto.')); ?>
                 </p>
             </div>
-        <?php elseif ($booking_date <= $today) : ?>
+        <?php elseif ($booking_datetime instanceof DateTimeImmutable && $booking_datetime <= $now) : ?>
             <div class="rbf-booking-info" style="background: #f3f4f6; padding: 15px; border-radius: 8px; border: 1px solid #d1d5db; color: #374151;">
                 <p style="margin: 0;">
                     <strong><?php echo esc_html(rbf_translate_string('Prenotazione Passata')); ?></strong><br>
