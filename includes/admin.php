@@ -121,13 +121,56 @@ function rbf_custom_column_data($column, $post_id) {
             
         case 'rbf_meal':
             $meal = get_post_meta($post_id, 'rbf_meal', true) ?: get_post_meta($post_id, 'rbf_orario', true); // Fallback for backward compatibility
-            $meals = [
-                'pranzo' => rbf_translate_string('Pranzo'),
-                'cena' => rbf_translate_string('Cena'), 
-                'aperitivo' => rbf_translate_string('Aperitivo'),
-                'brunch' => rbf_translate_string('Brunch')
-            ];
-            echo esc_html($meals[$meal] ?? $meal);
+            $display_name = $meal;
+
+            if (!empty($meal)) {
+                $normalizer = function($value) {
+                    if (!is_scalar($value)) {
+                        return '';
+                    }
+
+                    $value = (string) $value;
+
+                    if (function_exists('sanitize_key')) {
+                        return sanitize_key($value);
+                    }
+
+                    $value = strtolower($value);
+                    return preg_replace('/[^a-z0-9_-]/', '', $value);
+                };
+
+                $normalized_meal = $normalizer($meal);
+                $meal_config = rbf_get_meal_config($meal);
+
+                if (!$meal_config && $normalized_meal !== $meal) {
+                    $meal_config = rbf_get_meal_config($normalized_meal);
+                }
+
+                if (!$meal_config) {
+                    $active_meals = rbf_get_active_meals();
+                    foreach ($active_meals as $candidate) {
+                        if (empty($candidate['legacy_ids'])) {
+                            continue;
+                        }
+
+                        $legacy_ids = (array) $candidate['legacy_ids'];
+                        $normalized_legacy = array_map($normalizer, $legacy_ids);
+
+                        if (in_array($meal, $legacy_ids, true) || in_array($normalized_meal, $normalized_legacy, true)) {
+                            $meal_config = $candidate;
+                            break;
+                        }
+                    }
+                }
+
+                if ($meal_config && !empty($meal_config['name'])) {
+                    $display_name = $meal_config['name'];
+                }
+            }
+
+            if (!empty($display_name)) {
+                echo esc_html($display_name);
+            }
             break;
             
         case 'rbf_people':
