@@ -339,11 +339,19 @@ function rbf_render_customer_booking_management() {
     $tel = get_post_meta($booking_id, 'rbf_tel', true);
     $date = get_post_meta($booking_id, 'rbf_data', true);
     $time = get_post_meta($booking_id, 'rbf_time', true);
+    if ($time === '' || $time === null) {
+        $time = get_post_meta($booking_id, 'rbf_orario', true);
+    }
+    if (is_string($time)) {
+        $time = trim($time);
+    }
     $people = get_post_meta($booking_id, 'rbf_persone', true);
     $meal = get_post_meta($booking_id, 'rbf_meal', true) ?: get_post_meta($booking_id, 'rbf_orario', true);
     $notes = get_post_meta($booking_id, 'rbf_allergie', true);
     $status = get_post_meta($booking_id, 'rbf_booking_status', true) ?: 'pending';
     $created = get_post_meta($booking_id, 'rbf_booking_created', true);
+
+    $time_display = ($time !== '' && $time !== null) ? $time : rbf_translate_string('Orario non disponibile');
     
     $statuses = rbf_get_booking_statuses();
     $status_label = $statuses[$status] ?? $status;
@@ -393,7 +401,7 @@ function rbf_render_customer_booking_management() {
                 <div>
                     <h4 style="margin: 0 0 15px 0; color: #374151;"><?php echo esc_html(rbf_translate_string('Dettagli Prenotazione')); ?></h4>
                     <p style="margin: 5px 0;"><strong><?php echo esc_html(rbf_translate_string('Data')); ?>:</strong> <?php echo esc_html($formatted_date); ?></p>
-                    <p style="margin: 5px 0;"><strong><?php echo esc_html(rbf_translate_string('Orario')); ?>:</strong> <?php echo esc_html($time); ?></p>
+                    <p style="margin: 5px 0;"><strong><?php echo esc_html(rbf_translate_string('Orario')); ?>:</strong> <?php echo esc_html($time_display); ?></p>
                     <p style="margin: 5px 0;"><strong><?php echo esc_html(rbf_translate_string('Servizio')); ?>:</strong> <?php echo esc_html($meal_label); ?></p>
                     <p style="margin: 5px 0;"><strong><?php echo esc_html(rbf_translate_string('Persone')); ?>:</strong> <?php echo esc_html($people); ?></p>
                 </div>

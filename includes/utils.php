@@ -615,6 +615,7 @@ function rbf_translate_string($text) {
         'Data non valida.' => 'Invalid date.',
         'Indirizzo email non valido.' => 'Invalid email address.',
         'Orario non valido.' => 'Invalid time.',
+        'Orario non disponibile' => 'Time unavailable',
         'Formato orario non valido.' => 'Invalid time format.',
         'Spiacenti, non ci sono abbastanza posti. Rimasti: %d' => 'Sorry, there are not enough seats available. Remaining: %d',
         'Errore nel salvataggio.' => 'Error while saving.',
