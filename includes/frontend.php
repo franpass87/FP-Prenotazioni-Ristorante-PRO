@@ -509,6 +509,12 @@ function rbf_render_booking_form($atts = []) {
         $special_label = $special_labels[$special_type];
     }
 
+    $options = rbf_get_settings();
+    $privacy_policy_url = trim($options['privacy_policy_url'] ?? '');
+    if ($privacy_policy_url === '' && function_exists('get_privacy_policy_url')) {
+        $privacy_policy_url = get_privacy_policy_url();
+    }
+
     $phone_prefixes = rbf_get_phone_prefixes();
     $default_phone_prefix = rbf_get_default_phone_prefix();
 
@@ -756,10 +762,21 @@ function rbf_render_booking_form($atts = []) {
                             <div class="rbf-field-wrapper">
                                 <label>
                                     <input type="checkbox" id="rbf-privacy" name="rbf_privacy" value="yes" required disabled aria-required="true">
-                                    <span><?php echo sprintf(
-                                        rbf_translate_string('Acconsento al trattamento dei dati secondo l\'<a href="%s" target="_blank" rel="noopener">Informativa sulla Privacy</a> <span class="rbf-required-indicator">*</span>'),
-                                        'https://www.villadianella.it/privacy-statement-eu'
-                                    ); ?></span>
+                                    <span>
+                                        <?php
+                                        $privacy_policy_text = '';
+                                        if (!empty($privacy_policy_url)) {
+                                            $privacy_policy_text = sprintf(
+                                                rbf_translate_string('Acconsento al trattamento dei dati secondo l\'<a href="%s" target="_blank" rel="noopener">Informativa sulla Privacy</a>'),
+                                                esc_url($privacy_policy_url)
+                                            );
+                                        } else {
+                                            $privacy_policy_text = rbf_translate_string('Acconsento al trattamento dei dati secondo l\'Informativa sulla Privacy');
+                                        }
+                                        echo wp_kses_post($privacy_policy_text);
+                                        ?>
+                                        <span class="rbf-required-indicator">*</span>
+                                    </span>
                                 </label>
                                 <div id="rbf-privacy-error" class="rbf-field-error"></div>
                             </div>
@@ -794,7 +811,6 @@ function rbf_render_booking_form($atts = []) {
         
         <?php
         // Add reCAPTCHA v3 script if configured
-        $options = rbf_get_settings();
         $site_key = $options['recaptcha_site_key'] ?? '';
         if (!empty($site_key)) : ?>
             <script src="https://www.google.com/recaptcha/api.js?render=<?php echo esc_attr($site_key); ?>" async defer></script>

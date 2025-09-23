@@ -100,6 +100,7 @@ function rbf_get_default_settings() {
         'meta_access_token' => '',
         'notification_email' => get_option('admin_email'),
         'webmaster_email' => '',
+        'privacy_policy_url' => '',
         'brevo_api' => '',
         'brevo_list_it' => '',
         'brevo_list_en' => '',
@@ -378,6 +379,13 @@ function rbf_get_settings() {
         update_option('rbf_settings', $settings);
     }
 
+    if (empty($settings['privacy_policy_url']) && function_exists('get_privacy_policy_url')) {
+        $privacy_policy_page = get_privacy_policy_url();
+        if (!empty($privacy_policy_page)) {
+            $settings['privacy_policy_url'] = $privacy_policy_page;
+        }
+    }
+
     return $settings;
 }
 
@@ -615,7 +623,8 @@ function rbf_translate_string($text) {
         'Nessun orario disponibile' => 'No time available',
         'Il numero di telefono inserito non è valido.' => 'The phone number entered is not valid.',
         'Di Domenica il servizio è Brunch con menù alla carta.' => 'On Sundays, we serve our à la carte Brunch menu.',
-        'Acconsento al trattamento dei dati secondo l\'<a href="%s" target="_blank">Informativa sulla Privacy</a>' => 'I consent to the processing of my data in accordance with the <a href="%s" target="_blank">Privacy Policy</a>',
+        'Acconsento al trattamento dei dati secondo l\'<a href="%s" target="_blank" rel="noopener">Informativa sulla Privacy</a>' => 'I consent to the processing of my data in accordance with the <a href="%s" target="_blank" rel="noopener">Privacy Policy</a>',
+        'Acconsento al trattamento dei dati secondo l\'Informativa sulla Privacy' => 'I consent to the processing of my data according to the Privacy Policy',
         'Acconsento a ricevere comunicazioni promozionali via email e/o messaggi riguardanti eventi, offerte o novità.' => 'I agree to receive promotional emails and/or messages about events, offers, or news.',
         'Devi accettare la Privacy Policy per procedere.' => 'You must accept the Privacy Policy to proceed.',
         'Le prenotazioni devono essere effettuate con almeno %s di anticipo.' => 'Bookings must be made at least %s in advance.',
