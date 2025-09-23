@@ -2198,12 +2198,26 @@ function rbf_calculate_slot_duration($meal_id, $people_count) {
     
     // Get base duration from meal configuration
     $base_duration = intval($meal_config['slot_duration_minutes'] ?? 90);
-    
-    // Apply group rule: groups >6 people get 120 minutes
-    if ($people_count > 6) {
-        return 120;
+
+    if ($base_duration <= 0) {
+        $base_duration = 90;
     }
-    
+
+    if ($people_count > 6) {
+        $large_party_duration = null;
+
+        if (isset($meal_config['large_party_duration_minutes'])) {
+            $large_party_duration = intval($meal_config['large_party_duration_minutes']);
+        } elseif (isset($meal_config['group_slot_duration_minutes'])) {
+            // Backward compatibility for legacy configuration naming used in some test fixtures.
+            $large_party_duration = intval($meal_config['group_slot_duration_minutes']);
+        }
+
+        if ($large_party_duration !== null && $large_party_duration > 0) {
+            return $large_party_duration;
+        }
+    }
+
     return $base_duration;
 }
 
