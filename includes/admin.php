@@ -261,6 +261,7 @@ function rbf_sanitize_settings_callback($input) {
         // Integer fields
         'capienza_pranzo' => 'int', 'capienza_cena' => 'int', 'capienza_aperitivo' => 'int',
         'brevo_list_it' => 'int', 'brevo_list_en' => 'int',
+        'booking_page_id' => 'int',
         
         // Text fields
         'orari_pranzo' => 'text', 'orari_cena' => 'text', 'orari_aperitivo' => 'text',
@@ -525,6 +526,23 @@ function rbf_settings_page_html() {
                             <input type="text" placeholder="<?php echo esc_attr(rbf_translate_string('Campo di esempio')); ?>" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: var(--preview-radius, 8px); margin-bottom: 10px;">
                             <p style="margin: 0; font-size: 14px; color: #666;"><?php echo esc_html(rbf_translate_string('Questa anteprima mostra come appariranno i colori selezionati')); ?></p>
                         </div>
+                    </td>
+                </tr>
+
+                <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Pagina di Conferma Prenotazione')); ?></h2></th></tr>
+                <tr>
+                    <th><label for="rbf_booking_page_id"><?php echo esc_html(rbf_translate_string('Pagina del modulo di prenotazione')); ?></label></th>
+                    <td>
+                        <?php
+                        wp_dropdown_pages([
+                            'name' => 'rbf_settings[booking_page_id]',
+                            'id' => 'rbf_booking_page_id',
+                            'selected' => absint($options['booking_page_id'] ?? 0),
+                            'show_option_none' => rbf_translate_string('Seleziona una pagina'),
+                            'option_none_value' => '0',
+                        ]);
+                        ?>
+                        <p class="description"><?php echo esc_html(rbf_translate_string('Utilizzata per i link di conferma generati dal backend. Se vuota, il plugin tenta di individuarla automaticamente.')); ?></p>
                     </td>
                 </tr>
 
@@ -1573,9 +1591,10 @@ function rbf_add_booking_page_html() {
 
                                     delete_transient('rbf_avail_' . $date . '_' . $meal);
 
-                                    $success_url = rbf_get_manual_booking_success_url($post_id, $tracking_token);
                                     $success_link = '';
-                                    if ($success_url !== '') {
+                                    $booking_page_url = rbf_get_booking_confirmation_base_url();
+                                    $success_url = rbf_get_manual_booking_success_url($post_id, $tracking_token, $booking_page_url);
+                                    if ($booking_page_url !== '' && $success_url !== '') {
                                         $success_link = ' | <a href="' . esc_url($success_url) . '" target="_blank" rel="noopener noreferrer">' . esc_html(rbf_translate_string('Apri pagina di conferma')) . '</a>';
                                     }
 

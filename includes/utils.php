@@ -75,6 +75,75 @@ function rbf_post_has_booking_form($post = null) {
 }
 
 /**
+ * Locate the booking page permalink used for confirmation links.
+ *
+ * Attempts to detect the first published page containing one of the booking
+ * shortcodes. Falls back to the manually configured option when no page is
+ * detected automatically.
+ *
+ * @param bool $force_refresh Optional. Whether to bypass the cached result.
+ * @return string Permalink of the booking page or empty string when unavailable.
+ */
+function rbf_get_booking_confirmation_base_url($force_refresh = false) {
+    static $cached_url = null;
+
+    if (!$force_refresh && $cached_url !== null) {
+        return $cached_url;
+    }
+
+    $cached_url = '';
+
+    if (!function_exists('get_posts') || !function_exists('get_permalink')) {
+        return $cached_url;
+    }
+
+    $shortcodes = rbf_get_booking_form_shortcodes();
+
+    if (!empty($shortcodes)) {
+        $query_args = [
+            'post_type'              => 'page',
+            'post_status'            => 'publish',
+            'posts_per_page'         => 50,
+            'orderby'                => 'menu_order',
+            'order'                  => 'ASC',
+            'no_found_rows'          => true,
+            'update_post_meta_cache' => false,
+            'update_post_term_cache' => false,
+            'suppress_filters'       => false,
+        ];
+
+        $pages = get_posts($query_args);
+
+        foreach ($pages as $page) {
+            if (!rbf_post_has_booking_form($page)) {
+                continue;
+            }
+
+            $permalink = get_permalink($page);
+
+            if (is_string($permalink) && $permalink !== '') {
+                $cached_url = $permalink;
+                return $cached_url;
+            }
+        }
+    }
+
+    $options = rbf_get_settings();
+    $configured_page_id = absint($options['booking_page_id'] ?? 0);
+
+    if ($configured_page_id > 0) {
+        $permalink = get_permalink($configured_page_id);
+
+        if (is_string($permalink) && $permalink !== '') {
+            $cached_url = $permalink;
+            return $cached_url;
+        }
+    }
+
+    return $cached_url;
+}
+
+/**
  * Conditional debug logger for the plugin.
  * Logs messages only when WP_DEBUG or RBF_FORCE_LOG is enabled.
  *
@@ -103,6 +172,7 @@ function rbf_get_default_settings() {
         'notification_email' => get_option('admin_email'),
         'webmaster_email' => '',
         'privacy_policy_url' => '',
+        'booking_page_id' => 0,
         'brevo_api' => '',
         'brevo_list_it' => '',
         'brevo_list_en' => '',
@@ -506,7 +576,11 @@ function rbf_translate_string($text) {
         'Nessuna Prenotazione trovata nel cestino' => 'No bookings found in Trash',
         'Impostazioni' => 'Settings',
         'Impostazioni Prenotazioni Ristorante' => 'Restaurant Booking Settings',
-        
+        'Pagina di Conferma Prenotazione' => 'Booking Confirmation Page',
+        'Pagina del modulo di prenotazione' => 'Booking form page',
+        'Seleziona una pagina' => 'Select a page',
+        'Utilizzata per i link di conferma generati dal backend. Se vuota, il plugin tenta di individuarla automaticamente.' => 'Used for backend confirmation links. If left empty the plugin will try to detect it automatically.',
+
         // New configurable meals system
         'Configurazione Pasti' => 'Meal Configuration',
         'Pasti Personalizzati' => 'Custom Meals',
@@ -1274,8 +1348,13 @@ function rbf_get_manual_booking_success_url($booking_id, $tracking_token, $base_
         return '';
     }
 
+    $default_base_url = '';
+
     if (!is_string($base_url) || $base_url === '') {
-        $base_url = home_url('/');
+        $default_base_url = rbf_get_booking_confirmation_base_url();
+        $base_url = $default_base_url;
+    } else {
+        $default_base_url = $base_url;
     }
 
     /**
@@ -1286,8 +1365,18 @@ function rbf_get_manual_booking_success_url($booking_id, $tracking_token, $base_
      */
     $base_url = apply_filters('rbf_manual_booking_success_base_url', $base_url, $booking_id);
 
-    if (empty($base_url)) {
-        return '';
+    if (!is_string($base_url)) {
+        $base_url = '';
+    }
+
+    if ($base_url === '') {
+        if ($default_base_url !== '') {
+            $base_url = $default_base_url;
+        } elseif (function_exists('home_url')) {
+            $base_url = home_url('/');
+        } else {
+            return '';
+        }
     }
 
     $success_args = [
