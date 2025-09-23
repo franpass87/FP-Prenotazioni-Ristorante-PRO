@@ -170,6 +170,7 @@ function rbf_enqueue_frontend_assets() {
             'nearlyFull' => rbf_translate_string('Quasi al completo'),
             'full' => rbf_translate_string('Completo'),
             'spotsRemaining' => rbf_translate_string('Posti rimasti:'),
+            'wideAvailability' => rbf_translate_string('Disponibilità ampia'),
             'occupancy' => rbf_translate_string('Occupazione:'),
             
             // AI Suggestions labels
@@ -890,7 +891,9 @@ function rbf_detect_source($data = []) {
 function rbf_get_remaining_capacity($date, $slot) {
     $transient_key = 'rbf_avail_' . $date . '_' . $slot;
     $cached = get_transient($transient_key);
-    if ($cached !== false) return (int) $cached;
+    if ($cached !== false) {
+        return $cached === null ? null : (int) $cached;
+    }
 
     $options = rbf_get_settings();
     
@@ -905,13 +908,13 @@ function rbf_get_remaining_capacity($date, $slot) {
     }
 
     // Treat zero capacity as unlimited to avoid blocking services like aperitivo
-    if ($total === 0) {
-        set_transient($transient_key, PHP_INT_MAX, HOUR_IN_SECONDS);
-        return PHP_INT_MAX;
+    if ($total <= 0) {
+        set_transient($transient_key, null, HOUR_IN_SECONDS);
+        return null;
     }
 
     $spots_taken = rbf_sum_active_bookings($date, $slot);
-    $remaining = max(0, $total - (int) $spots_taken);
+    $remaining = (int) max(0, $total - (int) $spots_taken);
     set_transient($transient_key, $remaining, HOUR_IN_SECONDS);
     return $remaining;
 }
@@ -1319,6 +1322,8 @@ function rbf_ajax_get_availability() {
         // Format times for the frontend
         $formatted_times = [];
         $remaining_capacity = rbf_get_remaining_capacity($date, $meal);
+        $total_capacity = rbf_get_effective_capacity($meal);
+        $has_finite_capacity = $total_capacity > 0;
         
         foreach ($available_times as $time_data) {
             $time = $time_data['time'];
@@ -1327,15 +1332,15 @@ function rbf_ajax_get_availability() {
             $formatted_times[] = [
                 'time' => $display,
                 'slot' => $meal, // The meal/slot identifier
-                'remaining' => $remaining_capacity,
+                'remaining' => $has_finite_capacity ? $remaining_capacity : null,
                 'value' => $time // Add raw time value for form submission
             ];
         }
-        
+
         $response_data = [
             'available_times' => $formatted_times,
             'message' => '',
-            'total_capacity' => $remaining_capacity,
+            'total_capacity' => $has_finite_capacity ? $total_capacity : null,
             'requested_people' => $people
         ];
         
@@ -1473,7 +1478,11 @@ function rbf_ajax_refresh_calendar() {
         // Get fresh availability data
         $availability_status = rbf_get_availability_status($date, $meal);
         $remaining_capacity = rbf_get_remaining_capacity($date, $meal);
-        
+        $total_capacity = rbf_get_effective_capacity($meal);
+        if ($total_capacity <= 0) {
+            $remaining_capacity = null;
+        }
+
         wp_send_json_success([
             'availability' => $availability_status,
             'remaining_capacity' => $remaining_capacity,

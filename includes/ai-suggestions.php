@@ -74,7 +74,8 @@ function rbf_suggest_same_day_alternatives($date, $original_meal, $people, $meal
         
         // Check if meal has availability for the party size
         $availability = rbf_get_availability_status($date, $meal['id']);
-        if ($availability['level'] === 'full' || $availability['remaining'] < $people) {
+        $remaining_spots = $availability['remaining'];
+        if ($availability['level'] === 'full' || ($remaining_spots !== null && $remaining_spots < $people)) {
             continue;
         }
         
@@ -94,7 +95,7 @@ function rbf_suggest_same_day_alternatives($date, $original_meal, $people, $meal
                 'time_display' => $time_slot['display'],
                 'reason' => rbf_translate_string('Stesso giorno, servizio diverso'),
                 'preference_score' => 90, // High score for same day
-                'remaining_spots' => $availability['remaining']
+                'remaining_spots' => $remaining_spots
             ];
         }
     }
@@ -199,7 +200,8 @@ function rbf_check_date_availability($date, $meal, $people, $original_date) {
     
     // Check capacity
     $availability = rbf_get_availability_status($date, $meal);
-    if ($availability['level'] === 'full' || $availability['remaining'] < $people) {
+    $remaining_spots = $availability['remaining'];
+    if ($availability['level'] === 'full' || ($remaining_spots !== null && $remaining_spots < $people)) {
         return null;
     }
     
@@ -235,7 +237,7 @@ function rbf_check_date_availability($date, $meal, $people, $original_date) {
         'time' => $time_slot['time'],
         'time_display' => $time_slot['display'],
         'reason' => $reason,
-        'remaining_spots' => $availability['remaining']
+        'remaining_spots' => $remaining_spots
     ];
 }
 

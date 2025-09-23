@@ -1062,18 +1062,27 @@ function initializeBookingForm($) {
       let statusText;
       let contextualMessage = '';
 
+      const unlimitedAvailability =
+        availability.remaining === null ||
+        typeof availability.remaining === 'undefined' ||
+        availability.total === null ||
+        typeof availability.total === 'undefined';
+      const wideAvailabilityText = labels.wideAvailability || 'Disponibilità ampia';
+
       if (availability.level === 'available') {
         statusText = labels.available || 'Disponibile';
-        if (availability.remaining > 20) {
+        if (unlimitedAvailability) {
+          contextualMessage = wideAvailabilityText;
+        } else if (availability.remaining > 20) {
           contextualMessage = labels.manySpots || 'Molti posti disponibili';
         } else if (availability.remaining > 10) {
           contextualMessage = labels.someSpots || 'Buona disponibilità';
         }
       } else if (availability.level === 'limited') {
         statusText = labels.limited || 'Quasi al completo';
-        if (availability.remaining <= 2) {
+        if (!unlimitedAvailability && availability.remaining <= 2) {
           contextualMessage = labels.lastSpots || 'Ultimi 2 posti rimasti';
-        } else if (availability.remaining <= 5) {
+        } else if (!unlimitedAvailability && availability.remaining <= 5) {
           contextualMessage = labels.fewSpots || 'Pochi posti rimasti';
         }
       } else if (availability.level === 'nearlyFull') {
@@ -1083,13 +1092,21 @@ function initializeBookingForm($) {
         statusText = labels.full || 'Completo';
       }
 
+      if (unlimitedAvailability && !contextualMessage) {
+        contextualMessage = wideAvailabilityText;
+      }
+
       const spotsLabel = labels.spotsRemaining || 'Posti rimasti:';
       const occupancyLabel = labels.occupancy || 'Occupazione:';
+
+      const spotsHtml = unlimitedAvailability
+        ? `<div class="rbf-tooltip-spots rbf-tooltip-spots-unlimited">${wideAvailabilityText}</div>`
+        : `<div class="rbf-tooltip-spots">${spotsLabel} ${availability.remaining}/${availability.total}</div>`;
 
       tooltip.innerHTML = `
         <div class="rbf-tooltip-status">${statusText}</div>
         ${contextualMessage ? `<div class="rbf-tooltip-context">${contextualMessage}</div>` : ''}
-        <div class="rbf-tooltip-spots">${spotsLabel} ${availability.remaining}/${availability.total}</div>
+        ${spotsHtml}
         <div class="rbf-tooltip-occupancy">${occupancyLabel} ${availability.occupancy}%</div>
       `;
 
@@ -4238,6 +4255,9 @@ function initializeBookingForm($) {
     }
     
     // Create suggestions container
+    const suggestionsSpotsLabel = rbfData.labels.spotsRemaining || 'posti rimasti';
+    const suggestionsWideAvailabilityLabel = rbfData.labels.wideAvailability || 'Disponibilità ampia';
+
     const suggestionsHtml = `
       <div class="rbf-suggestions-container">
         <div class="rbf-suggestions-header">
@@ -4245,24 +4265,31 @@ function initializeBookingForm($) {
           <p>${rbfData.labels.alternativesSubtitle || 'Seleziona una delle alternative seguenti:'}</p>
         </div>
         <div class="rbf-suggestions-list">
-          ${suggestions.map(suggestion => `
-            <div class="rbf-suggestion-item" 
-                 data-date="${suggestion.date}" 
-                 data-meal="${suggestion.meal}" 
-                 data-time="${suggestion.time}">
-              <div class="rbf-suggestion-primary">
-                <span class="rbf-suggestion-date">${suggestion.date_display}</span>
-                <span class="rbf-suggestion-time">${suggestion.time_display}</span>
+          ${suggestions.map(suggestion => {
+            const hasUnlimitedAvailability = suggestion.remaining_spots === null || typeof suggestion.remaining_spots === 'undefined';
+            const capacityText = hasUnlimitedAvailability
+              ? suggestionsWideAvailabilityLabel
+              : `${suggestion.remaining_spots} ${suggestionsSpotsLabel}`;
+
+            return `
+              <div class="rbf-suggestion-item"
+                   data-date="${suggestion.date}"
+                   data-meal="${suggestion.meal}"
+                   data-time="${suggestion.time}">
+                <div class="rbf-suggestion-primary">
+                  <span class="rbf-suggestion-date">${suggestion.date_display}</span>
+                  <span class="rbf-suggestion-time">${suggestion.time_display}</span>
+                </div>
+                <div class="rbf-suggestion-secondary">
+                  <span class="rbf-suggestion-meal">${suggestion.meal_name}</span>
+                  <span class="rbf-suggestion-reason">${suggestion.reason}</span>
+                </div>
+                <div class="rbf-suggestion-capacity">
+                  ${capacityText}
+                </div>
               </div>
-              <div class="rbf-suggestion-secondary">
-                <span class="rbf-suggestion-meal">${suggestion.meal_name}</span>
-                <span class="rbf-suggestion-reason">${suggestion.reason}</span>
-              </div>
-              <div class="rbf-suggestion-capacity">
-                ${suggestion.remaining_spots} ${rbfData.labels.spotsRemaining || 'posti rimasti'}
-              </div>
-            </div>
-          `).join('')}
+            `;
+          }).join('')}
         </div>
       </div>
     `;
