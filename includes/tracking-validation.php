@@ -81,7 +81,27 @@ function rbf_validate_tracking_setup() {
             ];
         }
     }
-    
+
+    $google_ads_conversion_id = $options['google_ads_conversion_id'] ?? '';
+    $google_ads_conversion_label = $options['google_ads_conversion_label'] ?? '';
+
+    if (!empty($google_ads_conversion_id) && !empty($google_ads_conversion_label)) {
+        $validation_results['google_ads_conversion'] = [
+            'status' => 'ok',
+            'message' => 'Google Ads conversion IDs configured'
+        ];
+    } elseif (!empty($google_ads_conversion_id) || !empty($google_ads_conversion_label)) {
+        $validation_results['google_ads_conversion'] = [
+            'status' => 'warning',
+            'message' => 'Google Ads conversion tracking partially configured - specify both conversion ID and label'
+        ];
+    } else {
+        $validation_results['google_ads_conversion'] = [
+            'status' => 'info',
+            'message' => 'Google Ads conversion tracking not configured'
+        ];
+    }
+
     // Check for potential duplication risks
     if ($gtm_hybrid && !empty($gtm_id) && !empty($ga4_id)) {
         $validation_results['duplication_risk'] = [
@@ -110,7 +130,8 @@ function rbf_generate_tracking_debug_info() {
             'gtm_hybrid' => ($options['gtm_hybrid'] ?? '') === 'yes' ? 'Enabled' : 'Disabled',
             'meta_pixel_id' => !empty($options['meta_pixel_id']) ? 'Configured' : 'Not configured',
             'meta_access_token' => !empty($options['meta_access_token']) ? 'Configured' : 'Not configured',
-            'ga4_api_secret' => !empty($options['ga4_api_secret']) ? 'Configured' : 'Not configured'
+            'ga4_api_secret' => !empty($options['ga4_api_secret']) ? 'Configured' : 'Not configured',
+            'google_ads_conversion' => (!empty($options['google_ads_conversion_id']) && !empty($options['google_ads_conversion_label'])) ? 'Configured' : 'Not configured'
         ],
         'tracking_flow' => rbf_get_tracking_flow_description($options),
         'validation' => rbf_validate_tracking_setup()
@@ -127,9 +148,11 @@ function rbf_get_tracking_flow_description($options) {
     $ga4_id = $options['ga4_id'] ?? '';
     $gtm_hybrid = ($options['gtm_hybrid'] ?? '') === 'yes';
     $meta_pixel_id = $options['meta_pixel_id'] ?? '';
-    
+    $google_ads_conversion_id = $options['google_ads_conversion_id'] ?? '';
+    $google_ads_conversion_label = $options['google_ads_conversion_label'] ?? '';
+
     $flow = [];
-    
+
     if ($gtm_hybrid && !empty($gtm_id) && !empty($ga4_id)) {
         $flow[] = "1. GTM container loads ({$gtm_id})";
         $flow[] = "2. GA4 gtag script loads ({$ga4_id})";
@@ -143,14 +166,22 @@ function rbf_get_tracking_flow_description($options) {
         $flow[] = "1. GA4 gtag script loads ({$ga4_id})";
         $flow[] = "2. Events sent via direct gtag calls";
     }
-    
+
     if (!empty($meta_pixel_id)) {
         $flow[] = "Facebook Pixel tracking active";
         if (!empty($options['meta_access_token'])) {
             $flow[] = "Facebook Conversion API server-side backup enabled";
         }
     }
-    
+
+    if (!empty($google_ads_conversion_id) && !empty($google_ads_conversion_label)) {
+        if ($gtm_hybrid) {
+            $flow[] = "Google Ads conversion tracking configured (activate via GTM workspace)";
+        } else {
+            $flow[] = "Google Ads conversion tracking active for paid traffic";
+        }
+    }
+
     return $flow;
 }
 

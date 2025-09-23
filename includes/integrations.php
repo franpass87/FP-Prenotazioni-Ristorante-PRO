@@ -123,6 +123,8 @@ add_action('wp_footer','rbf_add_booking_tracking_script');
 function rbf_add_booking_tracking_script() {
     $options = rbf_get_settings();
     $meta_pixel_id = $options['meta_pixel_id'] ?? '';
+    $google_ads_conversion_id = isset($options['google_ads_conversion_id']) ? trim((string) $options['google_ads_conversion_id']) : '';
+    $google_ads_conversion_label = isset($options['google_ads_conversion_label']) ? trim((string) $options['google_ads_conversion_label']) : '';
 
     if (!isset($_GET['rbf_success'], $_GET['booking_id'], $_GET['booking_token'])) {
         return;
@@ -247,6 +249,9 @@ function rbf_add_booking_tracking_script() {
               var unitPrice = <?php echo json_encode($unitPrice); ?>;
               var isGtmHybrid = <?php echo json_encode($options['gtm_hybrid'] === 'yes'); ?>;
               var gtmId = <?php echo json_encode($options['gtm_id'] ?? ''); ?>;
+              var googleAdsConversionId = <?php echo json_encode($google_ads_conversion_id); ?>;
+              var googleAdsConversionLabel = <?php echo json_encode($google_ads_conversion_label); ?>;
+              var hasGoogleAdsConversionConfig = Boolean(googleAdsConversionId) && Boolean(googleAdsConversionLabel);
               var customerData = <?php echo wp_json_encode((object) $customer_hashes); ?>;
               var customerConversionData = <?php echo wp_json_encode((object) $customer_conversion_hashes); ?>;
 
@@ -313,20 +318,32 @@ function rbf_add_booking_tracking_script() {
               }, eventId);
 
               // Google Ads specific conversion tracking with enhanced data (only if not in GTM hybrid mode)
-              if (!isGtmHybrid && bucketStd === 'gads' && typeof gtag === 'function') {
-                var conversionParams = {
-                  send_to: 'AW-CONVERSION_ID/CONVERSION_LABEL', // Replace with actual conversion ID
-                  transaction_id: transaction_id,
-                  value: Number(value || 0),
-                  currency: currency,
-                  event_id: eventId
-                };
+              if (!isGtmHybrid && bucketStd === 'gads' && typeof gtag === 'function' && hasGoogleAdsConversionConfig) {
+                var conversionId = String(googleAdsConversionId).trim();
+                var conversionLabel = String(googleAdsConversionLabel).trim();
 
-                if (Object.keys(customerConversionData).length > 0) {
-                  conversionParams.customer_data = customerConversionData;
+                if (conversionId !== '' && conversionLabel !== '') {
+                  if (!/^AW-/i.test(conversionId)) {
+                    conversionId = 'AW-' + conversionId;
+                  } else if (/^aw-/i.test(conversionId)) {
+                    conversionId = conversionId.replace(/^aw-/i, 'AW-');
+                  }
+
+                  var sendTo = conversionId + '/' + conversionLabel;
+                  var conversionParams = {
+                    send_to: sendTo,
+                    transaction_id: transaction_id,
+                    value: Number(value || 0),
+                    currency: currency,
+                    event_id: eventId
+                  };
+
+                  if (Object.keys(customerConversionData).length > 0) {
+                    conversionParams.customer_data = customerConversionData;
+                  }
+
+                  gtag('event', 'conversion', conversionParams);
                 }
-
-                gtag('event', 'conversion', conversionParams);
               }
 
               <?php if ($meta_pixel_id) : ?>

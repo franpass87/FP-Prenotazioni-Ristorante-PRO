@@ -265,7 +265,7 @@ function rbf_sanitize_settings_callback($input) {
         // Text fields
         'orari_pranzo' => 'text', 'orari_cena' => 'text', 'orari_aperitivo' => 'text',
         'brevo_api' => 'text', 'ga4_api_secret' => 'text', 'meta_access_token' => 'text',
-        'border_radius' => 'text',
+        'border_radius' => 'text', 'google_ads_conversion_id' => 'text', 'google_ads_conversion_label' => 'text',
         
         // Email fields  
         'notification_email' => 'email', 'webmaster_email' => 'email'
@@ -1029,6 +1029,10 @@ function rbf_settings_page_html() {
                     <td><input type="text" id="rbf_gtm_id" name="rbf_settings[gtm_id]" value="<?php echo esc_attr($options['gtm_id']); ?>" class="regular-text" placeholder="GTM-XXXXXXX"></td></tr>
                 <tr><th><label for="rbf_gtm_hybrid"><?php echo esc_html(rbf_translate_string('Modalità ibrida GTM + GA4')); ?></label></th>
                     <td><input type="checkbox" id="rbf_gtm_hybrid" name="rbf_settings[gtm_hybrid]" value="yes" <?php checked($options['gtm_hybrid'] === 'yes'); ?>></td></tr>
+                <tr><th><label for="rbf_google_ads_conversion_id"><?php echo esc_html(rbf_translate_string('ID Conversione Google Ads')); ?></label></th>
+                    <td><input type="text" id="rbf_google_ads_conversion_id" name="rbf_settings[google_ads_conversion_id]" value="<?php echo esc_attr($options['google_ads_conversion_id'] ?? ''); ?>" class="regular-text" placeholder="AW-123456789"></td></tr>
+                <tr><th><label for="rbf_google_ads_conversion_label"><?php echo esc_html(rbf_translate_string('Etichetta Conversione Google Ads')); ?></label></th>
+                    <td><input type="text" id="rbf_google_ads_conversion_label" name="rbf_settings[google_ads_conversion_label]" value="<?php echo esc_attr($options['google_ads_conversion_label'] ?? ''); ?>" class="regular-text" placeholder="abcDEF123456"></td></tr>
                 <tr><th><label for="rbf_meta_pixel_id"><?php echo esc_html(rbf_translate_string('ID Meta Pixel')); ?></label></th>
                     <td><input type="text" id="rbf_meta_pixel_id" name="rbf_settings[meta_pixel_id]" value="<?php echo esc_attr($options['meta_pixel_id']); ?>" class="regular-text"></td></tr>
                 <tr><th><label for="rbf_meta_access_token">Meta Access Token (per invii server-side)</label></th>
@@ -3585,6 +3589,18 @@ function rbf_tracking_validation_page_html() {
                         <code><?php echo esc_html($options['meta_access_token'] ? 'Configurato' : 'Non configurato'); ?></code>
                     </div>
                 </div>
+
+                <div>
+                    <h3><?php echo esc_html(rbf_translate_string('Google Ads')); ?></h3>
+                    <div style="margin-bottom: 10px;">
+                        <strong><?php echo esc_html(rbf_translate_string('ID Conversione Google Ads')); ?>:</strong>
+                        <code><?php echo esc_html($options['google_ads_conversion_id'] ?: rbf_translate_string('Non configurato')); ?></code>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <strong><?php echo esc_html(rbf_translate_string('Etichetta Conversione Google Ads')); ?>:</strong>
+                        <code><?php echo esc_html($options['google_ads_conversion_label'] ?: rbf_translate_string('Non configurato')); ?></code>
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -3704,7 +3720,7 @@ function rbf_perform_tracking_test() {
     // Test Meta Pixel configuration
     if (!empty($options['meta_pixel_id'])) {
         $results[] = '✓ Meta Pixel ID configurato: ' . $options['meta_pixel_id'];
-        
+
         if (!empty($options['meta_access_token'])) {
             $results[] = '✓ Meta Access Token configurato per Conversion API';
         } else {
@@ -3713,7 +3729,19 @@ function rbf_perform_tracking_test() {
     } else {
         $results[] = 'ℹ Meta Pixel non configurato';
     }
-    
+
+    // Test Google Ads conversion configuration
+    $google_ads_conversion_id = $options['google_ads_conversion_id'] ?? '';
+    $google_ads_conversion_label = $options['google_ads_conversion_label'] ?? '';
+
+    if (!empty($google_ads_conversion_id) && !empty($google_ads_conversion_label)) {
+        $results[] = '✓ ID conversione Google Ads configurati';
+    } elseif (!empty($google_ads_conversion_id) || !empty($google_ads_conversion_label)) {
+        $results[] = '⚠ Configurazione Google Ads incompleta - specificare sia ID conversione che etichetta';
+    } else {
+        $results[] = 'ℹ Conversione Google Ads non configurata';
+    }
+
     // Test JavaScript integration
     if (function_exists('rbf_is_gtm_hybrid_mode')) {
         $results[] = '✓ Funzioni JavaScript integration caricate correttamente';
