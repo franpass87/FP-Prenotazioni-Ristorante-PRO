@@ -133,15 +133,26 @@ function rbf_get_default_custom_meals() {
 /**
  * Get active meals configuration
  * Returns custom meals configuration only
+ *
+ * @param array|null $settings Optional settings array to read from instead of loading options.
+ * @return array
  */
-function rbf_get_active_meals() {
-    $options = wp_parse_args(get_option('rbf_settings', []), rbf_get_default_settings());
-    
+function rbf_get_active_meals($settings = null) {
+    if (is_array($settings)) {
+        $options = wp_parse_args($settings, rbf_get_default_settings());
+    } else {
+        $options = wp_parse_args(get_option('rbf_settings', []), rbf_get_default_settings());
+    }
+
     $custom_meals = $options['custom_meals'] ?? rbf_get_default_custom_meals();
+    if (!is_array($custom_meals)) {
+        $custom_meals = [];
+    }
+
     // Filter only enabled meals
-    return array_filter($custom_meals, function($meal) {
-        return $meal['enabled'] ?? false;
-    });
+    return array_values(array_filter($custom_meals, function($meal) {
+        return !empty($meal['enabled']);
+    }));
 }
 
 /**
@@ -422,21 +433,54 @@ function rbf_get_settings() {
 /**
  * Get the maximum number of people allowed for a booking.
  *
+ * Returns the highest configured meal capacity when no explicit legacy override is present.
+ * A value of PHP_INT_MAX is returned when every active meal is configured with unlimited capacity.
+ *
  * @param array|null $settings Optional settings array to read the limit from.
- * @return int Normalized maximum number of people.
+ * @return int Normalized maximum number of people. PHP_INT_MAX indicates an unlimited capacity.
  */
 function rbf_get_people_max_limit($settings = null) {
     if (!is_array($settings)) {
         $settings = rbf_get_settings();
+    } else {
+        $settings = wp_parse_args($settings, rbf_get_default_settings());
     }
 
-    $people_max = absint($settings['max_people'] ?? 0);
-
-    if ($people_max <= 0) {
-        $people_max = 20;
+    $legacy_max_people = absint($settings['max_people'] ?? 0);
+    if ($legacy_max_people > 0) {
+        return $legacy_max_people;
     }
 
-    return $people_max;
+    $active_meals = rbf_get_active_meals($settings);
+    $max_capacity = 0;
+    $has_unlimited_capacity = false;
+
+    foreach ($active_meals as $meal) {
+        if (!is_array($meal)) {
+            continue;
+        }
+
+        $capacity = isset($meal['capacity']) ? (int) $meal['capacity'] : 0;
+
+        if ($capacity <= 0) {
+            $has_unlimited_capacity = true;
+            continue;
+        }
+
+        if ($capacity > $max_capacity) {
+            $max_capacity = $capacity;
+        }
+    }
+
+    if ($max_capacity > 0) {
+        return $max_capacity;
+    }
+
+    if ($has_unlimited_capacity) {
+        return PHP_INT_MAX;
+    }
+
+    return 20;
 }
 
 /**

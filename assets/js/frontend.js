@@ -206,12 +206,18 @@ function initializeBookingForm($) {
   }
 
   const DEFAULT_MAX_PEOPLE = 20;
-  const parsedPeopleMax = parseInt(rbfData.peopleMax, 10);
   const hasProvidedPeopleMax = typeof rbfData.peopleMax !== 'undefined' && rbfData.peopleMax !== null && rbfData.peopleMax !== '';
-  const hasValidPeopleMax = Number.isFinite(parsedPeopleMax) && parsedPeopleMax > 0;
-  const peopleMaxLimit = hasValidPeopleMax ? parsedPeopleMax : DEFAULT_MAX_PEOPLE;
+  const parsedPeopleMax = parseInt(rbfData.peopleMax, 10);
+  const hasFinitePeopleMax = Number.isFinite(parsedPeopleMax);
+  const hasUnlimitedPeopleLimit = rbfData.peopleMaxIsUnlimited === true || rbfData.peopleMaxIsUnlimited === 1 || rbfData.peopleMaxIsUnlimited === '1';
+  const hasValidPeopleMax = !hasUnlimitedPeopleLimit && hasFinitePeopleMax && parsedPeopleMax > 0;
+  const peopleMaxLimit = hasUnlimitedPeopleLimit
+    ? Number.MAX_SAFE_INTEGER
+    : (hasValidPeopleMax ? parsedPeopleMax : DEFAULT_MAX_PEOPLE);
 
-  if (!hasValidPeopleMax && hasProvidedPeopleMax) {
+  if (hasUnlimitedPeopleLimit) {
+    rbfLog.log('People limit is configured as unlimited; client-side maximum disabled.');
+  } else if (!hasValidPeopleMax && hasProvidedPeopleMax) {
     rbfLog.warn('Invalid peopleMax value (' + rbfData.peopleMax + '), using default of ' + DEFAULT_MAX_PEOPLE);
   }
 
@@ -239,10 +245,21 @@ function initializeBookingForm($) {
     submitButton: form.find('#rbf-submit')
   };
 
-  if (el.peopleInput.length) {
-    el.peopleInput.attr('max', peopleMaxLimit);
-    el.peopleInput.attr('aria-valuemax', peopleMaxLimit);
+  function applyPeopleLimitAttributes() {
+    if (!el.peopleInput.length) {
+      return;
+    }
+
+    if (hasUnlimitedPeopleLimit) {
+      el.peopleInput.removeAttr('max');
+      el.peopleInput.removeAttr('aria-valuemax');
+    } else {
+      el.peopleInput.attr('max', peopleMaxLimit);
+      el.peopleInput.attr('aria-valuemax', peopleMaxLimit);
+    }
   }
+
+  applyPeopleLimitAttributes();
 
   // Clean up any duplicated tooltip wrappers that might exist from previous versions
   cleanupDuplicateFormTooltips();
@@ -2610,6 +2627,10 @@ function initializeBookingForm($) {
   function getSelectedPeopleCount() {
     const parsed = parseInt(el.peopleInput.val(), 10);
     const normalized = Number.isNaN(parsed) ? 1 : parsed;
+    if (hasUnlimitedPeopleLimit) {
+      return Math.max(1, normalized);
+    }
+
     return Math.min(peopleMaxLimit, Math.max(1, normalized));
   }
 
@@ -2871,10 +2892,11 @@ function initializeBookingForm($) {
     resetSteps(3);
     if (this.value) {
       showStepWithoutScroll(el.peopleStep, 4);
-      el.peopleInput.val(1).attr('max', peopleMaxLimit);
+      el.peopleInput.val(1);
+      applyPeopleLimitAttributes();
       updatePeopleButtons(); // Update buttons without triggering input event
       // Don't trigger input event here - let user interact with people selector first
-      
+
       // Initialize form tooltips when people step is shown
       setTimeout(initializeFormTooltips, 100);
     }
@@ -2890,7 +2912,7 @@ function initializeBookingForm($) {
       val = 1;
     }
 
-    if (val > peopleMaxLimit) {
+    if (!hasUnlimitedPeopleLimit && val > peopleMaxLimit) {
       val = peopleMaxLimit;
     }
 
@@ -2899,10 +2921,9 @@ function initializeBookingForm($) {
     }
 
     el.peopleInput.attr('aria-valuenow', val);
-    el.peopleInput.attr('aria-valuemax', peopleMaxLimit);
-    el.peopleInput.attr('max', peopleMaxLimit);
+    applyPeopleLimitAttributes();
     el.peopleMinus.prop('disabled', val <= 1);
-    el.peoplePlus.prop('disabled', val >= peopleMaxLimit);
+    el.peoplePlus.prop('disabled', !hasUnlimitedPeopleLimit && val >= peopleMaxLimit);
   }
 
   /**
@@ -2915,7 +2936,7 @@ function initializeBookingForm($) {
       val = 1;
     }
 
-    if (val < peopleMaxLimit) {
+    if (hasUnlimitedPeopleLimit || val < peopleMaxLimit) {
       el.peopleInput.val(val + 1);
       updatePeopleButtons();
       el.peopleInput.trigger('input');
@@ -3498,7 +3519,7 @@ function initializeBookingForm($) {
         currentVal = 1;
       }
 
-      const maxVal = peopleMaxLimit;
+      const maxVal = hasUnlimitedPeopleLimit ? Number.MAX_SAFE_INTEGER : peopleMaxLimit;
 
       switch (e.key) {
         case 'ArrowUp':
@@ -3824,7 +3845,7 @@ function initializeBookingForm($) {
           if (!people || people < 1) {
             return { valid: false, message: rbfData.labels.peopleMinimum || 'Il numero di persone deve essere almeno 1.' };
           }
-          if (people > peopleMaxLimit) {
+          if (!hasUnlimitedPeopleLimit && people > peopleMaxLimit) {
             const message = rbfData.labels.peopleMaximum || ('Il numero di persone non può superare ' + peopleMaxLimit + '.');
             return { valid: false, message };
           }
