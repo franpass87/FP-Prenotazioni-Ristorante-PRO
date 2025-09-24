@@ -1788,9 +1788,10 @@ function rbf_add_status_filter() {
     global $typenow;
     
     if ($typenow === 'rbf_booking') {
-        $selected_status = $_GET['rbf_status'] ?? '';
+        $raw_status = isset($_GET['rbf_status']) ? wp_unslash($_GET['rbf_status']) : '';
+        $selected_status = sanitize_key($raw_status);
         $statuses = rbf_get_booking_statuses();
-        
+
         echo '<select name="rbf_status">';
         echo '<option value="">' . rbf_translate_string('Tutti gli stati') . '</option>';
         foreach ($statuses as $key => $label) {
@@ -1814,13 +1815,34 @@ function rbf_reports_page_html() {
     wp_enqueue_script('chartjs', 'https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js', [], '3.9.1', true);
     
     // Get date range for reports (default: last 30 days)
-    $end_date = $_GET['end_date'] ?? date('Y-m-d');
-    $start_date = $_GET['start_date'] ?? date('Y-m-d', strtotime('-30 days'));
-    
-    // Validate dates
-    if (!DateTime::createFromFormat('Y-m-d', $start_date)) $start_date = date('Y-m-d', strtotime('-30 days'));
-    if (!DateTime::createFromFormat('Y-m-d', $end_date)) $end_date = date('Y-m-d');
-    
+    $default_end_date = date('Y-m-d');
+    $default_start_date = date('Y-m-d', strtotime('-30 days'));
+
+    $end_date = isset($_GET['end_date']) ? sanitize_text_field(wp_unslash($_GET['end_date'])) : $default_end_date;
+    $start_date = isset($_GET['start_date']) ? sanitize_text_field(wp_unslash($_GET['start_date'])) : $default_start_date;
+
+    $start_dt = DateTime::createFromFormat('Y-m-d', $start_date) ?: false;
+    $end_dt = DateTime::createFromFormat('Y-m-d', $end_date) ?: false;
+
+    if (!$start_dt) {
+        $start_date = $default_start_date;
+        $start_dt = DateTime::createFromFormat('Y-m-d', $start_date);
+    }
+
+    if (!$end_dt) {
+        $end_date = $default_end_date;
+        $end_dt = DateTime::createFromFormat('Y-m-d', $end_date);
+    }
+
+    if ($start_dt && $end_dt && $start_dt > $end_dt) {
+        $temp_dt = $start_dt;
+        $start_dt = $end_dt;
+        $end_dt = $temp_dt;
+
+        $start_date = $start_dt->format('Y-m-d');
+        $end_date = $end_dt->format('Y-m-d');
+    }
+
     $analytics = rbf_get_booking_analytics($start_date, $end_date);
     ?>
     <div class="rbf-admin-wrap">
@@ -1994,8 +2016,10 @@ function rbf_filter_by_status($query) {
     if (!is_admin() || !$query->is_main_query()) return;
     if ($query->get('post_type') !== 'rbf_booking') return;
     
-    $status = $_GET['rbf_status'] ?? '';
-    if ($status) {
+    $raw_status = isset($_GET['rbf_status']) ? wp_unslash($_GET['rbf_status']) : '';
+    $status = sanitize_key($raw_status);
+
+    if ($status && array_key_exists($status, rbf_get_booking_statuses())) {
         $query->set('meta_query', [
             [
                 'key' => 'rbf_booking_status',
