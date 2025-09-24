@@ -889,7 +889,12 @@ function rbf_render_booking_form($atts = []) {
                             <label for="rbf-tel"><?php echo esc_html(rbf_translate_string('Telefono')); ?><span class="rbf-required-indicator">*</span></label>
                             <div class="rbf-phone-wrapper" data-flag="<?php echo esc_attr($default_phone_prefix['code'] ?? 'it'); ?>">
                                 <div class="rbf-phone-prefix">
-                                    <div class="rbf-phone-flag iti__flag iti__<?php echo esc_attr($default_phone_prefix['code'] ?? 'it'); ?>" aria-hidden="true"></div>
+                                <div
+                                    class="rbf-phone-flag iti__flag iti__<?php echo esc_attr($default_phone_prefix['code'] ?? 'it'); ?>"
+                                    data-flag="<?php echo esc_attr($default_phone_prefix['code'] ?? 'it'); ?>"
+                                    data-flag-label="<?php echo esc_attr($default_phone_prefix['label'] ?? ''); ?>"
+                                    aria-hidden="true"
+                                ></div>
                                     <span id="rbf-phone-prefix-label" class="sr-only"><?php echo esc_html(rbf_translate_string('Seleziona prefisso internazionale')); ?></span>
                                     <select id="rbf-phone-prefix" name="rbf_phone_prefix" aria-labelledby="rbf-phone-prefix-label">
                                         <?php foreach ($phone_prefixes as $prefix) :
