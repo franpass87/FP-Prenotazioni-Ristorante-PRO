@@ -19,6 +19,91 @@ define('RBF_PLUGIN_FILE', __FILE__);
 define('RBF_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('RBF_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('RBF_VERSION', '1.5');
+define('RBF_MIN_PHP_VERSION', '7.4');
+define('RBF_MIN_WP_VERSION', '6.0');
+
+/**
+ * Determine environment requirement errors.
+ *
+ * @return array List of human-readable error messages.
+ */
+function rbf_get_environment_requirement_errors() {
+    $errors = [];
+
+    if (version_compare(PHP_VERSION, RBF_MIN_PHP_VERSION, '<')) {
+        $errors[] = sprintf(
+            /* translators: 1: required PHP version, 2: current PHP version */
+            esc_html__('Versione PHP minima richiesta: %1$s (versione corrente: %2$s).', 'rbf'),
+            RBF_MIN_PHP_VERSION,
+            PHP_VERSION
+        );
+    }
+
+    global $wp_version;
+    if (isset($wp_version) && version_compare($wp_version, RBF_MIN_WP_VERSION, '<')) {
+        $errors[] = sprintf(
+            /* translators: 1: required WordPress version, 2: current WordPress version */
+            esc_html__('Versione minima di WordPress richiesta: %1$s (versione corrente: %2$s).', 'rbf'),
+            RBF_MIN_WP_VERSION,
+            $wp_version
+        );
+    }
+
+    return $errors;
+}
+
+/**
+ * Check if the current environment meets the plugin requirements.
+ *
+ * @return bool
+ */
+function rbf_environment_meets_requirements() {
+    return count(rbf_get_environment_requirement_errors()) === 0;
+}
+
+/**
+ * Deactivate the plugin when requirements are not satisfied.
+ */
+function rbf_deactivate_plugin_for_environment() {
+    if (!function_exists('deactivate_plugins')) {
+        require_once ABSPATH . 'wp-admin/includes/plugin.php';
+    }
+
+    deactivate_plugins(plugin_basename(RBF_PLUGIN_FILE));
+}
+
+/**
+ * Render an admin notice describing missing requirements.
+ */
+function rbf_render_environment_requirement_notice() {
+    $errors = rbf_get_environment_requirement_errors();
+
+    if (empty($errors)) {
+        return;
+    }
+
+    echo '<div class="notice notice-error"><p>';
+    echo esc_html__('FP Prenotazioni Ristorante richiede un ambiente aggiornato e verrà disattivato.', 'rbf');
+    echo '</p><ul style="margin-left:1.5em;">';
+
+    foreach ($errors as $error) {
+        echo '<li>' . esc_html($error) . '</li>';
+    }
+
+    echo '</ul></div>';
+}
+
+$rbf_environment_ready = rbf_environment_meets_requirements();
+
+if (!$rbf_environment_ready) {
+    if (function_exists('is_admin') && is_admin()) {
+        add_action('admin_notices', 'rbf_render_environment_requirement_notice');
+        add_action('network_admin_notices', 'rbf_render_environment_requirement_notice');
+    }
+
+    rbf_deactivate_plugin_for_environment();
+    return;
+}
 
 // Load utilities early for logging support
 require_once RBF_PLUGIN_DIR . 'includes/utils.php';
