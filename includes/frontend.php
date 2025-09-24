@@ -1507,8 +1507,6 @@ function rbf_ajax_get_availability() {
  * Clear calendar cache when bookings are modified
  */
 function rbf_clear_calendar_cache($date = null, $meal = null) {
-    global $wpdb;
-
     $patterns = [];
 
     if ($date && $meal) {
@@ -1527,24 +1525,10 @@ function rbf_clear_calendar_cache($date = null, $meal = null) {
             '_transient_timeout_rbf_avail_' . $date . '_' . $meal,
         ];
     } else {
-        $patterns = [
-            '_transient_rbf_cal_avail_',
-            '_transient_timeout_rbf_cal_avail_',
-            '_transient_rbf_times_',
-            '_transient_timeout_rbf_times_',
-            '_transient_rbf_avail_',
-            '_transient_timeout_rbf_avail_',
-        ];
+        $patterns = rbf_get_global_availability_transient_patterns();
     }
 
-    foreach ($patterns as $pattern) {
-        $wpdb->query(
-            $wpdb->prepare(
-                "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",
-                $wpdb->esc_like($pattern) . '%'
-            )
-        );
-    }
+    rbf_delete_transients_like($patterns);
 }
 
 // Hook into booking creation/modification to clear cache
