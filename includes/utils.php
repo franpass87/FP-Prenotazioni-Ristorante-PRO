@@ -156,6 +156,35 @@ function rbf_log($message) {
 }
 
 /**
+ * Ensure the current user has the required capability before rendering admin pages.
+ *
+ * The helper provides a consistent, translatable error message and ensures a
+ * proper HTTP 403 status code is returned when access is denied.
+ *
+ * @param string $capability Optional. Capability to check. Default manage_options.
+ * @return bool True when the user has the capability, false otherwise.
+ */
+function rbf_require_capability($capability = 'manage_options') {
+    if (!function_exists('current_user_can')) {
+        return false;
+    }
+
+    if (current_user_can($capability)) {
+        return true;
+    }
+
+    $message = function_exists('esc_html__')
+        ? esc_html__('Non hai i permessi necessari per accedere a questa pagina.', 'rbf')
+        : 'Non hai i permessi necessari per accedere a questa pagina.';
+
+    if (function_exists('wp_die')) {
+        wp_die($message, '', ['response' => 403]);
+    }
+
+    die($message);
+}
+
+/**
  * Queue an admin notice to be displayed on the next admin page load.
  *
  * @param string $message The notice message.
