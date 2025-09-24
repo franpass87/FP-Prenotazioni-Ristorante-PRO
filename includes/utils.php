@@ -520,6 +520,84 @@ function rbf_normalize_time_slots($time_slots_csv, $slot_duration_minutes = null
 }
 
 /**
+ * Sanitize a custom time slot definition string.
+ *
+ * Ensures only valid times and ranges are persisted and removes duplicates.
+ *
+ * @param string          $time_slots              Raw time slot definition.
+ * @param int|float|null  $slot_duration_minutes   Optional duration used to validate ranges.
+ * @return string Sanitized time slot definition or empty string when invalid.
+ */
+function rbf_sanitize_time_slot_definition($time_slots, $slot_duration_minutes = null) {
+    if (!is_string($time_slots) || $time_slots === '') {
+        return '';
+    }
+
+    $entries = array_map('trim', explode(',', $time_slots));
+    $sanitized_entries = [];
+
+    $normalize_time = static function($time) {
+        $parts = explode(':', trim($time));
+        if (count($parts) !== 2) {
+            return null;
+        }
+
+        $hour = (int) $parts[0];
+        $minute = (int) $parts[1];
+
+        if ($hour < 0 || $hour > 23 || $minute < 0 || $minute > 59) {
+            return null;
+        }
+
+        return sprintf('%02d:%02d', $hour, $minute);
+    };
+
+    foreach ($entries as $entry) {
+        if ($entry === '') {
+            continue;
+        }
+
+        if (strpos($entry, '-') !== false) {
+            list($start_raw, $end_raw) = array_map('trim', explode('-', $entry, 2));
+            $start = $normalize_time($start_raw);
+            $end = $normalize_time($end_raw);
+
+            if ($start === null || $end === null) {
+                continue;
+            }
+
+            if ($start >= $end) {
+                continue;
+            }
+
+            $sanitized_entries[] = $start . '-' . $end;
+        } else {
+            $time = $normalize_time($entry);
+            if ($time === null) {
+                continue;
+            }
+
+            $sanitized_entries[] = $time;
+        }
+    }
+
+    if (empty($sanitized_entries)) {
+        return '';
+    }
+
+    $sanitized_entries = array_values(array_unique($sanitized_entries));
+    $preview = implode(', ', $sanitized_entries);
+
+    // Validate that at least one normalized slot is generated from the cleaned definition.
+    $normalized_slots = rbf_normalize_time_slots($preview, $slot_duration_minutes);
+    if (empty($normalized_slots)) {
+        return '';
+    }
+
+    return $preview;
+}
+
+/**
  * Determine if restaurant is open for a given date and meal.
  * Encapsulates weekday and closed-date/range checks.
  *
