@@ -311,6 +311,10 @@ function rbf_run_site_activation_tasks() {
         rbf_schedule_status_updates();
     }
 
+    if (function_exists('rbf_schedule_email_log_cleanup')) {
+        rbf_schedule_email_log_cleanup();
+    }
+
     update_option('rbf_plugin_version', RBF_VERSION);
 
     flush_rewrite_rules();
@@ -352,6 +356,10 @@ function rbf_run_site_deactivation_tasks() {
         wp_clear_scheduled_hook('rbf_update_booking_statuses');
     }
 
+    if (function_exists('rbf_clear_email_log_cleanup_event')) {
+        rbf_clear_email_log_cleanup_event();
+    }
+
     flush_rewrite_rules();
     rbf_clear_transients();
 }
@@ -378,6 +386,10 @@ register_uninstall_hook(__FILE__, 'rbf_uninstall_plugin');
 function rbf_uninstall_cleanup_site() {
     if (function_exists('wp_clear_scheduled_hook')) {
         wp_clear_scheduled_hook('rbf_update_booking_statuses');
+    }
+
+    if (function_exists('rbf_clear_email_log_cleanup_event')) {
+        rbf_clear_email_log_cleanup_event();
     }
 
     if (!function_exists('rbf_remove_default_capabilities')) {
