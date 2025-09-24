@@ -87,6 +87,19 @@ function rbf_enqueue_frontend_assets() {
 
     wp_enqueue_style('rbf-intl-tel-input-css', $intl_tel_css_src, [], $intl_tel_version);
 
+    // Frontend styles and brand variables
+    wp_enqueue_style('rbf-frontend-css', rbf_get_asset_url('css/frontend.css'), ['rbf-flatpickr-css'], rbf_get_asset_version());
+    rbf_inject_brand_css_vars();
+
+    // Register frontend script before attaching inline fallbacks
+    wp_register_script(
+        'rbf-frontend-js',
+        rbf_get_asset_url('js/frontend.js'),
+        $deps,
+        rbf_get_asset_version(),
+        true
+    );
+
     if ($use_cdn_assets) {
         $fallback_helper = <<<'JS'
 (function(){
@@ -142,14 +155,7 @@ JS;
         wp_add_inline_script('rbf-frontend-js', $intl_tel_fallback, 'before');
     }
 
-    // Frontend styles
-    wp_enqueue_style('rbf-frontend-css', rbf_get_asset_url('css/frontend.css'), ['rbf-flatpickr-css'], rbf_get_asset_version());
-    
-    // Inject brand CSS variables globally
-    rbf_inject_brand_css_vars();
-
-    // Frontend script (must be enqueued before wp_localize_script)
-    wp_enqueue_script('rbf-frontend-js', rbf_get_asset_url('js/frontend.js'), $deps, rbf_get_asset_version(), true);
+    // Frontend script will be enqueued after localization
 
     // Giorni chiusi
     $closed_days_map = ['sun'=>0,'mon'=>1,'tue'=>2,'wed'=>3,'thu'=>4,'fri'=>5,'sat'=>6];
@@ -289,6 +295,8 @@ JS;
             'chooseDate' => rbf_translate_string('Seleziona una data'),
         ],
     ]);
+
+    wp_enqueue_script('rbf-frontend-js');
 }
 
 /**
