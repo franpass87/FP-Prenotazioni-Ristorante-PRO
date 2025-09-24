@@ -2594,10 +2594,18 @@ function rbf_export_json($bookings, $start_date, $end_date) {
  */
 add_action('init', 'rbf_schedule_status_updates');
 function rbf_schedule_status_updates() {
-    if (!wp_next_scheduled('rbf_update_booking_statuses')) {
-        // Schedule daily at 6:00 AM to update past bookings to completed
-        wp_schedule_event(strtotime('today 06:00'), 'daily', 'rbf_update_booking_statuses');
+    if (wp_next_scheduled('rbf_update_booking_statuses')) {
+        return;
     }
+
+    $timestamp = rbf_get_next_daily_event_timestamp(6, 0);
+
+    if ($timestamp === null) {
+        // Fallback: schedule approximately one day from now.
+        $timestamp = time() + DAY_IN_SECONDS;
+    }
+
+    wp_schedule_event($timestamp, 'daily', 'rbf_update_booking_statuses');
 }
 
 add_action('rbf_update_booking_statuses', 'rbf_auto_complete_past_bookings');

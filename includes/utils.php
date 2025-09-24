@@ -606,6 +606,50 @@ if (!function_exists('rbf_wp_timezone')) {
     }
 }
 
+if (!function_exists('rbf_get_next_daily_event_timestamp')) {
+    /**
+     * Calculate the next UTC timestamp for a recurring daily event.
+     *
+     * WordPress cron expects timestamps in UTC. This helper uses the site
+     * timezone to compute the next occurrence of the provided local time and
+     * converts it to UTC before returning it.
+     *
+     * @param int $hour   Hour in 24h format (0-23).
+     * @param int $minute Minute (0-59).
+     * @return int|null UTC timestamp for the next occurrence or null on failure.
+     */
+    function rbf_get_next_daily_event_timestamp($hour = 0, $minute = 0) {
+        $hour = (int) $hour;
+        $minute = (int) $minute;
+
+        if ($hour < 0 || $hour > 23 || $minute < 0 || $minute > 59) {
+            return null;
+        }
+
+        $timezone = rbf_wp_timezone();
+
+        if (!($timezone instanceof DateTimeZone)) {
+            return null;
+        }
+
+        try {
+            $now = new DateTimeImmutable('now', $timezone);
+            $candidate = $now->setTime($hour, $minute, 0);
+
+            if ($candidate <= $now) {
+                $candidate = $candidate->modify('+1 day');
+            }
+
+            $utc_time = $candidate->setTimezone(new DateTimeZone('UTC'));
+
+            return (int) $utc_time->format('U');
+        } catch (Exception $e) {
+            rbf_log('RBF Plugin: Failed to calculate cron timestamp - ' . $e->getMessage());
+            return null;
+        }
+    }
+}
+
 /**
  * Get current language (limited to it/en with Polylang/WPML support; fallback en)
  */
