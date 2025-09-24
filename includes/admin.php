@@ -429,6 +429,18 @@ function rbf_sanitize_settings_callback($input) {
 }
 
 /**
+ * Clear availability caches whenever the main settings option is updated.
+ */
+add_action('update_option_rbf_settings', 'rbf_clear_availability_caches_on_settings_update', 10, 2);
+function rbf_clear_availability_caches_on_settings_update($old_value, $value) {
+    if ($old_value === $value) {
+        return;
+    }
+
+    rbf_delete_transients_like(rbf_get_global_availability_transient_patterns());
+}
+
+/**
  * Enqueue admin styles
  */
 add_action('admin_enqueue_scripts','rbf_enqueue_admin_styles');

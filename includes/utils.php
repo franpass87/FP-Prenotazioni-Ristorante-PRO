@@ -528,6 +528,49 @@ function rbf_get_settings() {
 }
 
 /**
+ * Retrieve the availability transient patterns used across the plugin.
+ *
+ * @return array
+ */
+function rbf_get_global_availability_transient_patterns() {
+    return [
+        '_transient_rbf_cal_avail_',
+        '_transient_timeout_rbf_cal_avail_',
+        '_transient_rbf_times_',
+        '_transient_timeout_rbf_times_',
+        '_transient_rbf_avail_',
+        '_transient_timeout_rbf_avail_',
+    ];
+}
+
+/**
+ * Delete transients whose option names match the provided patterns.
+ *
+ * @param array $patterns List of option name prefixes to delete.
+ * @return void
+ */
+function rbf_delete_transients_like(array $patterns) {
+    global $wpdb;
+
+    if (!isset($wpdb) || empty($wpdb->options)) {
+        return;
+    }
+
+    foreach ($patterns as $pattern) {
+        if (!is_string($pattern) || $pattern === '') {
+            continue;
+        }
+
+        $wpdb->query(
+            $wpdb->prepare(
+                "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",
+                $wpdb->esc_like($pattern) . '%'
+            )
+        );
+    }
+}
+
+/**
  * Get the maximum number of people allowed for a booking.
  *
  * Returns the highest configured meal capacity when no explicit legacy override is present.
