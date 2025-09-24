@@ -116,7 +116,8 @@ function rbf_load_modules() {
         'ga4-funnel-tracking.php',
         'tracking-validation.php',
         'tracking-enhanced-integration.php',
-        'ai-suggestions.php'
+        'ai-suggestions.php',
+        'privacy.php'
     ];
 
     foreach ($modules as $module) {
