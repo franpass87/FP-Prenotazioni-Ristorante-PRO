@@ -1573,6 +1573,98 @@ add_action('rbf_booking_status_changed', function($booking_id, $old_status, $new
     }
 }, 10, 4);
 
+add_action('trashed_post', 'rbf_release_booking_resources_on_delete');
+add_action('before_delete_post', 'rbf_release_booking_resources_on_delete');
+add_action('untrashed_post', 'rbf_reset_booking_release_flag');
+
+function rbf_release_booking_resources_on_delete($post_id) {
+    $post_id = absint($post_id);
+    if ($post_id <= 0) {
+        return;
+    }
+
+    if (wp_is_post_revision($post_id) || wp_is_post_autosave($post_id)) {
+        return;
+    }
+
+    if (get_post_type($post_id) !== 'rbf_booking') {
+        return;
+    }
+
+    $release_flag_key = '_rbf_booking_release_processed';
+
+    if (get_post_meta($post_id, $release_flag_key, true)) {
+        return;
+    }
+
+    if (function_exists('rbf_remove_table_assignment')) {
+        rbf_remove_table_assignment($post_id);
+    }
+
+    $booking_date_raw = get_post_meta($post_id, 'rbf_data', true);
+    $booking_meal_raw = get_post_meta($post_id, 'rbf_meal', true);
+    if (empty($booking_meal_raw)) {
+        $booking_meal_raw = get_post_meta($post_id, 'rbf_orario', true);
+    }
+
+    $booking_date = $booking_date_raw ? sanitize_text_field($booking_date_raw) : '';
+    $booking_meal = $booking_meal_raw ? sanitize_text_field($booking_meal_raw) : '';
+    $booking_people = absint(get_post_meta($post_id, 'rbf_persone', true));
+
+    $should_mark_processed = false;
+
+    if ($booking_date && $booking_meal && $booking_people > 0) {
+        if (function_exists('rbf_release_slot_capacity')) {
+            $release_success = rbf_release_slot_capacity($booking_date, $booking_meal, $booking_people);
+            if ($release_success) {
+                $should_mark_processed = true;
+            } else {
+                rbf_log(sprintf(
+                    'RBF booking deletion: unable to release capacity for booking #%d (%s, %s, %d).',
+                    $post_id,
+                    $booking_date,
+                    $booking_meal,
+                    $booking_people
+                ));
+            }
+        } else {
+            rbf_log('RBF booking deletion: release function unavailable for booking #' . $post_id);
+            $should_mark_processed = true;
+        }
+    } else {
+        $should_mark_processed = true;
+        rbf_log(sprintf(
+            'RBF booking deletion: incomplete metadata for booking #%d (date: %s, meal: %s, people: %s). Release skipped.',
+            $post_id,
+            $booking_date ? $booking_date : 'n/a',
+            $booking_meal ? $booking_meal : 'n/a',
+            $booking_people > 0 ? $booking_people : '0'
+        ));
+    }
+
+    if ($booking_date && $booking_meal) {
+        delete_transient('rbf_avail_' . $booking_date . '_' . $booking_meal);
+        rbf_clear_calendar_cache($booking_date, $booking_meal);
+    }
+
+    if ($should_mark_processed) {
+        update_post_meta($post_id, $release_flag_key, 1);
+    }
+}
+
+function rbf_reset_booking_release_flag($post_id) {
+    $post_id = absint($post_id);
+    if ($post_id <= 0) {
+        return;
+    }
+
+    if (get_post_type($post_id) !== 'rbf_booking') {
+        return;
+    }
+
+    delete_post_meta($post_id, '_rbf_booking_release_processed');
+}
+
 /**
  * AJAX handler to refresh calendar data (for real-time updates)
  */
