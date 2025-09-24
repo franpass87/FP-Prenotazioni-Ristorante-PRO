@@ -75,6 +75,32 @@ function rbf_post_has_booking_form($post = null) {
 }
 
 /**
+ * Determine whether a database table exists for the current site.
+ *
+ * @param string $table_name Fully qualified table name, including the WordPress prefix.
+ * @return bool True when the table exists, false otherwise.
+ */
+function rbf_database_table_exists($table_name) {
+    global $wpdb;
+
+    if (!isset($wpdb) || !is_string($table_name)) {
+        return false;
+    }
+
+    $table_name = trim($table_name);
+    if ($table_name === '') {
+        return false;
+    }
+
+    $like = $wpdb->esc_like($table_name);
+    $sql = $wpdb->prepare('SHOW TABLES LIKE %s', $like);
+
+    $result = $wpdb->get_var($sql);
+
+    return !empty($result);
+}
+
+/**
  * Locate the booking page permalink used for confirmation links.
  *
  * Attempts to detect the first published page containing one of the booking

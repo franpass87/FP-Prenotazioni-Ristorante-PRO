@@ -115,7 +115,7 @@ function rbf_create_table_management_tables() {
  */
 function rbf_create_default_table_setup() {
     global $wpdb;
-    
+
     $areas_table = $wpdb->prefix . 'rbf_areas';
     $tables_table = $wpdb->prefix . 'rbf_tables';
     $groups_table = $wpdb->prefix . 'rbf_table_groups';
@@ -234,6 +234,87 @@ function rbf_create_default_table_setup() {
             'table_id' => $table_id,
             'join_order' => $index + 1
         ]);
+    }
+}
+
+/**
+ * Verify that the plugin database schema exists and repair it when missing.
+ */
+function rbf_verify_database_schema() {
+    global $wpdb;
+
+    if (!isset($wpdb)) {
+        return;
+    }
+
+    $interval = defined('HOUR_IN_SECONDS') ? (12 * HOUR_IN_SECONDS) : 43200;
+
+    if (function_exists('apply_filters')) {
+        $interval = (int) apply_filters('rbf_schema_verification_interval', $interval);
+        if ($interval < 3600) {
+            $interval = 3600;
+        }
+    }
+
+    $last_check = (int) get_option('rbf_schema_last_verified', 0);
+    $now = time();
+
+    if ($last_check > 0 && ($now - $last_check) < $interval) {
+        return;
+    }
+
+    $updated = false;
+
+    $required_tables = [
+        $wpdb->prefix . 'rbf_areas',
+        $wpdb->prefix . 'rbf_tables',
+        $wpdb->prefix . 'rbf_table_groups',
+        $wpdb->prefix . 'rbf_table_group_members',
+        $wpdb->prefix . 'rbf_table_assignments',
+    ];
+
+    $missing_tables = array_filter($required_tables, function($table) {
+        return !rbf_database_table_exists($table);
+    });
+
+    if (!empty($missing_tables)) {
+        rbf_log('RBF Plugin: Missing table(s) detected: ' . implode(', ', $missing_tables));
+        rbf_create_table_management_tables();
+        $updated = true;
+    }
+
+    $still_missing = array_filter($required_tables, function($table) {
+        return !rbf_database_table_exists($table);
+    });
+
+    if (!empty($still_missing) && function_exists('rbf_add_admin_notice')) {
+        $message = sprintf(
+            rbf_translate_string('Errore database: impossibile creare le tabelle richieste (%s). Verifica i permessi del database.'),
+            implode(', ', $still_missing)
+        );
+        rbf_add_admin_notice($message, 'error');
+        rbf_log('RBF Plugin: Failed to create required table(s): ' . implode(', ', $still_missing));
+    }
+
+    $slot_table = $wpdb->prefix . 'rbf_slot_versions';
+    if (function_exists('rbf_create_slot_version_table') && !rbf_database_table_exists($slot_table)) {
+        rbf_create_slot_version_table();
+        $updated = true;
+    }
+
+    if (function_exists('rbf_ensure_email_log_table')) {
+        $result = rbf_ensure_email_log_table();
+        if ($result === 'created') {
+            $updated = true;
+        } elseif ($result === 'failed') {
+            rbf_log('RBF Plugin: Unable to create email notification log table.');
+        }
+    }
+
+    update_option('rbf_schema_last_verified', $now, false);
+
+    if ($updated) {
+        rbf_log('RBF Plugin: Database schema verification completed.');
     }
 }
 

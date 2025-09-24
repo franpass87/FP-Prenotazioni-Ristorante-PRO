@@ -23,7 +23,14 @@ class RBF_Email_Failover_Service {
     public function __construct() {
         $this->maybe_create_log_table();
     }
-    
+
+    /**
+     * Ensure the notification log table is available.
+     */
+    public function ensure_log_table() {
+        $this->maybe_create_log_table();
+    }
+
     /**
      * Create email notification log table if it doesn't exist
      */
@@ -488,6 +495,41 @@ function rbf_get_email_failover_service() {
         $service = new RBF_Email_Failover_Service();
     }
     return $service;
+}
+
+/**
+ * Ensure the email notification log table exists.
+ *
+ * @return string One of 'exists', 'created' or 'failed'.
+ */
+function rbf_ensure_email_log_table() {
+    global $wpdb;
+
+    if (!isset($wpdb)) {
+        return 'failed';
+    }
+
+    $table_name = $wpdb->prefix . 'rbf_email_notifications';
+
+    if (rbf_database_table_exists($table_name)) {
+        return 'exists';
+    }
+
+    $service = rbf_get_email_failover_service();
+    if (method_exists($service, 'ensure_log_table')) {
+        $service->ensure_log_table();
+    }
+
+    $table_exists = rbf_database_table_exists($table_name);
+
+    if (!$table_exists && function_exists('rbf_add_admin_notice')) {
+        rbf_add_admin_notice(
+            rbf_translate_string('Errore database: tabella registro email mancante. Impossibile registrare lo stato delle notifiche.'),
+            'error'
+        );
+    }
+
+    return $table_exists ? 'created' : 'failed';
 }
 
 /**
