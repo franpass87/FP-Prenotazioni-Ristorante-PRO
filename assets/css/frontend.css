@@ -1496,6 +1496,122 @@
     border-radius: 4px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
     background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    line-height: 1;
+    text-transform: uppercase;
+    color: var(--rbf-flag-text, #ffffff);
+    background-color: var(--rbf-flag-bg, #4b5563);
+    overflow: hidden;
+}
+
+.rbf-phone-flag::before {
+    content: attr(data-flag);
+    display: block;
+}
+
+.rbf-phone-flag[data-flag="it"] {
+    background-image: linear-gradient(90deg, #008c45 0 33%, #f4f5f0 33% 66%, #cd212a 66% 100%);
+    --rbf-flag-text: #1f2933;
+}
+
+.rbf-phone-flag[data-flag="gb"] {
+    background-color: #012169;
+}
+
+.rbf-phone-flag[data-flag="us"] {
+    background-image: linear-gradient(180deg, #b22234 0 10%, #ffffff 10% 20%, #b22234 20% 30%, #ffffff 30% 40%, #b22234 40% 50%, #ffffff 50% 60%, #b22234 60% 70%, #ffffff 70% 80%, #b22234 80% 90%, #ffffff 90% 100%);
+}
+
+.rbf-phone-flag[data-flag="fr"] {
+    background-image: linear-gradient(90deg, #0055a4 0 33%, #ffffff 33% 66%, #ef4135 66% 100%);
+    --rbf-flag-text: #1f2933;
+}
+
+.rbf-phone-flag[data-flag="de"] {
+    background-image: linear-gradient(180deg, #000000 0 33%, #dd0000 33% 66%, #ffce00 66% 100%);
+    --rbf-flag-text: #1f2933;
+}
+
+.rbf-phone-flag[data-flag="es"] {
+    background-image: linear-gradient(180deg, #aa151b 0 25%, #f1bf00 25% 75%, #aa151b 75% 100%);
+    --rbf-flag-text: #7c1b1b;
+}
+
+.rbf-phone-flag[data-flag="ch"] {
+    background-color: #d52b1e;
+}
+
+.rbf-phone-flag[data-flag="at"] {
+    background-image: linear-gradient(180deg, #ed2939 0 33%, #ffffff 33% 66%, #ed2939 66% 100%);
+    --rbf-flag-text: #a1122b;
+}
+
+.rbf-phone-flag[data-flag="nl"] {
+    background-image: linear-gradient(180deg, #ae1c28 0 33%, #ffffff 33% 66%, #21468b 66% 100%);
+    --rbf-flag-text: #1f2933;
+}
+
+.rbf-phone-flag[data-flag="be"] {
+    background-image: linear-gradient(90deg, #000000 0 33%, #ffd90c 33% 66%, #ef3340 66% 100%);
+    --rbf-flag-text: #1f2933;
+}
+
+.rbf-phone-flag[data-flag="lu"] {
+    background-image: linear-gradient(180deg, #00a1de 0 33%, #ffffff 33% 66%, #ed2939 66% 100%);
+    --rbf-flag-text: #1f2933;
+}
+
+.rbf-phone-flag[data-flag="pt"] {
+    background-image: linear-gradient(90deg, #006600 0 40%, #ff0000 40% 100%);
+}
+
+.rbf-phone-flag[data-flag="ie"] {
+    background-image: linear-gradient(90deg, #169b62 0 33%, #ffffff 33% 66%, #ff883e 66% 100%);
+    --rbf-flag-text: #1f2933;
+}
+
+.rbf-phone-flag[data-flag="dk"] {
+    background-color: #c60c30;
+}
+
+.rbf-phone-flag[data-flag="se"] {
+    background-color: #006aa7;
+}
+
+.rbf-phone-flag[data-flag="no"] {
+    background-color: #ba0c2f;
+}
+
+.rbf-phone-flag[data-flag="fi"] {
+    background-color: #ffffff;
+    border: 1px solid #1f408c;
+    --rbf-flag-text: #1f408c;
+}
+
+.rbf-phone-flag[data-flag="gr"] {
+    background-color: #0d5eaf;
+}
+
+.rbf-phone-flag[data-flag="mc"] {
+    background-image: linear-gradient(180deg, #ce1126 0 50%, #ffffff 50% 100%);
+    --rbf-flag-text: #971020;
+}
+
+.rbf-phone-flag[data-flag="sm"] {
+    background-image: linear-gradient(180deg, #63b8ff 0 50%, #ffffff 50% 100%);
+    --rbf-flag-text: #1f2933;
+}
+
+.rbf-phone-flag[data-flag="va"] {
+    background-image: linear-gradient(90deg, #ffe000 0 50%, #ffffff 50% 100%);
+    --rbf-flag-text: #5f4b00;
 }
 
 .rbf-phone-wrapper input[type='tel'] {

@@ -2308,13 +2308,24 @@ function initializeBookingForm($) {
 
     const updateFlag = () => {
       const countryCode = (getSelectedPhoneCountry() || 'it').toLowerCase();
+      const countryLabel = getSelectedPhoneLabel();
+
       if (wrapper && wrapper.length) {
         wrapper.attr('data-flag', countryCode);
       }
+
       if (flagElement && flagElement.length) {
         const baseClass = 'rbf-phone-flag iti__flag';
         flagElement.attr('class', `${baseClass} iti__${countryCode}`);
         flagElement.attr('data-flag', countryCode);
+
+        if (countryLabel) {
+          flagElement.attr('data-flag-label', countryLabel);
+          flagElement.attr('title', countryLabel);
+        } else {
+          flagElement.removeAttr('data-flag-label');
+          flagElement.removeAttr('title');
+        }
       }
     };
 
