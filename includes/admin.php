@@ -10,6 +10,57 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+/**
+ * Retrieve the default mapping of WordPress roles to plugin capabilities.
+ *
+ * @param string|null $booking_capability  Optional booking management capability override.
+ * @param string|null $settings_capability Optional settings management capability override.
+ * @return array<string, array<int, string>> Normalized role-to-capability map.
+ */
+function rbf_get_default_capabilities_role_map($booking_capability = null, $settings_capability = null) {
+    if (!is_string($booking_capability) || $booking_capability === '') {
+        $booking_capability = rbf_get_booking_capability();
+    }
+
+    if (!is_string($settings_capability) || $settings_capability === '') {
+        $settings_capability = rbf_get_settings_capability();
+    }
+
+    $default_role_map = [
+        'administrator' => array_filter([
+            $booking_capability,
+            $settings_capability !== 'manage_options' ? $settings_capability : null,
+        ]),
+        'editor'       => [$booking_capability],
+        'shop_manager' => [$booking_capability],
+    ];
+
+    if (function_exists('apply_filters')) {
+        $default_role_map = apply_filters('rbf_default_capabilities_map', $default_role_map, $booking_capability, $settings_capability);
+    }
+
+    $normalized_map = [];
+
+    foreach ($default_role_map as $role_name => $capabilities) {
+        if (!is_string($role_name) || $role_name === '') {
+            continue;
+        }
+
+        $capabilities = array_filter(
+            array_unique(array_map('strval', (array) $capabilities)),
+            static function ($capability) {
+                return $capability !== '';
+            }
+        );
+
+        if (!empty($capabilities)) {
+            $normalized_map[$role_name] = array_values($capabilities);
+        }
+    }
+
+    return $normalized_map;
+}
+
 add_action('init', 'rbf_register_default_capabilities', 5);
 /**
  * Ensure default WordPress roles receive the capabilities required by the plugin.
@@ -19,34 +70,38 @@ function rbf_register_default_capabilities() {
         return;
     }
 
-    $booking_capability  = rbf_get_booking_capability();
-    $settings_capability = rbf_get_settings_capability();
-
-    $default_role_map = [
-        'administrator' => array_filter([$booking_capability, $settings_capability !== 'manage_options' ? $settings_capability : null]),
-        'editor'        => [$booking_capability],
-        'shop_manager'  => [$booking_capability],
-    ];
-
-    if (function_exists('apply_filters')) {
-        $default_role_map = apply_filters('rbf_default_capabilities_map', $default_role_map, $booking_capability, $settings_capability);
-    }
-
-    foreach ($default_role_map as $role_name => $capabilities) {
+    foreach (rbf_get_default_capabilities_role_map() as $role_name => $capabilities) {
         $role = get_role($role_name);
 
         if (!$role) {
             continue;
         }
 
-        $capabilities = array_filter(array_unique(array_map('strval', (array) $capabilities)));
+        foreach ($capabilities as $capability) {
+            $role->add_cap($capability);
+        }
+    }
+}
+
+/**
+ * Remove plugin capabilities from the default roles.
+ *
+ * Invoked during uninstall to ensure no orphaned capabilities remain after cleanup.
+ */
+function rbf_remove_default_capabilities() {
+    if (!function_exists('get_role')) {
+        return;
+    }
+
+    foreach (rbf_get_default_capabilities_role_map() as $role_name => $capabilities) {
+        $role = get_role($role_name);
+
+        if (!$role) {
+            continue;
+        }
 
         foreach ($capabilities as $capability) {
-            if ($capability === '') {
-                continue;
-            }
-
-            $role->add_cap($capability);
+            $role->remove_cap($capability);
         }
     }
 }
