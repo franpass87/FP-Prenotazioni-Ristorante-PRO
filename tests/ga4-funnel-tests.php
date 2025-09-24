@@ -481,7 +481,7 @@ class RBF_GA4_Funnel_Tests {
 /**
  * Run GA4 funnel tracking tests if requested
  */
-if (isset($_GET['rbf_test_ga4_funnel']) && current_user_can('manage_options')) {
+if (isset($_GET['rbf_test_ga4_funnel']) && ((function_exists('rbf_user_can_manage_settings') && rbf_user_can_manage_settings()) || (!function_exists('rbf_user_can_manage_settings') && function_exists('current_user_can') && current_user_can('manage_options')))) {
     add_action('admin_init', function() {
         if (!wp_verify_nonce($_GET['nonce'] ?? '', 'rbf_test_ga4_funnel')) {
             wp_die('Invalid nonce');

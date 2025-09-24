@@ -182,15 +182,83 @@ function rbf_log($message) {
 }
 
 /**
+ * Retrieve the capability required to manage bookings.
+ *
+ * @return string
+ */
+function rbf_get_booking_capability() {
+    $default = 'rbf_manage_bookings';
+
+    if (function_exists('apply_filters')) {
+        $filtered = apply_filters('rbf_booking_capability', $default);
+        if (is_string($filtered) && $filtered !== '') {
+            return $filtered;
+        }
+    }
+
+    return $default;
+}
+
+/**
+ * Retrieve the capability required to manage plugin settings.
+ *
+ * Defaults to the core "manage_options" capability for backward compatibility.
+ *
+ * @return string
+ */
+function rbf_get_settings_capability() {
+    $default = 'manage_options';
+
+    if (function_exists('apply_filters')) {
+        $filtered = apply_filters('rbf_settings_capability', $default);
+        if (is_string($filtered) && $filtered !== '') {
+            return $filtered;
+        }
+    }
+
+    return $default;
+}
+
+/**
+ * Determine if the current user can manage bookings.
+ *
+ * @return bool
+ */
+function rbf_user_can_manage_bookings() {
+    if (!function_exists('current_user_can')) {
+        return false;
+    }
+
+    return current_user_can(rbf_get_booking_capability());
+}
+
+/**
+ * Determine if the current user can manage plugin settings.
+ *
+ * @return bool
+ */
+function rbf_user_can_manage_settings() {
+    if (!function_exists('current_user_can')) {
+        return false;
+    }
+
+    return current_user_can(rbf_get_settings_capability());
+}
+
+/**
  * Ensure the current user has the required capability before rendering admin pages.
  *
  * The helper provides a consistent, translatable error message and ensures a
  * proper HTTP 403 status code is returned when access is denied.
  *
- * @param string $capability Optional. Capability to check. Default manage_options.
+ * @param string|null $capability Optional. Capability to check. Defaults to plugin settings capability.
  * @return bool True when the user has the capability, false otherwise.
  */
-function rbf_require_capability($capability = 'manage_options') {
+function rbf_require_capability($capability = null) {
+    if ($capability === null || $capability === '' || $capability === 'manage_options') {
+        $capability = rbf_get_settings_capability();
+    }
+
     if (!function_exists('current_user_can')) {
         return false;
     }
@@ -208,6 +276,24 @@ function rbf_require_capability($capability = 'manage_options') {
     }
 
     die($message);
+}
+
+/**
+ * Convenience wrapper requiring the booking management capability.
+ *
+ * @return bool True when access is granted.
+ */
+function rbf_require_booking_capability() {
+    return rbf_require_capability(rbf_get_booking_capability());
+}
+
+/**
+ * Convenience wrapper requiring the settings management capability.
+ *
+ * @return bool True when access is granted.
+ */
+function rbf_require_settings_capability() {
+    return rbf_require_capability(rbf_get_settings_capability());
 }
 
 /**
@@ -1971,7 +2057,7 @@ function rbf_normalize_bucket($gclid = '', $fbclid = '') {
  * Moved from utm-validator.php to consolidate analytics functionality
  */
 function rbf_get_utm_analytics($days = 30) {
-    if (!current_user_can('manage_options')) {
+    if (!rbf_user_can_manage_bookings()) {
         return [];
     }
     

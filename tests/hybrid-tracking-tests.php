@@ -303,7 +303,7 @@ class RBF_Hybrid_Tracking_Tests {
 /**
  * Run hybrid tracking tests if requested
  */
-if (isset($_GET['rbf_test_hybrid_tracking']) && current_user_can('manage_options')) {
+if (isset($_GET['rbf_test_hybrid_tracking']) && ((function_exists('rbf_user_can_manage_settings') && rbf_user_can_manage_settings()) || (!function_exists('rbf_user_can_manage_settings') && function_exists('current_user_can') && current_user_can('manage_options')))) {
     add_action('admin_init', function() {
         if (!wp_verify_nonce($_GET['nonce'] ?? '', 'rbf_test_hybrid_tracking')) {
             wp_die('Invalid nonce');

@@ -190,7 +190,7 @@ function rbf_get_tracking_flow_description($options) {
  */
 add_action('admin_init', 'rbf_add_tracking_validation_page');
 function rbf_add_tracking_validation_page() {
-    if (isset($_GET['rbf_validate_tracking']) && current_user_can('manage_options')) {
+    if (isset($_GET['rbf_validate_tracking']) && rbf_user_can_manage_settings()) {
         if (!wp_verify_nonce($_GET['nonce'] ?? '', 'rbf_validate_tracking')) {
             wp_die('Invalid nonce');
         }

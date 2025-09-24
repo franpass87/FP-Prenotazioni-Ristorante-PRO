@@ -281,7 +281,9 @@ function rbf_display_calendar_diagnostic() {
  */
 function rbf_ajax_fix_calendar_config() {
     // Security check
-    if (!current_user_can('manage_options')) {
+    if ((function_exists('rbf_user_can_manage_settings') && !rbf_user_can_manage_settings()) ||
+        (!function_exists('rbf_user_can_manage_settings') && function_exists('current_user_can') && !current_user_can('manage_options'))
+    ) {
         wp_die('Unauthorized');
     }
     
