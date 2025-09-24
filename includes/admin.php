@@ -1547,9 +1547,36 @@ function rbf_add_booking_page_html() {
                                 $table_assignment = rbf_assign_tables_first_fit($people, $date, $time, $meal);
 
                                 if (!$table_assignment) {
-                                    rbf_release_slot_capacity($date, $meal, $people);
+                                    $release_success = rbf_release_slot_capacity($date, $meal, $people);
+
+                                    if (!$release_success) {
+                                        if (function_exists('rbf_log')) {
+                                            rbf_log('RBF Add Booking: rilascio capacità fallito dopo errore di assegnazione tavoli per prenotazione ' . $post_id . ' su ' . $date . ' - ' . $meal . '. Avvio sincronizzazione ledger.');
+                                        }
+
+                                        $synced = function_exists('rbf_sync_slot_version') ? rbf_sync_slot_version($date, $meal) : false;
+
+                                        if ($synced) {
+                                            $release_success = rbf_release_slot_capacity($date, $meal, $people);
+                                        } else {
+                                            if (function_exists('rbf_log')) {
+                                                rbf_log('RBF Add Booking: sincronizzazione ledger fallita dopo errore di assegnazione tavoli per ' . $date . ' - ' . $meal . '.');
+                                            }
+                                        }
+                                    }
+
                                     wp_delete_post($post_id, true);
-                                    $message = '<div class="notice notice-error"><p>' . esc_html(rbf_translate_string('Impossibile assegnare tavoli disponibili per questa prenotazione. Riprova con un altro orario o verifica la configurazione dei tavoli.')) . '</p></div>';
+
+                                    if (!$release_success && function_exists('rbf_log')) {
+                                        rbf_log('RBF Add Booking: impossibile rilasciare la capacità dopo errore di assegnazione tavoli per prenotazione ' . $post_id . ' su ' . $date . ' - ' . $meal . ' nonostante i tentativi di ripristino.');
+                                    }
+
+                                    $base_message = rbf_translate_string('Impossibile assegnare tavoli disponibili per questa prenotazione. Riprova con un altro orario o verifica la configurazione dei tavoli.');
+                                    if (!$release_success) {
+                                        $base_message .= ' ' . rbf_translate_string('La disponibilità dello slot potrebbe non essere aggiornata; verifica manualmente la capacità.');
+                                    }
+
+                                    $message = '<div class="notice notice-error"><p>' . esc_html($base_message) . '</p></div>';
                                 } else {
                                     rbf_save_table_assignment($post_id, $table_assignment);
 
@@ -1601,8 +1628,35 @@ function rbf_add_booking_page_html() {
                                     $message = '<div class="notice notice-success"><p>Prenotazione aggiunta con successo! <a href="' . admin_url('post.php?post=' . $post_id . '&action=edit') . '">Modifica</a>' . $success_link . '</p></div>';
                                 }
                             } else {
-                                rbf_release_slot_capacity($date, $meal, $people);
-                                $message = '<div class="notice notice-error"><p>Errore durante l\'aggiunta della prenotazione.</p></div>';
+                                $release_success = rbf_release_slot_capacity($date, $meal, $people);
+
+                                if (!$release_success) {
+                                    if (function_exists('rbf_log')) {
+                                        rbf_log('RBF Add Booking: rilascio capacità fallito per ' . $date . ' - ' . $meal . ' (' . intval($people) . 'p). Avvio sincronizzazione ledger.');
+                                    }
+
+                                    $synced = function_exists('rbf_sync_slot_version') ? rbf_sync_slot_version($date, $meal) : false;
+
+                                    if ($synced) {
+                                        $release_success = rbf_release_slot_capacity($date, $meal, $people);
+                                    } else {
+                                        if (function_exists('rbf_log')) {
+                                            rbf_log('RBF Add Booking: sincronizzazione ledger fallita per ' . $date . ' - ' . $meal . '.');
+                                        }
+                                    }
+                                }
+
+                                if (!$release_success) {
+                                    if (function_exists('rbf_log')) {
+                                        rbf_log('RBF Add Booking: impossibile rilasciare la capacità per ' . $date . ' - ' . $meal . ' (' . intval($people) . 'p) dopo i tentativi di ripristino.');
+                                    }
+
+                                    $message_text = "Errore durante l'aggiunta della prenotazione. Impossibile riallineare la disponibilità dello slot; verifica manualmente la capacità.";
+                                } else {
+                                    $message_text = "Errore durante l'aggiunta della prenotazione.";
+                                }
+
+                                $message = '<div class="notice notice-error"><p>' . esc_html($message_text) . '</p></div>';
                             }
                         }
                     }
@@ -3392,9 +3446,34 @@ function rbf_move_booking_callback() {
         wp_send_json_error($buffer_validation['message']);
     }
 
-    // Release old slot capacity
+    // Release old slot capacity and ensure the ledger is consistent before proceeding
+    $release_success = true;
     if ($old_date && $meal && $people) {
-        rbf_release_slot_capacity($old_date, $meal, $people);
+        $release_success = rbf_release_slot_capacity($old_date, $meal, $people);
+
+        if (!$release_success) {
+            if (function_exists('rbf_log')) {
+                rbf_log('RBF Move Booking: rilascio capacità fallito per prenotazione ' . $booking_id . ' su ' . $old_date . ' - ' . $meal . '. Avvio sincronizzazione ledger.');
+            }
+
+            $synced = function_exists('rbf_sync_slot_version') ? rbf_sync_slot_version($old_date, $meal) : false;
+
+            if ($synced) {
+                $release_success = rbf_release_slot_capacity($old_date, $meal, $people);
+            } else {
+                if (function_exists('rbf_log')) {
+                    rbf_log('RBF Move Booking: sincronizzazione ledger fallita per ' . $old_date . ' - ' . $meal . '.');
+                }
+            }
+        }
+
+        if (!$release_success) {
+            if (function_exists('rbf_log')) {
+                rbf_log('RBF Move Booking: impossibile rilasciare la capacità originale per prenotazione ' . $booking_id . ' su ' . $old_date . ' - ' . $meal . ' dopo i tentativi di ripristino.');
+            }
+
+            wp_send_json_error('Impossibile liberare la capacità dello slot originale. Aggiorna la disponibilità e riprova.');
+        }
     }
 
     // Reserve new slot capacity and ensure it succeeds
@@ -3412,7 +3491,27 @@ function rbf_move_booking_callback() {
     $assignment = rbf_assign_tables_first_fit($people, $new_date, $new_time, $meal);
 
     if (!$assignment) {
-        rbf_release_slot_capacity($new_date, $meal, $people);
+        $release_new_success = rbf_release_slot_capacity($new_date, $meal, $people);
+
+        if (!$release_new_success) {
+            if (function_exists('rbf_log')) {
+                rbf_log('RBF Move Booking: rilascio capacità fallito per il nuovo slot della prenotazione ' . $booking_id . ' su ' . $new_date . ' - ' . $meal . '. Avvio sincronizzazione ledger.');
+            }
+
+            $synced_new = function_exists('rbf_sync_slot_version') ? rbf_sync_slot_version($new_date, $meal) : false;
+
+            if ($synced_new) {
+                $release_new_success = rbf_release_slot_capacity($new_date, $meal, $people);
+            } else {
+                if (function_exists('rbf_log')) {
+                    rbf_log('RBF Move Booking: sincronizzazione ledger fallita per il nuovo slot ' . $new_date . ' - ' . $meal . '.');
+                }
+            }
+        }
+
+        if (!$release_new_success && function_exists('rbf_log')) {
+            rbf_log('RBF Move Booking: impossibile rilasciare la capacità del nuovo slot per prenotazione ' . $booking_id . ' su ' . $new_date . ' - ' . $meal . ' nonostante i tentativi di ripristino.');
+        }
 
         if ($old_date && $meal && $people) {
             $restored = rbf_reserve_slot_capacity($old_date, $meal, $people);
@@ -3421,7 +3520,12 @@ function rbf_move_booking_callback() {
             }
         }
 
-        wp_send_json_error('Nessun tavolo disponibile per l’orario selezionato');
+        $error_message = rbf_translate_string('Nessun tavolo disponibile per l’orario selezionato');
+        if (!$release_new_success) {
+            $error_message .= ' ' . rbf_translate_string('La disponibilità potrebbe non essere aggiornata; verifica manualmente la capacità.');
+        }
+
+        wp_send_json_error($error_message);
     }
 
     rbf_save_table_assignment($booking_id, $assignment);
