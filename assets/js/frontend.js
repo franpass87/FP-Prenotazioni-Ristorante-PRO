@@ -245,6 +245,13 @@ function initializeBookingForm($) {
     submitButton: form.find('#rbf-submit')
   };
 
+  // Ensure progressive steps are hidden until the wizard is fully initialized
+  el.dateStep.hide();
+  el.timeStep.hide();
+  el.peopleStep.hide();
+  el.detailsStep.hide();
+  el.submitButton.hide().prop('disabled', true);
+
   function applyPeopleLimitAttributes() {
     if (!el.peopleInput.length) {
       return;
@@ -2400,6 +2407,9 @@ function initializeBookingForm($) {
     }
     updateProgressIndicator(fromStep);
   }
+
+  // Initialize the wizard flow with only the first step visible
+  resetSteps(1);
 
   /**
    * Handle meal selection change - RENEWED with complete calendar refresh
@@ -4591,6 +4601,9 @@ function initializeBookingForm($) {
       return 'Emergency fix applied. Try clicking calendar dates now.';
     }
   };
+
+  // Mark the form as initialized to enable wizard-specific styles
+  form.addClass('rbf-form--initialized');
 
   // Add a console helper for users (only in debug mode)
   if (isDebugMode || (typeof WP_DEBUG !== 'undefined' && WP_DEBUG)) {

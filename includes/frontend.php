@@ -725,7 +725,7 @@ function rbf_render_booking_form($atts = []) {
                     </div>
                 </div>
 
-                <div id="step-time" class="rbf-step" style="display:none;" role="group" aria-labelledby="time-label" data-skeleton="true">
+                <div id="step-time" class="rbf-step" role="group" aria-labelledby="time-label" data-skeleton="true">
                     <div class="rbf-field-wrapper">
                         <label id="time-label" for="rbf-time"><?php echo esc_html(rbf_translate_string('Orario')); ?><span class="rbf-required-indicator">*</span></label>
                         
@@ -758,7 +758,7 @@ function rbf_render_booking_form($atts = []) {
                     </div>
                 </div>
 
-                <div id="step-people" class="rbf-step" style="display:none;" role="group" aria-labelledby="people-label" data-skeleton="true">
+                <div id="step-people" class="rbf-step" role="group" aria-labelledby="people-label" data-skeleton="true">
                     <div class="rbf-field-wrapper">
                         <label id="people-label"><?php echo esc_html(rbf_translate_string('Persone')); ?><span class="rbf-required-indicator">*</span></label>
                         
@@ -783,7 +783,7 @@ function rbf_render_booking_form($atts = []) {
                     </div>
                 </div>
 
-                <div id="step-details" class="rbf-step" style="display:none;" role="group" aria-labelledby="details-label" data-skeleton="true">
+                <div id="step-details" class="rbf-step" role="group" aria-labelledby="details-label" data-skeleton="true">
                     <h3 id="details-label" class="rbf-section-title"><?php echo esc_html(rbf_translate_string('I tuoi dati')); ?></h3>
                     
                     <!-- Skeleton for form fields -->
@@ -901,7 +901,7 @@ function rbf_render_booking_form($atts = []) {
                     <label for="rbf_website">Website (leave blank):</label>
                     <input type="text" name="rbf_website" id="rbf_website" value="" tabindex="-1" autocomplete="off">
                 </div>
-                <button id="rbf-submit" type="submit" style="display:none;"><?php echo esc_html(rbf_translate_string('Prenota')); ?></button>
+                <button id="rbf-submit" type="submit"><?php echo esc_html(rbf_translate_string('Prenota')); ?></button>
             </form>
         <?php endif; ?>
         
