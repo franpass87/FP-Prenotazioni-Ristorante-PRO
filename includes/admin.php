@@ -359,30 +359,55 @@ function rbf_sanitize_settings_callback($input) {
         $output['custom_meals'] = [];
         foreach ($input['custom_meals'] as $index => $meal) {
             if (is_array($meal)) {
+                $slot_duration = isset($meal['slot_duration_minutes']) ? intval($meal['slot_duration_minutes']) : 90;
+                if ($slot_duration < 30) {
+                    $slot_duration = 30;
+                } elseif ($slot_duration > 240) {
+                    $slot_duration = 240;
+                }
+
                 $sanitized_meal = [
                     'id' => sanitize_key($meal['id'] ?? ''),
                     'name' => sanitize_text_field($meal['name'] ?? ''),
                     'capacity' => max(1, intval($meal['capacity'] ?? 30)),
-                    'time_slots' => sanitize_text_field($meal['time_slots'] ?? ''),
+                    'time_slots' => rbf_sanitize_time_slot_definition($meal['time_slots'] ?? '', $slot_duration),
                     'price' => max(0, floatval($meal['price'] ?? 0)),
                     'enabled' => isset($meal['enabled']) && $meal['enabled'] == '1',
                     'tooltip' => sanitize_textarea_field($meal['tooltip'] ?? ''),
                     'buffer_time_minutes' => max(0, min(120, intval($meal['buffer_time_minutes'] ?? 15))),
                     'buffer_time_per_person' => max(0, min(30, intval($meal['buffer_time_per_person'] ?? 5))),
                     'overbooking_limit' => max(0, min(50, intval($meal['overbooking_limit'] ?? 10))),
+                    'slot_duration_minutes' => $slot_duration,
                     'available_days' => []
                 ];
-                
+
+                if (isset($meal['large_party_duration_minutes'])) {
+                    $large_party_duration = intval($meal['large_party_duration_minutes']);
+                    if ($large_party_duration > 0) {
+                        $sanitized_meal['large_party_duration_minutes'] = min(360, $large_party_duration);
+                    }
+                } elseif (isset($meal['group_slot_duration_minutes'])) {
+                    // Backward compatibility for legacy configuration naming.
+                    $group_duration = intval($meal['group_slot_duration_minutes']);
+                    if ($group_duration > 0) {
+                        $sanitized_meal['group_slot_duration_minutes'] = min(360, $group_duration);
+                    }
+                }
+
                 // Sanitize available days
                 if (isset($meal['available_days']) && is_array($meal['available_days'])) {
                     $valid_days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+                    $unique_days = [];
                     foreach ($meal['available_days'] as $day) {
-                        if (in_array($day, $valid_days)) {
-                            $sanitized_meal['available_days'][] = $day;
+                        if (in_array($day, $valid_days, true)) {
+                            $unique_days[$day] = $day;
                         }
                     }
+                    if (!empty($unique_days)) {
+                        $sanitized_meal['available_days'] = array_values($unique_days);
+                    }
                 }
-                
+
                 // Only add meal if it has required fields
                 if (!empty($sanitized_meal['id']) && !empty($sanitized_meal['name'])) {
                     $output['custom_meals'][] = $sanitized_meal;
