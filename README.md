@@ -6,6 +6,11 @@
 
 Sistema completo di prenotazioni per ristoranti con calendario Flatpickr multilingue (IT/EN), gestione capienza per servizio, notifiche email avanzate, integrazione Brevo e tracciamento completo GA4/Meta con attribution intelligence.
 
+## ⚙️ Requisiti di Sistema
+
+- **PHP:** 7.4 o superiore
+- **WordPress:** 6.0 o superiore
+
 ## 🚀 Caratteristiche Principali
 
 ### 📅 Sistema di Prenotazione
