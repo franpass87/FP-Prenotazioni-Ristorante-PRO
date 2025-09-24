@@ -217,6 +217,16 @@ function rbf_load_modules() {
 // Use 'plugins_loaded' hook instead of 'init' to load earlier
 add_action('plugins_loaded', 'rbf_load_modules', 0);
 
+/**
+ * Perform runtime environment checks once WordPress is fully loaded.
+ */
+function rbf_initialize_runtime_environment() {
+    if (function_exists('rbf_verify_database_schema')) {
+        rbf_verify_database_schema();
+    }
+}
+add_action('plugins_loaded', 'rbf_initialize_runtime_environment', 1);
+
 if (!function_exists('rbf_should_load_admin_tests')) {
     /**
      * Determine whether developer test harnesses should be loaded.
@@ -364,7 +374,7 @@ function rbf_uninstall_cleanup_site() {
         wp_clear_scheduled_hook('rbf_update_booking_statuses');
     }
 
-    $options = ['rbf_settings', 'rbf_admin_notices', 'rbf_plugin_version'];
+    $options = ['rbf_settings', 'rbf_admin_notices', 'rbf_plugin_version', 'rbf_schema_last_verified'];
     foreach ($options as $option_name) {
         delete_option($option_name);
     }
@@ -435,7 +445,7 @@ function rbf_uninstall_plugin() {
         }
 
         if (function_exists('delete_site_option')) {
-            $network_options = ['rbf_settings', 'rbf_admin_notices', 'rbf_plugin_version'];
+            $network_options = ['rbf_settings', 'rbf_admin_notices', 'rbf_plugin_version', 'rbf_schema_last_verified'];
             foreach ($network_options as $option_name) {
                 delete_site_option($option_name);
             }
