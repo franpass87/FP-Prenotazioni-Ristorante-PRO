@@ -483,6 +483,10 @@ function rbf_inject_brand_css_vars_admin() {
  * Settings page HTML
  */
 function rbf_settings_page_html() {
+    if (!rbf_require_capability('manage_options')) {
+        return;
+    }
+
     $options = wp_parse_args(get_option('rbf_settings', rbf_get_default_settings()), rbf_get_default_settings());
     $day_labels = [
         'mon' => rbf_translate_string('Lunedì'),
@@ -1098,6 +1102,10 @@ function rbf_settings_page_html() {
  * Calendar page HTML
  */
 function rbf_calendar_page_html() {
+    if (!rbf_require_capability('manage_options')) {
+        return;
+    }
+
     wp_enqueue_style('fullcalendar-css', 'https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css', [], '5.11.3');
     wp_enqueue_script('fullcalendar-js', 'https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js', ['jquery'], '5.11.3', true);
     wp_enqueue_script('rbf-admin-js', plugin_dir_url(dirname(__FILE__)) . 'assets/js/admin.js', ['jquery', 'fullcalendar-js'], rbf_get_asset_version(), true);
@@ -1120,6 +1128,10 @@ function rbf_calendar_page_html() {
  * Weekly staff view page HTML
  */
 function rbf_weekly_staff_page_html() {
+    if (!rbf_require_capability('manage_options')) {
+        return;
+    }
+
     wp_enqueue_style('fullcalendar-css', 'https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css', [], '5.11.3');
     wp_enqueue_script('fullcalendar-js', 'https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js', ['jquery'], '5.11.3', true);
     wp_enqueue_script('rbf-weekly-staff-js', plugin_dir_url(dirname(__FILE__)) . 'assets/js/weekly-staff.js', ['jquery', 'fullcalendar-js'], rbf_get_asset_version(), true);
@@ -1427,6 +1439,10 @@ function rbf_update_booking_data_callback() {
  * Add booking page HTML
  */
 function rbf_add_booking_page_html() {
+    if (!rbf_require_capability('manage_options')) {
+        return;
+    }
+
     $options = rbf_get_settings();
     $active_meals = rbf_get_active_meals();
     $message = '';
@@ -1790,6 +1806,10 @@ function rbf_add_status_filter() {
  * Reports and Analytics page HTML
  */
 function rbf_reports_page_html() {
+    if (!rbf_require_capability('manage_options')) {
+        return;
+    }
+
     // Enqueue Chart.js for analytics
     wp_enqueue_script('chartjs', 'https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js', [], '3.9.1', true);
     
@@ -2134,8 +2154,8 @@ function rbf_get_booking_analytics($start_date, $end_date) {
  * Export page HTML
  */
 function rbf_export_page_html() {
-    if (!current_user_can('manage_options')) {
-        wp_die(esc_html(rbf_translate_string('Non hai le autorizzazioni per esportare le prenotazioni.')));
+    if (!rbf_require_capability('manage_options')) {
+        return;
     }
 
     // Handle export request
@@ -2589,6 +2609,10 @@ function rbf_clear_automatic_status_events() {
  * Table Management admin page
  */
 function rbf_tables_page_html() {
+    if (!rbf_require_capability('manage_options')) {
+        return;
+    }
+
     // Handle form submissions
     if (isset($_POST['action'])) {
         if (!wp_verify_nonce($_POST['rbf_nonce'], 'rbf_table_management')) {
@@ -3095,6 +3119,10 @@ function rbf_tables_page_html() {
  * Email Notifications page HTML
  */
 function rbf_email_notifications_page_html() {
+    if (!rbf_require_capability('manage_options')) {
+        return;
+    }
+
     $service = rbf_get_email_failover_service();
     
     // Handle actions
@@ -3743,6 +3771,10 @@ function rbf_get_weekly_staff_bookings_callback() {
  * Tracking Validation page HTML
  */
 function rbf_tracking_validation_page_html() {
+    if (!rbf_require_capability('manage_options')) {
+        return;
+    }
+
     // Load tracking validation functions
     if (!function_exists('rbf_validate_tracking_setup')) {
         require_once RBF_PLUGIN_DIR . 'includes/tracking-validation.php';
