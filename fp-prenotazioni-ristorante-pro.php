@@ -270,31 +270,91 @@ if (is_admin()) {
 /**
  * Plugin activation hook
  */
-register_activation_hook(__FILE__, 'rbf_activate_plugin');
-function rbf_activate_plugin() {
+/**
+ * Execute activation tasks within the current site context.
+ */
+function rbf_run_site_activation_tasks() {
     rbf_clear_transients();
 
-    // Load modules to ensure custom post types are available
+    // Load plugin modules so that CPTs and helpers are available.
     rbf_load_modules();
-    
-    // Create table management database tables
-    rbf_create_table_management_tables();
-    
-    // Create optimistic locking tables
-    rbf_create_slot_version_table();
-    
-    // Flush rewrite rules to ensure custom post types work
-    // The post type registration happens via 'init' hook in admin.php
+
+    if (function_exists('rbf_register_post_type')) {
+        rbf_register_post_type();
+    }
+
+    if (function_exists('rbf_create_table_management_tables')) {
+        rbf_create_table_management_tables();
+    }
+
+    if (function_exists('rbf_create_slot_version_table')) {
+        rbf_create_slot_version_table();
+    }
+
+    if (function_exists('rbf_schedule_status_updates')) {
+        rbf_schedule_status_updates();
+    }
+
+    update_option('rbf_plugin_version', RBF_VERSION);
+
     flush_rewrite_rules();
+}
+
+register_activation_hook(__FILE__, 'rbf_activate_plugin');
+function rbf_activate_plugin($network_wide) {
+    $network_wide = (bool) $network_wide;
+
+    if (!function_exists('is_multisite') || !is_multisite() || !$network_wide) {
+        rbf_run_site_activation_tasks();
+        return;
+    }
+
+    if (!function_exists('get_sites') || !function_exists('switch_to_blog') || !function_exists('restore_current_blog')) {
+        rbf_run_site_activation_tasks();
+        return;
+    }
+
+    $site_ids = get_sites(['fields' => 'ids']);
+
+    foreach ($site_ids as $site_id) {
+        switch_to_blog($site_id);
+        rbf_run_site_activation_tasks();
+        restore_current_blog();
+    }
 }
 
 /**
  * Plugin deactivation hook
  */
+/**
+ * Execute deactivation tasks within the current site context.
+ */
+function rbf_run_site_deactivation_tasks() {
+    if (function_exists('rbf_clear_automatic_status_events')) {
+        rbf_clear_automatic_status_events();
+    } elseif (function_exists('wp_clear_scheduled_hook')) {
+        wp_clear_scheduled_hook('rbf_update_booking_statuses');
+    }
+
+    flush_rewrite_rules();
+    rbf_clear_transients();
+}
+
 register_deactivation_hook(__FILE__, 'rbf_deactivate_plugin');
 function rbf_deactivate_plugin() {
-    // Clean up rewrite rules
-    flush_rewrite_rules();
+    if (function_exists('is_multisite') && is_multisite() && function_exists('get_sites') && function_exists('switch_to_blog') && function_exists('restore_current_blog')) {
+        $site_ids = get_sites(['fields' => 'ids']);
+
+        foreach ($site_ids as $site_id) {
+            switch_to_blog($site_id);
+            rbf_run_site_deactivation_tasks();
+            restore_current_blog();
+        }
+
+        return;
+    }
+
+    rbf_run_site_deactivation_tasks();
 }
 
 register_uninstall_hook(__FILE__, 'rbf_uninstall_plugin');
