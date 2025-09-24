@@ -1447,35 +1447,70 @@ function rbf_validate_date($date) {
  * Standardized error response handler
  */
 function rbf_handle_error($message, $context = 'general', $redirect_url = null) {
+    $message_string = is_scalar($message) ? (string) $message : '';
+
     // Log error for debugging
-    rbf_log("RBF Error [{$context}]: {$message}");
+    rbf_log("RBF Error [{$context}]: {$message_string}");
 
     // Fire action for error tracking
-    do_action('rbf_error_logged', $message, $context);
-    
+    do_action('rbf_error_logged', $message_string, $context);
+
     // If AJAX request, send JSON response
     if (wp_doing_ajax()) {
-        wp_send_json_error(['message' => $message, 'context' => $context]);
+        wp_send_json_error(['message' => $message_string, 'context' => $context]);
         return;
     }
-    
+
     // If redirect URL provided, redirect with error message
     if ($redirect_url) {
-        wp_safe_redirect(add_query_arg('rbf_error', urlencode($message), $redirect_url));
+        $sanitized_message = sanitize_text_field($message_string);
+
+        $fragment = '';
+        if (false !== strpos($redirect_url, '#')) {
+            list($redirect_url, $fragment) = explode('#', $redirect_url, 2);
+            $fragment = sanitize_text_field($fragment);
+        }
+
+        $base_url = $redirect_url;
+        $existing_args = [];
+
+        if (false !== strpos($redirect_url, '?')) {
+            list($base_url, $query_string) = explode('?', $redirect_url, 2);
+            wp_parse_str($query_string, $existing_args);
+        }
+
+        unset($existing_args['rbf_success']);
+        $existing_args['rbf_error'] = $sanitized_message;
+
+        $target_url = add_query_arg($existing_args, $base_url);
+
+        if ($fragment !== '') {
+            $target_url .= '#' . $fragment;
+        }
+
+        $target_url = wp_sanitize_redirect($target_url);
+
+        if (empty($target_url)) {
+            $target_url = home_url('/');
+        }
+
+        wp_safe_redirect($target_url);
         exit;
     }
-    
+
     // Fallback: return error array
-    return ['error' => true, 'message' => $message, 'context' => $context];
+    return ['error' => true, 'message' => $message_string, 'context' => $context];
 }
 
 /**
  * Standardized success response handler  
  */
 function rbf_handle_success($message, $data = [], $redirect_url = null) {
+    $message_string = is_scalar($message) ? (string) $message : '';
+
     // If AJAX request, send JSON response
     if (wp_doing_ajax()) {
-        wp_send_json_success(array_merge(['message' => $message], $data));
+        wp_send_json_success(array_merge(['message' => $message_string], $data));
         return;
     }
 
@@ -1497,17 +1532,41 @@ function rbf_handle_success($message, $data = [], $redirect_url = null) {
         }
 
         // Merge existing query arguments with caller-provided data
-        $query_args = array_merge($existing_args, $data);
+        $query_args = [];
+
+        foreach ($existing_args as $key => $value) {
+            if (!is_scalar($value)) {
+                continue;
+            }
+
+            $query_args[$key] = sanitize_text_field((string) $value);
+        }
+
+        foreach ($data as $key => $value) {
+            if (!is_scalar($value)) {
+                continue;
+            }
+
+            $query_args[$key] = sanitize_text_field((string) $value);
+        }
 
         // Inject default success flag only when not provided by caller or URL
         if (!array_key_exists('rbf_success', $query_args)) {
-            $query_args['rbf_success'] = urlencode($message);
+            $query_args['rbf_success'] = sanitize_text_field($message_string);
         }
+
+        unset($query_args['rbf_error']);
 
         $final_url = add_query_arg($query_args, $base_url);
 
         if (!empty($fragment)) {
-            $final_url .= '#' . $fragment;
+            $final_url .= '#' . sanitize_text_field($fragment);
+        }
+
+        $final_url = wp_sanitize_redirect($final_url);
+
+        if (empty($final_url)) {
+            $final_url = home_url('/');
         }
 
         wp_safe_redirect($final_url);
@@ -1515,7 +1574,7 @@ function rbf_handle_success($message, $data = [], $redirect_url = null) {
     }
 
     // Fallback: return success array
-    return array_merge(['success' => true, 'message' => $message], $data);
+    return array_merge(['success' => true, 'message' => $message_string], $data);
 }
 
 /**
