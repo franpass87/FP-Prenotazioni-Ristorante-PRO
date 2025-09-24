@@ -1250,6 +1250,142 @@ function rbf_weekly_staff_page_html() {
  * AJAX handler for calendar bookings
  */
 add_action('wp_ajax_rbf_get_bookings_for_calendar', 'rbf_get_bookings_for_calendar_callback');
+
+/**
+ * Prepare a sanitized calendar event array for a booking.
+ *
+ * @param WP_Post $booking Booking post object.
+ * @param array   $meta    Raw meta array keyed by meta name.
+ * @return array|null Sanitized event data or null when mandatory data is missing.
+ */
+function rbf_prepare_calendar_event_from_booking($booking, array $meta) {
+    if (!($booking instanceof WP_Post)) {
+        return null;
+    }
+
+    $booking_id = absint($booking->ID);
+
+    $raw_date = isset($meta['rbf_data'][0]) ? sanitize_text_field($meta['rbf_data'][0]) : '';
+    if ($raw_date === '') {
+        return null;
+    }
+
+    $date_object = DateTimeImmutable::createFromFormat('Y-m-d', $raw_date);
+    if (!$date_object) {
+        return null;
+    }
+
+    $raw_time = '';
+    if (isset($meta['rbf_time'][0])) {
+        $raw_time = $meta['rbf_time'][0];
+    } elseif (isset($meta['rbf_orario'][0])) {
+        $raw_time = $meta['rbf_orario'][0];
+    }
+    $raw_time = sanitize_text_field($raw_time);
+
+    $time_value = '';
+    if ($raw_time !== '') {
+        $time_object = DateTimeImmutable::createFromFormat('H:i', $raw_time);
+        if ($time_object) {
+            $time_value = $time_object->format('H:i');
+        } else {
+            $fallback_time = preg_replace('/[^0-9:]/', '', $raw_time);
+            if (is_string($fallback_time) && preg_match('/^\d{2}:\d{2}$/', $fallback_time)) {
+                $time_value = $fallback_time;
+            }
+        }
+    }
+
+    $start = $date_object->format('Y-m-d');
+    if ($time_value !== '') {
+        $start .= 'T' . $time_value;
+    }
+
+    $raw_title = is_string($booking->post_title) ? $booking->post_title : '';
+    $title = wp_strip_all_tags($raw_title);
+    $title = trim($title);
+    if ($title === '') {
+        $title = sprintf(rbf_translate_string('Prenotazione #%d'), $booking_id);
+    }
+
+    $people_count = isset($meta['rbf_persone'][0]) ? absint($meta['rbf_persone'][0]) : 0;
+    if ($people_count > 0) {
+        $people_label = sprintf(_n('%d persona', '%d persone', $people_count, 'rbf'), $people_count);
+        $title = sprintf('%s (%s)', $title, $people_label);
+    }
+
+    $status_raw = isset($meta['rbf_booking_status'][0]) ? $meta['rbf_booking_status'][0] : 'confirmed';
+    $status = sanitize_key($status_raw);
+    $allowed_statuses = array_keys(rbf_get_booking_statuses());
+    if (!in_array($status, $allowed_statuses, true)) {
+        $status = 'confirmed';
+    }
+
+    $status_colors = [
+        'confirmed' => '#28a745',
+        'cancelled' => '#dc3545',
+        'completed' => '#6c757d',
+    ];
+    $color = $status_colors[$status] ?? '#28a745';
+
+    $class_name = sanitize_html_class('fc-status-' . $status, 'fc-status-confirmed');
+
+    $first_name = isset($meta['rbf_nome'][0]) ? sanitize_text_field($meta['rbf_nome'][0]) : '';
+    $last_name = isset($meta['rbf_cognome'][0]) ? sanitize_text_field($meta['rbf_cognome'][0]) : '';
+    $customer_name = trim($first_name . ' ' . $last_name);
+
+    $email = isset($meta['rbf_email'][0]) ? sanitize_email($meta['rbf_email'][0]) : '';
+    $phone = isset($meta['rbf_tel'][0]) ? rbf_sanitize_phone_field($meta['rbf_tel'][0]) : '';
+    $notes = isset($meta['rbf_allergie'][0]) ? sanitize_textarea_field($meta['rbf_allergie'][0]) : '';
+    $meal_meta = '';
+    if (isset($meta['rbf_meal'][0])) {
+        $meal_meta = $meta['rbf_meal'][0];
+    } elseif (isset($meta['rbf_orario'][0])) {
+        $meal_meta = $meta['rbf_orario'][0];
+    }
+    $meal = sanitize_text_field($meal_meta);
+
+    $booking_date_display = '';
+    if (function_exists('wp_date')) {
+        $booking_date_display = wp_date(get_option('date_format', 'd/m/Y'), $date_object->getTimestamp());
+    } else {
+        $booking_date_display = $date_object->format('d/m/Y');
+    }
+
+    $event = [
+        'title' => $title,
+        'start' => $start,
+        'backgroundColor' => $color,
+        'borderColor' => $color,
+        'className' => $class_name,
+        'extendedProps' => [
+            'booking_id' => $booking_id,
+            'customer_name' => $customer_name,
+            'customer_email' => $email,
+            'customer_phone' => $phone,
+            'booking_date' => $booking_date_display,
+            'booking_time' => $time_value,
+            'people' => $people_count,
+            'notes' => $notes,
+            'status' => $status,
+            'meal' => $meal,
+        ],
+    ];
+
+    if (function_exists('apply_filters')) {
+        /**
+         * Allow developers to filter the sanitized calendar event data before it is returned.
+         *
+         * @param array   $event   Prepared event array.
+         * @param WP_Post $booking Booking post object.
+         * @param array   $meta    Raw meta array for the booking.
+         */
+        $event = apply_filters('rbf_calendar_booking_event', $event, $booking, $meta);
+    }
+
+    return $event;
+}
+
 function rbf_get_bookings_for_calendar_callback() {
     check_ajax_referer('rbf_calendar_nonce', '_ajax_nonce');
 
@@ -1261,7 +1397,7 @@ function rbf_get_bookings_for_calendar_callback() {
         'start' => 'text',
         'end' => 'text'
     ]);
-    
+
     $start = $sanitized['start'];
     $end = $sanitized['end'];
 
@@ -1279,47 +1415,14 @@ function rbf_get_bookings_for_calendar_callback() {
 
     $bookings = get_posts($args);
     $events = [];
+
     foreach ($bookings as $booking) {
-        // Get all meta data in a single call for performance
         $meta = get_post_meta($booking->ID);
-        
-        $date = $meta['rbf_data'][0] ?? '';
-        $time = $meta['rbf_time'][0] ?? ($meta['rbf_orario'][0] ?? '');
-        $people = $meta['rbf_persone'][0] ?? '';
-        $first_name = $meta['rbf_nome'][0] ?? '';
-        $last_name = $meta['rbf_cognome'][0] ?? '';
-        $email = $meta['rbf_email'][0] ?? '';
-        $phone = $meta['rbf_tel'][0] ?? '';
-        $notes = $meta['rbf_allergie'][0] ?? '';
-        $status = $meta['rbf_booking_status'][0] ?? 'confirmed';
-        $meal = $meta['rbf_meal'][0] ?? ($meta['rbf_orario'][0] ?? '');
-        
-        $title = $booking->post_title . ' (' . $people . ' persone)';
-        
-        // Color coding based on status
-        $color = '#28a745'; // confirmed - green
-        if ($status === 'cancelled') $color = '#dc3545'; // red
-        if ($status === 'completed') $color = '#6c757d'; // gray
-        
-        $events[] = [
-            'title' => $title,
-            'start' => $date . 'T' . $time,
-            'backgroundColor' => $color,
-            'borderColor' => $color,
-            'className' => 'fc-status-' . $status,
-            'extendedProps' => [
-                'booking_id' => $booking->ID,
-                'customer_name' => trim($first_name . ' ' . $last_name),
-                'customer_email' => $email,
-                'customer_phone' => $phone,
-                'booking_date' => date('d/m/Y', strtotime($date)),
-                'booking_time' => $time,
-                'people' => $people,
-                'notes' => $notes,
-                'status' => $status,
-                'meal' => $meal
-            ]
-        ];
+        $event = rbf_prepare_calendar_event_from_booking($booking, $meta);
+
+        if ($event !== null) {
+            $events[] = $event;
+        }
     }
 
     wp_send_json_success($events);
