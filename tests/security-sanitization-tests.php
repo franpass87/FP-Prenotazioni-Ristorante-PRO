@@ -7,7 +7,9 @@
 // Prevent direct access in WordPress context only
 if (defined('ABSPATH') && !defined('WP_CLI') && !defined('PHPUNIT_COMPOSER_INSTALL')) {
     // In WordPress context, check permissions
-    if (!current_user_can('manage_options')) {
+    if ((function_exists('rbf_user_can_manage_settings') && !rbf_user_can_manage_settings()) ||
+        (!function_exists('rbf_user_can_manage_settings') && function_exists('current_user_can') && !current_user_can('manage_options'))
+    ) {
         exit('Access denied');
     }
 } elseif (!defined('ABSPATH') && basename($_SERVER['PHP_SELF']) !== basename(__FILE__)) {

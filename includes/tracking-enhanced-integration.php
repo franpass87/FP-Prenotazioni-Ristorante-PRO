@@ -23,7 +23,7 @@ function rbf_add_comprehensive_tracking_validation_submenu() {
         'rbf_calendar',
         rbf_translate_string('Test Sistema Tracking'),
         rbf_translate_string('Test Sistema Tracking'),
-        'manage_options',
+        rbf_get_settings_capability(),
         'rbf_comprehensive_tracking_test',
         'rbf_comprehensive_tracking_test_page'
     );
@@ -288,7 +288,7 @@ function rbf_comprehensive_tracking_test_page() {
  */
 add_action('wp_dashboard_setup', 'rbf_add_tracking_dashboard_widget');
 function rbf_add_tracking_dashboard_widget() {
-    if (current_user_can('manage_options')) {
+    if (rbf_user_can_manage_settings()) {
         wp_add_dashboard_widget(
             'rbf_tracking_status',
             rbf_translate_string('Stato Sistema Tracking'),

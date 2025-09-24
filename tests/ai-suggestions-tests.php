@@ -176,7 +176,9 @@ function rbf_test_ajax_suggestions_endpoint() {
  * Display test results in admin
  */
 function rbf_display_ai_suggestions_tests() {
-    if (!current_user_can('manage_options')) {
+    if ((function_exists('rbf_user_can_manage_settings') && !rbf_user_can_manage_settings()) ||
+        (!function_exists('rbf_user_can_manage_settings') && function_exists('current_user_can') && !current_user_can('manage_options'))
+    ) {
         return;
     }
     
@@ -215,11 +217,12 @@ function rbf_display_ai_suggestions_tests() {
 
 // Add admin menu for tests
 add_action('admin_menu', function() {
+    $capability = function_exists('rbf_get_settings_capability') ? rbf_get_settings_capability() : 'manage_options';
     add_submenu_page(
         'rbf_dashboard',
         'AI Suggestions Tests',
         'AI Tests',
-        'manage_options',
+        $capability,
         'rbf_ai_tests',
         'rbf_display_ai_suggestions_tests'
     );

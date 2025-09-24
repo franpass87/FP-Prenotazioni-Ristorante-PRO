@@ -290,6 +290,10 @@ function rbf_run_site_activation_tasks() {
     // Load plugin modules so that CPTs and helpers are available.
     rbf_load_modules();
 
+    if (function_exists('rbf_register_default_capabilities')) {
+        rbf_register_default_capabilities();
+    }
+
     if (function_exists('rbf_register_post_type')) {
         rbf_register_post_type();
     }

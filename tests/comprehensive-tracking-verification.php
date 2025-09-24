@@ -454,7 +454,7 @@ class RBF_Comprehensive_Tracking_Verification {
 /**
  * Run comprehensive tracking verification if requested
  */
-if (isset($_GET['rbf_comprehensive_tracking_verification']) && current_user_can('manage_options')) {
+if (isset($_GET['rbf_comprehensive_tracking_verification']) && ((function_exists('rbf_user_can_manage_settings') && rbf_user_can_manage_settings()) || (!function_exists('rbf_user_can_manage_settings') && function_exists('current_user_can') && current_user_can('manage_options')))) {
     add_action('admin_init', function() {
         if (!wp_verify_nonce($_GET['nonce'] ?? '', 'rbf_comprehensive_tracking_verification')) {
             wp_die('Invalid nonce');

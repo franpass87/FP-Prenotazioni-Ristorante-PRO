@@ -1,7 +1,7 @@
 <?php
 /**
  * Admin functionality for FP Prenotazioni Ristorante
- * 
+ *
  * @package FP_Prenotazioni_Ristorante_PRO
  */
 
@@ -10,13 +10,54 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+add_action('init', 'rbf_register_default_capabilities', 5);
+/**
+ * Ensure default WordPress roles receive the capabilities required by the plugin.
+ */
+function rbf_register_default_capabilities() {
+    if (!function_exists('get_role')) {
+        return;
+    }
 
+    $booking_capability  = rbf_get_booking_capability();
+    $settings_capability = rbf_get_settings_capability();
+
+    $default_role_map = [
+        'administrator' => array_filter([$booking_capability, $settings_capability !== 'manage_options' ? $settings_capability : null]),
+        'editor'        => [$booking_capability],
+        'shop_manager'  => [$booking_capability],
+    ];
+
+    if (function_exists('apply_filters')) {
+        $default_role_map = apply_filters('rbf_default_capabilities_map', $default_role_map, $booking_capability, $settings_capability);
+    }
+
+    foreach ($default_role_map as $role_name => $capabilities) {
+        $role = get_role($role_name);
+
+        if (!$role) {
+            continue;
+        }
+
+        $capabilities = array_filter(array_unique(array_map('strval', (array) $capabilities)));
+
+        foreach ($capabilities as $capability) {
+            if ($capability === '') {
+                continue;
+            }
+
+            $role->add_cap($capability);
+        }
+    }
+}
 
 /**
  * Register booking custom post type
  */
 add_action('init', 'rbf_register_post_type');
 function rbf_register_post_type() {
+    $booking_capability = rbf_get_booking_capability();
+
     register_post_type('rbf_booking', [
         'labels' => [
             'name' => rbf_translate_string('Prenotazioni'),
@@ -36,6 +77,22 @@ function rbf_register_post_type() {
         'menu_icon' => 'dashicons-calendar-alt',
         'supports' => ['title', 'custom-fields'],
         'menu_position' => 20,
+        'capability_type' => 'rbf_booking',
+        'map_meta_cap'    => true,
+        'capabilities'    => [
+            'edit_post'              => $booking_capability,
+            'read_post'              => $booking_capability,
+            'delete_post'            => $booking_capability,
+            'edit_posts'             => $booking_capability,
+            'edit_others_posts'      => $booking_capability,
+            'publish_posts'          => $booking_capability,
+            'read_private_posts'     => $booking_capability,
+            'delete_posts'           => $booking_capability,
+            'delete_private_posts'   => $booking_capability,
+            'delete_published_posts' => $booking_capability,
+            'delete_others_posts'    => $booking_capability,
+            'create_posts'           => $booking_capability,
+        ],
     ]);
 }
 
@@ -44,16 +101,19 @@ function rbf_register_post_type() {
  */
 add_action('admin_menu', 'rbf_create_bookings_menu');
 function rbf_create_bookings_menu() {
-    add_menu_page(rbf_translate_string('Prenotazioni'), rbf_translate_string('Prenotazioni'), 'manage_options', 'rbf_calendar', 'rbf_calendar_page_html', 'dashicons-calendar-alt', 20);
-    add_submenu_page('rbf_calendar', rbf_translate_string('Prenotazioni'), rbf_translate_string('Tutte le Prenotazioni'), 'manage_options', 'rbf_calendar', 'rbf_calendar_page_html');
-    add_submenu_page('rbf_calendar', rbf_translate_string('Vista Settimanale Staff'), rbf_translate_string('Vista Settimanale Staff'), 'manage_options', 'rbf_weekly_staff', 'rbf_weekly_staff_page_html');
-    add_submenu_page('rbf_calendar', rbf_translate_string('Aggiungi Prenotazione'), rbf_translate_string('Aggiungi Nuova'), 'manage_options', 'rbf_add_booking', 'rbf_add_booking_page_html');
-    add_submenu_page('rbf_calendar', rbf_translate_string('Gestione Tavoli'), rbf_translate_string('Gestione Tavoli'), 'manage_options', 'rbf_tables', 'rbf_tables_page_html');
-    add_submenu_page('rbf_calendar', rbf_translate_string('Report & Analytics'), rbf_translate_string('Report & Analytics'), 'manage_options', 'rbf_reports', 'rbf_reports_page_html');
-    add_submenu_page('rbf_calendar', rbf_translate_string('Notifiche Email'), rbf_translate_string('Notifiche Email'), 'manage_options', 'rbf_email_notifications', 'rbf_email_notifications_page_html');
-    add_submenu_page('rbf_calendar', rbf_translate_string('Esporta Dati'), rbf_translate_string('Esporta Dati'), 'manage_options', 'rbf_export', 'rbf_export_page_html');
-    add_submenu_page('rbf_calendar', rbf_translate_string('Impostazioni'), rbf_translate_string('Impostazioni'), 'manage_options', 'rbf_settings', 'rbf_settings_page_html');
-    add_submenu_page('rbf_calendar', rbf_translate_string('Validazione Tracking'), rbf_translate_string('Validazione Tracking'), 'manage_options', 'rbf_tracking_validation', 'rbf_tracking_validation_page_html');
+    $booking_capability  = rbf_get_booking_capability();
+    $settings_capability = rbf_get_settings_capability();
+
+    add_menu_page(rbf_translate_string('Prenotazioni'), rbf_translate_string('Prenotazioni'), $booking_capability, 'rbf_calendar', 'rbf_calendar_page_html', 'dashicons-calendar-alt', 20);
+    add_submenu_page('rbf_calendar', rbf_translate_string('Prenotazioni'), rbf_translate_string('Tutte le Prenotazioni'), $booking_capability, 'rbf_calendar', 'rbf_calendar_page_html');
+    add_submenu_page('rbf_calendar', rbf_translate_string('Vista Settimanale Staff'), rbf_translate_string('Vista Settimanale Staff'), $booking_capability, 'rbf_weekly_staff', 'rbf_weekly_staff_page_html');
+    add_submenu_page('rbf_calendar', rbf_translate_string('Aggiungi Prenotazione'), rbf_translate_string('Aggiungi Nuova'), $booking_capability, 'rbf_add_booking', 'rbf_add_booking_page_html');
+    add_submenu_page('rbf_calendar', rbf_translate_string('Gestione Tavoli'), rbf_translate_string('Gestione Tavoli'), $booking_capability, 'rbf_tables', 'rbf_tables_page_html');
+    add_submenu_page('rbf_calendar', rbf_translate_string('Report & Analytics'), rbf_translate_string('Report & Analytics'), $booking_capability, 'rbf_reports', 'rbf_reports_page_html');
+    add_submenu_page('rbf_calendar', rbf_translate_string('Notifiche Email'), rbf_translate_string('Notifiche Email'), $settings_capability, 'rbf_email_notifications', 'rbf_email_notifications_page_html');
+    add_submenu_page('rbf_calendar', rbf_translate_string('Esporta Dati'), rbf_translate_string('Esporta Dati'), $booking_capability, 'rbf_export', 'rbf_export_page_html');
+    add_submenu_page('rbf_calendar', rbf_translate_string('Impostazioni'), rbf_translate_string('Impostazioni'), $settings_capability, 'rbf_settings', 'rbf_settings_page_html');
+    add_submenu_page('rbf_calendar', rbf_translate_string('Validazione Tracking'), rbf_translate_string('Validazione Tracking'), $settings_capability, 'rbf_tracking_validation', 'rbf_tracking_validation_page_html');
 }
 
 /**
@@ -508,7 +568,7 @@ function rbf_inject_brand_css_vars_admin() {
  * Settings page HTML
  */
 function rbf_settings_page_html() {
-    if (!rbf_require_capability('manage_options')) {
+    if (!rbf_require_settings_capability()) {
         return;
     }
 
@@ -1127,7 +1187,7 @@ function rbf_settings_page_html() {
  * Calendar page HTML
  */
 function rbf_calendar_page_html() {
-    if (!rbf_require_capability('manage_options')) {
+    if (!rbf_require_booking_capability()) {
         return;
     }
 
@@ -1153,7 +1213,7 @@ function rbf_calendar_page_html() {
  * Weekly staff view page HTML
  */
 function rbf_weekly_staff_page_html() {
-    if (!rbf_require_capability('manage_options')) {
+    if (!rbf_require_booking_capability()) {
         return;
     }
 
@@ -1193,7 +1253,7 @@ add_action('wp_ajax_rbf_get_bookings_for_calendar', 'rbf_get_bookings_for_calend
 function rbf_get_bookings_for_calendar_callback() {
     check_ajax_referer('rbf_calendar_nonce', '_ajax_nonce');
 
-    if (!current_user_can('manage_options')) {
+    if (!rbf_user_can_manage_bookings()) {
         wp_send_json_error('Permessi insufficienti', 403);
     }
 
@@ -1272,7 +1332,7 @@ add_action('wp_ajax_rbf_update_booking_status', 'rbf_update_booking_status_callb
 function rbf_update_booking_status_callback() {
     check_ajax_referer('rbf_calendar_nonce', '_ajax_nonce');
 
-    if (!current_user_can('manage_options')) {
+    if (!rbf_user_can_manage_bookings()) {
         wp_send_json_error('Permessi insufficienti', 403);
     }
 
@@ -1309,7 +1369,7 @@ add_action('wp_ajax_rbf_update_booking_data', 'rbf_update_booking_data_callback'
 function rbf_update_booking_data_callback() {
     check_ajax_referer('rbf_calendar_nonce', '_ajax_nonce');
 
-    if (!current_user_can('manage_options')) {
+    if (!rbf_user_can_manage_bookings()) {
         wp_send_json_error('Permessi insufficienti', 403);
     }
 
@@ -1464,7 +1524,7 @@ function rbf_update_booking_data_callback() {
  * Add booking page HTML
  */
 function rbf_add_booking_page_html() {
-    if (!rbf_require_capability('manage_options')) {
+    if (!rbf_require_booking_capability()) {
         return;
     }
 
@@ -1832,7 +1892,7 @@ function rbf_add_status_filter() {
  * Reports and Analytics page HTML
  */
 function rbf_reports_page_html() {
-    if (!rbf_require_capability('manage_options')) {
+    if (!rbf_require_booking_capability()) {
         return;
     }
 
@@ -2203,7 +2263,7 @@ function rbf_get_booking_analytics($start_date, $end_date) {
  * Export page HTML
  */
 function rbf_export_page_html() {
-    if (!rbf_require_capability('manage_options')) {
+    if (!rbf_require_booking_capability()) {
         return;
     }
 
@@ -2299,7 +2359,7 @@ function rbf_export_page_html() {
 function rbf_handle_export_request($start_date, $end_date, $format, $status_filter) {
     global $wpdb;
 
-    if (!current_user_can('manage_options')) {
+    if (!rbf_user_can_manage_bookings()) {
         wp_die(esc_html(rbf_translate_string('Non hai le autorizzazioni per esportare le prenotazioni.')));
     }
 
@@ -2666,7 +2726,7 @@ function rbf_clear_automatic_status_events() {
  * Table Management admin page
  */
 function rbf_tables_page_html() {
-    if (!rbf_require_capability('manage_options')) {
+    if (!rbf_require_booking_capability()) {
         return;
     }
 
@@ -3176,7 +3236,7 @@ function rbf_tables_page_html() {
  * Email Notifications page HTML
  */
 function rbf_email_notifications_page_html() {
-    if (!rbf_require_capability('manage_options')) {
+    if (!rbf_require_settings_capability()) {
         return;
     }
 
@@ -3569,7 +3629,7 @@ add_action('wp_ajax_rbf_move_booking', 'rbf_move_booking_callback');
 function rbf_move_booking_callback() {
     check_ajax_referer('rbf_weekly_staff_nonce', '_ajax_nonce');
 
-    if (!current_user_can('manage_options')) {
+    if (!rbf_user_can_manage_bookings()) {
         wp_send_json_error('Permessi insufficienti', 403);
     }
 
@@ -3758,7 +3818,7 @@ add_action('wp_ajax_rbf_get_weekly_staff_bookings', 'rbf_get_weekly_staff_bookin
 function rbf_get_weekly_staff_bookings_callback() {
     check_ajax_referer('rbf_weekly_staff_nonce', '_ajax_nonce');
 
-    if (!current_user_can('manage_options')) {
+    if (!rbf_user_can_manage_bookings()) {
         wp_send_json_error('Permessi insufficienti', 403);
     }
 
@@ -3828,7 +3888,7 @@ function rbf_get_weekly_staff_bookings_callback() {
  * Tracking Validation page HTML
  */
 function rbf_tracking_validation_page_html() {
-    if (!rbf_require_capability('manage_options')) {
+    if (!rbf_require_settings_capability()) {
         return;
     }
 

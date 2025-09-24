@@ -723,7 +723,7 @@ function rbf_render_booking_form($atts = []) {
                             <?php
                             if (empty($active_meals)) {
                                 // No meals configured - show helpful message for admin users
-                                if (current_user_can('manage_options')) {
+                                if (rbf_user_can_manage_settings()) {
                                     ?>
                                     <div class="notice notice-warning inline" style="margin: 0;">
                                         <p><strong><?php echo esc_html(rbf_translate_string('Configurazione richiesta:')); ?></strong> <?php echo esc_html(rbf_translate_string('Nessun pasto è configurato. Per abilitare le prenotazioni, configura almeno un pasto nella sezione')); ?> <a href="<?php echo admin_url('admin.php?page=rbf_settings'); ?>"><?php echo esc_html(rbf_translate_string('Impostazioni Plugin')); ?></a>.</p>
