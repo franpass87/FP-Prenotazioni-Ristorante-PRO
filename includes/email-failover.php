@@ -11,6 +11,10 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+if (!defined('RBF_EMAIL_LOG_DEFAULT_RETENTION_DAYS')) {
+    define('RBF_EMAIL_LOG_DEFAULT_RETENTION_DAYS', 90);
+}
+
 /**
  * Email Failover Service Class
  * Handles email delivery with primary/fallback provider logic
@@ -530,6 +534,139 @@ function rbf_ensure_email_log_table() {
     }
 
     return $table_exists ? 'created' : 'failed';
+}
+
+if (!function_exists('rbf_get_email_log_retention_days')) {
+    /**
+     * Retrieve the retention period for email notification logs.
+     *
+     * @return int Number of days to retain log entries.
+     */
+    function rbf_get_email_log_retention_days() {
+        $default = (int) RBF_EMAIL_LOG_DEFAULT_RETENTION_DAYS;
+
+        if (function_exists('apply_filters')) {
+            $filtered = apply_filters('rbf_email_log_retention_days', $default);
+            if (is_numeric($filtered) && (int) $filtered > 0) {
+                return (int) $filtered;
+            }
+        }
+
+        return $default > 0 ? $default : 90;
+    }
+}
+
+if (!function_exists('rbf_cleanup_email_notifications')) {
+    /**
+     * Remove old email notification log entries.
+     *
+     * @param int|null $retention_days Optional custom retention period.
+     * @return array{
+     *     deleted:int,
+     *     retention_days:int,
+     *     table_exists:bool
+     * }
+     */
+    function rbf_cleanup_email_notifications($retention_days = null) {
+        global $wpdb;
+
+        $result = [
+            'deleted'        => 0,
+            'retention_days' => 0,
+            'table_exists'   => false,
+        ];
+
+        if (!isset($wpdb)) {
+            return $result;
+        }
+
+        $table_name = $wpdb->prefix . 'rbf_email_notifications';
+
+        $table_exists = true;
+        if (function_exists('rbf_database_table_exists')) {
+            $table_exists = rbf_database_table_exists($table_name);
+        } else {
+            $table_exists = (bool) $wpdb->get_var(
+                $wpdb->prepare('SHOW TABLES LIKE %s', $table_name)
+            );
+        }
+
+        if (!$table_exists) {
+            return $result;
+        }
+
+        $result['table_exists'] = true;
+
+        $days = is_numeric($retention_days) ? (int) $retention_days : 0;
+        if ($days <= 0) {
+            $days = rbf_get_email_log_retention_days();
+        }
+        $days = max(1, $days);
+        $result['retention_days'] = $days;
+
+        $deleted = $wpdb->query(
+            $wpdb->prepare(
+                "DELETE FROM {$table_name} WHERE attempted_at < DATE_SUB(NOW(), INTERVAL %d DAY)",
+                $days
+            )
+        );
+
+        if ($deleted === false) {
+            if (function_exists('rbf_log')) {
+                rbf_log('RBF Email Cleanup: query failed for email notification logs.');
+            }
+            return $result;
+        }
+
+        $result['deleted'] = max(0, (int) $deleted);
+
+        if ($result['deleted'] > 0 && function_exists('rbf_log')) {
+            rbf_log(
+                sprintf(
+                    'RBF Email Cleanup: removed %d notification log(s) older than %d days.',
+                    $result['deleted'],
+                    $result['retention_days']
+                )
+            );
+        }
+
+        if (function_exists('do_action')) {
+            do_action('rbf_email_log_cleanup_completed', $result['deleted'], $result['retention_days']);
+        }
+
+        return $result;
+    }
+}
+
+if (!function_exists('rbf_schedule_email_log_cleanup')) {
+    /**
+     * Schedule the recurring cleanup task for email notification logs.
+     */
+    function rbf_schedule_email_log_cleanup() {
+        if (!function_exists('wp_next_scheduled') || !function_exists('wp_schedule_event')) {
+            return;
+        }
+
+        if (!wp_next_scheduled('rbf_cleanup_email_notifications_event')) {
+            wp_schedule_event(time() + HOUR_IN_SECONDS, 'daily', 'rbf_cleanup_email_notifications_event');
+        }
+    }
+}
+
+if (!function_exists('rbf_clear_email_log_cleanup_event')) {
+    /**
+     * Remove the scheduled cleanup task.
+     */
+    function rbf_clear_email_log_cleanup_event() {
+        if (function_exists('wp_clear_scheduled_hook')) {
+            wp_clear_scheduled_hook('rbf_cleanup_email_notifications_event');
+        }
+    }
+}
+
+if (function_exists('add_action')) {
+    add_action('rbf_cleanup_email_notifications_event', 'rbf_cleanup_email_notifications');
+    add_action('init', 'rbf_schedule_email_log_cleanup');
 }
 
 /**

@@ -3399,12 +3399,80 @@ function rbf_email_notifications_page_html() {
     }
 
     $service = rbf_get_email_failover_service();
-    
+    $admin_notices = [];
+
+    if (!empty($_POST['rbf_email_cleanup'])) {
+        check_admin_referer('rbf_email_cleanup');
+
+        $raw_post = function_exists('wp_unslash') ? wp_unslash($_POST) : $_POST;
+        $custom_days = isset($raw_post['retention_days']) ? absint($raw_post['retention_days']) : 0;
+
+        $cleanup_result = rbf_cleanup_email_notifications($custom_days > 0 ? $custom_days : null);
+
+        if (!empty($cleanup_result['table_exists'])) {
+            $deleted = (int) ($cleanup_result['deleted'] ?? 0);
+            $retention_used = (int) ($cleanup_result['retention_days'] ?? 0);
+
+            if ($retention_used <= 0) {
+                if ($custom_days > 0) {
+                    $retention_used = $custom_days;
+                } elseif (function_exists('rbf_get_email_log_retention_days')) {
+                    $retention_used = (int) rbf_get_email_log_retention_days();
+                } elseif (defined('RBF_EMAIL_LOG_DEFAULT_RETENTION_DAYS')) {
+                    $retention_used = (int) RBF_EMAIL_LOG_DEFAULT_RETENTION_DAYS;
+                } else {
+                    $retention_used = 90;
+                }
+            }
+
+            $message = sprintf(
+                rbf_translate_string('Pulizia completata: %d log rimossi (retention %d giorni).'),
+                $deleted,
+                $retention_used
+            );
+
+            if ($deleted === 0) {
+                $message .= ' ' . rbf_translate_string('Nessun record soddisfaceva i criteri di eliminazione.');
+            }
+
+            $admin_notices[] = [
+                'type'    => 'success',
+                'message' => $message,
+            ];
+
+            if (function_exists('rbf_schedule_email_log_cleanup')) {
+                rbf_schedule_email_log_cleanup();
+            }
+        } else {
+            $admin_notices[] = [
+                'type'    => 'error',
+                'message' => rbf_translate_string('Impossibile pulire i log email: tabella non disponibile.'),
+            ];
+        }
+    }
+
+    $default_retention_days = function_exists('rbf_get_email_log_retention_days')
+        ? (int) rbf_get_email_log_retention_days()
+        : (defined('RBF_EMAIL_LOG_DEFAULT_RETENTION_DAYS') ? (int) RBF_EMAIL_LOG_DEFAULT_RETENTION_DAYS : 90);
+
+    $next_cleanup_timestamp = function_exists('wp_next_scheduled')
+        ? wp_next_scheduled('rbf_cleanup_email_notifications_event')
+        : false;
+
+    $next_cleanup_readable = '';
+    if ($next_cleanup_timestamp) {
+        if (function_exists('wp_date')) {
+            $next_cleanup_readable = wp_date(get_option('date_format') . ' ' . get_option('time_format'), $next_cleanup_timestamp);
+        } else {
+            $next_cleanup_readable = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), $next_cleanup_timestamp);
+        }
+    }
+
     // Handle actions
     if (isset($_GET['action']) && isset($_GET['log_id']) && wp_verify_nonce($_GET['_wpnonce'], 'rbf_email_action')) {
         $log_id = intval($_GET['log_id']);
         $action = sanitize_text_field($_GET['action']);
-        
+
         if ($action === 'retry') {
             // Get log entry details and retry notification
             global $wpdb;
@@ -3471,11 +3539,50 @@ function rbf_email_notifications_page_html() {
         $stats_summary['success_rate'] = ($total_success / $stats_summary['total']) * 100;
         $stats_summary['fallback_rate'] = ($stats_summary['fallback_success'] / $stats_summary['total']) * 100;
     }
+    foreach ($admin_notices as $notice) {
+        printf(
+            '<div class="notice notice-%1$s"><p>%2$s</p></div>',
+            esc_attr($notice['type']),
+            esc_html($notice['message'])
+        );
+    }
+
     ?>
-    
+
     <div class="rbf-admin-wrap">
         <h1><?php echo esc_html(rbf_translate_string('Sistema Email Failover')); ?></h1>
-        
+
+        <div style="background: #f8f9fb; padding: 20px; border-radius: 8px; border: 1px solid #dcdcde; margin-bottom: 30px;">
+            <h2 style="margin-top: 0; margin-bottom: 10px; font-size: 20px; color: #1d2327;">
+                <?php echo esc_html(rbf_translate_string('Gestione registro notifiche')); ?>
+            </h2>
+            <p style="margin: 0 0 10px 0; color: #3c434a;">
+                <?php echo esc_html(sprintf(rbf_translate_string('I log vengono conservati per %d giorni.'), $default_retention_days)); ?>
+            </p>
+            <p style="margin: 0 0 15px 0; color: #3c434a;">
+                <?php if ($next_cleanup_timestamp) : ?>
+                    <?php echo esc_html(sprintf(rbf_translate_string('Prossima pulizia automatica: %s'), $next_cleanup_readable)); ?>
+                <?php else : ?>
+                    <span style="color: #d63638; font-weight: 600;">
+                        <?php echo esc_html(rbf_translate_string('Pulizia automatica non ancora pianificata. Verrà programmata automaticamente al prossimo cron.')); ?>
+                    </span>
+                <?php endif; ?>
+            </p>
+            <form method="post" style="display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end;">
+                <?php wp_nonce_field('rbf_email_cleanup'); ?>
+                <input type="hidden" name="rbf_email_cleanup" value="1">
+                <div>
+                    <label for="rbf-retention-days" style="display: block; font-weight: 600; margin-bottom: 5px;">
+                        <?php echo esc_html(rbf_translate_string('Giorni da conservare')); ?>
+                    </label>
+                    <input type="number" id="rbf-retention-days" name="retention_days" min="1" class="small-text" value="<?php echo esc_attr($default_retention_days); ?>">
+                </div>
+                <button type="submit" class="button button-secondary" style="height: 32px;">
+                    <?php echo esc_html(rbf_translate_string('Esegui pulizia manuale')); ?>
+                </button>
+            </form>
+        </div>
+
         <!-- Statistics Dashboard -->
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px;">
             <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">

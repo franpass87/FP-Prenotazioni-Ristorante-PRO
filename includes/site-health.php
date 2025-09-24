@@ -235,8 +235,97 @@ if (!function_exists('rbf_site_health_email_configuration_test')) {
         $fallback_email = $settings['webmaster_email'] ?? '';
         $has_admin_email = !empty($admin_email) || !empty($fallback_email);
 
+        $log_table_ready = true;
+        if (function_exists('rbf_ensure_email_log_table')) {
+            $log_table_status = rbf_ensure_email_log_table();
+            $log_table_ready = $log_table_status !== 'failed';
+        } elseif (function_exists('rbf_database_table_exists')) {
+            global $wpdb;
+            $table_name = isset($wpdb) ? $wpdb->prefix . 'rbf_email_notifications' : 'rbf_email_notifications';
+            $log_table_ready = isset($wpdb) ? rbf_database_table_exists($table_name) : true;
+        }
+
+        $retention_days = function_exists('rbf_get_email_log_retention_days')
+            ? rbf_get_email_log_retention_days()
+            : (defined('RBF_EMAIL_LOG_DEFAULT_RETENTION_DAYS') ? (int) RBF_EMAIL_LOG_DEFAULT_RETENTION_DAYS : 90);
+
+        $cleanup_scheduled = function_exists('wp_next_scheduled')
+            ? (bool) wp_next_scheduled('rbf_cleanup_email_notifications_event')
+            : false;
+
+        if (!$cleanup_scheduled && function_exists('rbf_schedule_email_log_cleanup')) {
+            rbf_schedule_email_log_cleanup();
+            $cleanup_scheduled = function_exists('wp_next_scheduled')
+                ? (bool) wp_next_scheduled('rbf_cleanup_email_notifications_event')
+                : false;
+        }
+
         if ($brevo_configured && $has_admin_email) {
-            $description = '<p>' . rbf_translate_string('Le notifiche email sono configurate correttamente con provider primario e fallback.') . '</p>';
+            if (!$log_table_ready) {
+                $actions = '';
+                if (function_exists('admin_url')) {
+                    $actions = sprintf(
+                        '<p><a href="%s" class="button button-primary">%s</a></p>',
+                        esc_url(admin_url('admin.php?page=rbf_email_notifications')),
+                        esc_html(rbf_translate_string('Apri log notifiche email'))
+                    );
+                }
+
+                $description = '<p>' . rbf_translate_string('La tabella di log delle notifiche email non è disponibile. Il sistema di failover non potrà registrare gli invii.') . '</p>';
+
+                return rbf_site_health_build_result(
+                    'critical',
+                    rbf_translate_string('Configurazione Notifiche Email'),
+                    $description,
+                    $actions,
+                    __FUNCTION__
+                );
+            }
+
+            $issues = [];
+
+            if (!$cleanup_scheduled) {
+                $issues[] = sprintf(
+                    rbf_translate_string('La pulizia automatica dei log non è attiva. I log più vecchi di %d giorni potrebbero accumularsi.'),
+                    $retention_days
+                );
+            }
+
+            if (!empty($issues)) {
+                $description = '<p>' . rbf_translate_string('Le notifiche email funzionano ma sono richiesti alcuni interventi:') . '</p><ul>';
+                foreach ($issues as $issue) {
+                    $description .= '<li>' . esc_html($issue) . '</li>';
+                }
+                $description .= '</ul>';
+
+                $actions = '';
+                if (function_exists('admin_url')) {
+                    $actions = sprintf(
+                        '<p><a href="%s" class="button">%s</a></p>',
+                        esc_url(admin_url('admin.php?page=rbf_settings#email')),
+                        esc_html(rbf_translate_string('Configura notifiche email'))
+                    );
+                }
+
+                return rbf_site_health_build_result(
+                    'recommended',
+                    rbf_translate_string('Configurazione Notifiche Email'),
+                    $description,
+                    $actions,
+                    __FUNCTION__
+                );
+            }
+
+            $description = '<p>' . rbf_translate_string('Le notifiche email sono configurate correttamente con provider primario, fallback e registrazione log.') . '</p>';
+            $description .= sprintf(
+                '<p>%s</p>',
+                esc_html(
+                    sprintf(
+                        rbf_translate_string('I log delle notifiche vengono puliti automaticamente ogni giorno (retention: %d giorni).'),
+                        $retention_days
+                    )
+                )
+            );
 
             return rbf_site_health_build_result(
                 'good',
@@ -269,6 +358,18 @@ if (!function_exists('rbf_site_health_email_configuration_test')) {
         }
 
         $description = '<p>' . rbf_translate_string('Le notifiche email verranno inviate solo tramite WordPress. Configura Brevo per garantire recapito affidabile.') . '</p>';
+
+        if (!$cleanup_scheduled) {
+            $description .= sprintf(
+                '<p>%s</p>',
+                esc_html(
+                    sprintf(
+                        rbf_translate_string('Attiva la pulizia automatica dei log per mantenere il database leggero (retention attuale: %d giorni).'),
+                        $retention_days
+                    )
+                )
+            );
+        }
 
         return rbf_site_health_build_result(
             'recommended',

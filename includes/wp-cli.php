@@ -148,6 +148,67 @@ class RBF_WPCLI_Command extends WP_CLI_Command {
 
         WP_CLI::success('Evento riprogrammato, ma impossibile determinare l\'orario della prossima esecuzione.');
     }
+
+    /**
+     * Elimina i log email più vecchi del periodo di retention configurato.
+     *
+     * ## OPTIONS
+     *
+     * [--days=<days>]
+     * : Specifica un numero di giorni personalizzato per questa esecuzione.
+     *
+     * ## EXAMPLES
+     *
+     *     wp rbf purge-email-logs
+     *     wp rbf purge-email-logs --days=30
+     *
+     * @param array $args       Positional arguments (unused).
+     * @param array $assoc_args Assoc arguments.
+     * @return void
+     */
+    public function purge_email_logs($args, $assoc_args) {
+        if (!function_exists('rbf_cleanup_email_notifications')) {
+            WP_CLI::error('La funzione di pulizia dei log email non è disponibile.');
+        }
+
+        $days = null;
+        if (isset($assoc_args['days'])) {
+            $days = absint($assoc_args['days']);
+            if ($days <= 0) {
+                WP_CLI::error('Il parametro --days deve essere un intero positivo.');
+            }
+        }
+
+        $result = rbf_cleanup_email_notifications($days ?: null);
+
+        if (empty($result['table_exists'])) {
+            WP_CLI::warning('La tabella dei log email non è stata trovata. Nessun record eliminato.');
+            return;
+        }
+
+        $retention = (int) ($result['retention_days'] ?? 0);
+        if ($retention <= 0) {
+            if ($days) {
+                $retention = $days;
+            } elseif (function_exists('rbf_get_email_log_retention_days')) {
+                $retention = (int) rbf_get_email_log_retention_days();
+            } else {
+                $retention = (int) RBF_EMAIL_LOG_DEFAULT_RETENTION_DAYS;
+            }
+        }
+
+        $deleted = (int) ($result['deleted'] ?? 0);
+
+        WP_CLI::success(sprintf(
+            'Pulizia completata. Log rimossi: %d (retention %d giorni).',
+            $deleted,
+            $retention
+        ));
+
+        if ($deleted === 0) {
+            WP_CLI::log('Non sono stati trovati log più vecchi del limite specificato.');
+        }
+    }
 }
 
 WP_CLI::add_command('rbf', 'RBF_WPCLI_Command');
