@@ -44,6 +44,11 @@ if (!function_exists('rbf_site_health_register_tests')) {
             'test'  => 'rbf_site_health_email_configuration_test',
         ];
 
+        $tests['direct']['rbf_booking_page'] = [
+            'label' => rbf_translate_string('Pagina di Prenotazione'),
+            'test'  => 'rbf_site_health_booking_page_test',
+        ];
+
         return $tests;
     }
 
@@ -268,6 +273,63 @@ if (!function_exists('rbf_site_health_email_configuration_test')) {
         return rbf_site_health_build_result(
             'recommended',
             rbf_translate_string('Configurazione Notifiche Email'),
+            $description,
+            $actions,
+            __FUNCTION__
+        );
+    }
+}
+
+if (!function_exists('rbf_site_health_booking_page_test')) {
+    /**
+     * Ensure a public booking page is published and accessible.
+     *
+     * @return array
+     */
+    function rbf_site_health_booking_page_test() {
+        if (!function_exists('rbf_get_booking_confirmation_base_url')) {
+            return rbf_site_health_build_result(
+                'recommended',
+                rbf_translate_string('Pagina di Prenotazione'),
+                '<p>' . rbf_translate_string('Impossibile verificare la pagina di prenotazione durante il caricamento di WordPress.') . '</p>',
+                '',
+                __FUNCTION__
+            );
+        }
+
+        $permalink = rbf_get_booking_confirmation_base_url(true);
+
+        if (is_string($permalink) && $permalink !== '') {
+            $description = sprintf(
+                '<p>%s <a href="%s" target="_blank" rel="noopener">%s</a>.</p>',
+                rbf_translate_string('La pagina di prenotazione pubblica è configurata correttamente:'),
+                esc_url($permalink),
+                esc_html($permalink)
+            );
+
+            return rbf_site_health_build_result(
+                'good',
+                rbf_translate_string('Pagina di Prenotazione'),
+                $description,
+                '',
+                __FUNCTION__
+            );
+        }
+
+        $actions = '';
+        if (function_exists('admin_url')) {
+            $actions = sprintf(
+                '<p><a href="%s" class="button button-primary">%s</a></p>',
+                esc_url(admin_url('edit.php?post_type=page')),
+                esc_html(rbf_translate_string('Crea o modifica pagina di prenotazione'))
+            );
+        }
+
+        $description = '<p>' . rbf_translate_string('Nessuna pagina pubblica con il form di prenotazione è stata trovata. I clienti non potranno completare le prenotazioni online finché non verrà pubblicata una pagina con lo shortcode del form.') . '</p>';
+
+        return rbf_site_health_build_result(
+            'critical',
+            rbf_translate_string('Pagina di Prenotazione'),
             $description,
             $actions,
             __FUNCTION__
