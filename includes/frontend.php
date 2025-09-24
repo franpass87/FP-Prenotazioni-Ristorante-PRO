@@ -47,46 +47,109 @@ function rbf_enqueue_frontend_assets() {
         }, 1);
     }
 
-    // Flatpickr with enhanced error handling
-    $flatpickr_loaded = false;
-    try {
-        wp_enqueue_style('rbf-flatpickr-css', 'https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css', [], '4.6.9');
-        wp_enqueue_script('rbf-flatpickr', 'https://cdn.jsdelivr.net/npm/flatpickr', [], '4.6.9', true);
-        $flatpickr_loaded = true;
-    } catch (Exception $e) {
-        error_log('RBF: Failed to enqueue Flatpickr: ' . $e->getMessage());
-    }
-    
-    $deps = ['jquery'];
-    if ($flatpickr_loaded) {
-        $deps[] = 'rbf-flatpickr';
-    }
+    $use_cdn_assets = apply_filters('rbf_use_cdn_assets', false);
 
-    // Carica SOLO la locale italiana (EN è default)
-    if ($locale === 'it' && $flatpickr_loaded) {
-        try {
-            wp_enqueue_script('rbf-flatpickr-locale-it', 'https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/it.js', ['rbf-flatpickr'], '4.6.9', true);
-            $deps[] = 'rbf-flatpickr-locale-it';
-        } catch (Exception $e) {
-            error_log('RBF: Failed to enqueue Flatpickr Italian locale: ' . $e->getMessage());
+    $flatpickr_version = '4.6.13';
+    $flatpickr_cdn_base = 'https://cdn.jsdelivr.net/npm/flatpickr@' . $flatpickr_version . '/dist/';
+    $flatpickr_local_js = rbf_get_asset_url('vendor/flatpickr/flatpickr.min.js');
+    $flatpickr_local_css = rbf_get_asset_url('vendor/flatpickr/flatpickr.min.css');
+
+    $flatpickr_js_src = $use_cdn_assets ? $flatpickr_cdn_base . 'flatpickr.min.js' : $flatpickr_local_js;
+    $flatpickr_css_src = $use_cdn_assets ? $flatpickr_cdn_base . 'flatpickr.min.css' : $flatpickr_local_css;
+
+    wp_enqueue_style('rbf-flatpickr-css', $flatpickr_css_src, [], $flatpickr_version);
+    wp_enqueue_script('rbf-flatpickr', $flatpickr_js_src, [], $flatpickr_version, true);
+
+    $deps = ['jquery', 'rbf-flatpickr'];
+
+    if ($locale === 'it') {
+        $flatpickr_locale_local = rbf_get_asset_url('vendor/flatpickr/l10n/it.js');
+        $flatpickr_locale_src = $use_cdn_assets ? $flatpickr_cdn_base . 'l10n/it.js' : $flatpickr_locale_local;
+
+        wp_enqueue_script('rbf-flatpickr-locale-it', $flatpickr_locale_src, ['rbf-flatpickr'], $flatpickr_version, true);
+        $deps[] = 'rbf-flatpickr-locale-it';
+
+        if ($use_cdn_assets) {
+            $flatpickr_locale_fallback = wp_json_encode($flatpickr_locale_local);
+            $locale_fallback_script = sprintf(
+                '(function(){var fallback=%1$s;if(!fallback){return;}var ensure=function(){if(window.flatpickr&&window.flatpickr.l10ns&&window.flatpickr.l10ns.it){return;}if(window.rbfEnsureAssetFallback){window.rbfEnsureAssetFallback("script",fallback);}};if(document.readyState==="complete"){setTimeout(ensure,0);}else{window.addEventListener("load",ensure);}})();',
+                $flatpickr_locale_fallback
+            );
+            wp_add_inline_script('rbf-flatpickr-locale-it', $locale_fallback_script, 'after');
         }
     }
 
-    // Flag sprite CSS from intl-tel-input is still used for visual consistency
-    try {
-        wp_enqueue_style('rbf-intl-tel-input-css','https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/19.2.16/css/intlTelInput.css',[], '19.2.16');
-    } catch (Exception $e) {
-        error_log('RBF: Failed to enqueue International Telephone Input styles: ' . $e->getMessage());
+    $intl_tel_version = '19.2.16';
+    $intl_tel_local_css = rbf_get_asset_url('vendor/intl-tel-input/intlTelInput.css');
+    $intl_tel_css_src = $use_cdn_assets
+        ? 'https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/19.2.16/css/intlTelInput.css'
+        : $intl_tel_local_css;
+
+    wp_enqueue_style('rbf-intl-tel-input-css', $intl_tel_css_src, [], $intl_tel_version);
+
+    if ($use_cdn_assets) {
+        $fallback_helper = <<<'JS'
+(function(){
+    if (window.rbfEnsureAssetFallback) {
+        return;
+    }
+    window.rbfEnsureAssetFallback = function(type, url) {
+        if (!url) {
+            return;
+        }
+        if (type === 'script') {
+            if (document.querySelector('script[data-rbf-fallback="' + url + '"]')) {
+                return;
+            }
+            var script = document.createElement('script');
+            script.src = url;
+            script.defer = true;
+            script.dataset.rbfFallback = url;
+            document.head.appendChild(script);
+        } else if (type === 'style') {
+            if (document.querySelector('link[data-rbf-fallback="' + url + '"]')) {
+                return;
+            }
+            var link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = url;
+            link.dataset.rbfFallback = url;
+            document.head.appendChild(link);
+        }
+    };
+})();
+JS;
+        wp_add_inline_script('rbf-flatpickr', $fallback_helper, 'before');
+
+        $flatpickr_js_fallback = sprintf(
+            'if (typeof window.flatpickr === "undefined") { if (window.rbfEnsureAssetFallback) { window.rbfEnsureAssetFallback("script", %s); } }',
+            wp_json_encode($flatpickr_local_js)
+        );
+        wp_add_inline_script('rbf-flatpickr', $flatpickr_js_fallback, 'after');
+
+        $flatpickr_css_check = sprintf(
+            '(function(){var fallbackUrl=%1$s;var primaryUrl=%2$s;if(!fallbackUrl||!primaryUrl||!window.rbfEnsureAssetFallback){return;}var link=null;var styles=document.querySelectorAll(\'link[rel="stylesheet"]\');for(var i=0;i<styles.length;i++){var href=styles[i].getAttribute("href")||"";if(!href){continue;}if(href===primaryUrl||href.indexOf("flatpickr.min.css")!==-1){link=styles[i];break;}}var loadFallback=function(){window.rbfEnsureAssetFallback("style",fallbackUrl);};if(!link){loadFallback();return;}var triggered=false;var once=function(){if(triggered){return;}triggered=true;loadFallback();};link.addEventListener("error",once);setTimeout(function(){try{if(!link.sheet||!link.sheet.cssRules||!link.sheet.cssRules.length){once();}}catch(e){var hasSheet=false;var sheets=document.styleSheets||[];for(var j=0;j<sheets.length;j++){var sheetHref=sheets[j].href||"";if(sheetHref&&sheetHref.indexOf("flatpickr")!==-1){hasSheet=true;break;}}if(!hasSheet){once();}}},3000);})();',
+            wp_json_encode($flatpickr_local_css),
+            wp_json_encode($flatpickr_css_src)
+        );
+        wp_add_inline_script('rbf-flatpickr', $flatpickr_css_check, 'after');
+
+        $intl_tel_fallback = sprintf(
+            '(function(){var fallbackUrl=%1$s;var primaryUrl=%2$s;if(!fallbackUrl||!primaryUrl||!window.rbfEnsureAssetFallback){return;}var link=document.querySelector("link[href=\""+primaryUrl+"\"]");var ensure=function(){var sheets=document.styleSheets||[];var hasSheet=false;for(var i=0;i<sheets.length;i++){var href=sheets[i].href||"";if(href&&href.indexOf("intlTelInput")!==-1){hasSheet=true;break;}}if(!hasSheet){window.rbfEnsureAssetFallback("style",fallbackUrl);}};if(link){link.addEventListener("error",function(){window.rbfEnsureAssetFallback("style",fallbackUrl);});}setTimeout(ensure,3000);})();',
+            wp_json_encode($intl_tel_local_css),
+            wp_json_encode($intl_tel_css_src)
+        );
+        wp_add_inline_script('rbf-frontend-js', $intl_tel_fallback, 'before');
     }
 
     // Frontend styles
-    wp_enqueue_style('rbf-frontend-css', plugin_dir_url(dirname(__FILE__)) . 'assets/css/frontend.css', ['rbf-flatpickr-css'], rbf_get_asset_version());
+    wp_enqueue_style('rbf-frontend-css', rbf_get_asset_url('css/frontend.css'), ['rbf-flatpickr-css'], rbf_get_asset_version());
     
     // Inject brand CSS variables globally
     rbf_inject_brand_css_vars();
 
     // Frontend script (must be enqueued before wp_localize_script)
-    wp_enqueue_script('rbf-frontend-js', plugin_dir_url(dirname(__FILE__)) . 'assets/js/frontend.js', $deps, rbf_get_asset_version(), true);
+    wp_enqueue_script('rbf-frontend-js', rbf_get_asset_url('js/frontend.js'), $deps, rbf_get_asset_version(), true);
 
     // Giorni chiusi
     $closed_days_map = ['sun'=>0,'mon'=>1,'tue'=>2,'wed'=>3,'thu'=>4,'fri'=>5,'sat'=>6];

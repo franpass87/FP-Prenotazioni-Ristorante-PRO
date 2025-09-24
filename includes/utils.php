@@ -1642,6 +1642,50 @@ function rbf_get_asset_version() {
 }
 
 /**
+ * Retrieve the absolute filesystem path to an asset bundled with the plugin.
+ *
+ * @param string $relative_path Asset path relative to the plugin's assets directory.
+ * @return string Absolute path to the requested asset.
+ */
+function rbf_get_asset_path($relative_path) {
+    if (!is_string($relative_path) || $relative_path === '') {
+        return '';
+    }
+
+    $relative_path = ltrim($relative_path, '/');
+
+    if (strpos($relative_path, 'assets/') === 0) {
+        $relative_path = substr($relative_path, strlen('assets/'));
+    }
+
+    $base_dir = rtrim(RBF_PLUGIN_DIR, '/\\') . '/assets/';
+
+    return $base_dir . $relative_path;
+}
+
+/**
+ * Retrieve the publicly accessible URL to an asset bundled with the plugin.
+ *
+ * @param string $relative_path Asset path relative to the plugin's assets directory.
+ * @return string Public URL for the requested asset.
+ */
+function rbf_get_asset_url($relative_path) {
+    if (!is_string($relative_path) || $relative_path === '') {
+        return '';
+    }
+
+    $relative_path = ltrim($relative_path, '/');
+
+    if (strpos($relative_path, 'assets/') === 0) {
+        $relative_path = substr($relative_path, strlen('assets/'));
+    }
+
+    $base_url = rtrim(RBF_PLUGIN_URL, '/\\') . '/assets/';
+
+    return $base_url . $relative_path;
+}
+
+/**
  * Centralized UTM parameter sanitization
  * Consolidates sanitization logic used across multiple files
  */
