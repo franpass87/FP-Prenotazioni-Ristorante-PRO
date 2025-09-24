@@ -156,6 +156,85 @@ function rbf_log($message) {
 }
 
 /**
+ * Queue an admin notice to be displayed on the next admin page load.
+ *
+ * @param string $message The notice message.
+ * @param string $type    The notice type (success, error, warning, info).
+ */
+function rbf_add_admin_notice($message, $type = 'error') {
+    if (!is_string($message)) {
+        return;
+    }
+
+    $message = trim($message);
+
+    if ($message === '') {
+        return;
+    }
+
+    $allowed_types = ['success', 'error', 'warning', 'info'];
+    if (!in_array($type, $allowed_types, true)) {
+        $type = 'info';
+    }
+
+    $notices = get_option('rbf_admin_notices', []);
+    if (!is_array($notices)) {
+        $notices = [];
+    }
+
+    $notices[] = [
+        'message' => sanitize_text_field($message),
+        'type' => $type,
+    ];
+
+    update_option('rbf_admin_notices', $notices, false);
+}
+
+/**
+ * Render queued admin notices and clear the queue.
+ */
+function rbf_render_admin_notices() {
+    static $displayed = false;
+
+    if ($displayed) {
+        return;
+    }
+
+    $displayed = true;
+
+    $notices = get_option('rbf_admin_notices', []);
+
+    if (empty($notices) || !is_array($notices)) {
+        return;
+    }
+
+    delete_option('rbf_admin_notices');
+
+    foreach ($notices as $notice) {
+        $message = isset($notice['message']) ? trim((string) $notice['message']) : '';
+
+        if ($message === '') {
+            continue;
+        }
+
+        $type = isset($notice['type']) ? $notice['type'] : 'info';
+        $allowed_types = ['success', 'error', 'warning', 'info'];
+        if (!in_array($type, $allowed_types, true)) {
+            $type = 'info';
+        }
+
+        printf(
+            '<div class="notice notice-%1$s"><p>%2$s</p></div>',
+            esc_attr($type),
+            esc_html($message)
+        );
+    }
+}
+
+add_action('admin_notices', 'rbf_render_admin_notices');
+add_action('network_admin_notices', 'rbf_render_admin_notices');
+
+/**
  * Get default plugin settings
  */
 function rbf_get_default_settings() {
@@ -677,8 +756,9 @@ function rbf_translate_string($text) {
         'Rimuovi Pasto' => 'Remove Meal',
         'Aggiungi Pasto' => 'Add Meal',
         'Tipo di pasto non valido.' => 'Invalid meal type.',
+        'Verifica manuale: impossibile rilasciare la capienza per la prenotazione cancellata (ID: %d, Data: %s, Servizio: %s).' => 'Manual check required: unable to release capacity for the cancelled booking (ID: %d, Date: %s, Service: %s).',
         '%s non è disponibile in questo giorno.' => '%s is not available on this day.',
-        
+
         'Capienza e Orari' => 'Capacity and Timetable',
         'Capienza Pranzo' => 'Lunch Capacity',
         'Orari Pranzo (inclusa Domenica)' => 'Lunch Hours (including Sunday)',
