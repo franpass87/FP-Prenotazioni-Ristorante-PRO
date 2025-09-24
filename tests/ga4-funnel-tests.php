@@ -34,6 +34,7 @@ class RBF_GA4_Funnel_Tests {
         $this->test_event_tracking();
         $this->test_error_classification();
         $this->test_booking_completion_tracking();
+        $this->test_booking_completion_refresh_fallback();
         $this->test_measurement_protocol();
         $this->test_javascript_integration();
         
@@ -192,7 +193,7 @@ class RBF_GA4_Funnel_Tests {
      */
     private function test_booking_completion_tracking() {
         $test_name = "Booking Completion Tracking";
-        
+
         try {
             $booking_id = 456;
             $booking_data = [
@@ -244,6 +245,112 @@ class RBF_GA4_Funnel_Tests {
 
         } catch (Exception $e) {
             $this->test_results[$test_name] = ['status' => 'FAIL', 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Ensure the completion endpoint returns real booking data after transient expiry.
+     */
+    private function test_booking_completion_refresh_fallback() {
+        $test_name = "Booking Completion Fallback After Expiry";
+        $booking_id = 0;
+
+        try {
+            $booking_post = wp_insert_post([
+                'post_type' => 'rbf_booking',
+                'post_title' => 'GA4 Fallback Test Booking',
+                'post_status' => 'publish',
+            ], true);
+
+            if (is_wp_error($booking_post)) {
+                throw new Exception('Failed to create test booking for fallback validation');
+            }
+
+            $booking_id = (int) $booking_post;
+            $value = 120.5;
+            $people = 4;
+            $meal = 'cena';
+            $bucket = 'gads';
+            $currency = 'EUR';
+            $tracking_token = 'fallbacktoken_' . wp_rand(1000, 9999);
+
+            update_post_meta($booking_id, 'rbf_meal', $meal);
+            update_post_meta($booking_id, 'rbf_persone', $people);
+            update_post_meta($booking_id, 'rbf_source_bucket', $bucket);
+            update_post_meta($booking_id, 'rbf_valore_tot', $value);
+            update_post_meta($booking_id, 'rbf_valore_pp', $value / $people);
+
+            rbf_store_booking_tracking_token($booking_id, $tracking_token);
+
+            $booking_data = [
+                'value' => $value,
+                'currency' => $currency,
+                'meal' => $meal,
+                'people' => $people,
+                'bucket' => $bucket,
+                'tracking_token' => $tracking_token,
+            ];
+
+            rbf_track_booking_completion($booking_id, $booking_data);
+
+            $completion_key = 'rbf_ga4_completion_' . $booking_id;
+            $initial_payload = get_transient($completion_key);
+
+            $this->assert_true(
+                is_array($initial_payload) && !empty($initial_payload['event_params']),
+                'Completion payload should be stored before transient expiry'
+            );
+
+            $initial_event_params = $initial_payload['event_params'];
+
+            // Simulate the transient expiring between page loads.
+            delete_transient($completion_key);
+
+            $response = rbf_prepare_booking_completion_response($booking_id, $tracking_token);
+            $this->assert_true(
+                !is_wp_error($response),
+                'Fallback should succeed when the stored token hash matches the provided token'
+            );
+
+            if (is_wp_error($response)) {
+                throw new Exception($response->get_error_message());
+            }
+
+            $event_params = $response['event_params'] ?? [];
+            $this->assert_true(!empty($event_params), 'Fallback response should include event parameters');
+
+            $this->assert_true(
+                abs((float) ($event_params['value'] ?? 0) - (float) ($initial_event_params['value'] ?? 0)) < 0.0001,
+                'Fallback response should preserve booking value'
+            );
+
+            $this->assert_true(
+                ($event_params['currency'] ?? '') === ($initial_event_params['currency'] ?? ''),
+                'Fallback response should preserve booking currency'
+            );
+
+            $this->assert_true(
+                ($event_params['meal_type'] ?? '') === ($initial_event_params['meal_type'] ?? ''),
+                'Fallback response should preserve meal type'
+            );
+
+            $this->assert_true(
+                (int) ($event_params['people_count'] ?? 0) === (int) ($initial_event_params['people_count'] ?? 0),
+                'Fallback response should preserve people count'
+            );
+
+            $this->test_results[$test_name] = [
+                'status' => 'PASS',
+                'message' => 'Fallback reconstruction returns real booking data after transient expiry'
+            ];
+        } catch (Exception $e) {
+            $this->test_results[$test_name] = ['status' => 'FAIL', 'message' => $e->getMessage()];
+        } finally {
+            if ($booking_id) {
+                delete_transient('rbf_ga4_completion_' . $booking_id);
+                rbf_clear_booking_tracking_token($booking_id);
+                wp_delete_post($booking_id, true);
+            }
         }
     }
     
