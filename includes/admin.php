@@ -2581,7 +2581,6 @@ function rbf_auto_complete_past_bookings() {
 /**
  * Clear scheduled events on plugin deactivation
  */
-register_deactivation_hook(RBF_PLUGIN_FILE, 'rbf_clear_automatic_status_events');
 function rbf_clear_automatic_status_events() {
     wp_clear_scheduled_hook('rbf_update_booking_statuses');
 }
