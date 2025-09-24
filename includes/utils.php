@@ -416,6 +416,8 @@ function rbf_normalize_time_slots($time_slots_csv, $slot_duration_minutes = null
         $increment_seconds = $default_duration * $minute_in_seconds;
     }
 
+    $slot_length_seconds = $increment_seconds;
+
     foreach ($entries as $entry) {
         if ($entry === '') {
             continue;
@@ -436,17 +438,15 @@ function rbf_normalize_time_slots($time_slots_csv, $slot_duration_minutes = null
             }
 
             for ($current = $start_timestamp; $current <= $end_timestamp; $current += $increment_seconds) {
+                if ($slot_length_seconds > 0 && ($current + $slot_length_seconds) > $end_timestamp) {
+                    break;
+                }
+
                 $time = date('H:i', $current);
                 if (!isset($seen[$time])) {
                     $normalized[] = $time;
                     $seen[$time] = true;
                 }
-            }
-
-            $end_time = date('H:i', $end_timestamp);
-            if (!isset($seen[$end_time])) {
-                $normalized[] = $end_time;
-                $seen[$end_time] = true;
             }
         } else {
             $time = trim($entry);

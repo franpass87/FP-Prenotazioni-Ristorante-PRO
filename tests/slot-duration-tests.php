@@ -103,6 +103,8 @@ function mock_rbf_normalize_time_slots($time_slots_csv, $slot_duration_minutes =
         $increment_seconds = $default_duration * $minute_in_seconds;
     }
 
+    $slot_length_seconds = $increment_seconds;
+
     foreach ($entries as $entry) {
         if ($entry === '') {
             continue;
@@ -123,17 +125,15 @@ function mock_rbf_normalize_time_slots($time_slots_csv, $slot_duration_minutes =
             }
 
             for ($current = $start_timestamp; $current <= $end_timestamp; $current += $increment_seconds) {
+                if ($slot_length_seconds > 0 && ($current + $slot_length_seconds) > $end_timestamp) {
+                    break;
+                }
+
                 $time = date('H:i', $current);
                 if (!isset($seen[$time])) {
                     $normalized[] = $time;
                     $seen[$time] = true;
                 }
-            }
-
-            $end_time = date('H:i', $end_timestamp);
-            if (!isset($seen[$end_time])) {
-                $normalized[] = $end_time;
-                $seen[$end_time] = true;
             }
         } else {
             $time = trim($entry);
@@ -224,22 +224,29 @@ $normalization_cases = [
         'meal' => 'cena',
         'people' => 8,
         'slots' => '19:00-22:00',
-        'expected' => ['19:00', '21:30', '22:00'],
-        'description' => 'Dinner range expands using 150-minute increments for large parties',
+        'expected' => ['19:00'],
+        'description' => 'Dinner range produces only starts whose full 150-minute duration fits in window',
     ],
     [
         'meal' => 'aperitivo',
         'people' => 8,
         'slots' => '18:00-20:30',
-        'expected' => ['18:00', '19:15', '20:30'],
-        'description' => 'Aperitivo range uses base 75-minute increments without override',
+        'expected' => ['18:00', '19:15'],
+        'description' => 'Aperitivo range uses base 75-minute increments without overshooting the end',
     ],
     [
         'meal' => 'brunch',
         'people' => 9,
         'slots' => '11:00-14:30',
-        'expected' => ['11:00', '12:50', '14:30'],
-        'description' => 'Brunch range honours legacy group duration setting (110 minutes)',
+        'expected' => ['11:00'],
+        'description' => 'Brunch range honours legacy group duration setting (110 minutes) and filters invalid late starts',
+    ],
+    [
+        'meal' => 'cena',
+        'people' => 4,
+        'slots' => '19:00-20:00,19:00',
+        'expected' => ['19:00'],
+        'description' => 'Short dinner range (90 minute slots) keeps explicit 19:00 listing while dropping invalid range end',
     ],
 ];
 
