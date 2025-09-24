@@ -706,8 +706,30 @@ function rbf_get_people_max_limit($settings = null) {
  * Translate strings to English
  */
 function rbf_translate_string($text) {
+    if (!is_scalar($text)) {
+        $text = '';
+    }
+
+    $original = (string) $text;
+
+    if (function_exists('__')) {
+        $wp_translated = __($original, 'rbf');
+        if ($wp_translated !== $original) {
+            if (function_exists('apply_filters')) {
+                $wp_translated = apply_filters('rbf_translate_string', $wp_translated, $original);
+            }
+            return $wp_translated;
+        }
+    }
+
     $locale = rbf_current_lang();
-    if ($locale !== 'en') return $text;
+    if ($locale !== 'en') {
+        $result = $original;
+        if (function_exists('apply_filters')) {
+            $result = apply_filters('rbf_translate_string', $result, $original);
+        }
+        return $result;
+    }
 
     static $translations = [
         // Backend UI
@@ -1083,7 +1105,13 @@ function rbf_translate_string($text) {
         'Non ci sono orari disponibili per questa data, ma abbiamo trovato delle alternative!' => 'No times available for this date, but we found alternatives!',
         'Non ci sono orari disponibili per questa data.' => 'No times available for this date.',
     ];
-    return $translations[$text] ?? $text;
+    $result = $translations[$original] ?? $original;
+
+    if (function_exists('apply_filters')) {
+        $result = apply_filters('rbf_translate_string', $result, $original);
+    }
+
+    return $result;
 }
 
 /**
