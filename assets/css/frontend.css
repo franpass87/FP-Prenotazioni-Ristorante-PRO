@@ -108,12 +108,17 @@
 
 .rbf-step {
     margin-bottom: 2rem;
-    opacity: 0;
-    transform: translateY(20px);
+    opacity: 1;
+    transform: none;
     transition: var(--rbf-transition);
 }
 
-.rbf-step.active {
+.rbf-form--initialized .rbf-step {
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+.rbf-form--initialized .rbf-step.active {
     opacity: 1;
     transform: translateY(0);
 }
@@ -2592,7 +2597,9 @@
         scroll-behavior: auto !important;
     }
     
-    .rbf-step {
+    .rbf-step,
+    .rbf-form--initialized .rbf-step,
+    .rbf-form--initialized .rbf-step.active {
         transition: none;
         opacity: 1;
         transform: none;
