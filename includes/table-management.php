@@ -414,7 +414,7 @@ function rbf_assign_tables_first_fit($people_count, $date, $time, $meal) {
                 }
 
                 return true;
-            });
+            }));
             
             if (empty($available_group_tables)) {
                 continue;
