@@ -37,6 +37,7 @@ class RBF_Table_Management_Tests {
         $this->test_table_combination_logic();
         $this->test_large_party_combination();
         $this->test_capacity_constraints();
+        $this->test_max_capacity_enforcement();
         $this->test_availability_check();
         $this->test_edge_cases();
 
@@ -79,9 +80,9 @@ class RBF_Table_Management_Tests {
         
         // Mock available tables in a group
         $group_tables = [
-            (object) ['id' => 1, 'capacity' => 2, 'min_capacity' => 1, 'max_capacity' => 4],
-            (object) ['id' => 2, 'capacity' => 2, 'min_capacity' => 1, 'max_capacity' => 4],
-            (object) ['id' => 3, 'capacity' => 4, 'min_capacity' => 2, 'max_capacity' => 6],
+            (object) ['id' => 1, 'capacity' => 2, 'min_capacity' => 1, 'max_capacity' => 8],
+            (object) ['id' => 2, 'capacity' => 2, 'min_capacity' => 1, 'max_capacity' => 8],
+            (object) ['id' => 3, 'capacity' => 4, 'min_capacity' => 2, 'max_capacity' => 8],
         ];
         
         // Test case 1: Request for 5 people - should join tables
@@ -129,10 +130,10 @@ class RBF_Table_Management_Tests {
         echo "🧪 Testing Large Party Combination Handling...\n";
 
         $tables = [
-            (object) ['id' => 1, 'capacity' => 4, 'min_capacity' => 2, 'max_capacity' => 6],
-            (object) ['id' => 2, 'capacity' => 4, 'min_capacity' => 2, 'max_capacity' => 6],
-            (object) ['id' => 3, 'capacity' => 4, 'min_capacity' => 2, 'max_capacity' => 6],
-            (object) ['id' => 4, 'capacity' => 4, 'min_capacity' => 2, 'max_capacity' => 6],
+            (object) ['id' => 1, 'capacity' => 4, 'min_capacity' => 2, 'max_capacity' => 16],
+            (object) ['id' => 2, 'capacity' => 4, 'min_capacity' => 2, 'max_capacity' => 16],
+            (object) ['id' => 3, 'capacity' => 4, 'min_capacity' => 2, 'max_capacity' => 16],
+            (object) ['id' => 4, 'capacity' => 4, 'min_capacity' => 2, 'max_capacity' => 16],
         ];
 
         $result = $this->mock_find_table_combination($tables, 14, 16);
@@ -149,19 +150,49 @@ class RBF_Table_Management_Tests {
      */
     public function test_capacity_constraints() {
         echo "🧪 Testing Capacity Constraints...\n";
-        
+
         $table = (object) ['id' => 1, 'capacity' => 4, 'min_capacity' => 2, 'max_capacity' => 6];
-        
+
         // Test within range
         $this->assert_true($this->mock_table_can_accommodate($table, 3), "Table should accommodate 3 people");
         $this->assert_true($this->mock_table_can_accommodate($table, 4), "Table should accommodate 4 people");
-        
+
         // Test edge cases
         $this->assert_true($this->mock_table_can_accommodate($table, 2), "Table should accommodate 2 people (min)");
         $this->assert_false($this->mock_table_can_accommodate($table, 1), "Table should NOT accommodate 1 person (below min)");
         $this->assert_false($this->mock_table_can_accommodate($table, 7), "Table should NOT accommodate 7 people (above capacity)");
-        
+
         echo "✅ Capacity constraints tests passed\n\n";
+    }
+
+    /**
+     * Ensure tables respect max_capacity when assigning parties
+     */
+    public function test_max_capacity_enforcement() {
+        echo "🧪 Testing Max Capacity Enforcement...\n";
+
+        $restricted_table = (object) ['id' => 1, 'capacity' => 6, 'min_capacity' => 2, 'max_capacity' => 4];
+        $result = $this->mock_find_single_table([$restricted_table], 5);
+        $this->assert_null($result, "Should not assign table when party exceeds max_capacity");
+
+        $group_tables = [
+            (object) ['id' => 1, 'capacity' => 2, 'min_capacity' => 1, 'max_capacity' => 3],
+            (object) ['id' => 2, 'capacity' => 2, 'min_capacity' => 1, 'max_capacity' => 3],
+            (object) ['id' => 3, 'capacity' => 4, 'min_capacity' => 2, 'max_capacity' => 5],
+        ];
+
+        $group_result = $this->mock_find_table_combination($group_tables, 6, 10);
+        $this->assert_null($group_result, "Should not combine tables that exceed their max_capacity constraints");
+
+        $flexible_tables = [
+            (object) ['id' => 4, 'capacity' => 4, 'min_capacity' => 2, 'max_capacity' => 8],
+            (object) ['id' => 5, 'capacity' => 4, 'min_capacity' => 2, 'max_capacity' => 8],
+        ];
+
+        $flexible_result = $this->mock_find_table_combination($flexible_tables, 6, 10);
+        $this->assert_not_null($flexible_result, "Should allow combinations when tables meet max_capacity requirements");
+
+        echo "✅ Max capacity enforcement tests passed\n\n";
     }
     
     /**
@@ -244,11 +275,15 @@ class RBF_Table_Management_Tests {
         });
 
         $eligible_tables = array_values(array_filter($tables, function($table) use ($people_count) {
-            if (!isset($table->min_capacity)) {
-                return true;
+            if (isset($table->max_capacity) && $table->max_capacity !== null && $table->max_capacity < $people_count) {
+                return false;
             }
 
-            return $table->min_capacity <= $people_count;
+            if (isset($table->min_capacity) && $table->min_capacity > $people_count) {
+                return false;
+            }
+
+            return true;
         }));
 
         if (empty($eligible_tables)) {
@@ -256,7 +291,7 @@ class RBF_Table_Management_Tests {
         }
 
         for ($target = $people_count; $target <= $max_capacity; $target++) {
-            $combination = $this->search_combination_for_capacity($eligible_tables, $target);
+            $combination = $this->search_combination_for_capacity($eligible_tables, $target, $people_count);
 
             if ($combination !== null) {
                 $total_capacity = 0;
@@ -274,7 +309,7 @@ class RBF_Table_Management_Tests {
         return null;
     }
 
-    private function search_combination_for_capacity($tables, $target, $start_index = 0, $current_combination = [], $current_sum = 0) {
+    private function search_combination_for_capacity($tables, $target, $people_count, $start_index = 0, $current_combination = [], $current_sum = 0) {
         if ($current_sum === $target) {
             return $current_combination;
         }
@@ -282,6 +317,9 @@ class RBF_Table_Management_Tests {
         $count = count($tables);
         for ($i = $start_index; $i < $count; $i++) {
             $table = $tables[$i];
+            if (isset($table->max_capacity) && $table->max_capacity !== null && $table->max_capacity < $people_count) {
+                continue;
+            }
             $new_sum = $current_sum + $table->capacity;
 
             if ($new_sum > $target) {
@@ -291,7 +329,7 @@ class RBF_Table_Management_Tests {
             $next_combination = $current_combination;
             $next_combination[] = $table;
 
-            $result = $this->search_combination_for_capacity($tables, $target, $i + 1, $next_combination, $new_sum);
+            $result = $this->search_combination_for_capacity($tables, $target, $people_count, $i + 1, $next_combination, $new_sum);
             if ($result !== null) {
                 return $result;
             }
@@ -301,7 +339,15 @@ class RBF_Table_Management_Tests {
     }
     
     private function mock_table_can_accommodate($table, $people_count) {
-        return $people_count >= $table->min_capacity && $people_count <= $table->capacity;
+        if (isset($table->min_capacity) && $people_count < $table->min_capacity) {
+            return false;
+        }
+
+        if (isset($table->max_capacity) && $table->max_capacity !== null && $people_count > $table->max_capacity) {
+            return false;
+        }
+
+        return $people_count <= $table->capacity;
     }
     
     private function mock_filter_available_tables($all_tables, $assigned_table_ids) {
