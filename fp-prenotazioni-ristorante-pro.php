@@ -202,7 +202,8 @@ function rbf_load_modules() {
         'tracking-validation.php',
         'tracking-enhanced-integration.php',
         'ai-suggestions.php',
-        'privacy.php'
+        'privacy.php',
+        'site-health.php'
     ];
 
     foreach ($modules as $module) {
