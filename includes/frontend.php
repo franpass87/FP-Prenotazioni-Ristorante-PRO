@@ -1559,17 +1559,60 @@ add_action('rbf_booking_status_changed', function($booking_id, $old_status, $new
         rbf_remove_table_assignment($booking_id);
     }
 
+    $release_attempted = false;
+    $release_success = false;
+    $cache_cleared = false;
+
     if ($new_status === 'cancelled' && $old_status !== 'cancelled' && $date && $meal) {
         $people = intval(get_post_meta($booking_id, 'rbf_persone', true));
 
         if ($people > 0) {
-            rbf_release_slot_capacity($date, $meal, $people);
-            delete_transient('rbf_avail_' . $date . '_' . $meal);
+            $release_attempted = true;
+            $release_success = (bool) rbf_release_slot_capacity($date, $meal, $people);
+
+            if (!$release_success) {
+                $sync_attempted = false;
+
+                if (function_exists('rbf_sync_slot_version')) {
+                    $sync_attempted = true;
+                    rbf_sync_slot_version($date, $meal);
+                }
+
+                $release_success = (bool) rbf_release_slot_capacity($date, $meal, $people);
+
+                if (!$release_success) {
+                    $log_message = sprintf(
+                        'RBF: Failed to release capacity for cancelled booking after recovery attempt. Booking ID: %d, Date: %s, Meal: %s, People: %d.%s',
+                        $booking_id,
+                        $date,
+                        $meal,
+                        $people,
+                        $sync_attempted ? '' : ' rbf_sync_slot_version() unavailable.'
+                    );
+                    rbf_log($log_message);
+
+                    $notice_message = sprintf(
+                        rbf_translate_string('Verifica manuale: impossibile rilasciare la capienza per la prenotazione cancellata (ID: %d, Data: %s, Servizio: %s).'),
+                        $booking_id,
+                        $date,
+                        $meal
+                    );
+                    rbf_add_admin_notice($notice_message, 'error');
+                }
+            }
+
+            if ($release_success) {
+                delete_transient('rbf_avail_' . $date . '_' . $meal);
+                rbf_clear_calendar_cache($date, $meal);
+                $cache_cleared = true;
+            }
         }
     }
 
-    if ($date && $meal) {
-        rbf_clear_calendar_cache($date, $meal);
+    if ($date && $meal && !$cache_cleared) {
+        if (!$release_attempted || $release_success) {
+            rbf_clear_calendar_cache($date, $meal);
+        }
     }
 }, 10, 4);
 
