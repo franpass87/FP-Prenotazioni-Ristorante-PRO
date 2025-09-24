@@ -380,6 +380,17 @@ function rbf_uninstall_cleanup_site() {
         wp_clear_scheduled_hook('rbf_update_booking_statuses');
     }
 
+    if (!function_exists('rbf_remove_default_capabilities')) {
+        $admin_module = RBF_PLUGIN_DIR . 'includes/admin.php';
+        if (file_exists($admin_module)) {
+            require_once $admin_module;
+        }
+    }
+
+    if (function_exists('rbf_remove_default_capabilities')) {
+        rbf_remove_default_capabilities();
+    }
+
     $options = ['rbf_settings', 'rbf_admin_notices', 'rbf_plugin_version', 'rbf_schema_last_verified'];
     foreach ($options as $option_name) {
         delete_option($option_name);
