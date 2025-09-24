@@ -751,6 +751,13 @@ function rbf_translate_string($text) {
         'Pagina del modulo di prenotazione' => 'Booking form page',
         'Seleziona una pagina' => 'Select a page',
         'Utilizzata per i link di conferma generati dal backend. Se vuota, il plugin tenta di individuarla automaticamente.' => 'Used for backend confirmation links. If left empty the plugin will try to detect it automatically.',
+        'Non hai le autorizzazioni per esportare le prenotazioni.' => 'You do not have permission to export bookings.',
+        'Data di inizio non valida. Usa il formato YYYY-MM-DD.' => 'Invalid start date. Use the YYYY-MM-DD format.',
+        'Data di fine non valida. Usa il formato YYYY-MM-DD.' => 'Invalid end date. Use the YYYY-MM-DD format.',
+        'La data di fine non può essere precedente alla data di inizio.' => 'The end date cannot be earlier than the start date.',
+        'Formato export non supportato.' => 'Export format not supported.',
+        'Stato selezionato non valido.' => 'Selected status is not valid.',
+        'Nessuna prenotazione trovata per il periodo selezionato.' => 'No bookings found for the selected period.',
 
         // New configurable meals system
         'Configurazione Pasti' => 'Meal Configuration',
