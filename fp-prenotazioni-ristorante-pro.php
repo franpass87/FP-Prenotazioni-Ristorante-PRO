@@ -203,7 +203,8 @@ function rbf_load_modules() {
         'tracking-enhanced-integration.php',
         'ai-suggestions.php',
         'privacy.php',
-        'site-health.php'
+        'site-health.php',
+        'wp-cli.php'
     ];
 
     foreach ($modules as $module) {
