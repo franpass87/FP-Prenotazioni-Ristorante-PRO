@@ -2134,6 +2134,10 @@ function rbf_get_booking_analytics($start_date, $end_date) {
  * Export page HTML
  */
 function rbf_export_page_html() {
+    if (!current_user_can('manage_options')) {
+        wp_die(esc_html(rbf_translate_string('Non hai le autorizzazioni per esportare le prenotazioni.')));
+    }
+
     // Handle export request
     if (isset($_POST['export_bookings']) && wp_verify_nonce($_POST['_wpnonce'], 'rbf_export')) {
         $sanitized = rbf_sanitize_input_fields($_POST, [
@@ -2142,14 +2146,16 @@ function rbf_export_page_html() {
             'format' => 'text',
             'status_filter' => 'text'
         ]);
-        
+
         $start_date = $sanitized['start_date'];
         $end_date = $sanitized['end_date'];
         $format = $sanitized['format'];
         $status_filter = $sanitized['status_filter'];
-        
-        rbf_handle_export_request($start_date, $end_date, $format, $status_filter);
-        return; // Exit after sending file
+
+        $handled = rbf_handle_export_request($start_date, $end_date, $format, $status_filter);
+        if ($handled) {
+            return; // Exit after sending file
+        }
     }
     
     $default_start = date('Y-m-d', strtotime('-30 days'));
@@ -2223,13 +2229,50 @@ function rbf_export_page_html() {
  */
 function rbf_handle_export_request($start_date, $end_date, $format, $status_filter) {
     global $wpdb;
-    
+
+    if (!current_user_can('manage_options')) {
+        wp_die(esc_html(rbf_translate_string('Non hai le autorizzazioni per esportare le prenotazioni.')));
+    }
+
+    $start = rbf_parse_export_date($start_date);
+    if (!$start) {
+        rbf_add_admin_notice(rbf_translate_string('Data di inizio non valida. Usa il formato YYYY-MM-DD.'), 'error');
+        return false;
+    }
+
+    $end = rbf_parse_export_date($end_date);
+    if (!$end) {
+        rbf_add_admin_notice(rbf_translate_string('Data di fine non valida. Usa il formato YYYY-MM-DD.'), 'error');
+        return false;
+    }
+
+    if ($end < $start) {
+        rbf_add_admin_notice(rbf_translate_string('La data di fine non può essere precedente alla data di inizio.'), 'error');
+        return false;
+    }
+
+    $format = strtolower($format);
+    if (!in_array($format, ['csv', 'json'], true)) {
+        rbf_add_admin_notice(rbf_translate_string('Formato export non supportato.'), 'error');
+        return false;
+    }
+
+    $valid_statuses = array_keys(rbf_get_booking_statuses());
+    $status_filter = sanitize_key($status_filter);
+    if (!empty($status_filter) && !in_array($status_filter, $valid_statuses, true)) {
+        rbf_add_admin_notice(rbf_translate_string('Stato selezionato non valido.'), 'error');
+        $status_filter = '';
+    }
+
+    $normalized_start = $start->format('Y-m-d');
+    $normalized_end = $end->format('Y-m-d');
+
     // Build query
     $where_status = '';
     if ($status_filter) {
         $where_status = $wpdb->prepare(" AND pm_status.meta_value = %s", $status_filter);
     }
-    
+
     $bookings = $wpdb->get_results($wpdb->prepare(
         "SELECT p.ID, p.post_title, p.post_date,
                 pm_date.meta_value as booking_date,
@@ -2282,14 +2325,49 @@ function rbf_handle_export_request($start_date, $end_date, $format, $status_filt
          AND pm_date.meta_value >= %s AND pm_date.meta_value <= %s
          {$where_status}
          ORDER BY pm_date.meta_value DESC, pm_time.meta_value DESC",
-        $start_date, $end_date
+        $normalized_start, $normalized_end
     ));
-    
-    if ($format === 'csv') {
-        rbf_export_csv($bookings, $start_date, $end_date);
-    } else {
-        rbf_export_json($bookings, $start_date, $end_date);
+
+    if (empty($bookings)) {
+        rbf_add_admin_notice(rbf_translate_string('Nessuna prenotazione trovata per il periodo selezionato.'), 'warning');
+        return false;
     }
+
+    if ($format === 'csv') {
+        rbf_export_csv($bookings, $normalized_start, $normalized_end);
+    } else {
+        rbf_export_json($bookings, $normalized_start, $normalized_end);
+    }
+
+    return true;
+}
+
+/**
+ * Parse and validate export date strings.
+ */
+function rbf_parse_export_date($value) {
+    if (!is_scalar($value)) {
+        return false;
+    }
+
+    $value = trim((string) $value);
+    if ($value === '') {
+        return false;
+    }
+
+    $timezone = rbf_wp_timezone();
+    $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value, $timezone);
+
+    if (!$date) {
+        return false;
+    }
+
+    $errors = DateTimeImmutable::getLastErrors();
+    if ($errors && ($errors['warning_count'] > 0 || $errors['error_count'] > 0)) {
+        return false;
+    }
+
+    return $date;
 }
 
 /**
