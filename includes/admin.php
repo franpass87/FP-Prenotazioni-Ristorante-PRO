@@ -676,12 +676,23 @@ function rbf_clear_availability_caches_on_settings_update($old_value, $value) {
  */
 add_action('admin_enqueue_scripts','rbf_enqueue_admin_styles');
 function rbf_enqueue_admin_styles($hook) {
-    if ($hook !== 'prenotazioni_page_rbf_settings' &&
-        $hook !== 'toplevel_page_rbf_calendar' &&
-        $hook !== 'prenotazioni_page_rbf_add_booking' &&
-        $hook !== 'prenotazioni_page_rbf_reports' &&
-        $hook !== 'prenotazioni_page_rbf_export' &&
-        strpos($hook,'edit.php?post_type=rbf_booking') === false) return;
+    $supported_hooks = [
+        'toplevel_page_rbf_calendar',
+        'prenotazioni_page_rbf_add_booking',
+        'prenotazioni_page_rbf_reports',
+        'prenotazioni_page_rbf_export',
+        'prenotazioni_page_rbf_settings',
+        'prenotazioni_page_rbf_weekly_staff',
+        'prenotazioni_page_rbf_tables',
+        'prenotazioni_page_rbf_email_notifications',
+        'prenotazioni_page_rbf_tracking_validation',
+    ];
+
+    $is_booking_edit_screen = strpos($hook, 'edit.php?post_type=rbf_booking') !== false;
+
+    if (!$is_booking_edit_screen && !in_array($hook, $supported_hooks, true)) {
+        return;
+    }
 
     wp_enqueue_style('rbf-admin-css', plugin_dir_url(dirname(__FILE__)) . 'assets/css/admin.css', [], rbf_get_asset_version());
     
@@ -1160,265 +1171,160 @@ function rbf_settings_page_html() {
     ?>
     <script type="text/template" id="rbf-meal-template"><?php echo $meal_template_html; ?></script>
     <script>
-    jQuery(document).ready(function($) {
-        'use strict';
+    document.addEventListener('DOMContentLoaded', function() {
+        const statusData = <?php echo wp_json_encode($analytics['by_status']); ?>;
+        const mealData = <?php echo wp_json_encode($analytics['by_meal']); ?>;
+        const dailyData = <?php echo wp_json_encode($analytics['daily_bookings']); ?>;
+        const sourceBreakdown = <?php echo wp_json_encode($source_breakdown_values); ?>;
 
-        var tabStorageKey = 'rbfSettingsActiveTab';
-        var $tabs = $('.rbf-settings-tabs-wrapper .nav-tab');
-        var $panels = $('.rbf-settings-tab-panel');
-
-        function activateTab(tab) {
-            if (!tab) {
-                return;
-            }
-            var $targetTab = $tabs.filter('[data-tab-target="' + tab + '"]');
-            var $targetPanel = $panels.filter('[data-tab="' + tab + '"]');
-            if ($targetTab.length === 0 || $targetPanel.length === 0) {
-                return;
-            }
-
-            $tabs.removeClass('nav-tab-active').attr('aria-selected', 'false');
-            $targetTab.addClass('nav-tab-active').attr('aria-selected', 'true');
-            $panels.removeClass('is-active').attr('aria-hidden', 'true');
-            $targetPanel.addClass('is-active').attr('aria-hidden', 'false');
-
-            try {
-                window.localStorage.setItem(tabStorageKey, tab);
-            } catch (error) {
-                // Ignore storage errors (e.g., disabled cookies).
-            }
-        }
-
-        $tabs.on('click', function(event) {
-            event.preventDefault();
-            activateTab($(this).data('tab-target'));
-        });
-
-        var storedTab = null;
-        try {
-            storedTab = window.localStorage.getItem(tabStorageKey);
-        } catch (error) {
-            storedTab = null;
-        }
-
-        if (storedTab && $panels.filter('[data-tab="' + storedTab + '"]').length) {
-            activateTab(storedTab);
-        } else {
-            var defaultTab = $tabs.first().data('tab-target');
-            activateTab(defaultTab);
-        }
-
-        function updateBrandPreview() {
-            var accentColor = $('#rbf_accent_color').val();
-            var secondaryColor = $('#rbf_secondary_color').val();
-            var borderRadius = $('#rbf_border_radius').val();
-            var $preview = $('#rbf-brand-preview');
-
-            $preview.css('--preview-accent', accentColor);
-            $preview.css('--preview-secondary', secondaryColor);
-            $preview.css('--preview-radius', borderRadius);
-
-            $('#preview-primary-btn').css({
-                background: accentColor,
-                borderRadius: borderRadius
-            });
-            $('#preview-secondary-btn').css({
-                background: secondaryColor,
-                borderRadius: borderRadius
-            });
-            $preview.find('input').css('border-radius', borderRadius);
-        }
-
-        if ($.fn.wpColorPicker) {
-            $('.rbf-color-picker').wpColorPicker({
-                change: updateBrandPreview
-            });
-        }
-
-        $('#rbf_accent_color, #rbf_secondary_color, #rbf_border_radius').on('change input', updateBrandPreview);
-        updateBrandPreview();
-
-        var mealTemplate = $('#rbf-meal-template').html();
-
-        function reindexMeals() {
-            $('#custom-meals-container .custom-meal-item').each(function(index) {
-                var $item = $(this);
-                $item.attr('data-meal-index', index);
-                $item.find('.rbf-meal-number').text(index + 1);
-                $item.find('[name]').each(function() {
-                    var $field = $(this);
-                    var fieldName = $field.attr('name');
-                    if (!fieldName) {
-                        return;
+        const statusCanvas = document.getElementById('statusChart');
+        if (statusCanvas) {
+            new Chart(statusCanvas, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(statusData),
+                    datasets: [{
+                        data: Object.values(statusData),
+                        backgroundColor: ['#f59e0b', '#10b981', '#06b6d4', '#ef4444', '#8b5cf6'],
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom' }
                     }
-                    var newName = fieldName.replace(/rbf_settings\[custom_meals]\[[^\]]+\]/, 'rbf_settings[custom_meals][' + index + ']');
-                    $field.attr('name', newName);
-                });
-            });
-
-            var hasMeals = $('#custom-meals-container .custom-meal-item').length > 0;
-            $('#custom-meals-container .rbf-no-meals-notice').toggle(!hasMeals);
-        }
-
-        $('#add-meal').on('click', function(event) {
-            event.preventDefault();
-            if (!mealTemplate) {
-                return;
-            }
-            var container = $('#custom-meals-container');
-            var nextIndex = container.find('.custom-meal-item').length;
-            var html = mealTemplate.replace(/__INDEX__/g, nextIndex).replace(/__NUMBER__/g, nextIndex + 1);
-            var $item = $(html);
-            container.append($item);
-            reindexMeals();
-        });
-
-        $(document).on('click', '.remove-meal', function(event) {
-            event.preventDefault();
-            $(this).closest('.custom-meal-item').remove();
-            reindexMeals();
-        });
-
-        reindexMeals();
-
-        var exceptionLabels = {
-            closure: '<?php echo esc_js(rbf_translate_string('Chiusura')); ?>',
-            holiday: '<?php echo esc_js(rbf_translate_string('Festività')); ?>',
-            special: '<?php echo esc_js(rbf_translate_string('Evento Speciale')); ?>',
-            extended: '<?php echo esc_js(rbf_translate_string('Orari Estesi')); ?>'
-        };
-        var exceptionColors = {
-            closure: '#dc3545',
-            holiday: '#fd7e14',
-            special: '#20c997',
-            extended: '#0d6efd'
-        };
-        var noExceptionsText = '<?php echo esc_js(rbf_translate_string('Nessuna eccezione configurata.')); ?>';
-        var removeExceptionConfirm = '<?php echo esc_js(rbf_translate_string('Sei sicuro di voler rimuovere questa eccezione?')); ?>';
-        var selectDateAlert = '<?php echo esc_js(rbf_translate_string('Seleziona una data.')); ?>';
-        var specifyHoursAlert = '<?php echo esc_js(rbf_translate_string('Specifica gli orari per questo tipo di eccezione.')); ?>';
-        var invalidHoursAlert = '<?php echo esc_js(rbf_translate_string('Formato orari non valido. Usa: HH:MM-HH:MM o HH:MM,HH:MM,HH:MM')); ?>';
-        var hoursLabel = '<?php echo esc_js(rbf_translate_string('Orari:')); ?>';
-
-        var $closedDates = $('#rbf_closed_dates');
-
-        function updateExceptionDisplay() {
-            var lines = ($closedDates.val() || '').split(/\r?\n/).map(function(line) {
-                return $.trim(line);
-            }).filter(function(line) {
-                return line.length > 0;
-            });
-
-            var $display = $('#exceptions_list_display');
-            $display.empty();
-
-            if (!lines.length) {
-                $display.html('<p style="color: #666; font-style: italic;">' + noExceptionsText + '</p>');
-                return;
-            }
-            lines.forEach(function(line) {
-                var parts = line.split('|');
-                var date = parts[0] || '';
-                var type = parts[1] || 'closure';
-                var hours = parts[2] || '';
-                var description = parts[3] || '';
-
-                if (!date) {
-                    return;
-                }
-
-                var $item = $('<div>').css({
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '10px',
-                    margin: '5px 0',
-                    background: '#fff',
-                    border: '1px solid #ddd',
-                    borderLeft: '4px solid ' + (exceptionColors[type] || '#666')
-                });
-
-                var $info = $('<div>');
-                $info.append($('<strong>').text(date + ' - ' + (exceptionLabels[type] || type)));
-                if (hours) {
-                    $info.append($('<br>')).append($('<span>').css('color', '#666').text(hoursLabel + ' ' + hours));
-                }
-                if (description) {
-                    $info.append($('<br>')).append($('<span>').css('color', '#666').text(description));
-                }
-
-                var $deleteBtn = $('<button type="button" class="button button-secondary rbf-remove-exception"></button>')
-                    .text('<?php echo esc_js(rbf_translate_string('Rimuovi')); ?>')
-                    .data('line', line);
-
-                $item.append($info).append($deleteBtn);
-                $display.append($item);
+                },
             });
         }
 
-        $('#exception_type').on('change', function() {
-            var type = $(this).val();
-            var $hoursContainer = $('#special_hours_container');
-            if (type === 'special' || type === 'extended') {
-                $hoursContainer.show();
-            } else {
-                $hoursContainer.hide();
-                $('#special_hours').val('');
-            }
-        }).trigger('change');
+        const mealCanvas = document.getElementById('mealChart');
+        if (mealCanvas) {
+            new Chart(mealCanvas, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(mealData),
+                    datasets: [{
+                        data: Object.values(mealData),
+                        backgroundColor: ['#3b82f6', '#f59e0b', '#10b981'],
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true }
+                    },
+                },
+            });
+        }
 
-        $('#add_exception_btn').on('click', function(event) {
-            event.preventDefault();
-            var date = $('#exception_date').val();
-            var type = $('#exception_type').val();
-            var hours = $('#special_hours').val();
-            var description = $('#exception_description').val();
+        const dailyCanvas = document.getElementById('dailyChart');
+        if (dailyCanvas) {
+            new Chart(dailyCanvas, {
+                type: 'line',
+                data: {
+                    labels: Object.keys(dailyData),
+                    datasets: [{
+                        label: '<?php echo esc_js(rbf_translate_string('Prenotazioni')); ?>',
+                        data: Object.values(dailyData),
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: true,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { beginAtZero: true }
+                    },
+                },
+            });
+        }
 
-            if (!date) {
-                window.alert(selectDateAlert);
-                return;
-            }
+        const sourceCanvas = document.getElementById('sourceChart');
+        if (sourceCanvas && sourceBreakdown.length) {
+            const sourceLabels = sourceBreakdown.map(item => item.label);
+            const bookingsDataset = sourceBreakdown.map(item => Number(item.bookings));
+            const peopleDataset = sourceBreakdown.map(item => Number(item.people));
+            const revenueDataset = sourceBreakdown.map(item => Number(item.revenue));
 
-            if ((type === 'special' || type === 'extended') && !hours) {
-                window.alert(specifyHoursAlert);
-                return;
-            }
+            new Chart(sourceCanvas, {
+                type: 'bar',
+                data: {
+                    labels: sourceLabels,
+                    datasets: [
+                        {
+                            label: '<?php echo esc_js(rbf_translate_string('Prenotazioni')); ?>',
+                            data: bookingsDataset,
+                            backgroundColor: '#2563eb',
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: '<?php echo esc_js(rbf_translate_string('Persone')); ?>',
+                            data: peopleDataset,
+                            backgroundColor: '#10b981',
+                            yAxisID: 'y'
+                        },
+                        {
+                            type: 'line',
+                            label: '<?php echo esc_js(rbf_translate_string('Ricavi Stimati (€)')); ?>',
+                            data: revenueDataset,
+                            borderColor: '#f59e0b',
+                            backgroundColor: 'rgba(245, 158, 11, 0.35)',
+                            borderWidth: 2,
+                            fill: false,
+                            yAxisID: 'y1',
+                            hidden: true,
+                            tension: 0.3,
+                            pointRadius: 3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        },
+                        y1: {
+                            beginAtZero: true,
+                            position: 'right',
+                            grid: {
+                                drawOnChartArea: false
+                            },
+                            ticks: {
+                                callback: value => '€' + Number(value).toLocaleString('it-IT')
+                            }
+                        },
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const datasetLabel = context.dataset.label || '';
+                                    const value = context.parsed.y;
 
-            if (hours && !/^(\d{1,2}:\d{2}(-\d{1,2}:\d{2})?|\d{1,2}:\d{2}(,\d{1,2}:\d{2})*)$/.test(hours)) {
-                window.alert(invalidHoursAlert);
-                return;
-            }
+                                    if (datasetLabel.indexOf('€') !== -1) {
+                                        return datasetLabel + ': €' + Number(value).toLocaleString('it-IT', { minimumFractionDigits: 0 });
+                                    }
 
-            var newLine = [date, type, hours || '', description || ''].join('|');
-            var existing = $closedDates.val();
-            $closedDates.val(existing ? existing + '\\n' + newLine : newLine);
-            updateExceptionDisplay();
-
-            $('#exception_date').val('');
-            $('#exception_description').val('');
-            $('#special_hours').val('');
-            $('#exception_type').val('closure').trigger('change');
-        });
-
-        $(document).on('click', '.rbf-remove-exception', function(event) {
-            event.preventDefault();
-            var line = $(this).data('line');
-            if (!line) {
-                return;
-            }
-            if (!window.confirm(removeExceptionConfirm)) {
-                return;
-            }
-            var updated = ($closedDates.val() || '').split(/\r?\n/).filter(function(entry) {
-                return $.trim(entry) !== line;
-            }).join('\n');
-
-            $closedDates.val(updated);
-            updateExceptionDisplay();
-        });
-
-        $closedDates.on('input', updateExceptionDisplay);
-        updateExceptionDisplay();
+                                    return datasetLabel + ': ' + Number(value).toLocaleString('it-IT');
+                                }
+                            },
+                        },
+                    },
+                },
+            });
+        }
     });
     </script>
     <?php
@@ -2290,44 +2196,37 @@ function rbf_reports_page_html() {
     <div class="rbf-admin-wrap">
         <h1><?php echo esc_html(rbf_translate_string('Report & Analytics')); ?></h1>
         
-        <!-- Date Range Filter -->
-        <div class="rbf-date-filter" style="background: #f9f9f9; padding: 15px; margin-bottom: 20px; border-radius: 8px;">
-            <form method="get" style="display: grid; gap: 12px; align-items: start;">
+        <div class="rbf-admin-card rbf-analytics-filter">
+            <form method="get" class="rbf-admin-form">
                 <input type="hidden" name="page" value="rbf_reports">
-                <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
-                    <label for="start_date" style="font-weight: 500; color: #1f2937;">
-                        <?php echo esc_html(rbf_translate_string('Da:')); ?>
-                    </label>
+                <div class="rbf-form-row">
+                    <label for="start_date"><?php echo esc_html(rbf_translate_string('Da:')); ?></label>
                     <input type="date" id="start_date" name="start_date" value="<?php echo esc_attr($start_date); ?>">
-                    <label for="end_date" style="font-weight: 500; color: #1f2937;">
-                        <?php echo esc_html(rbf_translate_string('A:')); ?>
-                    </label>
+                    <label for="end_date"><?php echo esc_html(rbf_translate_string('A:')); ?></label>
                     <input type="date" id="end_date" name="end_date" value="<?php echo esc_attr($end_date); ?>">
                 </div>
                 <?php if (!empty($channel_options)) : ?>
-                    <fieldset style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 16px; background: #ffffff;">
-                        <legend style="font-weight: 600; color: #1f2937; padding: 0 6px;">
-                            <?php echo esc_html(rbf_translate_string('Filtra per canale')); ?>
-                        </legend>
-                        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                    <fieldset class="rbf-admin-fieldset">
+                        <legend><?php echo esc_html(rbf_translate_string('Filtra per canale')); ?></legend>
+                        <div class="rbf-chip-group">
                             <?php foreach ($channel_options as $channel_key => $channel_label) : ?>
                                 <?php
                                 $channel_count = $channel_totals_all[$channel_key] ?? 0;
                                 $is_selected = empty($selected_channels) || in_array($channel_key, $selected_channels, true);
                                 ?>
-                                <label style="display: inline-flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                                <label class="rbf-chip">
                                     <input type="checkbox" name="source_filter[]" value="<?php echo esc_attr($channel_key); ?>" <?php checked($is_selected); ?>>
-                                    <span style="font-weight: 500; color: #111827;"><?php echo esc_html($channel_label); ?></span>
-                                    <small style="color: #6b7280;">(<?php echo esc_html(number_format_i18n($channel_count)); ?>)</small>
+                                    <span class="rbf-chip__label"><?php echo esc_html($channel_label); ?></span>
+                                    <span class="rbf-chip__badge"><?php echo esc_html(number_format_i18n($channel_count)); ?></span>
                                 </label>
                             <?php endforeach; ?>
                         </div>
-                        <p class="description" style="margin-top: 8px;">
+                        <p class="description">
                             <?php echo esc_html(rbf_translate_string('Deseleziona i canali da escludere dal report. Se non selezioni nulla verranno mostrati tutti i dati disponibili.')); ?>
                         </p>
                     </fieldset>
                 <?php endif; ?>
-                <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+                <div class="rbf-form-actions">
                     <button type="submit" class="button button-primary"><?php echo esc_html(rbf_translate_string('Aggiorna Report')); ?></button>
                     <?php if (!empty($selected_channels)) : ?>
                         <?php
@@ -2346,94 +2245,90 @@ function rbf_reports_page_html() {
                     <?php endif; ?>
                 </div>
                 <?php if (!empty($selected_channel_labels)) : ?>
-                    <p style="margin: 0; font-size: 13px; color: #4b5563;">
+                    <p class="rbf-analytics-active-filters">
                         <strong><?php echo esc_html(rbf_translate_string('Filtri attivi:')); ?></strong>
                         <?php echo esc_html(implode(', ', $selected_channel_labels)); ?>
                     </p>
                 <?php endif; ?>
             </form>
         </div>
-        
-        <!-- Key Metrics Cards -->
-        <div class="rbf-metrics-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px;">
-            <div class="rbf-metric-card" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <h3 style="margin: 0 0 10px 0; color: #1f2937; font-size: 16px;"><?php echo esc_html(rbf_translate_string('Prenotazioni Totali')); ?></h3>
-                <div style="font-size: 32px; font-weight: bold; color: #10b981;"><?php echo esc_html($analytics['total_bookings']); ?></div>
-                <small style="color: #6b7280;"><?php echo esc_html(sprintf(rbf_translate_string('Dal %s al %s'), date('d/m/Y', strtotime($start_date)), date('d/m/Y', strtotime($end_date)))); ?></small>
-            </div>
-            
-            <div class="rbf-metric-card" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <h3 style="margin: 0 0 10px 0; color: #1f2937; font-size: 16px;"><?php echo esc_html(rbf_translate_string('Persone Totali')); ?></h3>
-                <div style="font-size: 32px; font-weight: bold; color: #3b82f6;"><?php echo esc_html($analytics['total_people']); ?></div>
-                <small style="color: #6b7280;"><?php echo esc_html(sprintf(rbf_translate_string('Media: %.1f per prenotazione'), $analytics['avg_people_per_booking'])); ?></small>
-            </div>
-            
-            <div class="rbf-metric-card" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <h3 style="margin: 0 0 10px 0; color: #1f2937; font-size: 16px;"><?php echo esc_html(rbf_translate_string('Valore Stimato')); ?></h3>
-                <div style="font-size: 32px; font-weight: bold; color: #f59e0b;">€<?php echo esc_html(number_format($analytics['total_revenue'], 2)); ?></div>
-                <small style="color: #6b7280;"><?php echo esc_html(sprintf(rbf_translate_string('Media: €%.2f per prenotazione'), $analytics['avg_revenue_per_booking'])); ?></small>
-            </div>
-            
-            <div class="rbf-metric-card" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <h3 style="margin: 0 0 10px 0; color: #1f2937; font-size: 16px;"><?php echo esc_html(rbf_translate_string('Tasso Completamento')); ?></h3>
-                <div style="font-size: 32px; font-weight: bold; color: #8b5cf6;"><?php echo esc_html(number_format($analytics['completion_rate'], 1)); ?>%</div>
-                <small style="color: #6b7280;"><?php echo esc_html(sprintf(rbf_translate_string('%d completate su %d confermate'), $analytics['completed_bookings'], $analytics['confirmed_bookings'])); ?></small>
+
+        <div class="rbf-admin-card">
+            <div class="rbf-analytics-metrics">
+                <div class="rbf-analytics-metric rbf-analytics-metric--bookings">
+                    <p class="rbf-analytics-metric__label"><?php echo esc_html(rbf_translate_string('Prenotazioni Totali')); ?></p>
+                    <p class="rbf-analytics-metric__value"><?php echo esc_html($analytics['total_bookings']); ?></p>
+                </div>
+                <div class="rbf-analytics-metric rbf-analytics-metric--people">
+                    <p class="rbf-analytics-metric__label"><?php echo esc_html(rbf_translate_string('Persone Totali')); ?></p>
+                    <p class="rbf-analytics-metric__value"><?php echo esc_html($analytics['total_people']); ?></p>
+                    <p class="rbf-analytics-metric__subtitle"><?php echo esc_html(sprintf(rbf_translate_string('Media: %.1f per prenotazione'), $analytics['avg_people_per_booking'])); ?></p>
+                </div>
+                <div class="rbf-analytics-metric rbf-analytics-metric--revenue">
+                    <p class="rbf-analytics-metric__label"><?php echo esc_html(rbf_translate_string('Ricavi Stimati')); ?></p>
+                    <p class="rbf-analytics-metric__value">€<?php echo esc_html(number_format_i18n((float) $analytics['total_revenue'], 2)); ?></p>
+                    <p class="rbf-analytics-metric__subtitle"><?php echo esc_html(sprintf(rbf_translate_string('Media: €%.2f per prenotazione'), $analytics['avg_revenue_per_booking'])); ?></p>
+                </div>
+                <div class="rbf-analytics-metric rbf-analytics-metric--completion">
+                    <p class="rbf-analytics-metric__label"><?php echo esc_html(rbf_translate_string('Tasso di Completamento')); ?></p>
+                    <p class="rbf-analytics-metric__value"><?php echo esc_html(number_format_i18n((float) $analytics['completion_rate'], 1)); ?>%</p>
+                    <p class="rbf-analytics-metric__subtitle"><?php echo esc_html(sprintf(rbf_translate_string('%d completate su %d confermate'), $analytics['completed_bookings'], $analytics['confirmed_bookings'])); ?></p>
+                </div>
             </div>
         </div>
-        
-        <!-- Charts Row -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
-            <!-- Bookings by Status Chart -->
-            <div class="rbf-chart-container" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <h3 style="margin: 0 0 20px 0;"><?php echo esc_html(rbf_translate_string('Prenotazioni per Stato')); ?></h3>
-                <canvas id="statusChart" width="400" height="200"></canvas>
+
+        <?php if ($analytics['total_bookings'] === 0) : ?>
+            <div class="rbf-admin-card">
+                <p class="rbf-empty-state"><?php echo esc_html(rbf_translate_string("Nessuna prenotazione trovata per l'intervallo selezionato.")); ?></p>
             </div>
-            
-            <!-- Bookings by Meal Type Chart -->
-            <div class="rbf-chart-container" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <h3 style="margin: 0 0 20px 0;"><?php echo esc_html(rbf_translate_string('Prenotazioni per Servizio')); ?></h3>
-                <canvas id="mealChart" width="400" height="200"></canvas>
+        <?php endif; ?>
+
+        <div class="rbf-admin-grid rbf-admin-grid--cols-2 rbf-analytics-charts">
+            <div class="rbf-admin-card rbf-analytics-chart-card">
+                <h3><?php echo esc_html(rbf_translate_string('Prenotazioni per Stato')); ?></h3>
+                <canvas id="statusChart" height="220"></canvas>
             </div>
-        </div>
-        
-        <!-- Daily Bookings Chart -->
-        <div class="rbf-chart-container" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 30px;">
-            <h3 style="margin: 0 0 20px 0;"><?php echo esc_html(rbf_translate_string('Andamento Prenotazioni Giornaliere')); ?></h3>
-            <canvas id="dailyChart" width="800" height="300"></canvas>
-        </div>
-        
-        <!-- Source Attribution Analysis -->
-        <div class="rbf-chart-container" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <h3 style="margin: 0 0 20px 0;"><?php echo esc_html(rbf_translate_string('Analisi Sorgenti di Traffico')); ?></h3>
-            <canvas id="sourceChart" width="800" height="300"></canvas>
-            <?php if (empty($source_breakdown)) : ?>
-                <p style="margin-top: 16px; color: #6b7280;"><?php echo esc_html(rbf_translate_string('Nessun dato disponibile per i filtri selezionati.')); ?></p>
+            <div class="rbf-admin-card rbf-analytics-chart-card">
+                <h3><?php echo esc_html(rbf_translate_string('Prenotazioni per Servizio')); ?></h3>
+                <canvas id="mealChart" height="220"></canvas>
+            </div>
+            <div class="rbf-admin-card rbf-analytics-chart-card">
+                <h3><?php echo esc_html(rbf_translate_string('Andamento Prenotazioni Giornaliere')); ?></h3>
+                <canvas id="dailyChart" height="220"></canvas>
+            </div>
+            <?php if (!empty($source_breakdown)) : ?>
+                <div class="rbf-admin-card rbf-analytics-chart-card">
+                    <h3><?php echo esc_html(rbf_translate_string('Confronto per Sorgente')); ?></h3>
+                    <canvas id="sourceChart" height="220"></canvas>
+                </div>
             <?php endif; ?>
         </div>
 
         <?php if (!empty($source_breakdown)) : ?>
-            <div class="rbf-chart-container" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-top: 20px;">
-                <h3 style="margin: 0 0 20px 0;"><?php echo esc_html(rbf_translate_string('Dettaglio per Canale')); ?></h3>
-                <table class="widefat striped" style="margin-top: 0;">
-                    <thead>
-                        <tr>
-                            <th><?php echo esc_html(rbf_translate_string('Canale')); ?></th>
-                            <th><?php echo esc_html(rbf_translate_string('Prenotazioni')); ?></th>
-                            <th><?php echo esc_html(rbf_translate_string('Persone')); ?></th>
-                            <th><?php echo esc_html(rbf_translate_string('Ricavi Stimati')); ?></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($source_breakdown as $channel_data) : ?>
+            <div class="rbf-admin-card rbf-analytics-table">
+                <h3><?php echo esc_html(rbf_translate_string('Dettaglio per Canale')); ?></h3>
+                <div class="rbf-table-wrapper">
+                    <table class="widefat striped">
+                        <thead>
                             <tr>
-                                <td><?php echo esc_html($channel_data['label']); ?></td>
-                                <td><?php echo esc_html(number_format_i18n($channel_data['bookings'])); ?></td>
-                                <td><?php echo esc_html(number_format_i18n($channel_data['people'])); ?></td>
-                                <td>€<?php echo esc_html(number_format_i18n((float) $channel_data['revenue'], 2)); ?></td>
+                                <th><?php echo esc_html(rbf_translate_string('Canale')); ?></th>
+                                <th><?php echo esc_html(rbf_translate_string('Prenotazioni')); ?></th>
+                                <th><?php echo esc_html(rbf_translate_string('Persone')); ?></th>
+                                <th><?php echo esc_html(rbf_translate_string('Ricavi Stimati')); ?></th>
                             </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($source_breakdown as $channel_data) : ?>
+                                <tr>
+                                    <td><?php echo esc_html($channel_data['label']); ?></td>
+                                    <td><?php echo esc_html(number_format_i18n($channel_data['bookings'])); ?></td>
+                                    <td><?php echo esc_html(number_format_i18n($channel_data['people'])); ?></td>
+                                    <td>€<?php echo esc_html(number_format_i18n((float) $channel_data['revenue'], 2)); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         <?php endif; ?>
     </div>
@@ -2444,75 +2339,81 @@ function rbf_reports_page_html() {
         const mealData = <?php echo wp_json_encode($analytics['by_meal']); ?>;
         const dailyData = <?php echo wp_json_encode($analytics['daily_bookings']); ?>;
         const sourceBreakdown = <?php echo wp_json_encode($source_breakdown_values); ?>;
-        
-        // Status Chart
-        new Chart(document.getElementById('statusChart'), {
-            type: 'doughnut',
-            data: {
-                labels: Object.keys(statusData),
-                datasets: [{
-                    data: Object.values(statusData),
-                    backgroundColor: ['#f59e0b', '#10b981', '#06b6d4', '#ef4444', '#8b5cf6'],
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: { position: 'bottom' }
-                }
-            }
-        });
-        
-        // Meal Chart
-        new Chart(document.getElementById('mealChart'), {
-            type: 'bar',
-            data: {
-                labels: Object.keys(mealData),
-                datasets: [{
-                    data: Object.values(mealData),
-                    backgroundColor: ['#3b82f6', '#f59e0b', '#10b981'],
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: { display: false }
+
+        const statusCanvas = document.getElementById('statusChart');
+        if (statusCanvas) {
+            new Chart(statusCanvas, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(statusData),
+                    datasets: [{
+                        data: Object.values(statusData),
+                        backgroundColor: ['#f59e0b', '#10b981', '#06b6d4', '#ef4444', '#8b5cf6'],
+                    }]
                 },
-                scales: {
-                    y: { beginAtZero: true }
-                }
-            }
-        });
-        
-        // Daily Chart
-        new Chart(document.getElementById('dailyChart'), {
-            type: 'line',
-            data: {
-                labels: Object.keys(dailyData),
-                datasets: [{
-                    label: '<?php echo esc_js(rbf_translate_string('Prenotazioni')); ?>',
-                    data: Object.values(dailyData),
-                    borderColor: '#10b981',
-                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                    fill: true,
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    y: { beginAtZero: true }
-                }
-            }
-        });
-        
-        // Source Chart
-        if (sourceBreakdown.length) {
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                },
+            });
+        }
+
+        const mealCanvas = document.getElementById('mealChart');
+        if (mealCanvas) {
+            new Chart(mealCanvas, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(mealData),
+                    datasets: [{
+                        data: Object.values(mealData),
+                        backgroundColor: ['#3b82f6', '#f59e0b', '#10b981'],
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true }
+                    },
+                },
+            });
+        }
+
+        const dailyCanvas = document.getElementById('dailyChart');
+        if (dailyCanvas) {
+            new Chart(dailyCanvas, {
+                type: 'line',
+                data: {
+                    labels: Object.keys(dailyData),
+                    datasets: [{
+                        label: '<?php echo esc_js(rbf_translate_string('Prenotazioni')); ?>',
+                        data: Object.values(dailyData),
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: true,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { beginAtZero: true }
+                    },
+                },
+            });
+        }
+
+        const sourceCanvas = document.getElementById('sourceChart');
+        if (sourceCanvas && sourceBreakdown.length) {
             const sourceLabels = sourceBreakdown.map(item => item.label);
             const bookingsDataset = sourceBreakdown.map(item => Number(item.bookings));
             const peopleDataset = sourceBreakdown.map(item => Number(item.people));
             const revenueDataset = sourceBreakdown.map(item => Number(item.revenue));
 
-            new Chart(document.getElementById('sourceChart'), {
+            new Chart(sourceCanvas, {
                 type: 'bar',
                 data: {
                     labels: sourceLabels,
@@ -2563,7 +2464,7 @@ function rbf_reports_page_html() {
                             ticks: {
                                 callback: value => '€' + Number(value).toLocaleString('it-IT')
                             }
-                        }
+                        },
                     },
                     plugins: {
                         legend: {
@@ -2581,10 +2482,10 @@ function rbf_reports_page_html() {
 
                                     return datasetLabel + ': ' + Number(value).toLocaleString('it-IT');
                                 }
-                            }
-                        }
-                    }
-                }
+                            },
+                        },
+                    },
+                },
             });
         }
     });
@@ -2623,27 +2524,46 @@ function rbf_get_booking_analytics($start_date, $end_date, $selected_channels = 
     $selected_channels = array_values(array_filter(array_map('sanitize_key', (array) $selected_channels)));
 
     $default_channels = [
-        'gads'    => rbf_translate_string('Google Ads'),
-        'fbads'   => rbf_translate_string('Facebook Ads'),
-        'fborg'   => rbf_translate_string('Facebook Organico'),
-        'organic' => rbf_translate_string('Traffico Organico'),
-        'direct'  => rbf_translate_string('Traffico Diretto'),
-        'backend' => rbf_translate_string('Inserimento Manuale'),
-        'other'   => rbf_translate_string('Altre Sorgenti'),
+        'gads'           => rbf_translate_string('Google Ads'),
+        'google_organic' => rbf_translate_string('Google Organico'),
+        'facebook_ads'   => rbf_translate_string('Facebook Ads'),
+        'facebook_org'   => rbf_translate_string('Facebook Organico'),
+        'direct'         => rbf_translate_string('Traffico Diretto'),
+        'referral'       => rbf_translate_string('Referral'),
+        'backend'        => rbf_translate_string('Inserimento Manuale'),
+        'other'          => rbf_translate_string('Altre Sorgenti'),
     ];
 
     $channel_alias_map = [
         'manual'          => 'backend',
+        'manuale'         => 'backend',
         'backend_manual'  => 'backend',
         'backendmanual'   => 'backend',
         'googleads'       => 'gads',
         'google_ads'      => 'gads',
         'google'          => 'gads',
-        'metaads'         => 'fbads',
-        'facebookads'     => 'fbads',
-        'facebook'        => 'fborg',
-        'instagram'       => 'fborg',
-        'meta'            => 'fborg',
+        'sem'             => 'gads',
+        'ppc'             => 'gads',
+        'organic'         => 'google_organic',
+        'seo'             => 'google_organic',
+        'googleorganic'   => 'google_organic',
+        'google_organic'  => 'google_organic',
+        'googleorganico'  => 'google_organic',
+        'metaads'         => 'facebook_ads',
+        'facebookads'     => 'facebook_ads',
+        'fbads'           => 'facebook_ads',
+        'instagramads'    => 'facebook_ads',
+        'facebook'        => 'facebook_org',
+        'fb'              => 'facebook_org',
+        'fborg'           => 'facebook_org',
+        'instagram'       => 'facebook_org',
+        'meta'            => 'facebook_org',
+        'diretto'         => 'direct',
+        'ref'             => 'referral',
+        'referrals'       => 'referral',
+        'partner'         => 'referral',
+        'partnership'     => 'referral',
+        'altro'           => 'other',
     ];
 
     $normalized_selected_channels = [];
