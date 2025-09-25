@@ -88,7 +88,12 @@ function rbf_enqueue_frontend_assets() {
     wp_enqueue_style('rbf-intl-tel-input-css', $intl_tel_css_src, [], $intl_tel_version);
 
     // Frontend styles and brand variables
-    wp_enqueue_style('rbf-frontend-css', rbf_get_asset_url('css/frontend.css'), ['rbf-flatpickr-css'], rbf_get_asset_version());
+    wp_enqueue_style(
+        'rbf-frontend-css',
+        rbf_get_asset_url('css/frontend.css'),
+        ['rbf-flatpickr-css'],
+        rbf_get_asset_version('css/frontend.css')
+    );
     rbf_inject_brand_css_vars();
 
     // Register frontend script before attaching inline fallbacks
@@ -96,7 +101,7 @@ function rbf_enqueue_frontend_assets() {
         'rbf-frontend-js',
         rbf_get_asset_url('js/frontend.js'),
         $deps,
-        rbf_get_asset_version(),
+        rbf_get_asset_version('js/frontend.js'),
         true
     );
 
