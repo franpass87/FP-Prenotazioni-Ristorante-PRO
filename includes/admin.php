@@ -674,23 +674,94 @@ function rbf_clear_availability_caches_on_settings_update($old_value, $value) {
 /**
  * Enqueue admin styles
  */
-add_action('admin_enqueue_scripts','rbf_enqueue_admin_styles');
-function rbf_enqueue_admin_styles($hook) {
-    $supported_hooks = [
-        'toplevel_page_rbf_calendar',
-        'prenotazioni_page_rbf_add_booking',
-        'prenotazioni_page_rbf_reports',
-        'prenotazioni_page_rbf_export',
-        'prenotazioni_page_rbf_settings',
-        'prenotazioni_page_rbf_weekly_staff',
-        'prenotazioni_page_rbf_tables',
-        'prenotazioni_page_rbf_email_notifications',
-        'prenotazioni_page_rbf_tracking_validation',
+add_action('admin_enqueue_scripts', 'rbf_enqueue_admin_styles');
+
+/**
+ * Normalize a WordPress admin hook/screen identifier for reliable comparisons.
+ *
+ * Some identifiers use hyphens while others use underscores. By converting
+ * hyphens into underscores we can compare the values in a consistent manner
+ * regardless of how WordPress generated them.
+ *
+ * @param mixed $identifier Potential hook or screen identifier.
+ * @return string Normalized identifier string.
+ */
+function rbf_normalize_admin_identifier($identifier) {
+    if (!is_string($identifier) || $identifier === '') {
+        return '';
+    }
+
+    return str_replace('-', '_', $identifier);
+}
+
+/**
+ * Retrieve the list of plugin admin screen identifiers.
+ *
+ * @return array<int, string> Normalized identifiers.
+ */
+function rbf_get_plugin_admin_screen_ids() {
+    static $screen_ids = null;
+
+    if (is_array($screen_ids)) {
+        return $screen_ids;
+    }
+
+    $slugs = [
+        'rbf_calendar',
+        'rbf_weekly_staff',
+        'rbf_add_booking',
+        'rbf_tables',
+        'rbf_reports',
+        'rbf_email_notifications',
+        'rbf_export',
+        'rbf_settings',
+        'rbf_tracking_validation',
     ];
 
-    $is_booking_edit_screen = strpos($hook, 'edit.php?post_type=rbf_booking') !== false;
+    $raw_ids = [
+        'toplevel_page_rbf_calendar',
+        'edit-rbf_booking',
+        'rbf_booking',
+    ];
 
-    if (!$is_booking_edit_screen && !in_array($hook, $supported_hooks, true)) {
+    foreach ($slugs as $slug) {
+        $raw_ids[] = 'rbf_calendar_page_' . $slug;
+        $raw_ids[] = 'prenotazioni_page_' . $slug;
+    }
+
+    $screen_ids = array_values(array_unique(array_map('rbf_normalize_admin_identifier', $raw_ids)));
+
+    return $screen_ids;
+}
+
+/**
+ * Determine if the provided hook or screen identifier matches a plugin page.
+ *
+ * @param string $identifier Hook or screen identifier.
+ * @return bool True when the identifier belongs to one of the plugin pages.
+ */
+function rbf_is_plugin_admin_identifier($identifier) {
+    $normalized = rbf_normalize_admin_identifier($identifier);
+
+    if ($normalized === '') {
+        return false;
+    }
+
+    return in_array($normalized, rbf_get_plugin_admin_screen_ids(), true);
+}
+
+/**
+ * Enqueue admin styles.
+ *
+ * @param string $hook Current admin page hook suffix.
+ */
+function rbf_enqueue_admin_styles($hook) {
+    $screen    = function_exists('get_current_screen') ? get_current_screen() : null;
+    $screen_id = $screen && isset($screen->id) ? $screen->id : '';
+
+    $is_plugin_screen = rbf_is_plugin_admin_identifier($screen_id) || rbf_is_plugin_admin_identifier($hook);
+
+    if (!$is_plugin_screen) {
         return;
     }
 
@@ -700,15 +771,59 @@ function rbf_enqueue_admin_styles($hook) {
         [],
         rbf_get_asset_version('css/admin.css')
     );
-    
-    // Enqueue WordPress color picker for settings page
-    if ($hook === 'prenotazioni_page_rbf_settings') {
+
+    $settings_hooks = [
+        'rbf_calendar_page_rbf_settings',
+        'prenotazioni_page_rbf_settings',
+    ];
+    $normalized_settings_hooks = array_map('rbf_normalize_admin_identifier', $settings_hooks);
+
+    $is_settings_screen = in_array(
+        rbf_normalize_admin_identifier($screen_id),
+        $normalized_settings_hooks,
+        true
+    );
+
+    if (!$is_settings_screen && is_string($hook)) {
+        $is_settings_screen = in_array(
+            rbf_normalize_admin_identifier($hook),
+            $normalized_settings_hooks,
+            true
+        );
+    }
+
+    if ($is_settings_screen) {
         wp_enqueue_style('wp-color-picker');
         wp_enqueue_script('wp-color-picker');
     }
-    
+
     // Inject brand CSS variables for admin
     rbf_inject_brand_css_vars_admin();
+}
+
+add_filter('admin_body_class', 'rbf_add_plugin_admin_body_class');
+/**
+ * Append a distinctive body class on plugin admin screens so CSS can style them uniformly.
+ *
+ * @param string $classes Existing admin body class string.
+ * @return string Adjusted class list.
+ */
+function rbf_add_plugin_admin_body_class($classes) {
+    $screen = function_exists('get_current_screen') ? get_current_screen() : null;
+    $screen_id = $screen && isset($screen->id) ? $screen->id : '';
+
+    if (!rbf_is_plugin_admin_identifier($screen_id)) {
+        return $classes;
+    }
+
+    $existing_classes = preg_split('/\s+/', (string) $classes, -1, PREG_SPLIT_NO_EMPTY);
+    $existing_classes[] = 'rbf-admin-screen';
+
+    if ($screen && isset($screen->base) && is_string($screen->base) && $screen->base !== '') {
+        $existing_classes[] = 'rbf-admin-screen--' . sanitize_html_class($screen->base, 'rbf-admin');
+    }
+
+    return implode(' ', array_unique(array_filter($existing_classes)));
 }
 
 /**
@@ -871,7 +986,7 @@ function rbf_settings_page_html() {
         'sun' => rbf_translate_string('Domenica')
     ];
     ?>
-    <div class="rbf-admin-wrap">
+    <div class="rbf-admin-wrap rbf-admin-wrap--wide">
         <h1><?php echo esc_html(rbf_translate_string('Impostazioni Prenotazioni Ristorante')); ?></h1>
         <style>
             .rbf-settings-tabs-wrapper { margin-top: 20px; }
@@ -1364,7 +1479,7 @@ function rbf_calendar_page_html() {
         'editUrl' => admin_url('post.php?post=BOOKING_ID&action=edit')
     ]);
     ?>
-    <div class="rbf-admin-wrap">
+    <div class="rbf-admin-wrap rbf-admin-wrap--wide">
         <h1><?php echo esc_html(rbf_translate_string('Prenotazioni')); ?></h1>
         
         <div id="rbf-calendar"></div>
@@ -1401,7 +1516,7 @@ function rbf_weekly_staff_page_html() {
         ]
     ]);
     ?>
-    <div class="rbf-admin-wrap">
+    <div class="rbf-admin-wrap rbf-admin-wrap--wide">
         <h1><?php echo esc_html(rbf_translate_string('Vista Settimanale Staff')); ?></h1>
         <p class="description"><?php echo esc_html(rbf_translate_string('Vista compatta per lo staff con funzionalità drag & drop per spostare le prenotazioni.')); ?></p>
         
@@ -1802,7 +1917,22 @@ function rbf_add_booking_page_html() {
     $options = rbf_get_settings();
     $active_meals = rbf_get_active_meals();
     $message = '';
-    $selected_meal = '';
+
+    $form_defaults = [
+        'rbf_meal'      => '',
+        'rbf_data'      => '',
+        'rbf_time'      => '',
+        'rbf_persone'   => '',
+        'rbf_nome'      => '',
+        'rbf_cognome'   => '',
+        'rbf_email'     => '',
+        'rbf_tel'       => '',
+        'rbf_allergie'  => '',
+        'rbf_lang'      => 'it',
+        'rbf_privacy'   => false,
+        'rbf_marketing' => false,
+    ];
+    $form_values = $form_defaults;
 
     if (!empty($_POST) && check_admin_referer('rbf_add_backend_booking')) {
         $sanitized = rbf_sanitize_input_fields($_POST, [
@@ -1819,7 +1949,6 @@ function rbf_add_booking_page_html() {
         ]);
 
         $meal = $sanitized['rbf_meal'] ?? '';
-        $selected_meal = $meal;
         $date = $sanitized['rbf_data'] ?? '';
         $time = $sanitized['rbf_time'] ?? '';
         $people = $sanitized['rbf_persone'] ?? 0;
@@ -1831,6 +1960,21 @@ function rbf_add_booking_page_html() {
         $lang = $sanitized['rbf_lang'] ?? 'it';
         $privacy = isset($_POST['rbf_privacy']) ? 'yes' : 'no';
         $marketing = isset($_POST['rbf_marketing']) ? 'yes' : 'no';
+
+        $form_values = array_merge($form_values, [
+            'rbf_meal'      => $meal,
+            'rbf_data'      => $date,
+            'rbf_time'      => $time,
+            'rbf_persone'   => $people > 0 ? (string) $people : '',
+            'rbf_nome'      => $first_name,
+            'rbf_cognome'   => $last_name,
+            'rbf_email'     => $email,
+            'rbf_tel'       => $tel,
+            'rbf_allergie'  => $notes,
+            'rbf_lang'      => $lang !== '' ? $lang : 'it',
+            'rbf_privacy'   => $privacy === 'yes',
+            'rbf_marketing' => $marketing === 'yes',
+        ]);
 
         if (empty($active_meals)) {
             $message = '<div class="notice notice-error"><p>' . esc_html(rbf_translate_string('Configura almeno un servizio attivo prima di aggiungere prenotazioni manuali.')) . '</p></div>';
@@ -2010,6 +2154,7 @@ function rbf_add_booking_page_html() {
                                     }
 
                                     $message = '<div class="notice notice-success"><p>Prenotazione aggiunta con successo! <a href="' . admin_url('post.php?post=' . $post_id . '&action=edit') . '">Modifica</a>' . $success_link . '</p></div>';
+                                    $form_values = $form_defaults;
                                 }
                             } else {
                                 $release_success = rbf_release_slot_capacity($date, $meal, $people);
@@ -2050,48 +2195,95 @@ function rbf_add_booking_page_html() {
     }
 
     ?>
-    <div class="rbf-admin-wrap">
+    <div class="rbf-admin-wrap rbf-admin-wrap--narrow">
         <h1><?php echo esc_html(rbf_translate_string('Aggiungi Nuova Prenotazione')); ?></h1>
         <?php echo wp_kses_post($message); ?>
 
         <?php if (empty($active_meals)) : ?>
             <div class="notice notice-warning"><p><?php echo esc_html(rbf_translate_string('Configura almeno un servizio attivo prima di aggiungere prenotazioni manuali.')); ?></p></div>
         <?php else : ?>
-            <form method="post">
-                <?php wp_nonce_field('rbf_add_backend_booking'); ?>
-                <table class="form-table">
-                    <tr><th><label for="rbf_meal"><?php echo esc_html(rbf_translate_string('Pasto')); ?></label></th>
-                        <td><select id="rbf_meal" name="rbf_meal">
-                            <option value=""><?php echo esc_html(rbf_translate_string('Scegli il pasto')); ?></option>
-                            <?php foreach ($active_meals as $meal_config) : ?>
-                                <option value="<?php echo esc_attr($meal_config['id']); ?>" <?php selected($selected_meal, $meal_config['id']); ?>><?php echo esc_html($meal_config['name'] ?? $meal_config['id']); ?></option>
-                            <?php endforeach; ?>
-                        </select></td></tr>
-                    <tr><th><label for="rbf_data"><?php echo esc_html(rbf_translate_string('Data')); ?></label></th>
-                        <td><input type="date" id="rbf_data" name="rbf_data"></td></tr>
-                    <tr><th><label for="rbf_time"><?php echo esc_html(rbf_translate_string('Orario')); ?></label></th>
-                        <td><input type="time" id="rbf_time" name="rbf_time"></td></tr>
-                    <tr><th><label for="rbf_persone"><?php echo esc_html(rbf_translate_string('Persone')); ?></label></th>
-                        <td><input type="number" id="rbf_persone" name="rbf_persone" min="0"></td></tr>
-                    <tr><th><label for="rbf_nome"><?php echo esc_html(rbf_translate_string('Nome')); ?></label></th>
-                        <td><input type="text" id="rbf_nome" name="rbf_nome"></td></tr>
-                    <tr><th><label for="rbf_cognome"><?php echo esc_html(rbf_translate_string('Cognome')); ?></label></th>
-                        <td><input type="text" id="rbf_cognome" name="rbf_cognome"></td></tr>
-                    <tr><th><label for="rbf_email"><?php echo esc_html(rbf_translate_string('Email')); ?></label></th>
-                        <td><input type="email" id="rbf_email" name="rbf_email"></td></tr>
-                    <tr><th><label for="rbf_tel"><?php echo esc_html(rbf_translate_string('Telefono')); ?></label></th>
-                        <td><input type="tel" id="rbf_tel" name="rbf_tel"></td></tr>
-                    <tr><th><label for="rbf_allergie"><?php echo esc_html(rbf_translate_string('Allergie/Note')); ?></label></th>
-                        <td><textarea id="rbf_allergie" name="rbf_allergie"></textarea></td></tr>
-                    <tr><th><label for="rbf_lang"><?php echo esc_html(rbf_translate_string('Lingua')); ?></label></th>
-                        <td><select id="rbf_lang" name="rbf_lang"><option value="it">IT</option><option value="en">EN</option></select></td></tr>
-                    <tr><th><?php echo esc_html(rbf_translate_string('Privacy')); ?></th>
-                        <td><label><input type="checkbox" name="rbf_privacy" value="yes"> <?php echo esc_html(rbf_translate_string('Accettata')); ?></label></td></tr>
-                    <tr><th><?php echo esc_html(rbf_translate_string('Marketing')); ?></th>
-                        <td><label><input type="checkbox" name="rbf_marketing" value="yes"> <?php echo esc_html(rbf_translate_string('Accettato')); ?></label></td></tr>
-                </table>
-                <?php submit_button(rbf_translate_string('Aggiungi Prenotazione')); ?>
-            </form>
+            <div class="rbf-admin-card">
+                <form method="post" class="rbf-admin-form rbf-admin-form--stacked">
+                    <?php wp_nonce_field('rbf_add_backend_booking'); ?>
+                    <div class="rbf-admin-grid rbf-admin-grid--cols-2 rbf-add-booking-grid">
+                        <fieldset class="rbf-admin-subcard">
+                            <legend><?php echo esc_html(rbf_translate_string('Dettagli prenotazione')); ?></legend>
+                            <div class="rbf-form-group">
+                                <label for="rbf_meal"><?php echo esc_html(rbf_translate_string('Pasto')); ?></label>
+                                <select id="rbf_meal" name="rbf_meal" class="rbf-field">
+                                    <option value=""><?php echo esc_html(rbf_translate_string('Scegli il pasto')); ?></option>
+                                    <?php foreach ($active_meals as $meal_config) : ?>
+                                        <option value="<?php echo esc_attr($meal_config['id']); ?>" <?php selected($form_values['rbf_meal'], $meal_config['id']); ?>>
+                                            <?php echo esc_html($meal_config['name'] ?? $meal_config['id']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="rbf-form-group">
+                                <label for="rbf_data"><?php echo esc_html(rbf_translate_string('Data')); ?></label>
+                                <input type="date" id="rbf_data" name="rbf_data" class="rbf-field" value="<?php echo esc_attr($form_values['rbf_data']); ?>">
+                            </div>
+                            <div class="rbf-form-group">
+                                <label for="rbf_time"><?php echo esc_html(rbf_translate_string('Orario')); ?></label>
+                                <input type="time" id="rbf_time" name="rbf_time" class="rbf-field" value="<?php echo esc_attr($form_values['rbf_time']); ?>">
+                            </div>
+                            <div class="rbf-form-group">
+                                <label for="rbf_persone"><?php echo esc_html(rbf_translate_string('Persone')); ?></label>
+                                <input type="number" id="rbf_persone" name="rbf_persone" class="rbf-field" min="1" value="<?php echo esc_attr($form_values['rbf_persone']); ?>">
+                            </div>
+                        </fieldset>
+                        <fieldset class="rbf-admin-subcard">
+                            <legend><?php echo esc_html(rbf_translate_string('Dati cliente')); ?></legend>
+                            <div class="rbf-form-group">
+                                <label for="rbf_nome"><?php echo esc_html(rbf_translate_string('Nome')); ?></label>
+                                <input type="text" id="rbf_nome" name="rbf_nome" class="rbf-field" value="<?php echo esc_attr($form_values['rbf_nome']); ?>">
+                            </div>
+                            <div class="rbf-form-group">
+                                <label for="rbf_cognome"><?php echo esc_html(rbf_translate_string('Cognome')); ?></label>
+                                <input type="text" id="rbf_cognome" name="rbf_cognome" class="rbf-field" value="<?php echo esc_attr($form_values['rbf_cognome']); ?>">
+                            </div>
+                            <div class="rbf-form-group">
+                                <label for="rbf_email"><?php echo esc_html(rbf_translate_string('Email')); ?></label>
+                                <input type="email" id="rbf_email" name="rbf_email" class="rbf-field" value="<?php echo esc_attr($form_values['rbf_email']); ?>">
+                            </div>
+                            <div class="rbf-form-group">
+                                <label for="rbf_tel"><?php echo esc_html(rbf_translate_string('Telefono')); ?></label>
+                                <input type="tel" id="rbf_tel" name="rbf_tel" class="rbf-field" value="<?php echo esc_attr($form_values['rbf_tel']); ?>">
+                            </div>
+                            <div class="rbf-form-group">
+                                <label for="rbf_allergie"><?php echo esc_html(rbf_translate_string('Allergie / Note')); ?></label>
+                                <textarea id="rbf_allergie" name="rbf_allergie" class="rbf-field rbf-field--textarea" rows="4"><?php echo esc_textarea($form_values['rbf_allergie']); ?></textarea>
+                            </div>
+                        </fieldset>
+                    </div>
+                    <div class="rbf-admin-grid rbf-admin-grid--cols-2 rbf-add-booking-grid rbf-add-booking-grid--meta">
+                        <div class="rbf-form-group">
+                            <label for="rbf_lang"><?php echo esc_html(rbf_translate_string('Lingua')); ?></label>
+                            <select id="rbf_lang" name="rbf_lang" class="rbf-field">
+                                <option value="it" <?php selected($form_values['rbf_lang'], 'it'); ?>>IT</option>
+                                <option value="en" <?php selected($form_values['rbf_lang'], 'en'); ?>>EN</option>
+                            </select>
+                        </div>
+                        <div class="rbf-form-group rbf-form-group--toggle">
+                            <span class="rbf-form-label"><?php echo esc_html(rbf_translate_string('Privacy')); ?></span>
+                            <label class="rbf-toggle">
+                                <input type="checkbox" name="rbf_privacy" value="yes" <?php checked($form_values['rbf_privacy']); ?>>
+                                <span><?php echo esc_html(rbf_translate_string('Accettata')); ?></span>
+                            </label>
+                        </div>
+                        <div class="rbf-form-group rbf-form-group--toggle">
+                            <span class="rbf-form-label"><?php echo esc_html(rbf_translate_string('Marketing')); ?></span>
+                            <label class="rbf-toggle">
+                                <input type="checkbox" name="rbf_marketing" value="yes" <?php checked($form_values['rbf_marketing']); ?>>
+                                <span><?php echo esc_html(rbf_translate_string('Accettato')); ?></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="rbf-form-actions">
+                        <?php submit_button(rbf_translate_string('Aggiungi Prenotazione'), 'primary', 'submit', false); ?>
+                    </div>
+                </form>
+            </div>
         <?php endif; ?>
     </div>
     <?php
@@ -2216,7 +2408,7 @@ function rbf_reports_page_html() {
         }
     }
     ?>
-    <div class="rbf-admin-wrap">
+    <div class="rbf-admin-wrap rbf-admin-wrap--wide">
         <h1><?php echo esc_html(rbf_translate_string('Report & Analytics')); ?></h1>
         
         <div class="rbf-admin-card rbf-analytics-filter">
@@ -2836,57 +3028,53 @@ function rbf_export_page_html() {
     $default_start = date('Y-m-d', strtotime('-30 days'));
     $default_end = date('Y-m-d');
     ?>
-    <div class="rbf-admin-wrap">
+    <div class="rbf-admin-wrap rbf-admin-wrap--narrow">
         <h1><?php echo esc_html(rbf_translate_string('Esporta Dati Prenotazioni')); ?></h1>
         
-        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <form method="post">
+        <div class="rbf-admin-card">
+            <form method="post" class="rbf-admin-form rbf-admin-form--stacked">
                 <?php wp_nonce_field('rbf_export'); ?>
-                
-                <table class="form-table">
-                    <tr>
-                        <th><label for="start_date"><?php echo esc_html(rbf_translate_string('Data Inizio')); ?></label></th>
-                        <td><input type="date" id="start_date" name="start_date" value="<?php echo esc_attr($default_start); ?>" required></td>
-                    </tr>
-                    <tr>
-                        <th><label for="end_date"><?php echo esc_html(rbf_translate_string('Data Fine')); ?></label></th>
-                        <td><input type="date" id="end_date" name="end_date" value="<?php echo esc_attr($default_end); ?>" required></td>
-                    </tr>
-                    <tr>
-                        <th><label for="status_filter"><?php echo esc_html(rbf_translate_string('Filtra per Stato')); ?></label></th>
-                        <td>
-                            <select id="status_filter" name="status_filter">
-                                <option value=""><?php echo esc_html(rbf_translate_string('Tutti gli stati')); ?></option>
-                                <?php
-                                $statuses = rbf_get_booking_statuses();
-                                foreach ($statuses as $key => $label) {
-                                    echo '<option value="' . esc_attr($key) . '">' . esc_html($label) . '</option>';
-                                }
-                                ?>
-                            </select>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th><label for="format"><?php echo esc_html(rbf_translate_string('Formato Export')); ?></label></th>
-                        <td>
-                            <select id="format" name="format">
-                                <option value="csv">CSV (Excel)</option>
-                                <option value="json">JSON</option>
-                            </select>
-                        </td>
-                    </tr>
-                </table>
-                
-                <p class="submit">
-                    <input type="submit" name="export_bookings" class="button button-primary" value="<?php echo esc_attr(rbf_translate_string('Esporta Prenotazioni')); ?>">
-                </p>
+
+                <div class="rbf-admin-grid rbf-admin-grid--cols-2">
+                    <div class="rbf-form-group">
+                        <label for="start_date"><?php echo esc_html(rbf_translate_string('Data Inizio')); ?></label>
+                        <input type="date" id="start_date" name="start_date" class="rbf-field" value="<?php echo esc_attr($default_start); ?>" required>
+                    </div>
+                    <div class="rbf-form-group">
+                        <label for="end_date"><?php echo esc_html(rbf_translate_string('Data Fine')); ?></label>
+                        <input type="date" id="end_date" name="end_date" class="rbf-field" value="<?php echo esc_attr($default_end); ?>" required>
+                    </div>
+                    <div class="rbf-form-group">
+                        <label for="status_filter"><?php echo esc_html(rbf_translate_string('Filtra per Stato')); ?></label>
+                        <select id="status_filter" name="status_filter" class="rbf-field">
+                            <option value=""><?php echo esc_html(rbf_translate_string('Tutti gli stati')); ?></option>
+                            <?php
+                            $statuses = rbf_get_booking_statuses();
+                            foreach ($statuses as $key => $label) {
+                                echo '<option value="' . esc_attr($key) . '">' . esc_html($label) . '</option>';
+                            }
+                            ?>
+                        </select>
+                    </div>
+                    <div class="rbf-form-group">
+                        <label for="format"><?php echo esc_html(rbf_translate_string('Formato Export')); ?></label>
+                        <select id="format" name="format" class="rbf-field">
+                            <option value="csv">CSV (Excel)</option>
+                            <option value="json">JSON</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="rbf-form-actions">
+                    <?php submit_button(rbf_translate_string('Esporta Prenotazioni'), 'primary', 'export_bookings', false); ?>
+                </div>
             </form>
         </div>
-        
-        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 20px;">
+
+        <div class="rbf-admin-callout">
             <h3><?php echo esc_html(rbf_translate_string('Informazioni Export')); ?></h3>
             <p><?php echo esc_html(rbf_translate_string('L\'export includerà tutti i dati delle prenotazioni nel periodo selezionato:')); ?></p>
-            <ul>
+            <ul class="rbf-admin-callout__list">
                 <li><?php echo esc_html(rbf_translate_string('Informazioni cliente (nome, email, telefono)')); ?></li>
                 <li><?php echo esc_html(rbf_translate_string('Dettagli prenotazione (data, orario, servizio, persone)')); ?></li>
                 <li><?php echo esc_html(rbf_translate_string('Stato prenotazione e cronologia')); ?></li>
@@ -3372,8 +3560,8 @@ function rbf_tables_page_html() {
     $areas = rbf_get_areas();
     $all_tables = rbf_get_all_tables();
     ?>
-    
-    <div class="wrap">
+
+    <div class="rbf-admin-wrap rbf-admin-wrap--wide">
         <h1><?php echo esc_html(rbf_translate_string('Gestione Tavoli')); ?></h1>
         
         <div class="nav-tab-wrapper">
@@ -3937,7 +4125,7 @@ function rbf_email_notifications_page_html() {
 
     ?>
 
-    <div class="rbf-admin-wrap">
+    <div class="rbf-admin-wrap rbf-admin-wrap--wide">
         <h1><?php echo esc_html(rbf_translate_string('Sistema Email Failover')); ?></h1>
 
         <div style="background: #f8f9fb; padding: 20px; border-radius: 8px; border: 1px solid #dcdcde; margin-bottom: 30px;">
@@ -4559,8 +4747,8 @@ function rbf_tracking_validation_page_html() {
         $test_result = rbf_perform_tracking_test();
     }
     ?>
-    
-    <div class="rbf-admin-wrap">
+
+    <div class="rbf-admin-wrap rbf-admin-wrap--wide">
         <h1><?php echo esc_html(rbf_translate_string('Validazione Sistema Tracking')); ?></h1>
         
         <!-- Configuration Overview -->
