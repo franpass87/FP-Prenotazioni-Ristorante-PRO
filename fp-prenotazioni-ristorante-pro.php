@@ -271,6 +271,8 @@ function rbf_load_modules() {
         'optimistic-locking.php',
         'table-management.php',
         'admin.php',
+        'booking-dashboard.php',
+        'onboarding.php',
         'frontend.php',
         'booking-handler.php',
         'email-failover.php',
@@ -278,9 +280,13 @@ function rbf_load_modules() {
         'ga4-funnel-tracking.php',
         'tracking-validation.php',
         'tracking-enhanced-integration.php',
+        'tracking-presets.php',
         'ai-suggestions.php',
         'privacy.php',
         'site-health.php',
+        'system-health-dashboard.php',
+        'branding-profiles.php',
+        'accessibility-checker.php',
         'wp-cli.php'
     ];
 
@@ -392,6 +398,34 @@ function rbf_run_site_activation_tasks($flush_rewrite = true) {
 
     if (function_exists('rbf_schedule_email_log_cleanup')) {
         rbf_schedule_email_log_cleanup();
+    }
+
+    $provisioning_summary = [];
+
+    if (function_exists('rbf_seed_default_meals_if_missing')) {
+        $seeded_meals = (int) rbf_seed_default_meals_if_missing();
+        if ($seeded_meals > 0) {
+            $provisioning_summary[] = rbf_translate_string('Servizi predefiniti attivati');
+        }
+    }
+
+    if (function_exists('rbf_ensure_booking_page_exists')) {
+        $page_result = rbf_ensure_booking_page_exists([
+            'update_settings' => true,
+        ]);
+
+        if (!empty($page_result['created'])) {
+            $provisioning_summary[] = rbf_translate_string('Pagina di prenotazione pubblicata automaticamente');
+        }
+    }
+
+    if (!empty($provisioning_summary) && function_exists('rbf_add_admin_notice')) {
+        $notice = sprintf(
+            rbf_translate_string('Setup iniziale completato: %s.'),
+            implode(' · ', $provisioning_summary)
+        );
+
+        rbf_add_admin_notice($notice, 'success');
     }
 
     update_option('rbf_plugin_version', RBF_VERSION);

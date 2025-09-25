@@ -87,6 +87,10 @@ function rbf_enqueue_frontend_assets() {
 
     wp_enqueue_style('rbf-intl-tel-input-css', $intl_tel_css_src, [], $intl_tel_version);
 
+    foreach (rbf_get_brand_font_stylesheets($options, 'frontend') as $handle => $url) {
+        wp_enqueue_style($handle, $url, [], null);
+    }
+
     // Frontend styles and brand variables
     wp_enqueue_style(
         'rbf-frontend-css',

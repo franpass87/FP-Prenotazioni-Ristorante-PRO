@@ -460,6 +460,7 @@ function rbf_sanitize_settings_callback($input) {
     $defaults = rbf_get_default_settings();
     $output = [];
     $input = (array) $input;
+    $current_settings = rbf_get_settings();
 
     // Define field types for bulk sanitization
     $field_types = [
@@ -467,22 +468,45 @@ function rbf_sanitize_settings_callback($input) {
         'capienza_pranzo' => 'int', 'capienza_cena' => 'int', 'capienza_aperitivo' => 'int',
         'brevo_list_it' => 'int', 'brevo_list_en' => 'int',
         'booking_page_id' => 'int',
-        
+        'brand_logo_id' => 'int',
+
         // Text fields
         'orari_pranzo' => 'text', 'orari_cena' => 'text', 'orari_aperitivo' => 'text',
         'brevo_api' => 'text', 'ga4_api_secret' => 'text', 'meta_access_token' => 'text',
         'border_radius' => 'text', 'google_ads_conversion_id' => 'text', 'google_ads_conversion_label' => 'text',
-        
-        // Email fields  
+        'brand_name' => 'text', 'brand_font_body' => 'text', 'brand_font_heading' => 'text', 'brand_profile_active' => 'text',
+
+        // Email fields
         'notification_email' => 'email', 'webmaster_email' => 'email',
         'booking_change_email' => 'email', 'booking_change_phone' => 'phone'
     ];
-    
+
+    // URL fields that must retain https schemes
+    $url_fields = [
+        'brand_logo_url',
+    ];
+
+    foreach ($url_fields as $field_key) {
+        if (isset($input[$field_key])) {
+            $field_types[$field_key] = 'url';
+        }
+    }
+
     // Bulk sanitize using helper
     $sanitized = rbf_sanitize_input_fields($input, $field_types);
-    
+
     // Apply sanitized values with defaults
     foreach ($field_types as $key => $type) {
+        if ($type === 'int') {
+            $output[$key] = isset($sanitized[$key]) ? max(0, (int) $sanitized[$key]) : (int) ($defaults[$key] ?? 0);
+            continue;
+        }
+
+        if ($type === 'url') {
+            $output[$key] = isset($sanitized[$key]) ? esc_url_raw($sanitized[$key]) : ($defaults[$key] ?? '');
+            continue;
+        }
+
         $output[$key] = $sanitized[$key] ?? ($defaults[$key] ?? ($type === 'float' ? 0 : ''));
     }
 
@@ -512,6 +536,46 @@ function rbf_sanitize_settings_callback($input) {
 
     // GTM Hybrid flag
     $output['gtm_hybrid'] = (isset($input['gtm_hybrid']) && $input['gtm_hybrid'] === 'yes') ? 'yes' : 'no';
+
+    // Ensure brand name retains fallback
+    if (isset($output['brand_name']) && $output['brand_name'] === '') {
+        $output['brand_name'] = $defaults['brand_name'];
+    }
+
+    // Validate font selections
+    $fonts = rbf_get_supported_brand_fonts();
+
+    $selected_body_font = isset($input['brand_font_body'])
+        ? sanitize_key($input['brand_font_body'])
+        : ($current_settings['brand_font_body'] ?? $defaults['brand_font_body'] ?? 'system');
+    if (!isset($fonts[$selected_body_font])) {
+        $selected_body_font = $defaults['brand_font_body'] ?? 'system';
+    }
+    $output['brand_font_body'] = $selected_body_font;
+
+    $selected_heading_font = isset($input['brand_font_heading'])
+        ? sanitize_key($input['brand_font_heading'])
+        : ($current_settings['brand_font_heading'] ?? $defaults['brand_font_heading'] ?? $selected_body_font);
+    if (!isset($fonts[$selected_heading_font])) {
+        $selected_heading_font = $selected_body_font;
+    }
+    $output['brand_font_heading'] = $selected_heading_font;
+
+    // Preserve logo URL for empty strings to avoid overriding JSON fallback
+    if (empty($output['brand_logo_url'])) {
+        $output['brand_logo_url'] = '';
+    }
+
+    // Ensure active brand profile references exist
+    $profiles = function_exists('rbf_get_brand_profiles') ? rbf_get_brand_profiles() : [];
+    $active_profile = isset($output['brand_profile_active']) ? sanitize_key($output['brand_profile_active']) : '';
+    if ($active_profile && !isset($profiles[$active_profile])) {
+        $active_profile = '';
+    }
+    $output['brand_profile_active'] = $active_profile;
+
+    // Preserve setup completion timestamp
+    $output['setup_completed_at'] = $current_settings['setup_completed_at'] ?? ($defaults['setup_completed_at'] ?? '');
 
     // Special validation for Meta Pixel ID
     if (isset($input['meta_pixel_id']) && !empty($input['meta_pixel_id'])) {
@@ -716,6 +780,7 @@ function rbf_get_plugin_admin_screen_ids() {
         'rbf_export',
         'rbf_settings',
         'rbf_tracking_validation',
+        'rbf_booking_dashboard',
     ];
 
     $raw_ids = [
@@ -805,6 +870,43 @@ function rbf_enqueue_admin_styles($hook) {
     if ($is_settings_screen) {
         wp_enqueue_style('wp-color-picker');
         wp_enqueue_script('wp-color-picker');
+        if (function_exists('wp_enqueue_media')) {
+            wp_enqueue_media();
+        }
+
+        $current_settings = rbf_get_settings();
+        foreach (rbf_get_brand_font_stylesheets($current_settings, 'admin') as $handle => $url) {
+            wp_enqueue_style($handle, $url, [], null);
+        }
+
+        $fonts_catalog_admin = rbf_get_supported_brand_fonts();
+
+        wp_enqueue_script(
+            'rbf-brand-admin',
+            plugin_dir_url(dirname(__FILE__)) . 'assets/js/admin-branding.js',
+            ['jquery', 'wp-color-picker'],
+            rbf_get_asset_version('js/admin-branding.js'),
+            true
+        );
+
+        $font_payload = [];
+        foreach ($fonts_catalog_admin as $key => $font) {
+            $font_payload[$key] = [
+                'label' => $font['label'],
+                'stack' => $font['stack'],
+            ];
+            if (!empty($font['google'])) {
+                $font_payload[$key]['google'] = $font['google'];
+            }
+        }
+
+        wp_localize_script('rbf-brand-admin', 'rbfBrandingSettings', [
+            'fonts' => $font_payload,
+            'logoPlaceholder' => rbf_translate_string('Nessun logo'),
+            'brandPlaceholder' => rbf_translate_string('Il tuo brand'),
+            'mediaTitle' => rbf_translate_string('Scegli un logo'),
+            'mediaButton' => rbf_translate_string('Usa questo logo'),
+        ]);
     }
 
     // Inject brand CSS variables for admin
@@ -995,6 +1097,12 @@ function rbf_settings_page_html() {
         'sat' => rbf_translate_string('Sabato'),
         'sun' => rbf_translate_string('Domenica')
     ];
+    $fonts_catalog = rbf_get_supported_brand_fonts();
+    $brand_profiles = rbf_get_brand_profiles();
+    $brand_profiles_export = rbf_export_brand_profiles();
+    $tracking_catalog = rbf_get_tracking_package_catalog();
+    $tracking_packages = rbf_get_tracking_packages();
+    $recent_tracking_events = array_slice(rbf_get_recent_tracking_events(), 0, 5);
     ?>
     <div class="rbf-admin-wrap rbf-admin-wrap--wide">
         <h1><?php echo esc_html(rbf_translate_string('Impostazioni Prenotazioni Ristorante')); ?></h1>
@@ -1021,17 +1129,48 @@ function rbf_settings_page_html() {
                 <table class="form-table" role="presentation">
                     <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Configurazione Brand e Colori')); ?></h2></th></tr>
                     <tr>
+                        <th><label for="rbf_brand_name"><?php echo esc_html(rbf_translate_string('Nome Brand')); ?></label></th>
+                        <td>
+                            <input type="text" id="rbf_brand_name" name="rbf_settings[brand_name]" value="<?php echo esc_attr($options['brand_name'] ?? ''); ?>" class="regular-text">
+                            <p class="description"><?php echo esc_html(rbf_translate_string('Comparirà nell\'anteprima e nelle email di conferma.')); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><label for="rbf_brand_logo_url"><?php echo esc_html(rbf_translate_string('Logo')); ?></label></th>
+                        <td>
+                            <div class="rbf-brand-logo-control" style="display:flex; gap:15px; align-items:center;">
+                                <div class="rbf-brand-logo-preview" style="width:80px; height:80px; border:1px solid #dcdcdc; border-radius:8px; background:#f8f9fa; display:flex; align-items:center; justify-content:center; overflow:hidden;">
+                                    <?php if (!empty($options['brand_logo_url'])) : ?>
+                                        <img src="<?php echo esc_url($options['brand_logo_url']); ?>" alt="" style="max-width:100%; max-height:100%;" id="rbf-brand-logo-preview-img" />
+                                    <?php else : ?>
+                                        <span id="rbf-brand-logo-preview-placeholder" style="color:#666;font-size:12px;text-align:center;padding:6px;">
+                                            <?php echo esc_html(rbf_translate_string('Nessun logo')); ?>
+                                        </span>
+                                    <?php endif; ?>
+                                </div>
+                                <div style="flex:1;">
+                                    <input type="hidden" id="rbf_brand_logo_id" name="rbf_settings[brand_logo_id]" value="<?php echo esc_attr($options['brand_logo_id'] ?? 0); ?>">
+                                    <input type="url" id="rbf_brand_logo_url" name="rbf_settings[brand_logo_url]" value="<?php echo esc_attr($options['brand_logo_url'] ?? ''); ?>" class="regular-text" placeholder="https://...">
+                                    <p style="margin-top:8px;">
+                                        <button type="button" class="button" id="rbf-brand-logo-select"><?php echo esc_html(rbf_translate_string('Scegli da Libreria')); ?></button>
+                                        <button type="button" class="button-link" id="rbf-brand-logo-reset"><?php echo esc_html(rbf_translate_string('Rimuovi logo')); ?></button>
+                                    </p>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
                         <th><label for="rbf_accent_color"><?php echo esc_html(rbf_translate_string('Colore Primario')); ?></label></th>
                         <td>
                             <input type="color" id="rbf_accent_color" name="rbf_settings[accent_color]" value="<?php echo esc_attr($options['accent_color'] ?? '#000000'); ?>" class="rbf-color-picker">
-                            <p class="description"><?php echo esc_html(rbf_translate_string('Colore principale utilizzato per pulsanti, evidenziazioni e elementi attivi')); ?></p>
+                            <p class="description"><?php echo esc_html(rbf_translate_string('Colore principale utilizzato per pulsanti, stati attivi e focus.')); ?></p>
                         </td>
                     </tr>
                     <tr>
                         <th><label for="rbf_secondary_color"><?php echo esc_html(rbf_translate_string('Colore Secondario')); ?></label></th>
                         <td>
                             <input type="color" id="rbf_secondary_color" name="rbf_settings[secondary_color]" value="<?php echo esc_attr($options['secondary_color'] ?? '#f8b500'); ?>" class="rbf-color-picker">
-                            <p class="description"><?php echo esc_html(rbf_translate_string('Colore secondario per accenti e elementi complementari')); ?></p>
+                            <p class="description"><?php echo esc_html(rbf_translate_string('Suggerito per badge, messaggi informativi e stati secondari.')); ?></p>
                         </td>
                     </tr>
                     <tr>
@@ -1048,16 +1187,106 @@ function rbf_settings_page_html() {
                         </td>
                     </tr>
                     <tr>
-                        <th><?php echo esc_html(rbf_translate_string('Anteprima')); ?></th>
+                        <th><label for="rbf_brand_font_body"><?php echo esc_html(rbf_translate_string('Font corpo testo')); ?></label></th>
                         <td>
-                            <div id="rbf-brand-preview" style="padding: 20px; border: 1px solid #ddd; background: #f9f9f9; max-width: 400px;">
-                                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                                    <button type="button" id="preview-primary-btn" style="padding: 10px 20px; background: var(--preview-accent, #000000); color: white; border: none; cursor: pointer; border-radius: var(--preview-radius, 8px);"><?php echo esc_html(rbf_translate_string('Pulsante Principale')); ?></button>
-                                    <button type="button" id="preview-secondary-btn" style="padding: 10px 20px; background: var(--preview-secondary, #f8b500); color: white; border: none; cursor: pointer; border-radius: var(--preview-radius, 8px);"><?php echo esc_html(rbf_translate_string('Pulsante Secondario')); ?></button>
+                            <select id="rbf_brand_font_body" name="rbf_settings[brand_font_body]">
+                                <?php foreach ($fonts_catalog as $font_key => $font_data) : ?>
+                                    <option value="<?php echo esc_attr($font_key); ?>" <?php selected($options['brand_font_body'] ?? 'system', $font_key); ?>><?php echo esc_html($font_data['label']); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <p class="description"><?php echo esc_html(rbf_translate_string('Scegli il font principale per testi e descrizioni.')); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><label for="rbf_brand_font_heading"><?php echo esc_html(rbf_translate_string('Font titoli')); ?></label></th>
+                        <td>
+                            <select id="rbf_brand_font_heading" name="rbf_settings[brand_font_heading]">
+                                <?php foreach ($fonts_catalog as $font_key => $font_data) : ?>
+                                    <option value="<?php echo esc_attr($font_key); ?>" <?php selected($options['brand_font_heading'] ?? 'system', $font_key); ?>><?php echo esc_html($font_data['label']); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <p class="description"><?php echo esc_html(rbf_translate_string('Puoi utilizzare un font diverso per CTA e titoli.')); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><?php echo esc_html(rbf_translate_string('Anteprima live')); ?></th>
+                        <td>
+                            <div id="rbf-brand-preview" class="rbf-brand-preview" data-accent="<?php echo esc_attr($options['accent_color'] ?? '#000000'); ?>" data-secondary="<?php echo esc_attr($options['secondary_color'] ?? '#f8b500'); ?>" data-radius="<?php echo esc_attr($options['border_radius'] ?? '8px'); ?>" data-font-body="<?php echo esc_attr($options['brand_font_body'] ?? 'system'); ?>" data-font-heading="<?php echo esc_attr($options['brand_font_heading'] ?? 'system'); ?>" data-logo="<?php echo esc_url($options['brand_logo_url'] ?? ''); ?>" data-brand-name="<?php echo esc_attr($options['brand_name'] ?? ''); ?>">
+                                <div class="rbf-brand-preview__header">
+                                    <div class="rbf-brand-preview__logo"></div>
+                                    <div class="rbf-brand-preview__title"></div>
                                 </div>
-                                <input type="text" placeholder="<?php echo esc_attr(rbf_translate_string('Campo di esempio')); ?>" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: var(--preview-radius, 8px); margin-bottom: 10px;">
-                                <p style="margin: 0; font-size: 14px; color: #666;"><?php echo esc_html(rbf_translate_string('Questa anteprima mostra come appariranno i colori selezionati')); ?></p>
+                                <div class="rbf-brand-preview__body">
+                                    <label class="rbf-brand-preview__label"><?php echo esc_html(rbf_translate_string('Data prenotazione')); ?></label>
+                                    <input type="text" class="rbf-brand-preview__input" value="18 settembre 2024" readonly>
+                                    <label class="rbf-brand-preview__label"><?php echo esc_html(rbf_translate_string('Persone')); ?></label>
+                                    <div class="rbf-brand-preview__counter">
+                                        <button type="button" class="rbf-brand-preview__counter-btn">-</button>
+                                        <span>2</span>
+                                        <button type="button" class="rbf-brand-preview__counter-btn">+</button>
+                                    </div>
+                                    <button type="button" class="rbf-brand-preview__cta"><?php echo esc_html(rbf_translate_string('Verifica disponibilità')); ?></button>
+                                </div>
+                                <p class="rbf-brand-preview__note"><?php echo esc_html(rbf_translate_string('Aggiorna colori, font e logo per vedere il risultato in tempo reale.')); ?></p>
                             </div>
+                        </td>
+                    </tr>
+                    <tr><th colspan="2"><h3><?php echo esc_html(rbf_translate_string('Profili brand')); ?></h3></th></tr>
+                    <tr>
+                        <th><?php echo esc_html(rbf_translate_string('Salva profilo attuale')); ?></th>
+                        <td>
+                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="rbf-brand-profile-form" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                                <input type="hidden" name="action" value="rbf_save_brand_profile">
+                                <?php wp_nonce_field('rbf_manage_brand_profiles'); ?>
+                                <input type="text" name="profile_name" class="regular-text" placeholder="<?php echo esc_attr(rbf_translate_string('Es. Ristorante Milano')); ?>" style="max-width:260px;">
+                                <?php submit_button(rbf_translate_string('Salva profilo'), 'secondary', '', false); ?>
+                                <span class="description"><?php echo esc_html(rbf_translate_string('Salva colori, font e logo per riutilizzarli su altri siti.')); ?></span>
+                            </form>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><?php echo esc_html(rbf_translate_string('Profili salvati')); ?></th>
+                        <td>
+                            <?php if (empty($brand_profiles)) : ?>
+                                <p class="description"><?php echo esc_html(rbf_translate_string('Nessun profilo salvato. Crea il primo profilo dal modulo qui sopra.')); ?></p>
+                            <?php else : ?>
+                                <div class="rbf-brand-profiles-list">
+                                    <?php foreach ($brand_profiles as $profile_id => $profile_data) : ?>
+                                        <div class="rbf-brand-profile-card">
+                                            <strong><?php echo esc_html($profile_data['name'] ?? $profile_id); ?></strong><br>
+                                            <span class="description"><?php echo esc_html(rbf_translate_string('Aggiornato il')); ?> <?php echo esc_html($profile_data['saved_at'] ?? ''); ?></span>
+                                            <div class="rbf-brand-profile-card__actions">
+                                                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline;">
+                                                    <?php wp_nonce_field('rbf_manage_brand_profiles'); ?>
+                                                    <input type="hidden" name="action" value="rbf_apply_brand_profile">
+                                                    <input type="hidden" name="profile_id" value="<?php echo esc_attr($profile_id); ?>">
+                                                    <?php submit_button(rbf_translate_string('Applica'), 'primary', '', false); ?>
+                                                </form>
+                                                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline;" onsubmit="return confirm('<?php echo esc_js(rbf_translate_string('Eliminare questo profilo brand?')); ?>');">
+                                                    <?php wp_nonce_field('rbf_manage_brand_profiles'); ?>
+                                                    <input type="hidden" name="action" value="rbf_delete_brand_profile">
+                                                    <input type="hidden" name="profile_id" value="<?php echo esc_attr($profile_id); ?>">
+                                                    <?php submit_button(rbf_translate_string('Elimina'), 'delete', '', false); ?>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><?php echo esc_html(rbf_translate_string('Importa / esporta')); ?></th>
+                        <td>
+                            <label for="rbf-brand-profiles-export" class="description" style="display:block; margin-bottom:6px;"><?php echo esc_html(rbf_translate_string('Esporta profili (copia e incolla il JSON)')); ?></label>
+                            <textarea readonly id="rbf-brand-profiles-export" class="large-text code" rows="5"><?php echo esc_textarea($brand_profiles_export); ?></textarea>
+                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-top:10px;">
+                                <?php wp_nonce_field('rbf_manage_brand_profiles'); ?>
+                                <input type="hidden" name="action" value="rbf_import_brand_profiles">
+                                <label for="rbf-brand-profiles-import" class="description" style="display:block; margin-bottom:6px;"><?php echo esc_html(rbf_translate_string('Importa profili (incolla JSON e conferma)')); ?></label>
+                                <textarea id="rbf-brand-profiles-import" name="brand_profiles_json" class="large-text code" rows="4" placeholder="<?php echo esc_attr('[{"profile_id":{"name":"Brand","settings":{...}}}]'); ?>"></textarea>
+                                <?php submit_button(rbf_translate_string('Importa profili'), 'secondary'); ?>
+                            </form>
                         </td>
                     </tr>
 
@@ -1252,6 +1481,79 @@ function rbf_settings_page_html() {
                     <tr>
                         <th><label for="rbf_meta_access_token">Meta Access Token (per invii server-side)</label></th>
                         <td><input type="password" id="rbf_meta_access_token" name="rbf_settings[meta_access_token]" value="<?php echo esc_attr($options['meta_access_token']); ?>" class="regular-text"></td>
+                    </tr>
+
+                    <tr><th colspan="2"><h3><?php echo esc_html(rbf_translate_string('Pacchetti plug & play')); ?></h3></th></tr>
+                    <tr>
+                        <th><?php echo esc_html(rbf_translate_string('Preset disponibili')); ?></th>
+                        <td>
+                            <div class="rbf-tracking-packages">
+                                <?php foreach ($tracking_catalog as $package_id => $package_info) :
+                                    $enabled = !empty($tracking_packages[$package_id]['enabled']);
+                                    $required_fields = $package_info['required_options'] ?? [];
+                                    $missing_fields = [];
+                                    foreach ($required_fields as $field_key) {
+                                        if (empty($options[$field_key])) {
+                                            $missing_fields[] = $field_key;
+                                        }
+                                    }
+                                    ?>
+                                    <div class="rbf-tracking-package <?php echo $enabled ? 'is-active' : ''; ?>">
+                                        <h4><?php echo esc_html($package_info['label']); ?></h4>
+                                        <p class="description"><?php echo esc_html($package_info['description']); ?></p>
+                                        <?php if (!empty($missing_fields)) : ?>
+                                            <p class="rbf-tracking-warning"><?php echo esc_html(rbf_translate_string('Completa prima i campi:')); ?> <strong><?php echo esc_html(implode(', ', $missing_fields)); ?></strong></p>
+                                        <?php endif; ?>
+                                        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block; margin-top:6px;">
+                                            <?php wp_nonce_field('rbf_toggle_tracking_package'); ?>
+                                            <input type="hidden" name="action" value="rbf_toggle_tracking_package">
+                                            <input type="hidden" name="package" value="<?php echo esc_attr($package_id); ?>">
+                                            <input type="hidden" name="enabled" value="<?php echo $enabled ? '0' : '1'; ?>">
+                                            <button type="submit" class="button <?php echo $enabled ? '' : 'button-primary'; ?>" <?php disabled(!empty($missing_fields)); ?>>
+                                                <?php echo esc_html($enabled ? rbf_translate_string('Disattiva preset') : rbf_translate_string('Attiva preset')); ?>
+                                            </button>
+                                        </form>
+                                        <?php if ($package_id === 'consent_helper') :
+                                            $snippets = rbf_get_consent_helper_snippets();
+                                            ?>
+                                            <details style="margin-top:10px;">
+                                                <summary><?php echo esc_html(rbf_translate_string('Snippet CMP pronti all\'uso')); ?></summary>
+                                                <ul>
+                                                    <?php foreach ($snippets as $snippet) : ?>
+                                                        <li>
+                                                            <strong><?php echo esc_html($snippet['label']); ?></strong>
+                                                            <textarea readonly class="large-text code" rows="2" style="margin-top:4px;"><?php echo esc_textarea($snippet['code']); ?></textarea>
+                                                        </li>
+                                                    <?php endforeach; ?>
+                                                </ul>
+                                            </details>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><?php echo esc_html(rbf_translate_string('Ultimi eventi tracking')); ?></th>
+                        <td>
+                            <?php if (empty($recent_tracking_events)) : ?>
+                                <p class="description"><?php echo esc_html(rbf_translate_string('Gli eventi appariranno qui dopo le prime interazioni.')); ?></p>
+                            <?php else : ?>
+                                <ul class="rbf-tracking-events">
+                                    <?php foreach ($recent_tracking_events as $event) :
+                                        $time = isset($event['time']) ? wp_date(get_option('date_format') . ' ' . get_option('time_format'), (int) $event['time']) : '';
+                                        ?>
+                                        <li>
+                                            <strong><?php echo esc_html(strtoupper($event['channel'] ?? '')); ?></strong> ·
+                                            <code><?php echo esc_html($event['event'] ?? ''); ?></code>
+                                            <?php if ($time) : ?>
+                                                <span class="description">(<?php echo esc_html($time); ?>)</span>
+                                            <?php endif; ?>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            <?php endif; ?>
+                        </td>
                     </tr>
 
                     <tr><th colspan="2"><h3><?php echo esc_html(rbf_translate_string('Impostazioni Brevo')); ?></h3></th></tr>

@@ -238,6 +238,29 @@ function rbf_create_default_table_setup() {
 }
 
 /**
+ * Determine if at least one table is configured for the current site.
+ *
+ * @return bool True when tables data exists, false otherwise.
+ */
+function rbf_table_setup_exists() {
+    global $wpdb;
+
+    if (!isset($wpdb)) {
+        return false;
+    }
+
+    $tables_table = $wpdb->prefix . 'rbf_tables';
+
+    if (!rbf_database_table_exists($tables_table)) {
+        return false;
+    }
+
+    $count = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$tables_table}");
+
+    return $count > 0;
+}
+
+/**
  * Verify that the plugin database schema exists and repair it when missing.
  */
 function rbf_verify_database_schema() {

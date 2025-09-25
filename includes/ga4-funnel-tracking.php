@@ -559,21 +559,55 @@ function rbf_send_ga4_measurement_protocol($event_name, $params, $session_id, $e
         'headers' => ['Content-Type' => 'application/json'],
         'timeout' => 10
     ]);
-    
+
     if (is_wp_error($response)) {
+        $error_message = $response->get_error_message();
         rbf_handle_error(
-            "GA4 Measurement Protocol Error: " . $response->get_error_message(), 
+            "GA4 Measurement Protocol Error: " . $error_message,
             'ga4_measurement_protocol'
         );
-        return ['success' => false, 'error' => $response->get_error_message()];
+
+        if (function_exists('rbf_record_tracking_event')) {
+            rbf_record_tracking_event('ga4', $event_name, [
+                'status' => 'error',
+                'transport' => 'server',
+                'code' => 'wp_error',
+                'message' => substr($error_message, 0, 120),
+            ]);
+        }
+
+        return ['success' => false, 'error' => $error_message];
     }
-    
+
     $response_code = wp_remote_retrieve_response_code($response);
     if ($response_code >= 200 && $response_code < 300) {
+        if (function_exists('rbf_record_tracking_event')) {
+            $value  = isset($event_params['value']) ? (string) $event_params['value'] : '';
+            $people = isset($event_params['people_count']) ? (string) $event_params['people_count'] : '';
+
+            rbf_record_tracking_event('ga4', $event_name, [
+                'status' => 'success',
+                'transport' => 'server',
+                'event_id' => $event_id,
+                'value' => $value,
+                'people' => $people,
+            ]);
+        }
+
         return ['success' => true];
     } else {
         $error = sprintf('HTTP %d: %s', $response_code, wp_remote_retrieve_body($response));
         rbf_handle_error("GA4 Measurement Protocol Error: " . $error, 'ga4_measurement_protocol');
+
+        if (function_exists('rbf_record_tracking_event')) {
+            rbf_record_tracking_event('ga4', $event_name, [
+                'status' => 'error',
+                'transport' => 'server',
+                'code' => (string) $response_code,
+                'message' => substr($error, 0, 120),
+            ]);
+        }
+
         return ['success' => false, 'error' => $error];
     }
 }
@@ -622,6 +656,16 @@ function rbf_track_booking_completion($booking_id, $booking_data) {
     $config = rbf_get_ga4_config();
     if (!empty($config['api_secret'])) {
         rbf_send_ga4_measurement_protocol('booking_confirmed', $event_params, $session_id, $event_id, $client_id, $ga_session_id);
+    } elseif (function_exists('rbf_record_tracking_event')) {
+        $value  = isset($event_params['value']) ? (string) $event_params['value'] : '';
+        $people = isset($event_params['people_count']) ? (string) $event_params['people_count'] : '';
+
+        rbf_record_tracking_event('ga4', 'booking_confirmed', [
+            'status' => 'queued',
+            'transport' => 'client',
+            'value' => $value,
+            'people' => $people,
+        ]);
     }
 
     // Store data for client-side tracking on success page
@@ -673,6 +717,12 @@ function rbf_track_booking_error($error_message, $error_context, $session_id = n
     $config = rbf_get_ga4_config();
     if (!empty($config['api_secret'])) {
         rbf_send_ga4_measurement_protocol('booking_error', $event_params, $session_id, $event_id, '', $ga_session_id);
+    } elseif (function_exists('rbf_record_tracking_event')) {
+        rbf_record_tracking_event('ga4', 'booking_error', [
+            'status' => 'queued',
+            'transport' => 'client',
+            'error_type' => $error_type,
+        ]);
     }
 }
 
