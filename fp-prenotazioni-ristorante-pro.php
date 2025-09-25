@@ -22,6 +22,55 @@ define('RBF_VERSION', '1.5');
 define('RBF_MIN_PHP_VERSION', '7.4');
 define('RBF_MIN_WP_VERSION', '6.0');
 
+// Polyfills for PHP versions prior to 8.0 used in development utilities.
+if (!function_exists('str_contains')) {
+    /**
+     * Polyfill for str_contains to maintain compatibility with PHP 7.4.
+     *
+     * Mirrors native behaviour by accepting stringable values and throwing
+     * a TypeError when invalid arguments are supplied.
+     *
+     * @param string $haystack The string to search in.
+     * @param string $needle   The substring to search for.
+     * @return bool True when $needle is found in $haystack.
+     */
+    function str_contains($haystack, $needle) {
+        if (is_object($haystack)) {
+            if (method_exists($haystack, '__toString')) {
+                $haystack = (string) $haystack;
+            } else {
+                throw new TypeError(
+                    'str_contains(): Argument #1 ($haystack) must be of type string, ' . gettype($haystack) . ' given'
+                );
+            }
+        } elseif (!is_string($haystack)) {
+            throw new TypeError(
+                'str_contains(): Argument #1 ($haystack) must be of type string, ' . gettype($haystack) . ' given'
+            );
+        }
+
+        if (is_object($needle)) {
+            if (method_exists($needle, '__toString')) {
+                $needle = (string) $needle;
+            } else {
+                throw new TypeError(
+                    'str_contains(): Argument #2 ($needle) must be of type string, ' . gettype($needle) . ' given'
+                );
+            }
+        } elseif (!is_string($needle)) {
+            throw new TypeError(
+                'str_contains(): Argument #2 ($needle) must be of type string, ' . gettype($needle) . ' given'
+            );
+        }
+
+        if ($needle === '') {
+            return true;
+        }
+
+        return strpos($haystack, $needle) !== false;
+    }
+}
+
 /**
  * Determine environment requirement errors.
  *
