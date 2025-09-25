@@ -158,15 +158,22 @@ add_action('admin_menu', 'rbf_create_bookings_menu');
 function rbf_create_bookings_menu() {
     $booking_capability  = rbf_get_booking_capability();
     $settings_capability = rbf_get_settings_capability();
+    $booking_menu_capability = $booking_capability;
 
-    add_menu_page(rbf_translate_string('FP Prenotazioni Ristorante'), rbf_translate_string('FP Prenotazioni Ristorante'), $booking_capability, 'rbf_calendar', 'rbf_calendar_page_html', 'dashicons-calendar-alt', 20);
-    add_submenu_page('rbf_calendar', rbf_translate_string('Calendario'), rbf_translate_string('Calendario'), $booking_capability, 'rbf_calendar', 'rbf_calendar_page_html');
-    add_submenu_page('rbf_calendar', rbf_translate_string('Agenda Settimanale'), rbf_translate_string('Agenda'), $booking_capability, 'rbf_weekly_staff', 'rbf_weekly_staff_page_html');
-    add_submenu_page('rbf_calendar', rbf_translate_string('Nuova Prenotazione Manuale'), rbf_translate_string('Nuova Prenotazione Manuale'), $booking_capability, 'rbf_add_booking', 'rbf_add_booking_page_html');
-    add_submenu_page('rbf_calendar', rbf_translate_string('Gestione Tavoli'), rbf_translate_string('Gestione Tavoli'), $booking_capability, 'rbf_tables', 'rbf_tables_page_html');
-    add_submenu_page('rbf_calendar', rbf_translate_string('Report & Analytics'), rbf_translate_string('Report & Analytics'), $booking_capability, 'rbf_reports', 'rbf_reports_page_html');
+    if (function_exists('current_user_can')) {
+        if (!current_user_can($booking_capability) && current_user_can('manage_options')) {
+            $booking_menu_capability = 'manage_options';
+        }
+    }
+
+    add_menu_page(rbf_translate_string('FP Prenotazioni Ristorante'), rbf_translate_string('FP Prenotazioni Ristorante'), $booking_menu_capability, 'rbf_calendar', 'rbf_calendar_page_html', 'dashicons-calendar-alt', 20);
+    add_submenu_page('rbf_calendar', rbf_translate_string('Calendario'), rbf_translate_string('Calendario'), $booking_menu_capability, 'rbf_calendar', 'rbf_calendar_page_html');
+    add_submenu_page('rbf_calendar', rbf_translate_string('Agenda Settimanale'), rbf_translate_string('Agenda'), $booking_menu_capability, 'rbf_weekly_staff', 'rbf_weekly_staff_page_html');
+    add_submenu_page('rbf_calendar', rbf_translate_string('Nuova Prenotazione Manuale'), rbf_translate_string('Nuova Prenotazione Manuale'), $booking_menu_capability, 'rbf_add_booking', 'rbf_add_booking_page_html');
+    add_submenu_page('rbf_calendar', rbf_translate_string('Gestione Tavoli'), rbf_translate_string('Gestione Tavoli'), $booking_menu_capability, 'rbf_tables', 'rbf_tables_page_html');
+    add_submenu_page('rbf_calendar', rbf_translate_string('Report & Analytics'), rbf_translate_string('Report & Analytics'), $booking_menu_capability, 'rbf_reports', 'rbf_reports_page_html');
     add_submenu_page('rbf_calendar', rbf_translate_string('Notifiche Email'), rbf_translate_string('Notifiche Email'), $settings_capability, 'rbf_email_notifications', 'rbf_email_notifications_page_html');
-    add_submenu_page('rbf_calendar', rbf_translate_string('Esporta Dati'), rbf_translate_string('Esporta Dati'), $booking_capability, 'rbf_export', 'rbf_export_page_html');
+    add_submenu_page('rbf_calendar', rbf_translate_string('Esporta Dati'), rbf_translate_string('Esporta Dati'), $booking_menu_capability, 'rbf_export', 'rbf_export_page_html');
     add_submenu_page('rbf_calendar', rbf_translate_string('Impostazioni'), rbf_translate_string('Impostazioni'), $settings_capability, 'rbf_settings', 'rbf_settings_page_html');
     add_submenu_page('rbf_calendar', rbf_translate_string('Validazione Tracking'), rbf_translate_string('Validazione Tracking'), $settings_capability, 'rbf_tracking_validation', 'rbf_tracking_validation_page_html');
 }
@@ -704,8 +711,134 @@ function rbf_inject_brand_css_vars_admin() {
 }
 
 /**
+ * Render a single custom meal configuration block.
+ *
+ * @param int|string $index      Numeric index or placeholder string for template usage.
+ * @param array      $meal       Meal configuration values.
+ * @param array      $day_labels Mapping of weekday keys to translated labels.
+ * @param bool       $is_template Whether the block is used as a JavaScript template.
+ *
+ * @return string Rendered HTML for the meal configuration block.
+ */
+function rbf_render_custom_meal_item($index, $meal, array $day_labels, $is_template = false) {
+    $defaults = [
+        'enabled'               => true,
+        'id'                    => '',
+        'name'                  => '',
+        'capacity'              => 30,
+        'time_slots'            => '',
+        'price'                 => 0,
+        'available_days'        => [],
+        'tooltip'               => '',
+        'buffer_time_minutes'   => 15,
+        'buffer_time_per_person'=> 5,
+        'overbooking_limit'     => 10,
+        'slot_duration_minutes' => 90,
+    ];
+
+    if (!is_array($meal)) {
+        $meal = [];
+    }
+
+    $meal = array_merge($defaults, $meal);
+
+    $index_attr  = $is_template ? '__INDEX__' : (string) $index;
+    $meal_number = $is_template ? '__NUMBER__' : (string) ((int) $index + 1);
+
+    ob_start();
+    ?>
+    <div class="custom-meal-item" data-meal-index="<?php echo esc_attr($index_attr); ?>" style="border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; background: #f9f9f9;">
+        <h4><?php echo esc_html(rbf_translate_string('Pasto')); ?> <span class="rbf-meal-number"><?php echo esc_html($meal_number); ?></span></h4>
+
+        <table class="form-table">
+            <tr>
+                <th><label><?php echo esc_html(rbf_translate_string('Attivo')); ?></label></th>
+                <td><input type="checkbox" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][enabled]" value="1" <?php checked(!empty($meal['enabled'])); ?>></td>
+            </tr>
+            <tr>
+                <th><label><?php echo esc_html(rbf_translate_string('ID')); ?></label></th>
+                <td>
+                    <input type="text" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][id]" value="<?php echo esc_attr($meal['id']); ?>" class="regular-text" placeholder="es: pranzo">
+                    <p class="description"><?php echo esc_html(rbf_translate_string('ID univoco del pasto (senza spazi, solo lettere e numeri)')); ?></p>
+                </td>
+            </tr>
+            <tr>
+                <th><label><?php echo esc_html(rbf_translate_string('Nome')); ?></label></th>
+                <td><input type="text" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][name]" value="<?php echo esc_attr($meal['name']); ?>" class="regular-text" placeholder="es: Pranzo"></td>
+            </tr>
+            <tr>
+                <th><label><?php echo esc_html(rbf_translate_string('Capienza')); ?></label></th>
+                <td><input type="number" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][capacity]" value="<?php echo esc_attr($meal['capacity']); ?>" min="1"></td>
+            </tr>
+            <tr>
+                <th><label><?php echo esc_html(rbf_translate_string('Orari')); ?></label></th>
+                <td>
+                    <input type="text" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][time_slots]" value="<?php echo esc_attr($meal['time_slots']); ?>" class="regular-text" placeholder="es: 12:00,12:30,13:00">
+                    <p class="description"><?php echo esc_html(rbf_translate_string('Orari separati da virgola')); ?></p>
+                </td>
+            </tr>
+            <tr>
+                <th><label><?php echo esc_html(rbf_translate_string('Prezzo (€)')); ?></label></th>
+                <td><input type="number" step="0.01" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][price]" value="<?php echo esc_attr($meal['price']); ?>" min="0"></td>
+            </tr>
+            <tr>
+                <th><label><?php echo esc_html(rbf_translate_string('Giorni disponibili')); ?></label></th>
+                <td>
+                    <?php foreach ($day_labels as $day_key => $day_label) { ?>
+                        <label style="display: inline-block; margin-right: 15px;">
+                            <input type="checkbox" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][available_days][]" value="<?php echo esc_attr($day_key); ?>" <?php checked(in_array($day_key, (array) $meal['available_days'], true)); ?>>
+                            <?php echo esc_html($day_label); ?>
+                        </label>
+                    <?php } ?>
+                </td>
+            </tr>
+            <tr>
+                <th><label><?php echo esc_html(rbf_translate_string('Tooltip informativo')); ?></label></th>
+                <td>
+                    <textarea name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][tooltip]" class="regular-text" rows="2" placeholder="es: Di Domenica il servizio è Brunch con menù alla carta."><?php echo esc_textarea($meal['tooltip']); ?></textarea>
+                    <p class="description"><?php echo esc_html(rbf_translate_string('Testo informativo che apparirà quando questo pasto viene selezionato (opzionale)')); ?></p>
+                </td>
+            </tr>
+            <tr>
+                <th><label><?php echo esc_html(rbf_translate_string('Buffer Base (minuti)')); ?></label></th>
+                <td>
+                    <input type="number" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][buffer_time_minutes]" value="<?php echo esc_attr($meal['buffer_time_minutes']); ?>" min="0" max="120">
+                    <p class="description"><?php echo esc_html(rbf_translate_string('Tempo minimo di buffer tra prenotazioni (minuti)')); ?></p>
+                </td>
+            </tr>
+            <tr>
+                <th><label><?php echo esc_html(rbf_translate_string('Buffer per Persona (minuti)')); ?></label></th>
+                <td>
+                    <input type="number" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][buffer_time_per_person]" value="<?php echo esc_attr($meal['buffer_time_per_person']); ?>" min="0" max="30">
+                    <p class="description"><?php echo esc_html(rbf_translate_string('Tempo aggiuntivo di buffer per ogni persona (minuti)')); ?></p>
+                </td>
+            </tr>
+            <tr>
+                <th><label><?php echo esc_html(rbf_translate_string('Limite Overbooking (%)')); ?></label></th>
+                <td>
+                    <input type="number" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][overbooking_limit]" value="<?php echo esc_attr($meal['overbooking_limit']); ?>" min="0" max="50">
+                    <p class="description"><?php echo esc_html(rbf_translate_string('Percentuale di overbooking consentita oltre la capienza normale')); ?></p>
+                </td>
+            </tr>
+            <tr>
+                <th><label><?php echo esc_html(rbf_translate_string('Durata Slot (minuti)')); ?></label></th>
+                <td>
+                    <input type="number" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][slot_duration_minutes]" value="<?php echo esc_attr($meal['slot_duration_minutes']); ?>" min="30" max="240">
+                    <p class="description"><?php echo esc_html(rbf_translate_string('Durata di occupazione del tavolo per questo servizio (minuti)')); ?></p>
+                </td>
+            </tr>
+        </table>
+        <button type="button" class="button button-secondary remove-meal" style="margin-top: 10px;"><?php echo esc_html(rbf_translate_string('Rimuovi Pasto')); ?></button>
+    </div>
+    <?php
+
+    return (string) ob_get_clean();
+}
+
+/**
  * Settings page HTML
  */
+
 function rbf_settings_page_html() {
     if (!rbf_require_settings_capability()) {
         return;
@@ -724,614 +857,570 @@ function rbf_settings_page_html() {
     ?>
     <div class="rbf-admin-wrap">
         <h1><?php echo esc_html(rbf_translate_string('Impostazioni Prenotazioni Ristorante')); ?></h1>
-        <form method="post" action="options.php">
+        <style>
+            .rbf-settings-tabs-wrapper { margin-top: 20px; }
+            .rbf-settings-tab-panel { display: none; }
+            .rbf-settings-tab-panel.is-active { display: block; }
+            .rbf-settings-tab-panel .form-table { margin-top: 0; }
+            .rbf-settings-tab-panel h2 { margin-top: 1.5em; }
+            .no-js .rbf-settings-tab-panel { display: block !important; }
+        </style>
+        <form method="post" action="options.php" class="rbf-settings-form">
             <?php settings_fields('rbf_opts_group'); ?>
-            <table class="form-table" role="presentation">
-                <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Configurazione Brand e Colori')); ?></h2></th></tr>
-                <tr>
-                    <th><label for="rbf_accent_color"><?php echo esc_html(rbf_translate_string('Colore Primario')); ?></label></th>
-                    <td>
-                        <input type="color" id="rbf_accent_color" name="rbf_settings[accent_color]" value="<?php echo esc_attr($options['accent_color'] ?? '#000000'); ?>" class="rbf-color-picker">
-                        <p class="description"><?php echo esc_html(rbf_translate_string('Colore principale utilizzato per pulsanti, evidenziazioni e elementi attivi')); ?></p>
-                    </td>
-                </tr>
-                <tr>
-                    <th><label for="rbf_secondary_color"><?php echo esc_html(rbf_translate_string('Colore Secondario')); ?></label></th>
-                    <td>
-                        <input type="color" id="rbf_secondary_color" name="rbf_settings[secondary_color]" value="<?php echo esc_attr($options['secondary_color'] ?? '#f8b500'); ?>" class="rbf-color-picker">
-                        <p class="description"><?php echo esc_html(rbf_translate_string('Colore secondario per accenti e elementi complementari')); ?></p>
-                    </td>
-                </tr>
-                <tr>
-                    <th><label for="rbf_border_radius"><?php echo esc_html(rbf_translate_string('Raggio Angoli')); ?></label></th>
-                    <td>
-                        <select id="rbf_border_radius" name="rbf_settings[border_radius]">
-                            <option value="0px" <?php selected($options['border_radius'] ?? '8px', '0px'); ?>><?php echo esc_html(rbf_translate_string('Squadrato (0px)')); ?></option>
-                            <option value="4px" <?php selected($options['border_radius'] ?? '8px', '4px'); ?>><?php echo esc_html(rbf_translate_string('Leggermente arrotondato (4px)')); ?></option>
-                            <option value="8px" <?php selected($options['border_radius'] ?? '8px', '8px'); ?>><?php echo esc_html(rbf_translate_string('Arrotondato (8px)')); ?></option>
-                            <option value="12px" <?php selected($options['border_radius'] ?? '8px', '12px'); ?>><?php echo esc_html(rbf_translate_string('Molto arrotondato (12px)')); ?></option>
-                            <option value="16px" <?php selected($options['border_radius'] ?? '8px', '16px'); ?>><?php echo esc_html(rbf_translate_string('Estremamente arrotondato (16px)')); ?></option>
-                        </select>
-                        <p class="description"><?php echo esc_html(rbf_translate_string('Determina quanto arrotondati appaiono gli angoli di pulsanti e campi')); ?></p>
-                    </td>
-                </tr>
-                <tr>
-                    <th><?php echo esc_html(rbf_translate_string('Anteprima')); ?></th>
-                    <td>
-                        <div id="rbf-brand-preview" style="padding: 20px; border: 1px solid #ddd; background: #f9f9f9; max-width: 400px;">
-                            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                                <button type="button" id="preview-primary-btn" style="padding: 10px 20px; background: var(--preview-accent, #000000); color: white; border: none; cursor: pointer; border-radius: var(--preview-radius, 8px);"><?php echo esc_html(rbf_translate_string('Pulsante Principale')); ?></button>
-                                <button type="button" id="preview-secondary-btn" style="padding: 10px 20px; background: var(--preview-secondary, #f8b500); color: white; border: none; cursor: pointer; border-radius: var(--preview-radius, 8px);"><?php echo esc_html(rbf_translate_string('Pulsante Secondario')); ?></button>
+            <div class="rbf-settings-tabs-wrapper">
+                <h2 class="nav-tab-wrapper" role="tablist">
+                    <a href="#rbf-tab-branding" class="nav-tab nav-tab-active" data-tab-target="branding" role="tab" aria-selected="true" aria-controls="rbf-tab-branding" id="rbf-tab-link-branding"><?php echo esc_html(rbf_translate_string('Brand & Conferma')); ?></a>
+                    <a href="#rbf-tab-availability" class="nav-tab" data-tab-target="availability" role="tab" aria-selected="false" aria-controls="rbf-tab-availability" id="rbf-tab-link-availability"><?php echo esc_html(rbf_translate_string('Disponibilità & Pasti')); ?></a>
+                    <a href="#rbf-tab-calendar" class="nav-tab" data-tab-target="calendar" role="tab" aria-selected="false" aria-controls="rbf-tab-calendar" id="rbf-tab-link-calendar"><?php echo esc_html(rbf_translate_string('Calendario & Eccezioni')); ?></a>
+                    <a href="#rbf-tab-integrations" class="nav-tab" data-tab-target="integrations" role="tab" aria-selected="false" aria-controls="rbf-tab-integrations" id="rbf-tab-link-integrations"><?php echo esc_html(rbf_translate_string('Integrazioni & Sicurezza')); ?></a>
+                </h2>
+            </div>
+
+            <div class="rbf-settings-tab-panel is-active" id="rbf-tab-branding" data-tab="branding" role="tabpanel" aria-labelledby="rbf-tab-link-branding">
+                <table class="form-table" role="presentation">
+                    <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Configurazione Brand e Colori')); ?></h2></th></tr>
+                    <tr>
+                        <th><label for="rbf_accent_color"><?php echo esc_html(rbf_translate_string('Colore Primario')); ?></label></th>
+                        <td>
+                            <input type="color" id="rbf_accent_color" name="rbf_settings[accent_color]" value="<?php echo esc_attr($options['accent_color'] ?? '#000000'); ?>" class="rbf-color-picker">
+                            <p class="description"><?php echo esc_html(rbf_translate_string('Colore principale utilizzato per pulsanti, evidenziazioni e elementi attivi')); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><label for="rbf_secondary_color"><?php echo esc_html(rbf_translate_string('Colore Secondario')); ?></label></th>
+                        <td>
+                            <input type="color" id="rbf_secondary_color" name="rbf_settings[secondary_color]" value="<?php echo esc_attr($options['secondary_color'] ?? '#f8b500'); ?>" class="rbf-color-picker">
+                            <p class="description"><?php echo esc_html(rbf_translate_string('Colore secondario per accenti e elementi complementari')); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><label for="rbf_border_radius"><?php echo esc_html(rbf_translate_string('Raggio Angoli')); ?></label></th>
+                        <td>
+                            <select id="rbf_border_radius" name="rbf_settings[border_radius]">
+                                <option value="0px" <?php selected($options['border_radius'] ?? '8px', '0px'); ?>><?php echo esc_html(rbf_translate_string('Squadrato (0px)')); ?></option>
+                                <option value="4px" <?php selected($options['border_radius'] ?? '8px', '4px'); ?>><?php echo esc_html(rbf_translate_string('Leggermente arrotondato (4px)')); ?></option>
+                                <option value="8px" <?php selected($options['border_radius'] ?? '8px', '8px'); ?>><?php echo esc_html(rbf_translate_string('Arrotondato (8px)')); ?></option>
+                                <option value="12px" <?php selected($options['border_radius'] ?? '8px', '12px'); ?>><?php echo esc_html(rbf_translate_string('Molto arrotondato (12px)')); ?></option>
+                                <option value="16px" <?php selected($options['border_radius'] ?? '8px', '16px'); ?>><?php echo esc_html(rbf_translate_string('Estremamente arrotondato (16px)')); ?></option>
+                            </select>
+                            <p class="description"><?php echo esc_html(rbf_translate_string('Determina quanto arrotondati appaiono gli angoli di pulsanti e campi')); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><?php echo esc_html(rbf_translate_string('Anteprima')); ?></th>
+                        <td>
+                            <div id="rbf-brand-preview" style="padding: 20px; border: 1px solid #ddd; background: #f9f9f9; max-width: 400px;">
+                                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                                    <button type="button" id="preview-primary-btn" style="padding: 10px 20px; background: var(--preview-accent, #000000); color: white; border: none; cursor: pointer; border-radius: var(--preview-radius, 8px);"><?php echo esc_html(rbf_translate_string('Pulsante Principale')); ?></button>
+                                    <button type="button" id="preview-secondary-btn" style="padding: 10px 20px; background: var(--preview-secondary, #f8b500); color: white; border: none; cursor: pointer; border-radius: var(--preview-radius, 8px);"><?php echo esc_html(rbf_translate_string('Pulsante Secondario')); ?></button>
+                                </div>
+                                <input type="text" placeholder="<?php echo esc_attr(rbf_translate_string('Campo di esempio')); ?>" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: var(--preview-radius, 8px); margin-bottom: 10px;">
+                                <p style="margin: 0; font-size: 14px; color: #666;"><?php echo esc_html(rbf_translate_string('Questa anteprima mostra come appariranno i colori selezionati')); ?></p>
                             </div>
-                            <input type="text" placeholder="<?php echo esc_attr(rbf_translate_string('Campo di esempio')); ?>" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: var(--preview-radius, 8px); margin-bottom: 10px;">
-                            <p style="margin: 0; font-size: 14px; color: #666;"><?php echo esc_html(rbf_translate_string('Questa anteprima mostra come appariranno i colori selezionati')); ?></p>
-                        </div>
-                    </td>
-                </tr>
+                        </td>
+                    </tr>
 
-                <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Pagina di Conferma Prenotazione')); ?></h2></th></tr>
-                <tr>
-                    <th><label for="rbf_booking_page_id"><?php echo esc_html(rbf_translate_string('Pagina del modulo di prenotazione')); ?></label></th>
-                    <td>
-                        <?php
-                        wp_dropdown_pages([
-                            'name' => 'rbf_settings[booking_page_id]',
-                            'id' => 'rbf_booking_page_id',
-                            'selected' => absint($options['booking_page_id'] ?? 0),
-                            'show_option_none' => rbf_translate_string('Seleziona una pagina'),
-                            'option_none_value' => '0',
-                        ]);
-                        ?>
-                        <p class="description"><?php echo esc_html(rbf_translate_string('Utilizzata per i link di conferma generati dal backend. Se vuota, il plugin tenta di individuarla automaticamente.')); ?></p>
-                    </td>
-                </tr>
-
-                <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Disponibilità Settimanale')); ?></h2></th></tr>
-                <tr>
-                    <th><?php echo esc_html(rbf_translate_string('Giorni di apertura')); ?></th>
-                    <td>
-                        <div class="rbf-weekday-toggle-group" style="display: flex; flex-wrap: wrap; gap: 10px;">
-                            <?php foreach ($day_labels as $day_key => $day_label) {
-                                $option_key = "open_{$day_key}";
-                                $is_open = ($options[$option_key] ?? 'yes') === 'yes';
-                                ?>
-                                <label style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; background: #fff;">
-                                    <input type="hidden" name="rbf_settings[<?php echo esc_attr($option_key); ?>]" value="no">
-                                    <input type="checkbox" name="rbf_settings[<?php echo esc_attr($option_key); ?>]" value="yes" <?php checked($is_open); ?>>
-                                    <span><?php echo esc_html($day_label); ?></span>
-                                </label>
-                                <?php
-                            } ?>
-                        </div>
-                        <p class="description" style="margin-top: 8px;">
-                            <?php echo esc_html(rbf_translate_string('Deseleziona i giorni in cui il ristorante resta chiuso.')); ?>
-                        </p>
-                    </td>
-                </tr>
-
-                <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Configurazione Pasti')); ?></h2></th></tr>
-
-                <tr>
-                    <th><?php echo esc_html(rbf_translate_string('Pasti Personalizzati')); ?></th>
-                    <td>
-                        <div id="custom-meals-container">
+                    <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Pagina di Conferma Prenotazione')); ?></h2></th></tr>
+                    <tr>
+                        <th><label for="rbf_booking_page_id"><?php echo esc_html(rbf_translate_string('Pagina del modulo di prenotazione')); ?></label></th>
+                        <td>
                             <?php
-                            $custom_meals = $options['custom_meals'] ?? rbf_get_default_custom_meals();
-                            if (!is_array($custom_meals)) {
-                                $custom_meals = [];
-                            }
+                            wp_dropdown_pages([
+                                'name' => 'rbf_settings[booking_page_id]',
+                                'id' => 'rbf_booking_page_id',
+                                'selected' => absint($options['booking_page_id'] ?? 0),
+                                'show_option_none' => rbf_translate_string('Seleziona una pagina'),
+                                'option_none_value' => '0',
+                            ]);
                             ?>
-                            <div class="notice notice-info inline" style="margin: 0 0 15px 0;">
-                                <p><?php echo esc_html(rbf_translate_string('Importante: dopo l\'installazione non sono presenti pasti preconfigurati. Configura i servizi del tuo ristorante utilizzando "Aggiungi Pasto" e salva le modifiche per renderli disponibili nel form.')); ?></p>
-                            </div>
-                            <?php
+                            <p class="description"><?php echo esc_html(rbf_translate_string('Utilizzata per i link di conferma generati dal backend. Se vuota, il plugin tenta di individuarla automaticamente.')); ?></p>
+                        </td>
+                    </tr>
+                </table>
+            </div>
 
-                            if (empty($custom_meals)) {
+            <div class="rbf-settings-tab-panel" id="rbf-tab-availability" data-tab="availability" role="tabpanel" aria-labelledby="rbf-tab-link-availability">
+                <table class="form-table" role="presentation">
+                    <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Disponibilità Settimanale')); ?></h2></th></tr>
+                    <tr>
+                        <th><?php echo esc_html(rbf_translate_string('Giorni di apertura')); ?></th>
+                        <td>
+                            <div class="rbf-weekday-toggle-group" style="display: flex; flex-wrap: wrap; gap: 10px;">
+                                <?php foreach ($day_labels as $day_key => $day_label) {
+                                    $option_key = "open_{$day_key}";
+                                    $is_open = ($options[$option_key] ?? 'yes') === 'yes';
+                                    ?>
+                                    <label style="display: flex; align-items: center; gap: 6px; background: #fff; border: 1px solid #ddd; padding: 8px 12px; border-radius: 6px; min-width: 150px;">
+                                        <input type="checkbox" name="rbf_settings[<?php echo esc_attr($option_key); ?>]" value="yes" <?php checked($is_open); ?>>
+                                        <span><?php echo esc_html($day_label); ?></span>
+                                    </label>
+                                    <?php
+                                } ?>
+                            </div>
+                            <p class="description" style="margin-top: 8px;">
+                                <?php echo esc_html(rbf_translate_string('Deseleziona i giorni in cui il ristorante resta chiuso.')); ?>
+                            </p>
+                        </td>
+                    </tr>
+
+                    <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Configurazione Pasti')); ?></h2></th></tr>
+                    <tr>
+                        <th><?php echo esc_html(rbf_translate_string('Pasti Personalizzati')); ?></th>
+                        <td>
+                            <div id="custom-meals-container">
+                                <?php
+                                $custom_meals = $options['custom_meals'] ?? rbf_get_default_custom_meals();
+                                if (!is_array($custom_meals)) {
+                                    $custom_meals = [];
+                                }
                                 ?>
-                                <div class="notice notice-warning inline" style="margin: 0 0 15px 0;">
-                                    <p><?php echo esc_html(rbf_translate_string('Nessun pasto è attualmente configurato. Il modulo di prenotazione rimane inattivo finché non aggiungi e attivi almeno un pasto personalizzato.')); ?></p>
+                                <div class="notice notice-info inline" style="margin: 0 0 15px 0;">
+                                    <p><?php echo esc_html(rbf_translate_string('Importante: dopo l\'installazione non sono presenti pasti preconfigurati. Configura i servizi del tuo ristorante utilizzando "Aggiungi Pasto" e salva le modifiche per renderli disponibili nel form.')); ?></p>
                                 </div>
                                 <?php
-                            }
+                                if (empty($custom_meals)) {
+                                    ?>
+                                    <div class="notice notice-warning inline rbf-no-meals-notice" style="margin: 0 0 15px 0;">
+                                        <p><?php echo esc_html(rbf_translate_string('Nessun pasto è attualmente configurato. Il modulo di prenotazione rimane inattivo finché non aggiungi e attivi almeno un pasto personalizzato.')); ?></p>
+                                    </div>
+                                    <?php
+                                }
 
-                            foreach ($custom_meals as $index => $meal) {
+                                foreach ($custom_meals as $index => $meal) {
+                                    echo rbf_render_custom_meal_item($index, $meal, $day_labels);
+                                }
                                 ?>
-                                <div class="custom-meal-item" style="border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; background: #f9f9f9;">
-                                    <h4><?php echo sprintf(esc_html(rbf_translate_string('Pasto %d')), $index + 1); ?></h4>
-                                    
-                                    <table class="form-table">
-                                        <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('Attivo')); ?></label></th>
-                                            <td>
-                                                <input type="checkbox" name="rbf_settings[custom_meals][<?php echo esc_attr($index); ?>][enabled]" value="1" <?php checked($meal['enabled'] ?? false); ?>>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('ID')); ?></label></th>
-                                            <td>
-                                                <input type="text" name="rbf_settings[custom_meals][<?php echo esc_attr($index); ?>][id]" value="<?php echo esc_attr($meal['id'] ?? ''); ?>" class="regular-text" placeholder="es: pranzo">
-                                                <p class="description"><?php echo esc_html(rbf_translate_string('ID univoco del pasto (senza spazi, solo lettere e numeri)')); ?></p>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('Nome')); ?></label></th>
-                                            <td>
-                                                <input type="text" name="rbf_settings[custom_meals][<?php echo esc_attr($index); ?>][name]" value="<?php echo esc_attr($meal['name'] ?? ''); ?>" class="regular-text" placeholder="es: Pranzo">
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('Capienza')); ?></label></th>
-                                            <td>
-                                                <input type="number" name="rbf_settings[custom_meals][<?php echo esc_attr($index); ?>][capacity]" value="<?php echo esc_attr($meal['capacity'] ?? 30); ?>" min="1">
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('Orari')); ?></label></th>
-                                            <td>
-                                                <input type="text" name="rbf_settings[custom_meals][<?php echo esc_attr($index); ?>][time_slots]" value="<?php echo esc_attr($meal['time_slots'] ?? ''); ?>" class="regular-text" placeholder="es: 12:00,12:30,13:00">
-                                                <p class="description"><?php echo esc_html(rbf_translate_string('Orari separati da virgola')); ?></p>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('Prezzo (€)')); ?></label></th>
-                                            <td>
-                                                <input type="number" step="0.01" name="rbf_settings[custom_meals][<?php echo esc_attr($index); ?>][price]" value="<?php echo esc_attr($meal['price'] ?? 0); ?>" min="0">
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('Giorni disponibili')); ?></label></th>
-                                            <td>
-                                                <?php
-                                                $available_days = $meal['available_days'] ?? [];
-                                                foreach ($day_labels as $day_key => $day_label) {
-                                                    $checked = in_array($day_key, $available_days) ? 'checked' : '';
-                                                    ?>
-                                                    <label style="display: inline-block; margin-right: 15px;">
-                                                        <input type="checkbox" name="rbf_settings[custom_meals][<?php echo esc_attr($index); ?>][available_days][]" value="<?php echo esc_attr($day_key); ?>" <?php echo $checked; ?>>
-                                                        <?php echo esc_html($day_label); ?>
-                                                    </label>
-                                                    <?php
-                                                }
-                                                ?>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('Tooltip informativo')); ?></label></th>
-                                            <td>
-                                                <textarea name="rbf_settings[custom_meals][<?php echo esc_attr($index); ?>][tooltip]" class="regular-text" rows="2" placeholder="es: Di Domenica il servizio è Brunch con menù alla carta."><?php echo esc_textarea($meal['tooltip'] ?? ''); ?></textarea>
-                                                <p class="description"><?php echo esc_html(rbf_translate_string('Testo informativo che apparirà quando questo pasto viene selezionato (opzionale)')); ?></p>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('Buffer Base (minuti)')); ?></label></th>
-                                            <td>
-                                                <input type="number" name="rbf_settings[custom_meals][<?php echo esc_attr($index); ?>][buffer_time_minutes]" value="<?php echo esc_attr($meal['buffer_time_minutes'] ?? 15); ?>" min="0" max="120">
-                                                <p class="description"><?php echo esc_html(rbf_translate_string('Tempo minimo di buffer tra prenotazioni (minuti)')); ?></p>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('Buffer per Persona (minuti)')); ?></label></th>
-                                            <td>
-                                                <input type="number" name="rbf_settings[custom_meals][<?php echo esc_attr($index); ?>][buffer_time_per_person]" value="<?php echo esc_attr($meal['buffer_time_per_person'] ?? 5); ?>" min="0" max="30">
-                                                <p class="description"><?php echo esc_html(rbf_translate_string('Tempo aggiuntivo di buffer per ogni persona (minuti)')); ?></p>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('Limite Overbooking (%)')); ?></label></th>
-                                            <td>
-                                                <input type="number" name="rbf_settings[custom_meals][<?php echo esc_attr($index); ?>][overbooking_limit]" value="<?php echo esc_attr($meal['overbooking_limit'] ?? 10); ?>" min="0" max="50">
-                                                <p class="description"><?php echo esc_html(rbf_translate_string('Percentuale di overbooking consentita oltre la capienza normale')); ?></p>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('Durata Slot (minuti)')); ?></label></th>
-                                            <td>
-                                                <input type="number" name="rbf_settings[custom_meals][<?php echo esc_attr($index); ?>][slot_duration_minutes]" value="<?php echo esc_attr($meal['slot_duration_minutes'] ?? 90); ?>" min="30" max="240">
-                                                <p class="description"><?php echo esc_html(rbf_translate_string('Durata di occupazione del tavolo per questo servizio (minuti)')); ?></p>
-                                            </td>
-                                        </tr>
-                                    </table>
-                                    
-                                    <button type="button" class="button button-secondary remove-meal" style="margin-top: 10px;"><?php echo esc_html(rbf_translate_string('Rimuovi Pasto')); ?></button>
-                                </div>
-                                <?php
-                            }
-                            ?>
-                        </div>
-                        
-                        <button type="button" id="add-meal" class="button button-primary"><?php echo esc_html(rbf_translate_string('Aggiungi Pasto')); ?></button>
-                        
-                        <script>
-                        jQuery(document).ready(function($) {
-                            // Initialize WordPress color pickers
-                            $('.rbf-color-picker').wpColorPicker({
-                                change: updateBrandPreview
-                            });
-                            
-                            // Brand preview functionality
-                            function updateBrandPreview() {
-                                var accentColor = $('#rbf_accent_color').val();
-                                var secondaryColor = $('#rbf_secondary_color').val();
-                                var borderRadius = $('#rbf_border_radius').val();
-                                
-                                var preview = $('#rbf-brand-preview');
-                                preview.css('--preview-accent', accentColor);
-                                preview.css('--preview-secondary', secondaryColor);
-                                preview.css('--preview-radius', borderRadius);
-                                
-                                $('#preview-primary-btn').css({
-                                    'background': accentColor,
-                                    'border-radius': borderRadius
-                                });
-                                $('#preview-secondary-btn').css({
-                                    'background': secondaryColor,
-                                    'border-radius': borderRadius
-                                });
-                                preview.find('input').css('border-radius', borderRadius);
-                            }
-                            
-                            // Update preview when colors or radius change
-                            $('#rbf_accent_color, #rbf_secondary_color, #rbf_border_radius').change(updateBrandPreview);
-                            
-                            // Initialize preview
-                            updateBrandPreview();
-                            
-                            // Add new meal
-                            $('#add-meal').click(function() {
-                                var container = $('#custom-meals-container');
-                                var index = container.find('.custom-meal-item').length;
-                                var newMeal = createMealItem(index);
-                                container.append(newMeal);
-                            });
-                            
-                            // Remove meal
-                            $(document).on('click', '.remove-meal', function() {
-                                $(this).closest('.custom-meal-item').remove();
-                            });
-                            
-                            function createMealItem(index) {
-                                var dayCheckboxes = '';
-                                <?php foreach ($day_labels as $day_key => $day_label) { ?>
-                                dayCheckboxes += '<label style="display: inline-block; margin-right: 15px;">';
-                                dayCheckboxes += '<input type="checkbox" name="rbf_settings[custom_meals][' + index + '][available_days][]" value="<?php echo $day_key; ?>">';
-                                dayCheckboxes += '<?php echo esc_js($day_label); ?>';
-                                dayCheckboxes += '</label>';
-                                <?php } ?>
-                                
-                                return `
-                                <div class="custom-meal-item" style="border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; background: #f9f9f9;">
-                                    <h4><?php echo esc_html(rbf_translate_string('Pasto')); ?> ` + (index + 1) + `</h4>
-                                    <table class="form-table">
-                                        <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('Attivo')); ?></label></th>
-                                            <td><input type="checkbox" name="rbf_settings[custom_meals][` + index + `][enabled]" value="1" checked></td>
-                                        </tr>
-                                        <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('ID')); ?></label></th>
-                                            <td>
-                                                <input type="text" name="rbf_settings[custom_meals][` + index + `][id]" value="" class="regular-text" placeholder="es: pranzo">
-                                                <p class="description"><?php echo esc_html(rbf_translate_string('ID univoco del pasto (senza spazi, solo lettere e numeri)')); ?></p>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('Nome')); ?></label></th>
-                                            <td><input type="text" name="rbf_settings[custom_meals][` + index + `][name]" value="" class="regular-text" placeholder="es: Pranzo"></td>
-                                        </tr>
-                                        <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('Capienza')); ?></label></th>
-                                            <td><input type="number" name="rbf_settings[custom_meals][` + index + `][capacity]" value="30" min="1"></td>
-                                        </tr>
-                                        <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('Orari')); ?></label></th>
-                                            <td>
-                                                <input type="text" name="rbf_settings[custom_meals][` + index + `][time_slots]" value="" class="regular-text" placeholder="es: 12:00,12:30,13:00">
-                                                <p class="description"><?php echo esc_html(rbf_translate_string('Orari separati da virgola')); ?></p>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('Prezzo (€)')); ?></label></th>
-                                            <td><input type="number" step="0.01" name="rbf_settings[custom_meals][` + index + `][price]" value="0" min="0"></td>
-                                        </tr>
-                                        <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('Giorni disponibili')); ?></label></th>
-                                            <td>` + dayCheckboxes + `</td>
-                                        </tr>
-                                        <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('Tooltip informativo')); ?></label></th>
-                                            <td>
-                                                <textarea name="rbf_settings[custom_meals][` + index + `][tooltip]" class="regular-text" rows="2" placeholder="es: Di Domenica il servizio è Brunch con menù alla carta."></textarea>
-                                                <p class="description"><?php echo esc_html(rbf_translate_string('Testo informativo che apparirà quando questo pasto viene selezionato (opzionale)')); ?></p>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('Buffer Base (minuti)')); ?></label></th>
-                                            <td>
-                                                <input type="number" name="rbf_settings[custom_meals][` + index + `][buffer_time_minutes]" value="15" min="0" max="120">
-                                                <p class="description"><?php echo esc_html(rbf_translate_string('Tempo minimo di buffer tra prenotazioni (minuti)')); ?></p>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('Buffer per Persona (minuti)')); ?></label></th>
-                                            <td>
-                                                <input type="number" name="rbf_settings[custom_meals][` + index + `][buffer_time_per_person]" value="5" min="0" max="30">
-                                                <p class="description"><?php echo esc_html(rbf_translate_string('Tempo aggiuntivo di buffer per ogni persona (minuti)')); ?></p>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('Limite Overbooking (%)')); ?></label></th>
-                                            <td>
-                                                <input type="number" name="rbf_settings[custom_meals][` + index + `][overbooking_limit]" value="10" min="0" max="50">
-                                                <p class="description"><?php echo esc_html(rbf_translate_string('Percentuale di overbooking consentita oltre la capienza normale')); ?></p>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th><label><?php echo esc_html(rbf_translate_string('Durata Slot (minuti)')); ?></label></th>
-                                            <td>
-                                                <input type="number" name="rbf_settings[custom_meals][` + index + `][slot_duration_minutes]" value="90" min="30" max="240">
-                                                <p class="description"><?php echo esc_html(rbf_translate_string('Durata di occupazione del tavolo per questo servizio (minuti)')); ?></p>
-                                            </td>
-                                        </tr>
-                                    </table>
-                                    <button type="button" class="button button-secondary remove-meal" style="margin-top: 10px;"><?php echo esc_html(rbf_translate_string('Rimuovi Pasto')); ?></button>
-                                </div>`;
-                            }
-                        });
-                        </script>
-                    </td>
-                </tr>
-                
-                <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Eccezioni Calendario')); ?></h2></th></tr>
-                <tr>
-                    <th><label for="rbf_closed_dates"><?php echo esc_html(rbf_translate_string('Gestione Eccezioni')); ?></label></th>
-                    <td>
-                        <div id="rbf_exceptions_manager">
-                            <p class="description" style="margin-bottom: 15px;">
-                                <?php echo esc_html(rbf_translate_string('Gestisci chiusure straordinarie, festività, eventi speciali e orari estesi.')); ?>
-                            </p>
-                            
-                            <div class="rbf-exception-add" style="background: #f9f9f9; padding: 15px; border: 1px solid #ddd; margin-bottom: 15px;">
-                                <h4 style="margin: 0 0 10px 0;"><?php echo esc_html(rbf_translate_string('Aggiungi Nuova Eccezione')); ?></h4>
-                                <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: end;">
-                                    <div>
-                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;"><?php echo esc_html(rbf_translate_string('Data')); ?></label>
-                                        <input type="date" id="exception_date" style="padding: 5px;">
-                                    </div>
-                                    <div>
-                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;"><?php echo esc_html(rbf_translate_string('Tipo')); ?></label>
-                                        <select id="exception_type" style="padding: 5px;">
-                                            <option value="closure"><?php echo esc_html(rbf_translate_string('Chiusura')); ?></option>
-                                            <option value="holiday"><?php echo esc_html(rbf_translate_string('Festività')); ?></option>
-                                            <option value="special"><?php echo esc_html(rbf_translate_string('Evento Speciale')); ?></option>
-                                            <option value="extended"><?php echo esc_html(rbf_translate_string('Orari Estesi')); ?></option>
-                                        </select>
-                                    </div>
-                                    <div id="special_hours_container" style="display: none;">
-                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;"><?php echo esc_html(rbf_translate_string('Orari Speciali')); ?></label>
-                                        <input type="text" id="special_hours" placeholder="es. 18:00-02:00" style="padding: 5px;">
-                                    </div>
-                                    <div style="flex-grow: 1;">
-                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;"><?php echo esc_html(rbf_translate_string('Descrizione')); ?></label>
-                                        <input type="text" id="exception_description" placeholder="<?php echo esc_attr(rbf_translate_string('es. Chiusura per ferie')); ?>" style="padding: 5px; width: 100%;">
-                                    </div>
-                                    <button type="button" id="add_exception_btn" style="padding: 8px 15px; background: var(--rbf-accent-color, #000); color: white; border: none; cursor: pointer;"><?php echo esc_html(rbf_translate_string('Aggiungi')); ?></button>
-                                </div>
                             </div>
-                            
-                            <div class="rbf-exceptions-list" style="margin-bottom: 15px;">
-                                <h4><?php echo esc_html(rbf_translate_string('Eccezioni Attive')); ?></h4>
-                                <div id="exceptions_list_display"></div>
+
+                            <button type="button" id="add-meal" class="button button-primary" style="margin-top: 10px;">
+                                <?php echo esc_html(rbf_translate_string('Aggiungi Pasto')); ?>
+                            </button>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="rbf-settings-tab-panel" id="rbf-tab-calendar" data-tab="calendar" role="tabpanel" aria-labelledby="rbf-tab-link-calendar">
+                <table class="form-table" role="presentation">
+                    <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Eccezioni Calendario')); ?></h2></th></tr>
+                    <tr>
+                        <th><label for="rbf_closed_dates"><?php echo esc_html(rbf_translate_string('Gestione Eccezioni')); ?></label></th>
+                        <td>
+                            <div id="rbf_exceptions_manager">
+                                <p class="description" style="margin-bottom: 15px;">
+                                    <?php echo esc_html(rbf_translate_string('Gestisci chiusure straordinarie, festività, eventi speciali e orari estesi.')); ?>
+                                </p>
+
+                                <div class="rbf-exception-add" style="background: #f9f9f9; padding: 15px; border: 1px solid #ddd; margin-bottom: 15px;">
+                                    <h4 style="margin: 0 0 10px 0;"><?php echo esc_html(rbf_translate_string('Aggiungi Nuova Eccezione')); ?></h4>
+                                    <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: end;">
+                                        <div>
+                                            <label style="display: block; margin-bottom: 5px; font-weight: bold;"><?php echo esc_html(rbf_translate_string('Data')); ?></label>
+                                            <input type="date" id="exception_date" style="padding: 5px;">
+                                        </div>
+                                        <div>
+                                            <label style="display: block; margin-bottom: 5px; font-weight: bold;"><?php echo esc_html(rbf_translate_string('Tipo')); ?></label>
+                                            <select id="exception_type" style="padding: 5px;">
+                                                <option value="closure"><?php echo esc_html(rbf_translate_string('Chiusura')); ?></option>
+                                                <option value="holiday"><?php echo esc_html(rbf_translate_string('Festività')); ?></option>
+                                                <option value="special"><?php echo esc_html(rbf_translate_string('Evento Speciale')); ?></option>
+                                                <option value="extended"><?php echo esc_html(rbf_translate_string('Orari Estesi')); ?></option>
+                                            </select>
+                                        </div>
+                                        <div id="special_hours_container" style="display: none;">
+                                            <label style="display: block; margin-bottom: 5px; font-weight: bold;"><?php echo esc_html(rbf_translate_string('Orari Speciali')); ?></label>
+                                            <input type="text" id="special_hours" placeholder="es. 18:00-02:00" style="padding: 5px;">
+                                        </div>
+                                        <div style="flex-grow: 1;">
+                                            <label style="display: block; margin-bottom: 5px; font-weight: bold;"><?php echo esc_html(rbf_translate_string('Descrizione')); ?></label>
+                                            <input type="text" id="exception_description" placeholder="<?php echo esc_attr(rbf_translate_string('es. Chiusura per ferie')); ?>" style="padding: 5px; width: 100%;">
+                                        </div>
+                                        <button type="button" id="add_exception_btn" class="button button-primary"><?php echo esc_html(rbf_translate_string('Aggiungi')); ?></button>
+                                    </div>
+                                </div>
+
+                                <div class="rbf-exceptions-list" style="margin-bottom: 15px;">
+                                    <h4><?php echo esc_html(rbf_translate_string('Eccezioni Attive')); ?></h4>
+                                    <div id="exceptions_list_display"></div>
+                                </div>
+
+                                <textarea id="rbf_closed_dates" name="rbf_settings[closed_dates]" rows="8" class="large-text" style="font-family: monospace; font-size: 12px;"><?php echo esc_textarea($options['closed_dates']); ?></textarea>
+                                <p class="description">
+                                    <?php echo esc_html(rbf_translate_string('Formato manuale: Data|Tipo|Orari|Descrizione (es. 2024-12-25|closure||Natale) oppure formato semplice (es. 2024-12-25)')); ?>
+                                </p>
                             </div>
-                            
-                            <textarea id="rbf_closed_dates" name="rbf_settings[closed_dates]" rows="8" class="large-text" style="font-family: monospace; font-size: 12px;"><?php echo esc_textarea($options['closed_dates']); ?></textarea>
-                            <p class="description">
-                                <?php echo esc_html(rbf_translate_string('Formato manuale: Data|Tipo|Orari|Descrizione (es. 2024-12-25|closure||Natale) oppure formato semplice (es. 2024-12-25)')); ?>
-                            </p>
-                        </div>
-                        
-                        <script>
-                        jQuery(document).ready(function($) {
-                            function updateExceptionDisplay() {
-                                const textarea = $('#rbf_closed_dates');
-                                const lines = textarea.val().split('\n').filter(line => line.trim());
-                                const display = $('#exceptions_list_display');
-                                
-                                display.empty();
-                                
-                                if (lines.length === 0) {
-                                    display.html('<p style="color: #666; font-style: italic;"><?php echo esc_js(rbf_translate_string('Nessuna eccezione configurata.')); ?></p>');
-                                    return;
-                                }
-                                
-                                lines.forEach(line => {
-                                    line = line.trim();
-                                    if (!line) return;
-                                    
-                                    let date, type, hours, description;
-                                    
-                                    if (line.includes('|')) {
-                                        const parts = line.split('|');
-                                        date = parts[0];
-                                        type = parts[1] || 'closure';
-                                        hours = parts[2] || '';
-                                        description = parts[3] || '';
-                                    } else {
-                                        date = line;
-                                        type = 'closure';
-                                        hours = '';
-                                        description = '<?php echo esc_js(rbf_translate_string('Chiusura')); ?>';
-                                    }
-                                    
-                                    const typeLabels = {
-                                        'closure': '<?php echo esc_js(rbf_translate_string('Chiusura')); ?>',
-                                        'holiday': '<?php echo esc_js(rbf_translate_string('Festività')); ?>',
-                                        'special': '<?php echo esc_js(rbf_translate_string('Evento Speciale')); ?>',
-                                        'extended': '<?php echo esc_js(rbf_translate_string('Orari Estesi')); ?>'
-                                    };
-                                    
-                                    const typeColors = {
-                                        'closure': '#dc3545',
-                                        'holiday': '#fd7e14',
-                                        'special': '#20c997',
-                                        'extended': '#0d6efd'
-                                    };
-                                    
-                                    const item = $('<div>').css({
-                                        'display': 'flex',
-                                        'justify-content': 'space-between',
-                                        'align-items': 'center',
-                                        'padding': '10px',
-                                        'margin': '5px 0',
-                                        'background': '#fff',
-                                        'border': '1px solid #ddd',
-                                        'border-left': '4px solid ' + (typeColors[type] || '#666')
-                                    });
-                                    
-                                    const info = $('<div>');
-                                    info.append($('<strong>').text(date + ' - ' + (typeLabels[type] || type)));
-                                    if (hours) info.append($('<br>')).append($('<span>').css('color', '#666').text('<?php echo esc_js(rbf_translate_string('Orari:')); ?> ' + hours));
-                                    if (description) info.append($('<br>')).append($('<span>').css('color', '#666').text(description));
-                                    
-                                    const deleteBtn = $('<button>').attr('type', 'button').css({
-                                        'background': '#dc3545',
-                                        'color': 'white',
-                                        'border': 'none',
-                                        'padding': '5px 10px',
-                                        'cursor': 'pointer',
-                                        'border-radius': '3px'
-                                    }).text('<?php echo esc_js(rbf_translate_string('Rimuovi')); ?>').click(function() {
-                                        if (confirm('<?php echo esc_js(rbf_translate_string('Sei sicuro di voler rimuovere questa eccezione?')); ?>')) {
-                                            const currentValue = textarea.val();
-                                            const newValue = currentValue.split('\n').filter(l => l.trim() !== line).join('\n');
-                                            textarea.val(newValue);
-                                            updateExceptionDisplay();
-                                        }
-                                    });
-                                    
-                                    item.append(info).append(deleteBtn);
-                                    display.append(item);
-                                });
-                            }
-                            
-                            // Show/hide special hours based on exception type
-                            $('#exception_type').change(function() {
-                                const type = $(this).val();
-                                const hoursContainer = $('#special_hours_container');
-                                if (type === 'special' || type === 'extended') {
-                                    hoursContainer.show();
-                                } else {
-                                    hoursContainer.hide();
-                                    $('#special_hours').val('');
-                                }
-                            });
-                            
-                            // Add exception
-                            $('#add_exception_btn').click(function() {
-                                const date = $('#exception_date').val();
-                                const type = $('#exception_type').val();
-                                const hours = $('#special_hours').val();
-                                const description = $('#exception_description').val();
-                                
-                                if (!date) {
-                                    alert('<?php echo esc_js(rbf_translate_string('Seleziona una data.')); ?>');
-                                    return;
-                                }
-                                
-                                if ((type === 'special' || type === 'extended') && !hours) {
-                                    alert('<?php echo esc_js(rbf_translate_string('Specifica gli orari per questo tipo di eccezione.')); ?>');
-                                    return;
-                                }
-                                
-                                // Validate hours format if provided
-                                if (hours && !(/^(\d{1,2}:\d{2}(-\d{1,2}:\d{2})?|\d{1,2}:\d{2}(,\d{1,2}:\d{2})*)$/.test(hours))) {
-                                    alert('<?php echo esc_js(rbf_translate_string('Formato orari non valido. Usa: HH:MM-HH:MM o HH:MM,HH:MM,HH:MM')); ?>');
-                                    return;
-                                }
-                                
-                                const line = date + '|' + type + '|' + (hours || '') + '|' + (description || '');
-                                const textarea = $('#rbf_closed_dates');
-                                const currentValue = textarea.val().trim();
-                                const newValue = currentValue ? currentValue + '\n' + line : line;
-                                textarea.val(newValue);
-                                
-                                // Clear form
-                                $('#exception_date').val('');
-                                $('#exception_type').val('closure');
-                                $('#special_hours').val('');
-                                $('#exception_description').val('');
-                                $('#special_hours_container').hide();
-                                
-                                updateExceptionDisplay();
-                            });
-                            
-                            // Update display on page load and textarea change
-                            updateExceptionDisplay();
-                            $('#rbf_closed_dates').on('input', updateExceptionDisplay);
-                        });
-                        </script>
-                    </td>
-                </tr>
+                        </td>
+                    </tr>
+                </table>
+            </div>
 
-                <!-- Advance booking time limits removed as per user request - now using fixed 1-hour minimum -->
-                <!-- <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Limiti Temporali Prenotazioni')); ?></h2></th></tr> -->
+            <div class="rbf-settings-tab-panel" id="rbf-tab-integrations" data-tab="integrations" role="tabpanel" aria-labelledby="rbf-tab-link-integrations">
+                <table class="form-table" role="presentation">
+                    <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Integrazioni e Marketing')); ?></h2></th></tr>
+                    <tr>
+                        <th><label for="rbf_notification_email"><?php echo esc_html(rbf_translate_string('Email per Notifiche Ristorante')); ?></label></th>
+                        <td><input type="email" id="rbf_notification_email" name="rbf_settings[notification_email]" value="<?php echo esc_attr($options['notification_email']); ?>" class="regular-text" placeholder="es. ristorante@esempio.com"></td>
+                    </tr>
+                    <tr>
+                        <th><label for="rbf_webmaster_email"><?php echo esc_html(rbf_translate_string('Email per Notifiche Webmaster')); ?></label></th>
+                        <td><input type="email" id="rbf_webmaster_email" name="rbf_settings[webmaster_email]" value="<?php echo esc_attr($options['webmaster_email']); ?>" class="regular-text" placeholder="es. webmaster@esempio.com"></td>
+                    </tr>
+                    <tr><th colspan="2"><h3><?php echo esc_html(rbf_translate_string('Contatti per Modifiche Prenotazioni')); ?></h3></th></tr>
+                    <tr>
+                        <th><label for="rbf_booking_change_email"><?php echo esc_html(rbf_translate_string('Email per Richieste di Modifica')); ?></label></th>
+                        <td>
+                            <input type="email" id="rbf_booking_change_email" name="rbf_settings[booking_change_email]" value="<?php echo esc_attr($options['booking_change_email']); ?>" class="regular-text" placeholder="es. prenotazioni@esempio.com">
+                            <p class="description"><?php echo esc_html(rbf_translate_string('Mostrata nel riepilogo di conferma per indicare dove scrivere in caso di modifiche.')); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><label for="rbf_booking_change_phone"><?php echo esc_html(rbf_translate_string('Telefono per Richieste di Modifica')); ?></label></th>
+                        <td>
+                            <input type="text" id="rbf_booking_change_phone" name="rbf_settings[booking_change_phone]" value="<?php echo esc_attr($options['booking_change_phone']); ?>" class="regular-text" placeholder="es. +39 012 345 6789">
+                            <p class="description"><?php echo esc_html(rbf_translate_string('Comparirà accanto all\'email nel messaggio di conferma. Lascia vuoto se non vuoi mostrarlo.')); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><label for="rbf_ga4_id"><?php echo esc_html(rbf_translate_string('ID misurazione GA4')); ?></label></th>
+                        <td><input type="text" id="rbf_ga4_id" name="rbf_settings[ga4_id]" value="<?php echo esc_attr($options['ga4_id']); ?>" class="regular-text" placeholder="G-XXXXXXXXXX"></td>
+                    </tr>
+                    <tr>
+                        <th><label for="rbf_ga4_api_secret">GA4 API Secret (per invii server-side)</label></th>
+                        <td><input type="text" id="rbf_ga4_api_secret" name="rbf_settings[ga4_api_secret]" value="<?php echo esc_attr($options['ga4_api_secret']); ?>" class="regular-text"></td>
+                    </tr>
+                    <tr>
+                        <th><label for="rbf_gtm_id"><?php echo esc_html(rbf_translate_string('ID GTM')); ?></label></th>
+                        <td><input type="text" id="rbf_gtm_id" name="rbf_settings[gtm_id]" value="<?php echo esc_attr($options['gtm_id']); ?>" class="regular-text" placeholder="GTM-XXXXXXX"></td>
+                    </tr>
+                    <tr>
+                        <th><label for="rbf_gtm_hybrid"><?php echo esc_html(rbf_translate_string('Modalità ibrida GTM + GA4')); ?></label></th>
+                        <td><input type="checkbox" id="rbf_gtm_hybrid" name="rbf_settings[gtm_hybrid]" value="yes" <?php checked(($options['gtm_hybrid'] ?? '') === 'yes'); ?>></td>
+                    </tr>
+                    <tr>
+                        <th><label for="rbf_google_ads_conversion_id"><?php echo esc_html(rbf_translate_string('ID Conversione Google Ads')); ?></label></th>
+                        <td><input type="text" id="rbf_google_ads_conversion_id" name="rbf_settings[google_ads_conversion_id]" value="<?php echo esc_attr($options['google_ads_conversion_id'] ?? ''); ?>" class="regular-text" placeholder="AW-123456789"></td>
+                    </tr>
+                    <tr>
+                        <th><label for="rbf_google_ads_conversion_label"><?php echo esc_html(rbf_translate_string('Etichetta Conversione Google Ads')); ?></label></th>
+                        <td><input type="text" id="rbf_google_ads_conversion_label" name="rbf_settings[google_ads_conversion_label]" value="<?php echo esc_attr($options['google_ads_conversion_label'] ?? ''); ?>" class="regular-text" placeholder="abcDEF123456"></td>
+                    </tr>
+                    <tr>
+                        <th><label for="rbf_meta_pixel_id"><?php echo esc_html(rbf_translate_string('ID Meta Pixel')); ?></label></th>
+                        <td><input type="text" id="rbf_meta_pixel_id" name="rbf_settings[meta_pixel_id]" value="<?php echo esc_attr($options['meta_pixel_id']); ?>" class="regular-text"></td>
+                    </tr>
+                    <tr>
+                        <th><label for="rbf_meta_access_token">Meta Access Token (per invii server-side)</label></th>
+                        <td><input type="password" id="rbf_meta_access_token" name="rbf_settings[meta_access_token]" value="<?php echo esc_attr($options['meta_access_token']); ?>" class="regular-text"></td>
+                    </tr>
 
-                <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Integrazioni e Marketing')); ?></h2></th></tr>
-                <tr><th><label for="rbf_notification_email"><?php echo esc_html(rbf_translate_string('Email per Notifiche Ristorante')); ?></label></th>
-                    <td><input type="email" id="rbf_notification_email" name="rbf_settings[notification_email]" value="<?php echo esc_attr($options['notification_email']); ?>" class="regular-text" placeholder="es. ristorante@esempio.com"></td></tr>
-                <tr><th><label for="rbf_webmaster_email"><?php echo esc_html(rbf_translate_string('Email per Notifiche Webmaster')); ?></label></th>
-                    <td><input type="email" id="rbf_webmaster_email" name="rbf_settings[webmaster_email]" value="<?php echo esc_attr($options['webmaster_email']); ?>" class="regular-text" placeholder="es. webmaster@esempio.com"></td></tr>
-                <tr><th colspan="2"><h3><?php echo esc_html(rbf_translate_string('Contatti per Modifiche Prenotazioni')); ?></h3></th></tr>
-                <tr><th><label for="rbf_booking_change_email"><?php echo esc_html(rbf_translate_string('Email per Richieste di Modifica')); ?></label></th>
-                    <td>
-                        <input type="email" id="rbf_booking_change_email" name="rbf_settings[booking_change_email]" value="<?php echo esc_attr($options['booking_change_email']); ?>" class="regular-text" placeholder="es. prenotazioni@esempio.com">
-                        <p class="description"><?php echo esc_html(rbf_translate_string('Mostrata nel riepilogo di conferma per indicare dove scrivere in caso di modifiche.')); ?></p>
-                    </td>
-                </tr>
-                <tr><th><label for="rbf_booking_change_phone"><?php echo esc_html(rbf_translate_string('Telefono per Richieste di Modifica')); ?></label></th>
-                    <td>
-                        <input type="text" id="rbf_booking_change_phone" name="rbf_settings[booking_change_phone]" value="<?php echo esc_attr($options['booking_change_phone']); ?>" class="regular-text" placeholder="es. +39 012 345 6789">
-                        <p class="description"><?php echo esc_html(rbf_translate_string('Comparirà accanto all\'email nel messaggio di conferma. Lascia vuoto se non vuoi mostrarlo.')); ?></p>
-                    </td>
-                </tr>
-                <tr><th><label for="rbf_ga4_id"><?php echo esc_html(rbf_translate_string('ID misurazione GA4')); ?></label></th>
-                    <td><input type="text" id="rbf_ga4_id" name="rbf_settings[ga4_id]" value="<?php echo esc_attr($options['ga4_id']); ?>" class="regular-text" placeholder="G-XXXXXXXXXX"></td></tr>
-                <tr><th><label for="rbf_ga4_api_secret">GA4 API Secret (per invii server-side)</label></th>
-                    <td><input type="text" id="rbf_ga4_api_secret" name="rbf_settings[ga4_api_secret]" value="<?php echo esc_attr($options['ga4_api_secret']); ?>" class="regular-text"></td></tr>
-                <tr><th><label for="rbf_gtm_id"><?php echo esc_html(rbf_translate_string('ID GTM')); ?></label></th>
-                    <td><input type="text" id="rbf_gtm_id" name="rbf_settings[gtm_id]" value="<?php echo esc_attr($options['gtm_id']); ?>" class="regular-text" placeholder="GTM-XXXXXXX"></td></tr>
-                <tr><th><label for="rbf_gtm_hybrid"><?php echo esc_html(rbf_translate_string('Modalità ibrida GTM + GA4')); ?></label></th>
-                    <td><input type="checkbox" id="rbf_gtm_hybrid" name="rbf_settings[gtm_hybrid]" value="yes" <?php checked($options['gtm_hybrid'] === 'yes'); ?>></td></tr>
-                <tr><th><label for="rbf_google_ads_conversion_id"><?php echo esc_html(rbf_translate_string('ID Conversione Google Ads')); ?></label></th>
-                    <td><input type="text" id="rbf_google_ads_conversion_id" name="rbf_settings[google_ads_conversion_id]" value="<?php echo esc_attr($options['google_ads_conversion_id'] ?? ''); ?>" class="regular-text" placeholder="AW-123456789"></td></tr>
-                <tr><th><label for="rbf_google_ads_conversion_label"><?php echo esc_html(rbf_translate_string('Etichetta Conversione Google Ads')); ?></label></th>
-                    <td><input type="text" id="rbf_google_ads_conversion_label" name="rbf_settings[google_ads_conversion_label]" value="<?php echo esc_attr($options['google_ads_conversion_label'] ?? ''); ?>" class="regular-text" placeholder="abcDEF123456"></td></tr>
-                <tr><th><label for="rbf_meta_pixel_id"><?php echo esc_html(rbf_translate_string('ID Meta Pixel')); ?></label></th>
-                    <td><input type="text" id="rbf_meta_pixel_id" name="rbf_settings[meta_pixel_id]" value="<?php echo esc_attr($options['meta_pixel_id']); ?>" class="regular-text"></td></tr>
-                <tr><th><label for="rbf_meta_access_token">Meta Access Token (per invii server-side)</label></th>
-                    <td><input type="password" id="rbf_meta_access_token" name="rbf_settings[meta_access_token]" value="<?php echo esc_attr($options['meta_access_token']); ?>" class="regular-text"></td></tr>
+                    <tr><th colspan="2"><h3><?php echo esc_html(rbf_translate_string('Impostazioni Brevo')); ?></h3></th></tr>
+                    <tr>
+                        <th><label for="rbf_brevo_api"><?php echo esc_html(rbf_translate_string('API Key Brevo')); ?></label></th>
+                        <td><input type="password" id="rbf_brevo_api" name="rbf_settings[brevo_api]" value="<?php echo esc_attr($options['brevo_api']); ?>" class="regular-text"></td>
+                    </tr>
+                    <tr>
+                        <th><label for="rbf_brevo_list_it"><?php echo esc_html(rbf_translate_string('ID Lista Brevo (IT)')); ?></label></th>
+                        <td><input type="number" id="rbf_brevo_list_it" name="rbf_settings[brevo_list_it]" value="<?php echo esc_attr($options['brevo_list_it']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <th><label for="rbf_brevo_list_en"><?php echo esc_html(rbf_translate_string('ID Lista Brevo (EN)')); ?></label></th>
+                        <td><input type="number" id="rbf_brevo_list_en" name="rbf_settings[brevo_list_en]" value="<?php echo esc_attr($options['brevo_list_en']); ?>"></td>
+                    </tr>
 
-                <tr><th colspan="2"><h3><?php echo esc_html(rbf_translate_string('Impostazioni Brevo')); ?></h3></th></tr>
-                <tr><th><label for="rbf_brevo_api"><?php echo esc_html(rbf_translate_string('API Key Brevo')); ?></label></th>
-                    <td><input type="password" id="rbf_brevo_api" name="rbf_settings[brevo_api]" value="<?php echo esc_attr($options['brevo_api']); ?>" class="regular-text"></td></tr>
-                <tr><th><label for="rbf_brevo_list_it"><?php echo esc_html(rbf_translate_string('ID Lista Brevo (IT)')); ?></label></th>
-                    <td><input type="number" id="rbf_brevo_list_it" name="rbf_settings[brevo_list_it]" value="<?php echo esc_attr($options['brevo_list_it']); ?>"></td></tr>
-                <tr><th><label for="rbf_brevo_list_en"><?php echo esc_html(rbf_translate_string('ID Lista Brevo (EN)')); ?></label></th>
-                    <td><input type="number" id="rbf_brevo_list_en" name="rbf_settings[brevo_list_en]" value="<?php echo esc_attr($options['brevo_list_en']); ?>"></td></tr>
+                    <tr><th colspan="2"><h3><?php echo esc_html(rbf_translate_string('Protezione Anti-Bot')); ?></h3></th></tr>
+                    <tr>
+                        <th><label for="rbf_recaptcha_site_key"><?php echo esc_html(rbf_translate_string('reCAPTCHA v3 Site Key')); ?></label></th>
+                        <td>
+                            <input type="text" id="rbf_recaptcha_site_key" name="rbf_settings[recaptcha_site_key]" value="<?php echo esc_attr($options['recaptcha_site_key'] ?? ''); ?>" class="regular-text" placeholder="6Le...">
+                            <p class="description"><?php echo esc_html(rbf_translate_string('Chiave pubblica per reCAPTCHA v3. Lascia vuoto per disabilitare.')); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><label for="rbf_recaptcha_secret_key"><?php echo esc_html(rbf_translate_string('reCAPTCHA v3 Secret Key')); ?></label></th>
+                        <td>
+                            <input type="password" id="rbf_recaptcha_secret_key" name="rbf_settings[recaptcha_secret_key]" value="<?php echo esc_attr($options['recaptcha_secret_key'] ?? ''); ?>" class="regular-text" placeholder="6Le...">
+                            <p class="description"><?php echo esc_html(rbf_translate_string('Chiave segreta per reCAPTCHA v3.')); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><label for="rbf_recaptcha_threshold"><?php echo esc_html(rbf_translate_string('Soglia reCAPTCHA')); ?></label></th>
+                        <td>
+                            <input type="number" id="rbf_recaptcha_threshold" name="rbf_settings[recaptcha_threshold]" value="<?php echo esc_attr($options['recaptcha_threshold'] ?? '0.5'); ?>" step="0.1" min="0" max="1" style="width: 80px;">
+                            <p class="description"><?php echo esc_html(rbf_translate_string('Soglia minima per considerare valida una submission (0.0-1.0). Default: 0.5')); ?></p>
+                        </td>
+                    </tr>
+                </table>
+            </div>
 
-                <tr><th colspan="2"><h3><?php echo esc_html(rbf_translate_string('Protezione Anti-Bot')); ?></h3></th></tr>
-                <tr><th><label for="rbf_recaptcha_site_key"><?php echo esc_html(rbf_translate_string('reCAPTCHA v3 Site Key')); ?></label></th>
-                    <td><input type="text" id="rbf_recaptcha_site_key" name="rbf_settings[recaptcha_site_key]" value="<?php echo esc_attr($options['recaptcha_site_key'] ?? ''); ?>" class="regular-text" placeholder="6Le...">
-                    <p class="description"><?php echo esc_html(rbf_translate_string('Chiave pubblica per reCAPTCHA v3. Lascia vuoto per disabilitare.')); ?></p></td></tr>
-                <tr><th><label for="rbf_recaptcha_secret_key"><?php echo esc_html(rbf_translate_string('reCAPTCHA v3 Secret Key')); ?></label></th>
-                    <td><input type="password" id="rbf_recaptcha_secret_key" name="rbf_settings[recaptcha_secret_key]" value="<?php echo esc_attr($options['recaptcha_secret_key'] ?? ''); ?>" class="regular-text" placeholder="6Le...">
-                    <p class="description"><?php echo esc_html(rbf_translate_string('Chiave segreta per reCAPTCHA v3.')); ?></p></td></tr>
-                <tr><th><label for="rbf_recaptcha_threshold"><?php echo esc_html(rbf_translate_string('Soglia reCAPTCHA')); ?></label></th>
-                    <td><input type="number" id="rbf_recaptcha_threshold" name="rbf_settings[recaptcha_threshold]" value="<?php echo esc_attr($options['recaptcha_threshold'] ?? '0.5'); ?>" step="0.1" min="0" max="1" style="width: 80px;">
-                    <p class="description"><?php echo esc_html(rbf_translate_string('Soglia minima per considerare valida una submission (0.0-1.0). Default: 0.5')); ?></p></td></tr>
-
-            </table>
             <?php submit_button(); ?>
         </form>
     </div>
+    <?php
+    $meal_template_html = rbf_render_custom_meal_item('__INDEX__', [], $day_labels, true);
+    ?>
+    <script type="text/template" id="rbf-meal-template"><?php echo $meal_template_html; ?></script>
+    <script>
+    jQuery(document).ready(function($) {
+        'use strict';
+
+        var tabStorageKey = 'rbfSettingsActiveTab';
+        var $tabs = $('.rbf-settings-tabs-wrapper .nav-tab');
+        var $panels = $('.rbf-settings-tab-panel');
+
+        function activateTab(tab) {
+            if (!tab) {
+                return;
+            }
+            var $targetTab = $tabs.filter('[data-tab-target="' + tab + '"]');
+            var $targetPanel = $panels.filter('[data-tab="' + tab + '"]');
+            if ($targetTab.length === 0 || $targetPanel.length === 0) {
+                return;
+            }
+
+            $tabs.removeClass('nav-tab-active').attr('aria-selected', 'false');
+            $targetTab.addClass('nav-tab-active').attr('aria-selected', 'true');
+            $panels.removeClass('is-active').attr('aria-hidden', 'true');
+            $targetPanel.addClass('is-active').attr('aria-hidden', 'false');
+
+            try {
+                window.localStorage.setItem(tabStorageKey, tab);
+            } catch (error) {
+                // Ignore storage errors (e.g., disabled cookies).
+            }
+        }
+
+        $tabs.on('click', function(event) {
+            event.preventDefault();
+            activateTab($(this).data('tab-target'));
+        });
+
+        var storedTab = null;
+        try {
+            storedTab = window.localStorage.getItem(tabStorageKey);
+        } catch (error) {
+            storedTab = null;
+        }
+
+        if (storedTab && $panels.filter('[data-tab="' + storedTab + '"]').length) {
+            activateTab(storedTab);
+        } else {
+            var defaultTab = $tabs.first().data('tab-target');
+            activateTab(defaultTab);
+        }
+
+        function updateBrandPreview() {
+            var accentColor = $('#rbf_accent_color').val();
+            var secondaryColor = $('#rbf_secondary_color').val();
+            var borderRadius = $('#rbf_border_radius').val();
+            var $preview = $('#rbf-brand-preview');
+
+            $preview.css('--preview-accent', accentColor);
+            $preview.css('--preview-secondary', secondaryColor);
+            $preview.css('--preview-radius', borderRadius);
+
+            $('#preview-primary-btn').css({
+                background: accentColor,
+                borderRadius: borderRadius
+            });
+            $('#preview-secondary-btn').css({
+                background: secondaryColor,
+                borderRadius: borderRadius
+            });
+            $preview.find('input').css('border-radius', borderRadius);
+        }
+
+        if ($.fn.wpColorPicker) {
+            $('.rbf-color-picker').wpColorPicker({
+                change: updateBrandPreview
+            });
+        }
+
+        $('#rbf_accent_color, #rbf_secondary_color, #rbf_border_radius').on('change input', updateBrandPreview);
+        updateBrandPreview();
+
+        var mealTemplate = $('#rbf-meal-template').html();
+
+        function reindexMeals() {
+            $('#custom-meals-container .custom-meal-item').each(function(index) {
+                var $item = $(this);
+                $item.attr('data-meal-index', index);
+                $item.find('.rbf-meal-number').text(index + 1);
+                $item.find('[name]').each(function() {
+                    var $field = $(this);
+                    var fieldName = $field.attr('name');
+                    if (!fieldName) {
+                        return;
+                    }
+                    var newName = fieldName.replace(/rbf_settings\[custom_meals]\[[^\]]+\]/, 'rbf_settings[custom_meals][' + index + ']');
+                    $field.attr('name', newName);
+                });
+            });
+
+            var hasMeals = $('#custom-meals-container .custom-meal-item').length > 0;
+            $('#custom-meals-container .rbf-no-meals-notice').toggle(!hasMeals);
+        }
+
+        $('#add-meal').on('click', function(event) {
+            event.preventDefault();
+            if (!mealTemplate) {
+                return;
+            }
+            var container = $('#custom-meals-container');
+            var nextIndex = container.find('.custom-meal-item').length;
+            var html = mealTemplate.replace(/__INDEX__/g, nextIndex).replace(/__NUMBER__/g, nextIndex + 1);
+            var $item = $(html);
+            container.append($item);
+            reindexMeals();
+        });
+
+        $(document).on('click', '.remove-meal', function(event) {
+            event.preventDefault();
+            $(this).closest('.custom-meal-item').remove();
+            reindexMeals();
+        });
+
+        reindexMeals();
+
+        var exceptionLabels = {
+            closure: '<?php echo esc_js(rbf_translate_string('Chiusura')); ?>',
+            holiday: '<?php echo esc_js(rbf_translate_string('Festività')); ?>',
+            special: '<?php echo esc_js(rbf_translate_string('Evento Speciale')); ?>',
+            extended: '<?php echo esc_js(rbf_translate_string('Orari Estesi')); ?>'
+        };
+        var exceptionColors = {
+            closure: '#dc3545',
+            holiday: '#fd7e14',
+            special: '#20c997',
+            extended: '#0d6efd'
+        };
+        var noExceptionsText = '<?php echo esc_js(rbf_translate_string('Nessuna eccezione configurata.')); ?>';
+        var removeExceptionConfirm = '<?php echo esc_js(rbf_translate_string('Sei sicuro di voler rimuovere questa eccezione?')); ?>';
+        var selectDateAlert = '<?php echo esc_js(rbf_translate_string('Seleziona una data.')); ?>';
+        var specifyHoursAlert = '<?php echo esc_js(rbf_translate_string('Specifica gli orari per questo tipo di eccezione.')); ?>';
+        var invalidHoursAlert = '<?php echo esc_js(rbf_translate_string('Formato orari non valido. Usa: HH:MM-HH:MM o HH:MM,HH:MM,HH:MM')); ?>';
+        var hoursLabel = '<?php echo esc_js(rbf_translate_string('Orari:')); ?>';
+
+        var $closedDates = $('#rbf_closed_dates');
+
+        function updateExceptionDisplay() {
+            var lines = ($closedDates.val() || '').split(/\r?\n/).map(function(line) {
+                return $.trim(line);
+            }).filter(function(line) {
+                return line.length > 0;
+            });
+
+            var $display = $('#exceptions_list_display');
+            $display.empty();
+
+            if (!lines.length) {
+                $display.html('<p style="color: #666; font-style: italic;">' + noExceptionsText + '</p>');
+                return;
+            }
+            lines.forEach(function(line) {
+                var parts = line.split('|');
+                var date = parts[0] || '';
+                var type = parts[1] || 'closure';
+                var hours = parts[2] || '';
+                var description = parts[3] || '';
+
+                if (!date) {
+                    return;
+                }
+
+                var $item = $('<div>').css({
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '10px',
+                    margin: '5px 0',
+                    background: '#fff',
+                    border: '1px solid #ddd',
+                    borderLeft: '4px solid ' + (exceptionColors[type] || '#666')
+                });
+
+                var $info = $('<div>');
+                $info.append($('<strong>').text(date + ' - ' + (exceptionLabels[type] || type)));
+                if (hours) {
+                    $info.append($('<br>')).append($('<span>').css('color', '#666').text(hoursLabel + ' ' + hours));
+                }
+                if (description) {
+                    $info.append($('<br>')).append($('<span>').css('color', '#666').text(description));
+                }
+
+                var $deleteBtn = $('<button type="button" class="button button-secondary rbf-remove-exception"></button>')
+                    .text('<?php echo esc_js(rbf_translate_string('Rimuovi')); ?>')
+                    .data('line', line);
+
+                $item.append($info).append($deleteBtn);
+                $display.append($item);
+            });
+        }
+
+        $('#exception_type').on('change', function() {
+            var type = $(this).val();
+            var $hoursContainer = $('#special_hours_container');
+            if (type === 'special' || type === 'extended') {
+                $hoursContainer.show();
+            } else {
+                $hoursContainer.hide();
+                $('#special_hours').val('');
+            }
+        }).trigger('change');
+
+        $('#add_exception_btn').on('click', function(event) {
+            event.preventDefault();
+            var date = $('#exception_date').val();
+            var type = $('#exception_type').val();
+            var hours = $('#special_hours').val();
+            var description = $('#exception_description').val();
+
+            if (!date) {
+                window.alert(selectDateAlert);
+                return;
+            }
+
+            if ((type === 'special' || type === 'extended') && !hours) {
+                window.alert(specifyHoursAlert);
+                return;
+            }
+
+            if (hours && !/^(\d{1,2}:\d{2}(-\d{1,2}:\d{2})?|\d{1,2}:\d{2}(,\d{1,2}:\d{2})*)$/.test(hours)) {
+                window.alert(invalidHoursAlert);
+                return;
+            }
+
+            var newLine = [date, type, hours || '', description || ''].join('|');
+            var existing = $closedDates.val();
+            $closedDates.val(existing ? existing + '\\n' + newLine : newLine);
+            updateExceptionDisplay();
+
+            $('#exception_date').val('');
+            $('#exception_description').val('');
+            $('#special_hours').val('');
+            $('#exception_type').val('closure').trigger('change');
+        });
+
+        $(document).on('click', '.rbf-remove-exception', function(event) {
+            event.preventDefault();
+            var line = $(this).data('line');
+            if (!line) {
+                return;
+            }
+            if (!window.confirm(removeExceptionConfirm)) {
+                return;
+            }
+            var updated = ($closedDates.val() || '').split(/\r?\n/).filter(function(entry) {
+                return $.trim(entry) !== line;
+            }).join('\n');
+
+            $closedDates.val(updated);
+            updateExceptionDisplay();
+        });
+
+        $closedDates.on('input', updateExceptionDisplay);
+        updateExceptionDisplay();
+    });
+    </script>
     <?php
 }
 
