@@ -13,78 +13,188 @@ jQuery(function($) {
 
   const tabGroups = [];
 
+  function normalizeTabTarget(value) {
+    if (!value && value !== 0) {
+      return '';
+    }
+
+    return String(value)
+      .trim()
+      .replace(/^#/, '')
+      .replace(/^rbf-tab-/, '');
+  }
+
+  function getLinkTarget(link) {
+    if (!link) {
+      return '';
+    }
+
+    const explicit = link.getAttribute('data-tab-target');
+    if (explicit) {
+      return normalizeTabTarget(explicit);
+    }
+
+    if (link.hash) {
+      return normalizeTabTarget(link.hash);
+    }
+
+    const href = link.getAttribute('href');
+    if (href && href.indexOf('#') !== -1) {
+      return normalizeTabTarget(href.substring(href.indexOf('#')));
+    }
+
+    return '';
+  }
+
+  function getPanelTargets(panel) {
+    if (!panel) {
+      return [];
+    }
+
+    const potentialTargets = [
+      panel.getAttribute('data-tab-panel'),
+      panel.getAttribute('data-tab'),
+      panel.id,
+    ];
+
+    const normalized = potentialTargets
+      .map(normalizeTabTarget)
+      .filter((target, index, arr) => target && arr.indexOf(target) === index);
+
+    return normalized;
+  }
+
   function setupAdminTabs() {
-    const navs = document.querySelectorAll('.rbf-admin-tabs');
+    const navs = document.querySelectorAll('.rbf-admin-tabs, .nav-tab-wrapper');
 
     navs.forEach((nav) => {
-      const wrap = nav.closest('.rbf-admin-wrap') || document;
-      const links = Array.from(nav.querySelectorAll('.rbf-tab-link'));
-      const panels = Array.from(wrap.querySelectorAll('.rbf-tab-panel'));
+      const wrap = nav.closest('.rbf-admin-wrap') || nav.closest('.wrap') || document;
+      const links = Array.from(nav.querySelectorAll('a'))
+        .filter((link) => link.matches('.rbf-tab-link, [data-tab-target], [href^="#"]'));
 
-      if (!links.length || !panels.length) {
+      const panelCandidates = Array.from(
+        wrap.querySelectorAll('[data-tab-panel], [data-tab], .rbf-tab-panel, .rbf-settings-tab-panel')
+      );
+
+      const panelInfos = panelCandidates
+        .map((panel) => {
+          const targets = getPanelTargets(panel);
+
+          if (!targets.length) {
+            return null;
+          }
+
+          if (!panel.classList.contains('rbf-tab-panel')) {
+            panel.classList.add('rbf-tab-panel');
+          }
+
+          if (!panel.id) {
+            panel.id = 'rbf-tab-' + targets[0];
+          }
+
+          return {
+            element: panel,
+            targets,
+          };
+        })
+        .filter(Boolean);
+
+      const linkInfos = links.map((link) => {
+        const target = getLinkTarget(link);
+        const hashTarget = link.getAttribute('href') || (target ? '#rbf-tab-' + target : '');
+
+        const matchingPanel = panelInfos.find((info) => info.targets.indexOf(target) !== -1);
+        const controlId = matchingPanel && matchingPanel.element.id ? matchingPanel.element.id : '';
+
+        if (controlId) {
+          link.setAttribute('aria-controls', controlId);
+        }
+
+        return {
+          element: link,
+          target,
+          hashTarget,
+        };
+      });
+
+      const validTargets = linkInfos
+        .map((info) => info.target)
+        .filter((value, index, arr) => value && arr.indexOf(value) === index);
+
+      const panels = panelInfos.filter((info) =>
+        info.targets.some((target) => validTargets.indexOf(target) !== -1)
+      );
+
+      if (!linkInfos.length || !panels.length) {
         return;
       }
 
       const group = {
         nav,
-        links,
+        links: linkInfos,
         panels,
         activate(target) {
-          const desired = (target || '').replace(/^#/, '');
-          const hasMatch = desired && nav.querySelector('[data-tab-target="' + desired + '"]');
-          const fallback = links[0] ? links[0].dataset.tabTarget : '';
+          const desired = normalizeTabTarget(target);
+          const availableTargets = group.links
+            .map((info) => info.target)
+            .filter(Boolean);
+          const fallback = availableTargets[0] || '';
+          const hasMatch = desired && availableTargets.indexOf(desired) !== -1;
           const resolved = hasMatch ? desired : fallback;
 
           if (!resolved) {
             return;
           }
 
-          links.forEach((link) => {
-            const isActive = link.dataset.tabTarget === resolved;
-            link.classList.toggle('nav-tab-active', isActive);
-            link.setAttribute('aria-selected', isActive ? 'true' : 'false');
+          group.links.forEach((info) => {
+            const isActive = info.target === resolved;
+            info.element.classList.toggle('nav-tab-active', isActive);
+            info.element.setAttribute('aria-selected', isActive ? 'true' : 'false');
           });
 
-          panels.forEach((panel) => {
-            const isActive = panel.dataset.tabPanel === resolved;
-            panel.classList.toggle('is-active', isActive);
-            panel.setAttribute('aria-hidden', isActive ? 'false' : 'true');
-            panel.hidden = !isActive;
+          group.panels.forEach((info) => {
+            const matches = info.targets.indexOf(resolved) !== -1;
+            const isActive = matches || (info.element.id && normalizeTabTarget(info.element.id) === resolved);
+
+            info.element.classList.toggle('is-active', isActive);
+            info.element.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+
+            if ('hidden' in info.element) {
+              info.element.hidden = !isActive;
+            }
           });
         }
       };
 
       tabGroups.push(group);
 
-      links.forEach((link) => {
-        const target = link.dataset.tabTarget || '';
-
-        if (target) {
-          link.setAttribute('aria-controls', target);
-        }
-
-        link.addEventListener('click', (event) => {
+      group.links.forEach((info) => {
+        info.element.addEventListener('click', (event) => {
           event.preventDefault();
-          group.activate(target);
+          group.activate(info.target);
 
-          if (target && window.location.hash !== '#' + target && typeof window.history.replaceState === 'function') {
+          if (
+            info.hashTarget &&
+            window.location.hash !== info.hashTarget &&
+            typeof window.history.replaceState === 'function'
+          ) {
             try {
-              window.history.replaceState(null, '', '#' + target);
+              window.history.replaceState(null, '', info.hashTarget);
             } catch (e) {
               // Ignore history failures (e.g., older browsers)
             }
           }
         });
 
-        link.addEventListener('keydown', (event) => {
+        info.element.addEventListener('keydown', (event) => {
           if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
-            link.click();
+            info.element.click();
           }
         });
       });
 
-      const initialTarget = window.location.hash ? window.location.hash.substring(1) : '';
+      const initialTarget = window.location.hash || '';
       group.activate(initialTarget);
     });
   }
@@ -92,14 +202,15 @@ jQuery(function($) {
   setupAdminTabs();
 
   window.addEventListener('hashchange', () => {
-    const target = window.location.hash ? window.location.hash.substring(1) : '';
+    const target = window.location.hash || '';
+    const normalizedTarget = normalizeTabTarget(target);
 
-    if (!target) {
+    if (!normalizedTarget) {
       return;
     }
 
     tabGroups.forEach((group) => {
-      const hasTarget = group.nav.querySelector('[data-tab-target="' + target + '"]');
+      const hasTarget = group.links.some((info) => info.target === normalizedTarget);
       if (hasTarget) {
         group.activate(target);
       }
