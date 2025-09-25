@@ -488,3 +488,67 @@ function rbf_uninstall_plugin() {
     }
 }
 
+/**
+ * Add quick access links within the plugins screen.
+ *
+ * Provides shortcuts to the main settings page and documentation so
+ * administrators can configure the plugin immediately after activation.
+ *
+ * @param array $links Existing action links for the plugin.
+ * @return array
+ */
+function rbf_plugin_action_links($links) {
+    if (!is_array($links)) {
+        $links = [];
+    }
+
+    if (!function_exists('admin_url')) {
+        return $links;
+    }
+
+    $settings_link = sprintf(
+        '<a href="%s">%s</a>',
+        esc_url(admin_url('admin.php?page=rbf_settings')),
+        esc_html__('Impostazioni', 'rbf')
+    );
+
+    array_unshift($links, $settings_link);
+
+    return $links;
+}
+add_filter('plugin_action_links_' . plugin_basename(__FILE__), 'rbf_plugin_action_links');
+
+/**
+ * Append helpful resources to the plugin row meta links.
+ *
+ * @param array  $links Current plugin row meta links.
+ * @param string $file  Plugin basename.
+ * @return array
+ */
+function rbf_plugin_row_meta($links, $file) {
+    if (!is_array($links)) {
+        $links = [];
+    }
+
+    if ($file !== plugin_basename(__FILE__)) {
+        return $links;
+    }
+
+    $resources = [];
+
+    $resources[] = sprintf(
+        '<a href="%s" target="_blank" rel="noopener noreferrer">%s</a>',
+        esc_url('https://github.com/franpass87/FP-Prenotazioni-Ristorante-PRO#readme'),
+        esc_html__('Documentazione', 'rbf')
+    );
+
+    $resources[] = sprintf(
+        '<a href="%s" target="_blank" rel="noopener noreferrer">%s</a>',
+        esc_url('https://github.com/franpass87/FP-Prenotazioni-Ristorante-PRO/issues'),
+        esc_html__('Supporto', 'rbf')
+    );
+
+    return array_merge($links, $resources);
+}
+add_filter('plugin_row_meta', 'rbf_plugin_row_meta', 10, 2);
+
