@@ -845,7 +845,13 @@ function rbf_current_lang() {
  *
  * @return array
  */
-function rbf_get_settings() {
+function rbf_get_settings($force_refresh = false) {
+    static $cached_settings = null;
+
+    if (!$force_refresh && is_array($cached_settings)) {
+        return $cached_settings;
+    }
+
     $saved = get_option('rbf_settings', []);
     $defaults = rbf_get_default_settings();
     $settings = wp_parse_args($saved, $defaults);
@@ -866,7 +872,26 @@ function rbf_get_settings() {
         }
     }
 
+    $cached_settings = $settings;
+
     return $settings;
+}
+
+/**
+ * Force a refresh of the cached plugin settings array.
+ */
+function rbf_invalidate_settings_cache() {
+    if (function_exists('wp_cache_delete')) {
+        wp_cache_delete('rbf_settings', 'options');
+    }
+
+    rbf_get_settings(true);
+}
+
+if (function_exists('add_action')) {
+    add_action('update_option_rbf_settings', 'rbf_invalidate_settings_cache', 10, 0);
+    add_action('add_option_rbf_settings', 'rbf_invalidate_settings_cache', 10, 0);
+    add_action('delete_option_rbf_settings', 'rbf_invalidate_settings_cache', 10, 0);
 }
 
 /**
