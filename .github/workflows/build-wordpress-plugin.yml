@@ -11,68 +11,64 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
+    env:
+      BUILD_DIR: build
+      PLUGIN_SLUG: fp-prenotazioni-ristorante-pro
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
-    - name: Get plugin version
-      id: get_version
+
+    - name: Determine plugin metadata
+      id: metadata
       run: |
-        VERSION=$(grep "Version:" fp-prenotazioni-ristorante-pro.php | sed 's/.*Version:[[:space:]]*//' | sed 's/[[:space:]]*$//')
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        set -euo pipefail
+
+        VERSION=$(awk -F': +' '/^[[:space:]]*\*?[[:space:]]*Version/{gsub(/\r/, "", $2); print $2; exit}' "${PLUGIN_SLUG}.php")
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
         echo "Plugin version: $VERSION"
-        
-        # Create version-specific name
-        if [[ $GITHUB_REF == refs/tags/* ]]; then
-          TAG_VERSION=${GITHUB_REF#refs/tags/}
-          PLUGIN_NAME="fp-prenotazioni-ristorante-pro-${TAG_VERSION}"
+
+        if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+          PACKAGE_NAME="${PLUGIN_SLUG}-${GITHUB_REF#refs/tags/}"
         else
-          PLUGIN_NAME="fp-prenotazioni-ristorante-pro-v${VERSION}"
+          PACKAGE_NAME="${PLUGIN_SLUG}-v${VERSION}"
         fi
-        echo "plugin_name=$PLUGIN_NAME" >> $GITHUB_OUTPUT
-        echo "Plugin name: $PLUGIN_NAME"
-    
-    - name: Create plugin directory
+
+        echo "package_name=$PACKAGE_NAME" >> "$GITHUB_OUTPUT"
+        echo "Package directory: $PACKAGE_NAME"
+
+    - name: Stage plugin files
       run: |
-        mkdir -p build/${{ steps.get_version.outputs.plugin_name }}
-        
-    - name: Copy plugin files
-      run: |
-        # Copy main plugin file
-        cp fp-prenotazioni-ristorante-pro.php build/${{ steps.get_version.outputs.plugin_name }}/
-        
-        # Copy includes directory
-        cp -r includes/ build/${{ steps.get_version.outputs.plugin_name }}/
-        
-        # Copy assets directory
-        cp -r assets/ build/${{ steps.get_version.outputs.plugin_name }}/
-        
-        # Copy tests directory (for development installations)
-        cp -r tests/ build/${{ steps.get_version.outputs.plugin_name }}/
-        
-        # Copy documentation files
-        cp README.md build/${{ steps.get_version.outputs.plugin_name }}/
-        cp *.md build/${{ steps.get_version.outputs.plugin_name }}/
-        
-        # Copy brand configuration
-        cp fppr-brand.json build/${{ steps.get_version.outputs.plugin_name }}/
-        
-        # Copy docs directory if it exists
-        if [ -d "docs" ]; then
-          cp -r docs/ build/${{ steps.get_version.outputs.plugin_name }}/
-        fi
-        
+        set -euo pipefail
+
+        PACKAGE_PATH="${BUILD_DIR}/${{ steps.metadata.outputs.package_name }}"
+        mkdir -p "$PACKAGE_PATH"
+
+        rsync -a --prune-empty-dirs \
+          --include='*/' \
+          --include='${PLUGIN_SLUG}.php' \
+          --include='fppr-brand.json' \
+          --include='README.md' \
+          --include='*.md' \
+          --include='includes/***' \
+          --include='assets/***' \
+          --include='tests/***' \
+          --include='docs/***' \
+          --include='languages/***' \
+          --exclude='*' \
+          ./ "$PACKAGE_PATH/"
+
     - name: Create readme.txt for WordPress repository
       run: |
-        cat > build/${{ steps.get_version.outputs.plugin_name }}/readme.txt << 'EOF'
+        cat > "${BUILD_DIR}/${{ steps.metadata.outputs.package_name }}/readme.txt" << 'EOF'
         === Prenotazioni Ristorante PRO ===
         Contributors: francescopasseri
         Tags: restaurant, booking, reservations, table, management
         Requires at least: 5.0
         Tested up to: 6.4
         Requires PHP: 7.4
-        Stable tag: ${{ steps.get_version.outputs.version }}
+        Stable tag: ${{ steps.metadata.outputs.version }}
         License: GPLv2 or later
         License URI: https://www.gnu.org/licenses/gpl-2.0.html
         
@@ -126,34 +122,13 @@ jobs:
         Versione stabile e completa. Aggiornamento raccomandato per tutti gli utenti.
         EOF
         
-    - name: Remove development files
-      run: |
-        # Remove development-only files from the build
-        cd build/${{ steps.get_version.outputs.plugin_name }}
-        
-        # Remove demo HTML files
-        rm -f demo*.html
-        rm -f test-*.html
-        rm -f *-test.html
-        rm -f *.html
-        
-        # Remove shell scripts
-        rm -f *.sh
-        
-        # Remove images that are just for documentation
-        rm -f *.png
-        
-        # Remove git-related files if they exist
-        rm -rf .git
-        rm -f .gitignore
-        
     - name: Validate plugin structure
       run: |
-        cd build/${{ steps.get_version.outputs.plugin_name }}
-        
+        cd "${BUILD_DIR}/${{ steps.metadata.outputs.package_name }}"
+
         echo "=== Plugin Structure ==="
         find . -type f -name "*.php" | head -10
-        
+
         echo "=== Main Plugin File ==="
         if [ -f "fp-prenotazioni-ristorante-pro.php" ]; then
           echo "✅ Main plugin file exists"
@@ -171,28 +146,40 @@ jobs:
             echo "⚠️  $dir directory missing"
           fi
         done
-        
+
+        echo "=== readme.txt ==="
+        if [ -f "readme.txt" ]; then
+          head -20 readme.txt
+        else
+          echo "❌ readme.txt missing"
+          exit 1
+        fi
+
     - name: Create WordPress plugin zip
       run: |
-        cd build
-        zip -r ${{ steps.get_version.outputs.plugin_name }}.zip ${{ steps.get_version.outputs.plugin_name }}/
-        
+        set -euo pipefail
+
+        cd "${BUILD_DIR}"
+        zip -r "${{ steps.metadata.outputs.package_name }}.zip" "${{ steps.metadata.outputs.package_name }}"/
+        cp "${{ steps.metadata.outputs.package_name }}.zip" "${PLUGIN_SLUG}-latest.zip"
+
         echo "=== Zip File Info ==="
-        ls -lh ${{ steps.get_version.outputs.plugin_name }}.zip
-        
-        echo "=== Zip Contents ==="
-        unzip -l ${{ steps.get_version.outputs.plugin_name }}.zip | head -20
-        
+        ls -lh "${{ steps.metadata.outputs.package_name }}.zip" "${PLUGIN_SLUG}-latest.zip"
+
+        echo "=== Zip Contents (versioned) ==="
+        unzip -l "${{ steps.metadata.outputs.package_name }}.zip" | head -20
+
     - name: Upload plugin artifact
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ steps.get_version.outputs.plugin_name }}
-        path: build/${{ steps.get_version.outputs.plugin_name }}.zip
+        name: ${{ steps.metadata.outputs.package_name }}
+        path: build/${{ steps.metadata.outputs.package_name }}.zip
         retention-days: 30
-        
+
     - name: Upload plugin artifact (latest)
       uses: actions/upload-artifact@v4
       with:
         name: fp-prenotazioni-ristorante-pro-latest
-        path: build/${{ steps.get_version.outputs.plugin_name }}.zip
+        path: build/fp-prenotazioni-ristorante-pro-latest.zip
         retention-days: 90
+
