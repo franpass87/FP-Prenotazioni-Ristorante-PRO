@@ -267,6 +267,11 @@ function rbf_require_capability($capability = null) {
         return true;
     }
 
+    $booking_capability = rbf_get_booking_capability();
+    if ($capability === $booking_capability && current_user_can('manage_options')) {
+        return true;
+    }
+
     $message = function_exists('esc_html__')
         ? esc_html__('Non hai i permessi necessari per accedere a questa pagina.', 'rbf')
         : 'Non hai i permessi necessari per accedere a questa pagina.';

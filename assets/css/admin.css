@@ -45,6 +45,75 @@
     background: linear-gradient(135deg, var(--rbf-admin-primary) 0%, var(--rbf-admin-secondary) 100%);
 }
 
+.rbf-admin-wrap .rbf-settings-tabs-wrapper {
+    margin-bottom: 24px;
+}
+
+.rbf-admin-wrap .rbf-settings-tabs-wrapper .nav-tab-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid var(--rbf-admin-border);
+    border-radius: 999px;
+    padding: 10px 12px;
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+    position: relative;
+    overflow: hidden;
+}
+
+.rbf-admin-wrap .rbf-settings-tabs-wrapper .nav-tab {
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--rbf-admin-text);
+    padding: 10px 22px;
+    font-weight: 600;
+    box-shadow: inset 0 0 0 1px transparent;
+    transition: var(--rbf-admin-transition);
+    position: relative;
+    z-index: 1;
+}
+
+.rbf-admin-wrap .rbf-settings-tabs-wrapper .nav-tab:focus {
+    box-shadow: 0 0 0 3px rgba(34, 113, 177, 0.25);
+}
+
+.rbf-admin-wrap .rbf-settings-tabs-wrapper .nav-tab::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: rgba(34, 113, 177, 0.12);
+    opacity: 0;
+    transition: var(--rbf-admin-transition);
+    z-index: -1;
+}
+
+.rbf-admin-wrap .rbf-settings-tabs-wrapper .nav-tab:hover::after {
+    opacity: 1;
+}
+
+.rbf-admin-wrap .rbf-settings-tabs-wrapper .nav-tab.nav-tab-active {
+    color: #fff;
+    box-shadow: 0 10px 24px rgba(34, 113, 177, 0.35);
+    transform: translateY(-1px);
+}
+
+.rbf-admin-wrap .rbf-settings-tabs-wrapper .nav-tab.nav-tab-active::after {
+    opacity: 1;
+    background: linear-gradient(135deg, var(--rbf-admin-primary) 0%, var(--rbf-admin-secondary) 100%);
+}
+
+.rbf-admin-wrap .rbf-settings-tab-panel {
+    animation: fadeIn 0.25s ease;
+}
+
+.rbf-admin-wrap .rbf-settings-tab-panel .form-table {
+    margin-top: 0;
+    border-radius: calc(var(--rbf-admin-radius) - 4px);
+}
+
 .rbf-admin-wrap .form-table {
     background: white;
     border-radius: var(--rbf-admin-radius);
@@ -97,6 +166,98 @@
 
 .rbf-admin-wrap .form-table textarea {
     min-height: 100px;
+}
+
+.rbf-admin-wrap #custom-meals-container .custom-meal-item {
+    border: 1px solid var(--rbf-admin-border) !important;
+    border-left: 5px solid var(--rbf-admin-primary) !important;
+    background: linear-gradient(135deg, rgba(34, 113, 177, 0.08), rgba(34, 113, 177, 0.02)) !important;
+    border-radius: var(--rbf-admin-radius);
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+    padding: 18px 20px !important;
+}
+
+.rbf-admin-wrap #custom-meals-container .custom-meal-item h4 {
+    margin-top: 0;
+    color: var(--rbf-admin-primary);
+    letter-spacing: 0.02em;
+}
+
+.rbf-admin-wrap #custom-meals-container .remove-meal {
+    background: linear-gradient(135deg, #f05454, #d63638);
+    border: none;
+    color: #fff;
+    border-radius: 999px;
+    padding: 8px 18px;
+    font-weight: 600;
+    box-shadow: 0 8px 16px rgba(214, 54, 56, 0.2);
+    transition: var(--rbf-admin-transition);
+}
+
+.rbf-admin-wrap #custom-meals-container .remove-meal:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 20px rgba(214, 54, 56, 0.3);
+}
+
+.rbf-admin-wrap .rbf-weekday-toggle-group label {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px !important;
+    border-radius: 999px !important;
+    border: 1px solid var(--rbf-admin-border) !important;
+    background: #fff !important;
+    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.06);
+    transition: var(--rbf-admin-transition);
+}
+
+.rbf-admin-wrap .rbf-weekday-toggle-group label:hover {
+    transform: translateY(-1px);
+}
+
+.rbf-admin-wrap .rbf-weekday-toggle-group label input[type="checkbox"] {
+    margin: 0;
+}
+
+.rbf-admin-wrap .rbf-weekday-toggle-group label input[type="checkbox"]:checked + span {
+    color: var(--rbf-admin-primary);
+    font-weight: 600;
+}
+
+.rbf-admin-wrap #rbf_exceptions_manager {
+    background: linear-gradient(135deg, rgba(34, 113, 177, 0.12), rgba(248, 181, 0, 0.08));
+    border: 1px solid rgba(34, 113, 177, 0.2);
+    border-radius: var(--rbf-admin-radius);
+    padding: 22px;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
+}
+
+.rbf-admin-wrap #rbf_exceptions_manager h4 {
+    margin-top: 0;
+    color: var(--rbf-admin-text);
+}
+
+.rbf-admin-wrap #rbf_exceptions_manager #add_exception_btn {
+    border-radius: 999px;
+    padding: 10px 22px;
+    font-weight: 600;
+    box-shadow: 0 6px 16px rgba(34, 113, 177, 0.25);
+}
+
+.rbf-admin-wrap .rbf-exceptions-list h4 {
+    color: var(--rbf-admin-text);
+    margin-bottom: 12px;
+}
+
+.rbf-admin-wrap .rbf-exceptions-list #exceptions_list_display > div {
+    border-radius: var(--rbf-admin-radius);
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+}
+
+.rbf-admin-wrap .rbf-exceptions-list .rbf-remove-exception {
+    border-radius: 999px;
+    padding: 8px 16px;
+    font-weight: 600;
 }
 
 .rbf-admin-wrap .submit {
