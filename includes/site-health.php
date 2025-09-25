@@ -44,6 +44,11 @@ if (!function_exists('rbf_site_health_register_tests')) {
             'test'  => 'rbf_site_health_email_configuration_test',
         ];
 
+        $tests['direct']['rbf_tracking_configuration'] = [
+            'label' => rbf_translate_string('Configurazione Tracking Marketing'),
+            'test'  => 'rbf_site_health_tracking_configuration_test',
+        ];
+
         $tests['direct']['rbf_booking_page'] = [
             'label' => rbf_translate_string('Pagina di Prenotazione'),
             'test'  => 'rbf_site_health_booking_page_test',
@@ -90,6 +95,123 @@ if (!function_exists('rbf_site_health_build_result')) {
         }
 
         return $result;
+    }
+}
+
+if (!function_exists('rbf_site_health_tracking_configuration_test')) {
+    /**
+     * Validate that at least one marketing tracking integration is fully configured.
+     *
+     * Highlights misconfigurations for GA4, GTM Hybrid, Facebook Pixel/Conversion API,
+     * and Google Ads conversion tracking so the marketing funnel works in production.
+     *
+     * @return array
+     */
+    function rbf_site_health_tracking_configuration_test() {
+        $settings = rbf_get_settings();
+
+        $ga4_id            = trim((string) ($settings['ga4_id'] ?? ''));
+        $ga4_api_secret    = trim((string) ($settings['ga4_api_secret'] ?? ''));
+        $gtm_id            = trim((string) ($settings['gtm_id'] ?? ''));
+        $gtm_hybrid        = ($settings['gtm_hybrid'] ?? '') === 'yes';
+        $meta_pixel_id     = trim((string) ($settings['meta_pixel_id'] ?? ''));
+        $meta_token        = trim((string) ($settings['meta_access_token'] ?? ''));
+        $google_ads_id     = trim((string) ($settings['google_ads_conversion_id'] ?? ''));
+        $google_ads_label  = trim((string) ($settings['google_ads_conversion_label'] ?? ''));
+
+        $has_any_tracking = ($ga4_id !== '') || ($gtm_id !== '') || ($meta_pixel_id !== '') || ($google_ads_id !== '' && $google_ads_label !== '');
+
+        $issues = [];
+
+        if (!$has_any_tracking) {
+            $description = '<p>' . rbf_translate_string('Nessuna integrazione di tracking è configurata. Senza un sistema di analytics non sarà possibile misurare le conversioni delle prenotazioni.') . '</p>';
+
+            $actions = '';
+            if (function_exists('admin_url')) {
+                $actions = sprintf(
+                    '<p><a href="%s" class="button button-primary">%s</a></p>',
+                    esc_url(admin_url('admin.php?page=rbf_settings#tracking')),
+                    esc_html(rbf_translate_string('Configura Tracking'))
+                );
+            }
+
+            return rbf_site_health_build_result(
+                'critical',
+                rbf_translate_string('Configurazione Tracking Marketing'),
+                $description,
+                $actions,
+                __FUNCTION__
+            );
+        }
+
+        if ($gtm_hybrid && ($gtm_id === '' || $ga4_id === '')) {
+            $issues[] = rbf_translate_string('La modalità ibrida GTM è attiva ma manca l\'ID GTM o l\'ID GA4. Disattiva la modalità ibrida oppure completa entrambe le configurazioni.');
+        }
+
+        if ($ga4_id !== '' && $ga4_api_secret === '') {
+            $issues[] = rbf_translate_string('GA4 è configurato ma manca l\'API Secret per il tracciamento server-side.');
+        }
+
+        if ($ga4_id === '' && $ga4_api_secret !== '') {
+            $issues[] = rbf_translate_string('È stata inserita un\'API Secret GA4 senza Measurement ID. Aggiungi l\'ID GA4 per abilitare il tracciamento.');
+        }
+
+        if ($meta_pixel_id !== '' && $meta_token === '') {
+            $issues[] = rbf_translate_string('Il Pixel Meta è configurato ma manca l\'Access Token per la Conversion API.');
+        }
+
+        if (($google_ads_id !== '' && $google_ads_label === '') || ($google_ads_id === '' && $google_ads_label !== '')) {
+            $issues[] = rbf_translate_string('Il tracking delle conversioni Google Ads è incompleto. Specifica sia Conversion ID che Conversion Label.');
+        }
+
+        if (!empty($issues)) {
+            $description = '<p>' . rbf_translate_string('Sono richiesti alcuni interventi sulla configurazione del tracking:') . '</p><ul>';
+
+            foreach ($issues as $issue) {
+                $description .= '<li>' . esc_html($issue) . '</li>';
+            }
+
+            $description .= '</ul>';
+
+            $actions = '';
+            if (function_exists('admin_url')) {
+                $actions = sprintf(
+                    '<p><a href="%s" class="button">%s</a></p>',
+                    esc_url(admin_url('admin.php?page=rbf_settings#tracking')),
+                    esc_html(rbf_translate_string('Apri impostazioni tracking'))
+                );
+            }
+
+            return rbf_site_health_build_result(
+                'recommended',
+                rbf_translate_string('Configurazione Tracking Marketing'),
+                $description,
+                $actions,
+                __FUNCTION__
+            );
+        }
+
+        $description = '<p>' . rbf_translate_string('Almeno un sistema di tracking è configurato correttamente e pronto per l\'ambiente di produzione.') . '</p>';
+
+        if ($ga4_id !== '' && $ga4_api_secret !== '') {
+            $description .= '<p>' . rbf_translate_string('GA4 invierà eventi sia lato client che lato server.') . '</p>';
+        }
+
+        if ($meta_pixel_id !== '' && $meta_token !== '') {
+            $description .= '<p>' . rbf_translate_string('Il Pixel Meta utilizza anche la Conversion API come failover.') . '</p>';
+        }
+
+        if ($google_ads_id !== '' && $google_ads_label !== '') {
+            $description .= '<p>' . rbf_translate_string('Le conversioni Google Ads sono pronte per il monitoraggio delle campagne.') . '</p>';
+        }
+
+        return rbf_site_health_build_result(
+            'good',
+            rbf_translate_string('Configurazione Tracking Marketing'),
+            $description,
+            '',
+            __FUNCTION__
+        );
     }
 }
 
