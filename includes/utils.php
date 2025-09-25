@@ -1083,6 +1083,7 @@ function rbf_translate_string($text) {
     static $translations = [
         // Backend UI
         'Apri pagina di conferma' => 'Open confirmation page',
+        'FP Prenotazioni Ristorante' => 'FP Restaurant Bookings',
         'Prenotazioni' => 'Bookings',
         'Tutte le Prenotazioni' => 'All Bookings',
         'Prenotazione' => 'Booking',
@@ -1090,6 +1091,11 @@ function rbf_translate_string($text) {
         'Aggiungi Nuova Prenotazione' => 'Add New Booking',
         'Modifica Prenotazione' => 'Edit Booking',
         'Nuova Prenotazione' => 'New Booking',
+        'Nuova Prenotazione Manuale' => 'New Manual Booking',
+        'Agenda Settimanale' => 'Weekly Agenda',
+        'Agenda' => 'Agenda',
+        'Gestione Tavoli' => 'Table Management',
+        'Notifiche Email' => 'Email Notifications',
         'Visualizza Prenotazione' => 'View Booking',
         'Cerca Prenotazioni' => 'Search Bookings',
         'Nessuna Prenotazione trovata' => 'No bookings found',

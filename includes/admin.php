@@ -159,10 +159,10 @@ function rbf_create_bookings_menu() {
     $booking_capability  = rbf_get_booking_capability();
     $settings_capability = rbf_get_settings_capability();
 
-    add_menu_page(rbf_translate_string('Calendario & Agenda'), rbf_translate_string('Calendario & Agenda'), $booking_capability, 'rbf_calendar', 'rbf_calendar_page_html', 'dashicons-calendar-alt', 20);
+    add_menu_page(rbf_translate_string('FP Prenotazioni Ristorante'), rbf_translate_string('FP Prenotazioni Ristorante'), $booking_capability, 'rbf_calendar', 'rbf_calendar_page_html', 'dashicons-calendar-alt', 20);
     add_submenu_page('rbf_calendar', rbf_translate_string('Calendario'), rbf_translate_string('Calendario'), $booking_capability, 'rbf_calendar', 'rbf_calendar_page_html');
     add_submenu_page('rbf_calendar', rbf_translate_string('Agenda Settimanale'), rbf_translate_string('Agenda'), $booking_capability, 'rbf_weekly_staff', 'rbf_weekly_staff_page_html');
-    add_submenu_page('rbf_calendar', rbf_translate_string('Inserimento Manuale'), rbf_translate_string('Inserimento Manuale'), $booking_capability, 'rbf_add_booking', 'rbf_add_booking_page_html');
+    add_submenu_page('rbf_calendar', rbf_translate_string('Nuova Prenotazione Manuale'), rbf_translate_string('Nuova Prenotazione Manuale'), $booking_capability, 'rbf_add_booking', 'rbf_add_booking_page_html');
     add_submenu_page('rbf_calendar', rbf_translate_string('Gestione Tavoli'), rbf_translate_string('Gestione Tavoli'), $booking_capability, 'rbf_tables', 'rbf_tables_page_html');
     add_submenu_page('rbf_calendar', rbf_translate_string('Report & Analytics'), rbf_translate_string('Report & Analytics'), $booking_capability, 'rbf_reports', 'rbf_reports_page_html');
     add_submenu_page('rbf_calendar', rbf_translate_string('Notifiche Email'), rbf_translate_string('Notifiche Email'), $settings_capability, 'rbf_email_notifications', 'rbf_email_notifications_page_html');

@@ -49,7 +49,7 @@ jobs:
 
         rsync -a --prune-empty-dirs \
           --include='*/' \
-          --include='${PLUGIN_SLUG}.php' \
+          --include="${PLUGIN_SLUG}.php" \
           --include='fppr-brand.json' \
           --include='README.md' \
           --include='*.md' \
