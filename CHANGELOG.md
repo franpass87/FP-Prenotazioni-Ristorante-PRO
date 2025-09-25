@@ -3,6 +3,10 @@
 Tutte le modifiche significative di **FP Prenotazioni Ristorante PRO** vengono documentate in questo file.
 Il formato segue l'approccio *Keep a Changelog* ed è coerente con la numerazione semantica introdotta dalla versione 1.x.
 
+## [1.6.1] – Aggiornamento Asset (2024)
+### Fixed
+- Incrementata la versione del plugin per forzare l'aggiornamento degli asset admin e rendere visibili le ultime ottimizzazioni grafiche e del filtro analytics.
+
 ## [1.6] – Documentazione Consolidata (2024)
 ### Added
 - Indice tematico della documentazione con collegamenti diretti alle singole guide specialistiche.

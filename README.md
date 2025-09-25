@@ -1,6 +1,6 @@
 # FP-Prenotazioni-Ristorante-PRO
 
-**Version:** 1.6  
+**Version:** 1.6.1
 **Author:** Francesco Passeri  
 **Website:** [francescopasseri.com](https://francescopasseri.com)  
 **Email:** [info@francescopasseri.com](mailto:info@francescopasseri.com)  
