@@ -62,6 +62,27 @@ function rbf_environment_meets_requirements() {
 }
 
 /**
+ * Determine if the plugin is network-activated on a multisite installation.
+ *
+ * @return bool
+ */
+function rbf_is_plugin_network_active() {
+    if (!function_exists('is_multisite') || !is_multisite()) {
+        return false;
+    }
+
+    if (!function_exists('is_plugin_active_for_network')) {
+        require_once ABSPATH . 'wp-admin/includes/plugin.php';
+    }
+
+    if (!function_exists('is_plugin_active_for_network')) {
+        return false;
+    }
+
+    return is_plugin_active_for_network(plugin_basename(RBF_PLUGIN_FILE));
+}
+
+/**
  * Deactivate the plugin when requirements are not satisfied.
  */
 function rbf_deactivate_plugin_for_environment() {
@@ -284,8 +305,10 @@ if (is_admin()) {
  */
 /**
  * Execute activation tasks within the current site context.
+ *
+ * @param bool $flush_rewrite Optional. Whether to flush rewrite rules. Default true.
  */
-function rbf_run_site_activation_tasks() {
+function rbf_run_site_activation_tasks($flush_rewrite = true) {
     rbf_clear_transients();
 
     // Load plugin modules so that CPTs and helpers are available.
@@ -317,7 +340,9 @@ function rbf_run_site_activation_tasks() {
 
     update_option('rbf_plugin_version', RBF_VERSION);
 
-    flush_rewrite_rules();
+    if ($flush_rewrite && function_exists('flush_rewrite_rules')) {
+        flush_rewrite_rules();
+    }
 }
 
 register_activation_hook(__FILE__, 'rbf_activate_plugin');
@@ -486,6 +511,71 @@ function rbf_uninstall_plugin() {
     if (function_exists('wp_cache_flush')) {
         wp_cache_flush();
     }
+}
+
+/**
+ * Bootstrap plugin requirements on newly created multisite blogs.
+ *
+ * @param int $site_id Site/blog ID.
+ */
+function rbf_initialize_new_site($site_id) {
+    $site_id = (int) $site_id;
+
+    if ($site_id <= 0 || !rbf_is_plugin_network_active()) {
+        return;
+    }
+
+    if (!function_exists('switch_to_blog') || !function_exists('restore_current_blog')) {
+        return;
+    }
+
+    static $processed = [];
+
+    if (isset($processed[$site_id])) {
+        return;
+    }
+
+    $switched = switch_to_blog($site_id);
+
+    if (!$switched) {
+        return;
+    }
+
+    $processed[$site_id] = true;
+
+    try {
+        rbf_run_site_activation_tasks(false);
+    } finally {
+        restore_current_blog();
+    }
+}
+
+if (function_exists('add_action') && function_exists('is_multisite') && is_multisite()) {
+    if (!function_exists('rbf_handle_wp_initialize_site')) {
+        /**
+         * Initialize plugin data when a new site is created (WordPress 5.1+).
+         *
+         * @param WP_Site $new_site Site object.
+         */
+        function rbf_handle_wp_initialize_site($new_site) {
+            $site_id = ($new_site instanceof WP_Site) ? (int) $new_site->blog_id : (int) $new_site;
+            rbf_initialize_new_site($site_id);
+        }
+    }
+
+    if (!function_exists('rbf_handle_wpmu_new_blog')) {
+        /**
+         * Initialize plugin data for legacy multisite creation hook.
+         *
+         * @param int $blog_id Blog ID.
+         */
+        function rbf_handle_wpmu_new_blog($blog_id) {
+            rbf_initialize_new_site($blog_id);
+        }
+    }
+
+    add_action('wp_initialize_site', 'rbf_handle_wp_initialize_site', 20, 1);
+    add_action('wpmu_new_blog', 'rbf_handle_wpmu_new_blog', 20, 1);
 }
 
 /**
