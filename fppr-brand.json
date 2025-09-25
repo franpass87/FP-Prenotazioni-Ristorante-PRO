@@ -7,7 +7,7 @@
   "border_radius": "8px",
   "logo_url": "",
   "brand_name": "",
-  "version": "1.5",
+  "version": "1.6",
   "_documentation": {
     "accent_color": "Primary brand color used for buttons, highlights, and focus states",
     "accent_color_light": "Lighter variant of accent color for hover states",

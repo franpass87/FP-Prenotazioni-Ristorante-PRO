@@ -1,7 +1,9 @@
 # FP-Prenotazioni-Ristorante-PRO
 
-**Version:** 1.5
+**Version:** 1.6  
 **Author:** Francesco Passeri  
+**Website:** [francescopasseri.com](https://francescopasseri.com)  
+**Email:** [info@francescopasseri.com](mailto:info@francescopasseri.com)  
 **License:** GPLv2 or later
 
 Sistema completo di prenotazioni per ristoranti con calendario Flatpickr multilingue (IT/EN), gestione capienza per servizio, notifiche email avanzate, integrazione Brevo e tracciamento completo GA4/Meta con attribution intelligence.
@@ -117,10 +119,57 @@ fp-prenotazioni-ristorante-pro/
 
 ### Vantaggi Architettura Modulare
 - ✅ **Organizzazione Migliore**: Funzionalità correlate raggruppate
-- ✅ **Manutenzione Facilitata**: Modifiche isolate ai singoli moduli  
+- ✅ **Manutenzione Facilitata**: Modifiche isolate ai singoli moduli
 - ✅ **Leggibilità Migliorata**: File più piccoli, più facili da navigare
 - ✅ **Separazione delle Responsabilità**: Ogni modulo ha uno scopo specifico
 - ✅ **Testing Semplificato**: Moduli testabili individualmente
+
+## 📚 Documentazione Tecnica Completa
+
+La documentazione ufficiale del plugin è stata allineata alla versione 1.6 ed è curata da Francesco Passeri. Di seguito trovi un indice tematico per orientarti rapidamente tra le guide disponibili.
+
+### Panoramica, Delivery & Branding
+- [IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md) – panoramica dell'architettura modulare e delle funzionalità core completate.
+- [PRODUCTION_READY_CHECKLIST.md](PRODUCTION_READY_CHECKLIST.md) – checklist operativa per il go-live e la manutenzione continuativa.
+- [GITHUB_ACTIONS_WORKFLOWS.md](GITHUB_ACTIONS_WORKFLOWS.md) – pipeline CI/CD per build, test e release automatizzate.
+- [CHANGELOG.md](CHANGELOG.md) – cronologia ufficiale delle versioni con riepilogo delle modifiche principali.
+- [BRAND_CONFIGURATION.md](BRAND_CONFIGURATION.md) – personalizzazione centralizzata di colori e identità visiva multi-brand.
+- [docs/email-failover-system.md](docs/email-failover-system.md) – architettura del sistema di failover email e procedure di test.
+- [docs/BREVO_SEGMENTATION_ENHANCEMENT.md](docs/BREVO_SEGMENTATION_ENHANCEMENT.md) – strategia di segmentazione avanzata per campagne Brevo.
+- [docs/BREVO_SEGMENTATION_EXAMPLES.md](docs/BREVO_SEGMENTATION_EXAMPLES.md) – casi d'uso pratici per attivare automazioni marketing mirate.
+
+### Calendario, Disponibilità e Suggerimenti
+- [CALENDAR_FIX_DOCUMENTATION.md](CALENDAR_FIX_DOCUMENTATION.md) – primo intervento correttivo per ripristinare la selezione delle date.
+- [CALENDAR_FIX_FINAL.md](CALENDAR_FIX_FINAL.md) – rifinitura definitiva del flusso di prenotazione calendario.
+- [CALENDAR_COMPLETE_RENEWAL_SOLUTION.md](CALENDAR_COMPLETE_RENEWAL_SOLUTION.md) – reingegnerizzazione completa del calendario con controlli avanzati.
+- [CALENDAR_DISABLE_FIX_DOCUMENTATION.md](CALENDAR_DISABLE_FIX_DOCUMENTATION.md) – gestione accurata dei giorni disabilitati e delle festività.
+- [CALENDAR_EXCEPTIONS.md](CALENDAR_EXCEPTIONS.md) – configurazione di eccezioni orarie e chiusure straordinarie.
+- [SLOT_DURATION_DOCUMENTATION.md](SLOT_DURATION_DOCUMENTATION.md) – durata dinamica degli slot basata su coperti e servizio.
+- [BUFFER_OVERBOOKING_DOCUMENTATION.md](BUFFER_OVERBOOKING_DOCUMENTATION.md) – buffer intelligenti e limiti di overbooking controllato.
+- [AI_SUGGESTIONS_DOCUMENTATION.md](AI_SUGGESTIONS_DOCUMENTATION.md) – suggerimenti automatici di slot alternativi quando la disponibilità è esaurita.
+
+### Gestione Prenotazioni & Esperienza Utente
+- [CONFIGURAZIONE_PASTI.md](CONFIGURAZIONE_PASTI.md) – creazione e gestione dei servizi di ristorazione (pranzo, cena, ecc.).
+- [GESTIONE_TAVOLI_DOCUMENTAZIONE.md](GESTIONE_TAVOLI_DOCUMENTAZIONE.md) – gestione intelligente delle aree e dei tavoli con join automatizzato.
+- [WEEKLY_STAFF_VIEW_DOCUMENTAZIONE.md](WEEKLY_STAFF_VIEW_DOCUMENTAZIONE.md) – pianificazione settimanale dello staff e controllo capacità.
+- [AUTOSAVE_DOCUMENTATION.md](AUTOSAVE_DOCUMENTATION.md) – salvataggio automatico delle configurazioni durante l'editing.
+- [CONFIRMATION_MODAL_DOCUMENTATION.md](CONFIRMATION_MODAL_DOCUMENTATION.md) – riepilogo prenotazione con conferma modale lato utente.
+- [SPECIAL_OCCASION_BOOKING_DOCUMENTATION.md](SPECIAL_OCCASION_BOOKING_DOCUMENTATION.md) – gestione completa delle occasioni speciali con logiche dedicate.
+- [GIORNATE_SPECIALI_DOCUMENTAZIONE.md](GIORNATE_SPECIALI_DOCUMENTAZIONE.md) – personalizzazioni tematiche e contenuti dinamici per giornate evento.
+- [ACCESSIBILITY_DOCUMENTATION.md](ACCESSIBILITY_DOCUMENTATION.md) – linee guida WCAG applicate al form di prenotazione.
+- [SKELETON_LOADING_DOCS.md](SKELETON_LOADING_DOCS.md) – skeleton states e lazy hydration per prestazioni percepite.
+- [TOOLTIP_DOCUMENTATION.md](TOOLTIP_DOCUMENTATION.md) – linee guida UX per tooltip contestuali e aiuti inline.
+- [ANCHOR_FIX_SUMMARY.md](ANCHOR_FIX_SUMMARY.md) – eliminazione dei salti di ancoraggio nelle landing con moduli lunghi.
+
+### Sicurezza, Validazione & Affidabilità
+- [SECURITY_SANITIZATION_DOCUMENTATION.md](SECURITY_SANITIZATION_DOCUMENTATION.md) – hardening, sanitizzazione input e prevenzione CSRF.
+- [ANTI_BOT_DOCUMENTATION.md](ANTI_BOT_DOCUMENTATION.md) – protezioni anti-bot multilivello e honeypot dinamico.
+- [OPTIMISTIC_LOCKING_DOCUMENTATION.md](OPTIMISTIC_LOCKING_DOCUMENTATION.md) – locking ottimistico per prevenire conflitti di concorrenza.
+- [VALIDATION_RULES.md](VALIDATION_RULES.md) – matrice completa di validazione server-side e client-side.
+
+### Marketing, Tracking & Intelligence
+- [GA4_FUNNEL_TRACKING.md](GA4_FUNNEL_TRACKING.md) – implementazione degli eventi GA4 end-to-end per il funnel prenotazioni.
+- [HYBRID_TRACKING_DOCUMENTATION.md](HYBRID_TRACKING_DOCUMENTATION.md) – deduplicazione eventi con setup ibrido GTM + GA4.
 
 ## 📋 Installazione
 
@@ -540,46 +589,29 @@ la configurazione globale di WordPress.
 
 ## 📋 Changelog
 
-### Version 1.5
-- 🎉 **Release Finale**: Versione stabile e completa con tutte le funzionalità implementate
-- ✅ **Production Ready**: Sistema completamente testato e ottimizzato per ambienti di produzione
-- 🏆 **Feature Complete**: Architettura modulare avanzata con tracking marketing completo
-- 📚 **Documentazione Completa**: Guide utente e documentazione tecnica aggiornate
-- 🔒 **Sicurezza Avanzata**: Hardening completo con CSRF protection e input sanitization
-- 🚀 **Performance Ottimizzate**: Asset loading condizionale e sistema di cache migliorato
+La cronologia completa delle modifiche è disponibile in [CHANGELOG.md](CHANGELOG.md). Di seguito un estratto delle tappe principali:
 
-### Version 10.0.2
-- 🔧 **Semplificazione Sistema**: Rimossi tutti i limiti configurabili dalle impostazioni
-- ⚡ **Nuovo Sistema**: Implementato limite fisso di 1 ora (se sono le 12:00, prenotabile dalle 13:00)
-- 🎯 **UX Migliorata**: Sistema più intuitivo e user-friendly per i clienti
-- 📚 **Documentazione**: Aggiornate guide utente con nuove funzionalità
+### Version 1.6 – Documentazione Consolidata
+- 📚 Documentazione centralizzata con indice tematico e contatti aggiornati per supporto diretto.
+- 🆕 Introduzione del file `CHANGELOG.md` e allineamento dei metadati di versione del plugin e del brand JSON.
 
-### Version 10.0.1
-- 🐛 Fix: Availability check returning no time slots when new settings were missing.
+### Version 1.5 – Release Finale
+- 🏆 Versione stabile con tutte le funzionalità core completate e testate per ambienti di produzione.
+- 🔒 Hardening di sicurezza, ottimizzazione performance e documentazione tecnica completa per deployment enterprise.
 
-### Version 10.0.0
-**🏗️ Architettura Completamente Refactorizzata**
-- ✅ **Modularizzazione Completa**: Suddivisione in 9 moduli specializzati (4430+ linee totali)
-- ✅ **UTM Validation**: `RBF_UTM_Validator` con security hardening
-- ✅ **Meta CAPI Integration**: Server-side tracking per iOS 14.5+ compliance
-- ✅ **Enhanced Frontend**: Form multi-step con accessibility ARIA completo
-- ✅ **Mobile Optimization**: Touch-friendly con responsive design avanzato
+### Version 1.5-rc2 (tag 10.0.2) – Stabilizzazione Calendario
+- ⚙️ Semplificazione delle impostazioni con limite fisso di anticipo e UX più intuitiva per la scelta slot.
+- 📘 Aggiornamento della documentazione sulle novità del calendario e delle eccezioni.
 
-**🔧 Miglioramenti Tecnici**
-- 🛡️ Security hardening: CSRF protection, input sanitization
-- ⚡ Conditional asset loading per performance ottimizzata
-- 📱 International telephone input con country detection
+### Version 1.5-rc1 (tag 10.0.1) – Hotfix Disponibilità
+- 🐛 Risolto bug critico che restituiva nessuno slot disponibile in assenza di nuove impostazioni.
 
-**🎯 Marketing Intelligence**
-- 🔍 Sophisticated source detection e bucket standardization
-- 📈 Cross-platform attribution unificata (gads/fbads/organic)
-- 📊 Real-time conversion tracking con GA4 Enhanced Ecommerce
-- 🎨 Template email responsive con automazione Brevo
+### Version 1.5-rc0 (tag 10.0.0) – Refactor Architetturale
+- 🧱 Riorganizzazione completa in moduli specializzati con validazione UTM avanzata e tracciamenti marketing integrati.
+- 📱 Miglioramenti frontend: multi-step accessibile, ottimizzazione mobile e template email responsive.
 
-### Version 2.5 (Legacy)
-- Struttura monolitica (1162+ linee)
-- Debug logging basic con WP_DEBUG
-- Marketing tracking semplificato
+### Version 2.5 (Legacy Monolitica)
+- 🧩 Versione storica prima del refactor, con codice monolitico e tracking marketing semplificato.
 
 ## 🔄 Aggiornamento intl-tel-input
 
@@ -595,7 +627,9 @@ Quando aggiorni la libreria `intl-tel-input`, assicurati che anche la copia loca
 
 ## 📞 Supporto
 
-Per supporto tecnico e sviluppi personalizzati, contattare Francesco Passeri.
+Per supporto tecnico e sviluppi personalizzati contatta **Francesco Passeri**:
+- 🌐 <https://francescopasseri.com>
+- ✉️ [info@francescopasseri.com](mailto:info@francescopasseri.com)
 
 ---
 

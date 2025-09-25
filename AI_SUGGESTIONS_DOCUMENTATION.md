@@ -290,6 +290,9 @@ tail -f /path/to/wp-content/debug.log | grep "RBF"
 
 ## Changelog
 
+### Version 1.6 (Documentation Refresh)
+- 📝 Verifica completa della documentazione per l'allineamento alla release 1.6 (nessuna modifica funzionale necessaria).
+
 ### Version 1.5 (Initial Implementation)
 - ✅ Rule-based suggestion algorithm
 - ✅ Same-day alternative suggestions
@@ -309,4 +312,4 @@ For technical support or custom development:
 - Review plugin logs for detailed error information
 - Check WordPress admin test interface
 - Consult this documentation for API reference
-- Contact plugin developer for advanced customization needs
+- Contact Francesco Passeri via [info@francescopasseri.com](mailto:info@francescopasseri.com) or <https://francescopasseri.com>

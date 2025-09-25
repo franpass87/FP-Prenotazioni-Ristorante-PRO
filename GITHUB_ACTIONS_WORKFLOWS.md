@@ -39,7 +39,7 @@ Questo repository include un sistema automatico di build e release per il plugin
 ### 3. Release (`release.yml`)
 
 **Trigger:**
-- Push di tag che iniziano con `v` (es: `v1.5`, `v2.0`)
+- Push di tag che iniziano con `v` (es: `v1.6`, `v2.0`)
 
 **Funzionalità:**
 - ✅ Creazione release GitHub automatica
@@ -87,7 +87,7 @@ Questo repository include un sistema automatico di build e release per il plugin
 ## 📁 Struttura del Plugin Generato
 
 ```
-fp-prenotazioni-ristorante-pro-v1.5/
+fp-prenotazioni-ristorante-pro-v1.6/
 ├── fp-prenotazioni-ristorante-pro.php    # File principale
 ├── readme.txt                            # WordPress repository format
 ├── README.md                             # Documentazione completa
