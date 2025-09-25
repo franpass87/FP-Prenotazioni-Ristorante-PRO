@@ -47,7 +47,7 @@ function rbf_enqueue_frontend_assets() {
         }, 1);
     }
 
-    $use_cdn_assets = apply_filters('rbf_use_cdn_assets', false);
+    $use_cdn_assets = apply_filters('rbf_use_cdn_assets', false, 'frontend');
 
     $flatpickr_version = '4.6.13';
     $flatpickr_cdn_base = 'https://cdn.jsdelivr.net/npm/flatpickr@' . $flatpickr_version . '/dist/';

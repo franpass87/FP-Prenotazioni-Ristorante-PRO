@@ -172,6 +172,89 @@ function rbf_create_bookings_menu() {
 }
 
 /**
+ * Register and enqueue FullCalendar assets with local fallbacks.
+ */
+function rbf_enqueue_fullcalendar_assets() {
+    $version    = '5.11.3';
+    $local_js   = rbf_get_asset_url('vendor/fullcalendar/main.min.js');
+    $local_css  = rbf_get_asset_url('vendor/fullcalendar/main.min.css');
+    $use_cdn    = apply_filters('rbf_use_cdn_assets', false, 'admin');
+    $mode       = $use_cdn ? 'cdn' : 'local';
+
+    static $registered_mode = null;
+
+    if ($registered_mode !== $mode) {
+        if (function_exists('wp_deregister_script')) {
+            wp_deregister_script('fullcalendar-js');
+        }
+        if (function_exists('wp_deregister_style')) {
+            wp_deregister_style('fullcalendar-css');
+        }
+
+        if ($use_cdn) {
+            $cdn_base = 'https://cdn.jsdelivr.net/npm/fullcalendar@' . $version . '/main.min';
+
+            wp_register_style('fullcalendar-css', $cdn_base . '.css', [], $version);
+            wp_register_script('fullcalendar-js', $cdn_base . '.js', ['jquery'], $version, true);
+
+            $fallback_helper = <<<'JS'
+(function(){
+    if (window.rbfEnsureAssetFallback) {
+        return;
+    }
+    window.rbfEnsureAssetFallback = function(type, url) {
+        if (!url) {
+            return;
+        }
+        if (type === 'script') {
+            if (document.querySelector('script[data-rbf-fallback="' + url + '"]')) {
+                return;
+            }
+            var script = document.createElement('script');
+            script.src = url;
+            script.defer = true;
+            script.dataset.rbfFallback = url;
+            document.head.appendChild(script);
+        } else if (type === 'style') {
+            if (document.querySelector('link[data-rbf-fallback="' + url + '"]')) {
+                return;
+            }
+            var link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = url;
+            link.dataset.rbfFallback = url;
+            document.head.appendChild(link);
+        }
+    };
+})();
+JS;
+            wp_add_inline_script('fullcalendar-js', $fallback_helper, 'before');
+
+            $css_fallback = sprintf(
+                '(function(){var fallbackUrl=%1$s;var primaryUrl=%2$s;if(!fallbackUrl||!primaryUrl||!window.rbfEnsureAssetFallback){return;}var link=null;var styles=document.querySelectorAll(\'link[rel="stylesheet"]\');for(var i=0;i<styles.length;i++){var href=styles[i].getAttribute("href")||"";if(!href){continue;}if(href===primaryUrl||href.indexOf("fullcalendar")!==-1){link=styles[i];break;}}var loadFallback=function(){window.rbfEnsureAssetFallback("style",fallbackUrl);};if(!link){loadFallback();return;}var triggered=false;var once=function(){if(triggered){return;}triggered=true;loadFallback();};link.addEventListener("error",once);setTimeout(function(){try{if(!link.sheet||!link.sheet.cssRules||!link.sheet.cssRules.length){once();}}catch(e){var hasSheet=false;var sheets=document.styleSheets||[];for(var j=0;j<sheets.length;j++){var sheetHref=sheets[j].href||"";if(sheetHref&&sheetHref.indexOf("fullcalendar")!==-1){hasSheet=true;break;}}if(!hasSheet){once();}}},3000);})();',
+                wp_json_encode($local_css),
+                wp_json_encode($cdn_base . '.css')
+            );
+            wp_add_inline_script('fullcalendar-js', $css_fallback, 'after');
+
+            $js_fallback = sprintf(
+                'if (typeof window.FullCalendar === "undefined" || typeof window.FullCalendar.Calendar === "undefined") { if (window.rbfEnsureAssetFallback) { window.rbfEnsureAssetFallback("script", %s); } }',
+                wp_json_encode($local_js)
+            );
+            wp_add_inline_script('fullcalendar-js', $js_fallback, 'after');
+        } else {
+            wp_register_style('fullcalendar-css', $local_css, [], $version);
+            wp_register_script('fullcalendar-js', $local_js, ['jquery'], $version, true);
+        }
+
+        $registered_mode = $mode;
+    }
+
+    wp_enqueue_style('fullcalendar-css');
+    wp_enqueue_script('fullcalendar-js');
+}
+
+/**
  * Customize booking list columns
  */
 add_filter('manage_rbf_booking_posts_columns', 'rbf_set_custom_columns');
@@ -1246,10 +1329,9 @@ function rbf_calendar_page_html() {
         return;
     }
 
-    wp_enqueue_style('fullcalendar-css', 'https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css', [], '5.11.3');
-    wp_enqueue_script('fullcalendar-js', 'https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js', ['jquery'], '5.11.3', true);
+    rbf_enqueue_fullcalendar_assets();
     wp_enqueue_script('rbf-admin-js', plugin_dir_url(dirname(__FILE__)) . 'assets/js/admin.js', ['jquery', 'fullcalendar-js'], rbf_get_asset_version(), true);
-    
+
     wp_localize_script('rbf-admin-js', 'rbfAdminData', [
         'ajaxUrl' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('rbf_calendar_nonce'),
@@ -1272,10 +1354,9 @@ function rbf_weekly_staff_page_html() {
         return;
     }
 
-    wp_enqueue_style('fullcalendar-css', 'https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css', [], '5.11.3');
-    wp_enqueue_script('fullcalendar-js', 'https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js', ['jquery'], '5.11.3', true);
+    rbf_enqueue_fullcalendar_assets();
     wp_enqueue_script('rbf-weekly-staff-js', plugin_dir_url(dirname(__FILE__)) . 'assets/js/weekly-staff.js', ['jquery', 'fullcalendar-js'], rbf_get_asset_version(), true);
-    
+
     wp_localize_script('rbf-weekly-staff-js', 'rbfWeeklyStaffData', [
         'ajaxUrl' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('rbf_weekly_staff_nonce'),
