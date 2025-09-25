@@ -1009,15 +1009,15 @@ function rbf_settings_page_html() {
         <form method="post" action="options.php" class="rbf-settings-form">
             <?php settings_fields('rbf_opts_group'); ?>
             <div class="rbf-settings-tabs-wrapper">
-                <h2 class="nav-tab-wrapper" role="tablist">
-                    <a href="#rbf-tab-branding" class="nav-tab nav-tab-active" data-tab-target="branding" role="tab" aria-selected="true" aria-controls="rbf-tab-branding" id="rbf-tab-link-branding"><?php echo esc_html(rbf_translate_string('Brand & Conferma')); ?></a>
-                    <a href="#rbf-tab-availability" class="nav-tab" data-tab-target="availability" role="tab" aria-selected="false" aria-controls="rbf-tab-availability" id="rbf-tab-link-availability"><?php echo esc_html(rbf_translate_string('Disponibilità & Pasti')); ?></a>
-                    <a href="#rbf-tab-calendar" class="nav-tab" data-tab-target="calendar" role="tab" aria-selected="false" aria-controls="rbf-tab-calendar" id="rbf-tab-link-calendar"><?php echo esc_html(rbf_translate_string('Calendario & Eccezioni')); ?></a>
-                    <a href="#rbf-tab-integrations" class="nav-tab" data-tab-target="integrations" role="tab" aria-selected="false" aria-controls="rbf-tab-integrations" id="rbf-tab-link-integrations"><?php echo esc_html(rbf_translate_string('Integrazioni & Sicurezza')); ?></a>
+                <h2 class="nav-tab-wrapper rbf-admin-tabs" role="tablist">
+                    <a href="#rbf-tab-branding" class="nav-tab nav-tab-active rbf-tab-link" data-tab-target="branding" role="tab" aria-selected="true" aria-controls="rbf-tab-branding" id="rbf-tab-link-branding"><?php echo esc_html(rbf_translate_string('Brand & Conferma')); ?></a>
+                    <a href="#rbf-tab-availability" class="nav-tab rbf-tab-link" data-tab-target="availability" role="tab" aria-selected="false" aria-controls="rbf-tab-availability" id="rbf-tab-link-availability"><?php echo esc_html(rbf_translate_string('Disponibilità & Pasti')); ?></a>
+                    <a href="#rbf-tab-calendar" class="nav-tab rbf-tab-link" data-tab-target="calendar" role="tab" aria-selected="false" aria-controls="rbf-tab-calendar" id="rbf-tab-link-calendar"><?php echo esc_html(rbf_translate_string('Calendario & Eccezioni')); ?></a>
+                    <a href="#rbf-tab-integrations" class="nav-tab rbf-tab-link" data-tab-target="integrations" role="tab" aria-selected="false" aria-controls="rbf-tab-integrations" id="rbf-tab-link-integrations"><?php echo esc_html(rbf_translate_string('Integrazioni & Sicurezza')); ?></a>
                 </h2>
             </div>
 
-            <div class="rbf-settings-tab-panel is-active" id="rbf-tab-branding" data-tab="branding" role="tabpanel" aria-labelledby="rbf-tab-link-branding">
+            <div class="rbf-settings-tab-panel rbf-tab-panel is-active" id="rbf-tab-branding" data-tab-panel="branding" role="tabpanel" aria-labelledby="rbf-tab-link-branding">
                 <table class="form-table" role="presentation">
                     <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Configurazione Brand e Colori')); ?></h2></th></tr>
                     <tr>
@@ -1080,7 +1080,7 @@ function rbf_settings_page_html() {
                 </table>
             </div>
 
-            <div class="rbf-settings-tab-panel" id="rbf-tab-availability" data-tab="availability" role="tabpanel" aria-labelledby="rbf-tab-link-availability">
+            <div class="rbf-settings-tab-panel rbf-tab-panel" id="rbf-tab-availability" data-tab-panel="availability" role="tabpanel" aria-labelledby="rbf-tab-link-availability">
                 <table class="form-table" role="presentation">
                     <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Disponibilità Settimanale')); ?></h2></th></tr>
                     <tr>
@@ -1141,7 +1141,7 @@ function rbf_settings_page_html() {
                 </table>
             </div>
 
-            <div class="rbf-settings-tab-panel" id="rbf-tab-calendar" data-tab="calendar" role="tabpanel" aria-labelledby="rbf-tab-link-calendar">
+            <div class="rbf-settings-tab-panel rbf-tab-panel" id="rbf-tab-calendar" data-tab-panel="calendar" role="tabpanel" aria-labelledby="rbf-tab-link-calendar">
                 <table class="form-table" role="presentation">
                     <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Eccezioni Calendario')); ?></h2></th></tr>
                     <tr>
@@ -1195,7 +1195,7 @@ function rbf_settings_page_html() {
                 </table>
             </div>
 
-            <div class="rbf-settings-tab-panel" id="rbf-tab-integrations" data-tab="integrations" role="tabpanel" aria-labelledby="rbf-tab-link-integrations">
+            <div class="rbf-settings-tab-panel rbf-tab-panel" id="rbf-tab-integrations" data-tab-panel="integrations" role="tabpanel" aria-labelledby="rbf-tab-link-integrations">
                 <table class="form-table" role="presentation">
                     <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Integrazioni e Marketing')); ?></h2></th></tr>
                     <tr>
