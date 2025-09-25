@@ -694,7 +694,12 @@ function rbf_enqueue_admin_styles($hook) {
         return;
     }
 
-    wp_enqueue_style('rbf-admin-css', plugin_dir_url(dirname(__FILE__)) . 'assets/css/admin.css', [], rbf_get_asset_version());
+    wp_enqueue_style(
+        'rbf-admin-css',
+        plugin_dir_url(dirname(__FILE__)) . 'assets/css/admin.css',
+        [],
+        rbf_get_asset_version('css/admin.css')
+    );
     
     // Enqueue WordPress color picker for settings page
     if ($hook === 'prenotazioni_page_rbf_settings') {
@@ -1345,7 +1350,13 @@ function rbf_calendar_page_html() {
     }
 
     rbf_enqueue_fullcalendar_assets();
-    wp_enqueue_script('rbf-admin-js', plugin_dir_url(dirname(__FILE__)) . 'assets/js/admin.js', ['jquery', 'fullcalendar-js'], rbf_get_asset_version(), true);
+    wp_enqueue_script(
+        'rbf-admin-js',
+        plugin_dir_url(dirname(__FILE__)) . 'assets/js/admin.js',
+        ['jquery', 'fullcalendar-js'],
+        rbf_get_asset_version('js/admin.js'),
+        true
+    );
 
     wp_localize_script('rbf-admin-js', 'rbfAdminData', [
         'ajaxUrl' => admin_url('admin-ajax.php'),
@@ -1370,7 +1381,13 @@ function rbf_weekly_staff_page_html() {
     }
 
     rbf_enqueue_fullcalendar_assets();
-    wp_enqueue_script('rbf-weekly-staff-js', plugin_dir_url(dirname(__FILE__)) . 'assets/js/weekly-staff.js', ['jquery', 'fullcalendar-js'], rbf_get_asset_version(), true);
+    wp_enqueue_script(
+        'rbf-weekly-staff-js',
+        plugin_dir_url(dirname(__FILE__)) . 'assets/js/weekly-staff.js',
+        ['jquery', 'fullcalendar-js'],
+        rbf_get_asset_version('js/weekly-staff.js'),
+        true
+    );
 
     wp_localize_script('rbf-weekly-staff-js', 'rbfWeeklyStaffData', [
         'ajaxUrl' => admin_url('admin-ajax.php'),

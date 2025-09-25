@@ -3,6 +3,10 @@
 Tutte le modifiche significative di **FP Prenotazioni Ristorante PRO** vengono documentate in questo file.
 Il formato segue l'approccio *Keep a Changelog* ed è coerente con la numerazione semantica introdotta dalla versione 1.x.
 
+## [1.6.2] – Versionamento Automatico Asset (2024)
+### Fixed
+- Calcolo della versione degli asset basato sull'ultima modifica del file per propagare immediatamente gli aggiornamenti senza dover incrementare manualmente la release.
+
 ## [1.6.1] – Aggiornamento Asset (2024)
 ### Fixed
 - Incrementata la versione del plugin per forzare l'aggiornamento degli asset admin e rendere visibili le ultime ottimizzazioni grafiche e del filtro analytics.

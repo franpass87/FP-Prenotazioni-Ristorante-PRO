@@ -1996,13 +1996,26 @@ function rbf_get_manual_booking_success_url($booking_id, $tracking_token, $base_
 }
 
 /**
- * Centralized asset version helper for cache-busting
- * Returns base version with optional timestamp when debugging
+ * Retrieve a cache-busting version string for plugin assets.
+ *
+ * @param string $relative_path Optional asset path relative to the plugin's assets directory.
+ * @return string Version string combining plugin version and optional file modification timestamp.
  */
-function rbf_get_asset_version() {
+function rbf_get_asset_version($relative_path = '') {
     if (defined('SCRIPT_DEBUG') && SCRIPT_DEBUG) {
         return RBF_VERSION . '.' . time();
     }
+
+    if (is_string($relative_path) && $relative_path !== '') {
+        $asset_path = rbf_get_asset_path($relative_path);
+        if ($asset_path !== '' && file_exists($asset_path)) {
+            $modified_time = filemtime($asset_path);
+            if ($modified_time !== false) {
+                return RBF_VERSION . '.' . $modified_time;
+            }
+        }
+    }
+
     return RBF_VERSION;
 }
 
