@@ -45,6 +45,214 @@
     background: linear-gradient(135deg, var(--rbf-admin-primary) 0%, var(--rbf-admin-secondary) 100%);
 }
 
+.rbf-admin-card {
+    background: #ffffff;
+    border-radius: var(--rbf-admin-radius);
+    border: 1px solid var(--rbf-admin-border);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+.rbf-admin-card h2,
+.rbf-admin-card h3 {
+    margin-top: 0;
+    color: var(--rbf-admin-text);
+    font-weight: 600;
+}
+
+.rbf-admin-grid {
+    display: grid;
+    gap: 20px;
+}
+
+.rbf-admin-grid--cols-2 {
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.rbf-admin-form {
+    display: grid;
+    gap: 16px;
+}
+
+.rbf-form-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
+
+.rbf-form-row label {
+    font-weight: 500;
+    color: #1f2937;
+}
+
+.rbf-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+
+.rbf-form-actions .button {
+    height: auto;
+}
+
+.rbf-admin-fieldset {
+    border: 1px solid var(--rbf-admin-border);
+    border-radius: var(--rbf-admin-radius);
+    padding: 16px 18px;
+    background: rgba(255, 255, 255, 0.92);
+}
+
+.rbf-admin-fieldset legend {
+    font-weight: 600;
+    color: var(--rbf-admin-text);
+    padding: 0 8px;
+}
+
+.rbf-chip-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.rbf-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff;
+    border: 1px solid #d1d5db;
+    border-radius: 999px;
+    padding: 6px 12px;
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+    transition: var(--rbf-admin-transition);
+}
+
+.rbf-chip:hover {
+    transform: translateY(-1px);
+}
+
+.rbf-chip input[type="checkbox"] {
+    margin: 0;
+}
+
+.rbf-chip__label {
+    font-weight: 500;
+    color: #111827;
+}
+
+.rbf-chip__badge {
+    color: #6b7280;
+    font-size: 12px;
+}
+
+.rbf-analytics-active-filters {
+    margin: 0;
+    font-size: 13px;
+    color: #4b5563;
+}
+
+.rbf-analytics-metrics {
+    display: grid;
+    gap: 16px;
+}
+
+@media (min-width: 768px) {
+    .rbf-analytics-metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1024px) {
+    .rbf-analytics-metrics {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+.rbf-analytics-metric {
+    --metric-accent: var(--rbf-admin-primary);
+    background: linear-gradient(135deg, rgba(34, 113, 177, 0.08), rgba(15, 23, 42, 0.04));
+    border-radius: var(--rbf-admin-radius);
+    border: 1px solid rgba(34, 113, 177, 0.18);
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+.rbf-analytics-metric::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at top right, rgba(34, 113, 177, 0.18), transparent 55%);
+    pointer-events: none;
+}
+
+.rbf-analytics-metric__label {
+    font-size: 13px;
+    color: #4b5563;
+    margin: 0 0 8px;
+}
+
+.rbf-analytics-metric__value {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--metric-accent);
+    margin: 0;
+}
+
+.rbf-analytics-metric__subtitle {
+    margin: 6px 0 0;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.rbf-analytics-metric--bookings {
+    --metric-accent: #10b981;
+}
+
+.rbf-analytics-metric--people {
+    --metric-accent: #3b82f6;
+}
+
+.rbf-analytics-metric--revenue {
+    --metric-accent: #f59e0b;
+}
+
+.rbf-analytics-metric--completion {
+    --metric-accent: #8b5cf6;
+}
+
+.rbf-analytics-charts {
+    margin-top: 8px;
+}
+
+.rbf-analytics-chart-card {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.rbf-analytics-chart-card canvas {
+    max-width: 100%;
+}
+
+.rbf-table-wrapper {
+    overflow-x: auto;
+    margin-top: 12px;
+}
+
+.rbf-analytics-table table {
+    margin-top: 0;
+}
+
+.rbf-empty-state {
+    margin: 0;
+    font-size: 14px;
+    color: #4b5563;
+}
+
 .rbf-admin-wrap .rbf-settings-tabs-wrapper {
     margin-bottom: 24px;
 }
