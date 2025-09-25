@@ -3,10 +3,15 @@
  * Plugin Name: FP Prenotazioni Ristorante
  * Description: Prenotazioni con calendario Flatpickr IT/EN, gestione capienza per servizio, notifiche email (con CC), Brevo sempre e GA4/Meta (bucket standard), con supporto ai limiti temporali minimi.
  * Version:     1.6
+ * Requires at least: 6.0
+ * Tested up to: 6.5
+ * Requires PHP: 7.4
  * Author:      Francesco Passeri
  * Author URI:  https://francescopasseri.com
  * Plugin URI:  https://francescopasseri.com/progetti/fp-prenotazioni-ristorante-pro
+ * Update URI:  https://francescopasseri.com/progetti/fp-prenotazioni-ristorante-pro
  * Text Domain: rbf
+ * Domain Path: /languages
  * License:     GPLv2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  */
