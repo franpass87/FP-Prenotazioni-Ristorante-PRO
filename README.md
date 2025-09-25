@@ -148,6 +148,32 @@ git clone https://github.com/franpass87/FP-Prenotazioni-Ristorante-PRO.git
 
 > 📚 **Documentazione Build**: Vedi [GITHUB_ACTIONS_WORKFLOWS.md](GITHUB_ACTIONS_WORKFLOWS.md) per dettagli sui workflows automatici
 
+## 🧰 Comandi WP-CLI
+
+Il plugin fornisce diversi comandi WP-CLI per gestire rapidamente l'ambiente di produzione:
+
+```bash
+# Verifica dei requisiti minimi
+wp rbf check-environment
+
+# Controllo/riparazione schema database prenotazioni
+wp rbf verify-schema
+
+# Svuotamento cache/transient del plugin
+wp rbf clear-cache
+
+# Ripianificazione del cron di aggiornamento prenotazioni
+wp rbf reschedule-cron
+
+# Pulizia log email più vecchi della retention configurata
+wp rbf purge-email-logs [--days=<giorni>]
+
+# Invio email di test tramite sistema di failover
+wp rbf test-email [--email=destinatario] [--force]
+```
+
+Questi strumenti permettono di validare rapidamente la configurazione (cron, schema DB, notifiche) prima del go-live.
+
 ## ⚙️ Configurazione
 
 > ⚠️ **Importante / Important:** dopo l'installazione non sono presenti pasti preconfigurati. Vai in **Prenotazioni → Impostazioni → Configurazione Pasti** e crea manualmente i servizi (es. Pranzo, Cena, Aperitivo) prima di utilizzare il modulo di prenotazione: il form frontend mostrerà le opzioni solo dopo aver salvato almeno un pasto attivo.

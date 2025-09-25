@@ -209,6 +209,108 @@ class RBF_WPCLI_Command extends WP_CLI_Command {
             WP_CLI::log('Non sono stati trovati log più vecchi del limite specificato.');
         }
     }
+
+    /**
+     * Invia un'email di test utilizzando il sistema di failover.
+     *
+     * Permette di validare la configurazione delle notifiche senza dover
+     * simulare manualmente una prenotazione dal frontend.
+     *
+     * ## OPTIONS
+     *
+     * [--email=<email>]
+     * : Sovrascrive il destinatario predefinito configurato nelle impostazioni.
+     *
+     * [--force]
+     * : Salta la richiesta di conferma interattiva.
+     *
+     * ## EXAMPLES
+     *
+     *     wp rbf test-email
+     *     wp rbf test-email --email=demo@example.com --force
+     *
+     * @param array $args       Argomenti posizionali (non utilizzati).
+     * @param array $assoc_args Argomenti associativi.
+     * @return void
+     */
+    public function test_email($args, $assoc_args) {
+        if (!function_exists('rbf_send_admin_notification_with_failover')) {
+            WP_CLI::error('Il sistema di notifiche non è disponibile nel contesto corrente.');
+        }
+
+        if (!function_exists('rbf_get_settings')) {
+            WP_CLI::error('Impossibile leggere le impostazioni del plugin.');
+        }
+
+        $settings = (array) rbf_get_settings();
+
+        $default_email = '';
+        if (!empty($settings['notification_email'])) {
+            $default_email = (string) $settings['notification_email'];
+        } elseif (!empty($settings['webmaster_email'])) {
+            $default_email = (string) $settings['webmaster_email'];
+        }
+
+        $target_email = isset($assoc_args['email']) ? sanitize_email($assoc_args['email']) : sanitize_email($default_email);
+
+        if ($target_email === '') {
+            WP_CLI::error('Nessun indirizzo email valido configurato. Specifica un destinatario tramite --email.');
+        }
+
+        $force = \WP_CLI\Utils\get_flag_value($assoc_args, 'force', false);
+        if (!$force) {
+            WP_CLI::confirm(sprintf('Inviare un\'email di test a %s?', $target_email));
+        }
+
+        $timestamp = current_time('timestamp');
+        $date = gmdate('Y-m-d', $timestamp);
+        $time = gmdate('H:i', $timestamp);
+
+        $result = rbf_send_admin_notification_with_failover(
+            'Test',
+            'CLI',
+            $target_email,
+            $date,
+            $time,
+            2,
+            'Email di test generata tramite WP-CLI.',
+            '+390000000000',
+            'Cena',
+            'it',
+            'it'
+        );
+
+        if (empty($result) || empty($result['success'])) {
+            $error_parts = [];
+            if (!empty($result['error'])) {
+                $error_parts[] = $result['error'];
+            }
+            if (!empty($result['brevo_error'])) {
+                $error_parts[] = 'Brevo: ' . $result['brevo_error'];
+            }
+            if (!empty($result['fallback_error'])) {
+                $error_parts[] = 'Fallback: ' . $result['fallback_error'];
+            }
+
+            $error_message = !empty($error_parts)
+                ? implode(' | ', array_map('sanitize_text_field', $error_parts))
+                : 'Invio email fallito per un motivo sconosciuto.';
+
+            WP_CLI::error($error_message);
+        }
+
+        $provider = isset($result['provider']) ? $result['provider'] : 'sconosciuto';
+
+        if (!empty($result['brevo_error']) && $provider !== 'brevo') {
+            WP_CLI::warning(sprintf('Brevo non disponibile: %s', sanitize_text_field($result['brevo_error'])));
+        }
+
+        WP_CLI::success(sprintf('Email di test inviata correttamente utilizzando il provider: %s.', $provider));
+
+        if (!empty($result['log_id'])) {
+            WP_CLI::log(sprintf('ID log notifica: %d', (int) $result['log_id']));
+        }
+    }
 }
 
 WP_CLI::add_command('rbf', 'RBF_WPCLI_Command');
