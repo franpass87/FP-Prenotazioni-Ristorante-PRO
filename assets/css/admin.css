@@ -397,6 +397,173 @@ body.rbf-admin-screen #wpbody-content {
     color: #4b5563;
 }
 
+.rbf-empty-state--inline {
+    text-align: center;
+    padding: 12px 0;
+    font-style: italic;
+}
+
+.rbf-admin-intro {
+    margin-top: -8px;
+    margin-bottom: 28px;
+    color: rgba(15, 23, 42, 0.7);
+    font-size: 15px;
+}
+
+.rbf-tab-panel {
+    display: none;
+    animation: fadeIn 0.2s ease;
+}
+
+.rbf-tab-panel.is-active {
+    display: block;
+}
+
+.rbf-admin-tabs {
+    margin-bottom: 24px;
+}
+
+.rbf-data-table th,
+.rbf-data-table td {
+    vertical-align: middle;
+}
+
+.rbf-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.01em;
+}
+
+.rbf-status-pill::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.rbf-status-pill--success {
+    background: rgba(16, 185, 129, 0.12);
+    color: #059669;
+}
+
+.rbf-status-pill--muted {
+    background: rgba(107, 114, 128, 0.12);
+    color: #4b5563;
+}
+
+.rbf-card-collection {
+    min-height: 80px;
+    border: 1px dashed var(--rbf-admin-border);
+    border-radius: var(--rbf-admin-radius);
+    padding: 16px;
+    background: rgba(255, 255, 255, 0.8);
+}
+
+.rbf-checkbox-grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+
+.rbf-checkbox-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(34, 113, 177, 0.15);
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.rbf-checkbox-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+}
+
+.rbf-checkbox-card input[type="checkbox"] {
+    margin-top: 4px;
+}
+
+.rbf-checkbox-card__content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.rbf-checkbox-card__title {
+    font-weight: 600;
+    color: var(--rbf-admin-text);
+}
+
+.rbf-checkbox-card__meta {
+    font-size: 12px;
+    color: #4b5563;
+}
+
+.rbf-admin-metrics {
+    margin-bottom: 24px;
+}
+
+.rbf-admin-grid--cols-4 {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.rbf-metric-card {
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(34, 113, 177, 0.15);
+    border-radius: 16px;
+    padding: 18px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+    text-align: center;
+}
+
+.rbf-metric-card__label {
+    margin: 0;
+    font-size: 13px;
+    color: #4b5563;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+.rbf-metric-card__value {
+    margin: 6px 0 0 0;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--rbf-admin-primary);
+}
+
+.rbf-admin-card--soft {
+    background: linear-gradient(135deg, rgba(34, 113, 177, 0.08), rgba(248, 181, 0, 0.06));
+}
+
+.rbf-info-bubble {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 14px;
+    padding: 18px 20px;
+    border: 1px solid rgba(34, 113, 177, 0.12);
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+}
+
+.rbf-info-bubble h3 {
+    margin-top: 0;
+    font-size: 16px;
+    color: var(--rbf-admin-primary);
+}
+
+.rbf-info-bubble p {
+    margin-bottom: 0;
+    color: rgba(15, 23, 42, 0.75);
+}
+
 .rbf-admin-wrap .rbf-settings-tabs-wrapper {
     margin-bottom: 24px;
 }
