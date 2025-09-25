@@ -467,7 +467,8 @@ function rbf_sanitize_settings_callback($input) {
         'border_radius' => 'text', 'google_ads_conversion_id' => 'text', 'google_ads_conversion_label' => 'text',
         
         // Email fields  
-        'notification_email' => 'email', 'webmaster_email' => 'email'
+        'notification_email' => 'email', 'webmaster_email' => 'email',
+        'booking_change_email' => 'email', 'booking_change_phone' => 'phone'
     ];
     
     // Bulk sanitize using helper
@@ -1278,6 +1279,19 @@ function rbf_settings_page_html() {
                     <td><input type="email" id="rbf_notification_email" name="rbf_settings[notification_email]" value="<?php echo esc_attr($options['notification_email']); ?>" class="regular-text" placeholder="es. ristorante@esempio.com"></td></tr>
                 <tr><th><label for="rbf_webmaster_email"><?php echo esc_html(rbf_translate_string('Email per Notifiche Webmaster')); ?></label></th>
                     <td><input type="email" id="rbf_webmaster_email" name="rbf_settings[webmaster_email]" value="<?php echo esc_attr($options['webmaster_email']); ?>" class="regular-text" placeholder="es. webmaster@esempio.com"></td></tr>
+                <tr><th colspan="2"><h3><?php echo esc_html(rbf_translate_string('Contatti per Modifiche Prenotazioni')); ?></h3></th></tr>
+                <tr><th><label for="rbf_booking_change_email"><?php echo esc_html(rbf_translate_string('Email per Richieste di Modifica')); ?></label></th>
+                    <td>
+                        <input type="email" id="rbf_booking_change_email" name="rbf_settings[booking_change_email]" value="<?php echo esc_attr($options['booking_change_email']); ?>" class="regular-text" placeholder="es. prenotazioni@esempio.com">
+                        <p class="description"><?php echo esc_html(rbf_translate_string('Mostrata nel riepilogo di conferma per indicare dove scrivere in caso di modifiche.')); ?></p>
+                    </td>
+                </tr>
+                <tr><th><label for="rbf_booking_change_phone"><?php echo esc_html(rbf_translate_string('Telefono per Richieste di Modifica')); ?></label></th>
+                    <td>
+                        <input type="text" id="rbf_booking_change_phone" name="rbf_settings[booking_change_phone]" value="<?php echo esc_attr($options['booking_change_phone']); ?>" class="regular-text" placeholder="es. +39 012 345 6789">
+                        <p class="description"><?php echo esc_html(rbf_translate_string('Comparirà accanto all\'email nel messaggio di conferma. Lascia vuoto se non vuoi mostrarlo.')); ?></p>
+                    </td>
+                </tr>
                 <tr><th><label for="rbf_ga4_id"><?php echo esc_html(rbf_translate_string('ID misurazione GA4')); ?></label></th>
                     <td><input type="text" id="rbf_ga4_id" name="rbf_settings[ga4_id]" value="<?php echo esc_attr($options['ga4_id']); ?>" class="regular-text" placeholder="G-XXXXXXXXXX"></td></tr>
                 <tr><th><label for="rbf_ga4_api_secret">GA4 API Secret (per invii server-side)</label></th>

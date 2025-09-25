@@ -270,7 +270,7 @@ JS;
             // Confirmation modal labels
             'confirmBookingTitle' => rbf_translate_string('Conferma Prenotazione'),
             'bookingSummary' => rbf_translate_string('Riepilogo Prenotazione'),
-            'confirmWarning' => rbf_translate_string('Controlla attentamente i dati inseriti prima di confermare. Una volta confermata, la prenotazione sarà definitiva.'),
+            'confirmWarning' => rbf_get_confirmation_warning_message($options),
             'meal' => rbf_translate_string('Servizio'),
             'date' => rbf_translate_string('Data'),
             'time' => rbf_translate_string('Orario'),
@@ -848,7 +848,7 @@ function rbf_render_booking_form($atts = []) {
                                 <button type="button" id="rbf-people-plus" aria-label="<?php echo esc_attr(rbf_translate_string('Aumenta numero persone')); ?>" tabindex="0">+</button>
                             </div>
                             <div id="rbf-people-error" class="rbf-field-error"></div>
-                            <div id="people-instructions" class="sr-only"><?php echo esc_html(rbf_translate_string('Usa i pulsanti più e meno, oppure i tasti freccia su e giù per modificare il numero di persone')); ?></div>
+                            <div id="people-instructions" class="sr-only"><?php echo esc_html(rbf_translate_string('Usa i pulsanti + e - oppure digita il numero di persone')); ?></div>
                             <small id="people-help" class="rbf-help-text"><?php echo esc_html(rbf_translate_string('Usa i pulsanti + e - per modificare')); ?></small>
                         </div>
                     </div>
