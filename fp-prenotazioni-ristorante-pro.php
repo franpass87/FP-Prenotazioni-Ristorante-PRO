@@ -2,7 +2,7 @@
 /**
  * Plugin Name: FP Prenotazioni Ristorante
  * Description: Prenotazioni con calendario Flatpickr IT/EN, gestione capienza per servizio, notifiche email (con CC), Brevo sempre e GA4/Meta (bucket standard), con supporto ai limiti temporali minimi.
- * Version:     1.6.2
+ * Version:     1.6.3
  * Requires at least: 6.0
  * Tested up to: 6.5
  * Requires PHP: 7.4
@@ -25,7 +25,7 @@ if (!defined('ABSPATH')) {
 define('RBF_PLUGIN_FILE', __FILE__);
 define('RBF_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('RBF_PLUGIN_URL', plugin_dir_url(__FILE__));
-define('RBF_VERSION', '1.6.2');
+define('RBF_VERSION', '1.6.3');
 define('RBF_MIN_PHP_VERSION', '7.4');
 define('RBF_MIN_WP_VERSION', '6.0');
 
