@@ -1170,12 +1170,18 @@ function rbf_settings_page_html() {
     $meal_template_html = rbf_render_custom_meal_item('__INDEX__', [], $day_labels, true);
     ?>
     <script type="text/template" id="rbf-meal-template"><?php echo $meal_template_html; ?></script>
+    <?php
+    $analytics_by_status = $analytics['by_status'] ?? [];
+    $analytics_by_meal = $analytics['by_meal'] ?? [];
+    $analytics_daily_bookings = $analytics['daily_bookings'] ?? [];
+    $analytics_source_breakdown = $source_breakdown_values ?? [];
+    ?>
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const statusData = <?php echo wp_json_encode($analytics['by_status']); ?>;
-        const mealData = <?php echo wp_json_encode($analytics['by_meal']); ?>;
-        const dailyData = <?php echo wp_json_encode($analytics['daily_bookings']); ?>;
-        const sourceBreakdown = <?php echo wp_json_encode($source_breakdown_values); ?>;
+        const statusData = <?php echo wp_json_encode($analytics_by_status); ?>;
+        const mealData = <?php echo wp_json_encode($analytics_by_meal); ?>;
+        const dailyData = <?php echo wp_json_encode($analytics_daily_bookings); ?>;
+        const sourceBreakdown = <?php echo wp_json_encode($analytics_source_breakdown); ?>;
 
         const statusCanvas = document.getElementById('statusChart');
         if (statusCanvas) {
