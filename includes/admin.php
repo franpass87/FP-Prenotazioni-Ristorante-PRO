@@ -159,10 +159,10 @@ function rbf_create_bookings_menu() {
     $booking_capability  = rbf_get_booking_capability();
     $settings_capability = rbf_get_settings_capability();
 
-    add_menu_page(rbf_translate_string('Prenotazioni'), rbf_translate_string('Prenotazioni'), $booking_capability, 'rbf_calendar', 'rbf_calendar_page_html', 'dashicons-calendar-alt', 20);
-    add_submenu_page('rbf_calendar', rbf_translate_string('Prenotazioni'), rbf_translate_string('Tutte le Prenotazioni'), $booking_capability, 'rbf_calendar', 'rbf_calendar_page_html');
-    add_submenu_page('rbf_calendar', rbf_translate_string('Vista Settimanale Staff'), rbf_translate_string('Vista Settimanale Staff'), $booking_capability, 'rbf_weekly_staff', 'rbf_weekly_staff_page_html');
-    add_submenu_page('rbf_calendar', rbf_translate_string('Aggiungi Prenotazione'), rbf_translate_string('Aggiungi Nuova'), $booking_capability, 'rbf_add_booking', 'rbf_add_booking_page_html');
+    add_menu_page(rbf_translate_string('Calendario & Agenda'), rbf_translate_string('Calendario & Agenda'), $booking_capability, 'rbf_calendar', 'rbf_calendar_page_html', 'dashicons-calendar-alt', 20);
+    add_submenu_page('rbf_calendar', rbf_translate_string('Calendario'), rbf_translate_string('Calendario'), $booking_capability, 'rbf_calendar', 'rbf_calendar_page_html');
+    add_submenu_page('rbf_calendar', rbf_translate_string('Agenda Settimanale'), rbf_translate_string('Agenda'), $booking_capability, 'rbf_weekly_staff', 'rbf_weekly_staff_page_html');
+    add_submenu_page('rbf_calendar', rbf_translate_string('Inserimento Manuale'), rbf_translate_string('Inserimento Manuale'), $booking_capability, 'rbf_add_booking', 'rbf_add_booking_page_html');
     add_submenu_page('rbf_calendar', rbf_translate_string('Gestione Tavoli'), rbf_translate_string('Gestione Tavoli'), $booking_capability, 'rbf_tables', 'rbf_tables_page_html');
     add_submenu_page('rbf_calendar', rbf_translate_string('Report & Analytics'), rbf_translate_string('Report & Analytics'), $booking_capability, 'rbf_reports', 'rbf_reports_page_html');
     add_submenu_page('rbf_calendar', rbf_translate_string('Notifiche Email'), rbf_translate_string('Notifiche Email'), $settings_capability, 'rbf_email_notifications', 'rbf_email_notifications_page_html');
@@ -2167,20 +2167,87 @@ function rbf_reports_page_html() {
         $end_date = $end_dt->format('Y-m-d');
     }
 
-    $analytics = rbf_get_booking_analytics($start_date, $end_date);
+    $raw_source_filters = isset($_GET['source_filter']) ? (array) $_GET['source_filter'] : [];
+    $source_filters = array_values(array_filter(array_map('sanitize_key', $raw_source_filters)));
+
+    $analytics = rbf_get_booking_analytics($start_date, $end_date, $source_filters);
+    $channel_options = $analytics['channels_catalog'] ?? [];
+    $channel_totals_all = $analytics['channel_counts_all'] ?? [];
+    $selected_channels = $analytics['selected_channels'] ?? [];
+    $source_breakdown = $analytics['source_breakdown'] ?? [];
+    $source_breakdown_values = array_values($source_breakdown);
+
+    $selected_channel_labels = [];
+    foreach ($selected_channels as $channel_key) {
+        if (isset($channel_options[$channel_key])) {
+            $selected_channel_labels[] = $channel_options[$channel_key];
+        }
+    }
     ?>
     <div class="rbf-admin-wrap">
         <h1><?php echo esc_html(rbf_translate_string('Report & Analytics')); ?></h1>
         
         <!-- Date Range Filter -->
         <div class="rbf-date-filter" style="background: #f9f9f9; padding: 15px; margin-bottom: 20px; border-radius: 8px;">
-            <form method="get" style="display: flex; align-items: center; gap: 15px;">
+            <form method="get" style="display: grid; gap: 12px; align-items: start;">
                 <input type="hidden" name="page" value="rbf_reports">
-                <label for="start_date"><?php echo esc_html(rbf_translate_string('Da:')); ?></label>
-                <input type="date" id="start_date" name="start_date" value="<?php echo esc_attr($start_date); ?>">
-                <label for="end_date"><?php echo esc_html(rbf_translate_string('A:')); ?></label>
-                <input type="date" id="end_date" name="end_date" value="<?php echo esc_attr($end_date); ?>">
-                <button type="submit" class="button button-primary"><?php echo esc_html(rbf_translate_string('Aggiorna Report')); ?></button>
+                <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
+                    <label for="start_date" style="font-weight: 500; color: #1f2937;">
+                        <?php echo esc_html(rbf_translate_string('Da:')); ?>
+                    </label>
+                    <input type="date" id="start_date" name="start_date" value="<?php echo esc_attr($start_date); ?>">
+                    <label for="end_date" style="font-weight: 500; color: #1f2937;">
+                        <?php echo esc_html(rbf_translate_string('A:')); ?>
+                    </label>
+                    <input type="date" id="end_date" name="end_date" value="<?php echo esc_attr($end_date); ?>">
+                </div>
+                <?php if (!empty($channel_options)) : ?>
+                    <fieldset style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 16px; background: #ffffff;">
+                        <legend style="font-weight: 600; color: #1f2937; padding: 0 6px;">
+                            <?php echo esc_html(rbf_translate_string('Filtra per canale')); ?>
+                        </legend>
+                        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                            <?php foreach ($channel_options as $channel_key => $channel_label) : ?>
+                                <?php
+                                $channel_count = $channel_totals_all[$channel_key] ?? 0;
+                                $is_selected = empty($selected_channels) || in_array($channel_key, $selected_channels, true);
+                                ?>
+                                <label style="display: inline-flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                                    <input type="checkbox" name="source_filter[]" value="<?php echo esc_attr($channel_key); ?>" <?php checked($is_selected); ?>>
+                                    <span style="font-weight: 500; color: #111827;"><?php echo esc_html($channel_label); ?></span>
+                                    <small style="color: #6b7280;">(<?php echo esc_html(number_format_i18n($channel_count)); ?>)</small>
+                                </label>
+                            <?php endforeach; ?>
+                        </div>
+                        <p class="description" style="margin-top: 8px;">
+                            <?php echo esc_html(rbf_translate_string('Deseleziona i canali da escludere dal report. Se non selezioni nulla verranno mostrati tutti i dati disponibili.')); ?>
+                        </p>
+                    </fieldset>
+                <?php endif; ?>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+                    <button type="submit" class="button button-primary"><?php echo esc_html(rbf_translate_string('Aggiorna Report')); ?></button>
+                    <?php if (!empty($selected_channels)) : ?>
+                        <?php
+                        $reset_url = add_query_arg(
+                            [
+                                'page' => 'rbf_reports',
+                                'start_date' => $start_date,
+                                'end_date' => $end_date,
+                            ],
+                            admin_url('admin.php')
+                        );
+                        ?>
+                        <a href="<?php echo esc_url($reset_url); ?>" class="button">
+                            <?php echo esc_html(rbf_translate_string('Reset Filtri')); ?>
+                        </a>
+                    <?php endif; ?>
+                </div>
+                <?php if (!empty($selected_channel_labels)) : ?>
+                    <p style="margin: 0; font-size: 13px; color: #4b5563;">
+                        <strong><?php echo esc_html(rbf_translate_string('Filtri attivi:')); ?></strong>
+                        <?php echo esc_html(implode(', ', $selected_channel_labels)); ?>
+                    </p>
+                <?php endif; ?>
             </form>
         </div>
         
@@ -2236,7 +2303,36 @@ function rbf_reports_page_html() {
         <div class="rbf-chart-container" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
             <h3 style="margin: 0 0 20px 0;"><?php echo esc_html(rbf_translate_string('Analisi Sorgenti di Traffico')); ?></h3>
             <canvas id="sourceChart" width="800" height="300"></canvas>
+            <?php if (empty($source_breakdown)) : ?>
+                <p style="margin-top: 16px; color: #6b7280;"><?php echo esc_html(rbf_translate_string('Nessun dato disponibile per i filtri selezionati.')); ?></p>
+            <?php endif; ?>
         </div>
+
+        <?php if (!empty($source_breakdown)) : ?>
+            <div class="rbf-chart-container" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-top: 20px;">
+                <h3 style="margin: 0 0 20px 0;"><?php echo esc_html(rbf_translate_string('Dettaglio per Canale')); ?></h3>
+                <table class="widefat striped" style="margin-top: 0;">
+                    <thead>
+                        <tr>
+                            <th><?php echo esc_html(rbf_translate_string('Canale')); ?></th>
+                            <th><?php echo esc_html(rbf_translate_string('Prenotazioni')); ?></th>
+                            <th><?php echo esc_html(rbf_translate_string('Persone')); ?></th>
+                            <th><?php echo esc_html(rbf_translate_string('Ricavi Stimati')); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($source_breakdown as $channel_data) : ?>
+                            <tr>
+                                <td><?php echo esc_html($channel_data['label']); ?></td>
+                                <td><?php echo esc_html(number_format_i18n($channel_data['bookings'])); ?></td>
+                                <td><?php echo esc_html(number_format_i18n($channel_data['people'])); ?></td>
+                                <td>€<?php echo esc_html(number_format_i18n((float) $channel_data['revenue'], 2)); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif; ?>
     </div>
     
     <script>
@@ -2244,7 +2340,7 @@ function rbf_reports_page_html() {
         const statusData = <?php echo wp_json_encode($analytics['by_status']); ?>;
         const mealData = <?php echo wp_json_encode($analytics['by_meal']); ?>;
         const dailyData = <?php echo wp_json_encode($analytics['daily_bookings']); ?>;
-        const sourceData = <?php echo wp_json_encode($analytics['by_source']); ?>;
+        const sourceBreakdown = <?php echo wp_json_encode($source_breakdown_values); ?>;
         
         // Status Chart
         new Chart(document.getElementById('statusChart'), {
@@ -2307,26 +2403,87 @@ function rbf_reports_page_html() {
         });
         
         // Source Chart
-        new Chart(document.getElementById('sourceChart'), {
-            type: 'bar',
-            data: {
-                labels: Object.keys(sourceData),
-                datasets: [{
-                    label: '<?php echo esc_js(rbf_translate_string('Prenotazioni')); ?>',
-                    data: Object.values(sourceData),
-                    backgroundColor: ['#3b82f6', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#6b7280'],
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: { display: false }
+        if (sourceBreakdown.length) {
+            const sourceLabels = sourceBreakdown.map(item => item.label);
+            const bookingsDataset = sourceBreakdown.map(item => Number(item.bookings));
+            const peopleDataset = sourceBreakdown.map(item => Number(item.people));
+            const revenueDataset = sourceBreakdown.map(item => Number(item.revenue));
+
+            new Chart(document.getElementById('sourceChart'), {
+                type: 'bar',
+                data: {
+                    labels: sourceLabels,
+                    datasets: [
+                        {
+                            label: '<?php echo esc_js(rbf_translate_string('Prenotazioni')); ?>',
+                            data: bookingsDataset,
+                            backgroundColor: '#2563eb',
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: '<?php echo esc_js(rbf_translate_string('Persone')); ?>',
+                            data: peopleDataset,
+                            backgroundColor: '#10b981',
+                            yAxisID: 'y'
+                        },
+                        {
+                            type: 'line',
+                            label: '<?php echo esc_js(rbf_translate_string('Ricavi Stimati (€)')); ?>',
+                            data: revenueDataset,
+                            borderColor: '#f59e0b',
+                            backgroundColor: 'rgba(245, 158, 11, 0.35)',
+                            borderWidth: 2,
+                            fill: false,
+                            yAxisID: 'y1',
+                            hidden: true,
+                            tension: 0.3,
+                            pointRadius: 3
+                        }
+                    ]
                 },
-                scales: {
-                    y: { beginAtZero: true }
+                options: {
+                    responsive: true,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        },
+                        y1: {
+                            beginAtZero: true,
+                            position: 'right',
+                            grid: {
+                                drawOnChartArea: false
+                            },
+                            ticks: {
+                                callback: value => '€' + Number(value).toLocaleString('it-IT')
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const datasetLabel = context.dataset.label || '';
+                                    const value = context.parsed.y;
+
+                                    if (datasetLabel.indexOf('€') !== -1) {
+                                        return datasetLabel + ': €' + Number(value).toLocaleString('it-IT', { minimumFractionDigits: 0 });
+                                    }
+
+                                    return datasetLabel + ': ' + Number(value).toLocaleString('it-IT');
+                                }
+                            }
+                        }
+                    }
                 }
-            }
-        });
+            });
+        }
     });
     </script>
     <?php
@@ -2357,9 +2514,41 @@ function rbf_filter_by_status($query) {
 /**
  * Get booking analytics for reports
  */
-function rbf_get_booking_analytics($start_date, $end_date) {
+function rbf_get_booking_analytics($start_date, $end_date, $selected_channels = []) {
     global $wpdb;
-    
+
+    $selected_channels = array_values(array_filter(array_map('sanitize_key', (array) $selected_channels)));
+
+    $default_channels = [
+        'gads'    => rbf_translate_string('Google Ads'),
+        'fbads'   => rbf_translate_string('Facebook Ads'),
+        'fborg'   => rbf_translate_string('Facebook Organico'),
+        'organic' => rbf_translate_string('Traffico Organico'),
+        'direct'  => rbf_translate_string('Traffico Diretto'),
+        'backend' => rbf_translate_string('Inserimento Manuale'),
+        'other'   => rbf_translate_string('Altre Sorgenti'),
+    ];
+
+    $channel_alias_map = [
+        'manual'          => 'backend',
+        'backend_manual'  => 'backend',
+        'backendmanual'   => 'backend',
+        'googleads'       => 'gads',
+        'google_ads'      => 'gads',
+        'google'          => 'gads',
+        'metaads'         => 'fbads',
+        'facebookads'     => 'fbads',
+        'facebook'        => 'fborg',
+        'instagram'       => 'fborg',
+        'meta'            => 'fborg',
+    ];
+
+    $normalized_selected_channels = [];
+    foreach ($selected_channels as $channel_key) {
+        $normalized_selected_channels[] = $channel_alias_map[$channel_key] ?? $channel_key;
+    }
+    $selected_channels = array_values(array_unique($normalized_selected_channels));
+
     // Get all bookings in date range
     $bookings = $wpdb->get_results($wpdb->prepare(
         "SELECT p.ID, pm_date.meta_value as booking_date, pm_people.meta_value as people,
@@ -2382,7 +2571,6 @@ function rbf_get_booking_analytics($start_date, $end_date) {
         $start_date, $end_date
     ));
     
-    $options = rbf_get_settings();
     $statuses = rbf_get_booking_statuses();
     $meals = [
         'pranzo' => rbf_translate_string('Pranzo'),
@@ -2404,9 +2592,13 @@ function rbf_get_booking_analytics($start_date, $end_date) {
         'by_status' => [],
         'by_meal' => [],
         'by_source' => [],
-        'daily_bookings' => []
+        'daily_bookings' => [],
+        'source_breakdown' => [],
+        'channels_catalog' => [],
+        'channel_counts_all' => [],
+        'selected_channels' => $selected_channels
     ];
-    
+
     // Initialize status counts
     foreach ($statuses as $key => $label) {
         $analytics['by_status'][$label] = 0;
@@ -2424,7 +2616,10 @@ function rbf_get_booking_analytics($start_date, $end_date) {
         $analytics['daily_bookings'][$current_date->format('d/m')] = 0;
         $current_date->modify('+1 day');
     }
-    
+
+    $channel_options = $default_channels;
+    $channel_counts_all = array_fill_keys(array_keys($default_channels), 0);
+
     // Process each booking
     foreach ($bookings as $booking) {
         $people = intval($booking->people ?: 0);
@@ -2432,11 +2627,43 @@ function rbf_get_booking_analytics($start_date, $end_date) {
         $status = $booking->status ?: 'confirmed';
         $source = $booking->source ?: 'direct';
         $bucket = $booking->bucket ?: 'direct';
-        
+
+        $channel_key = strtolower($bucket !== '' ? $bucket : $source);
+        $channel_key = preg_replace('/[^a-z0-9_-]/', '', $channel_key);
+
+        if ($channel_key === '') {
+            $fallback_key = preg_replace('/[^a-z0-9_-]/', '', strtolower($source));
+            $channel_key = $fallback_key !== '' ? $fallback_key : 'direct';
+        }
+
+        if (isset($channel_alias_map[$channel_key])) {
+            $channel_key = $channel_alias_map[$channel_key];
+        }
+
+        if (!isset($channel_options[$channel_key])) {
+            $fallback_label = trim((string) ($source !== '' ? $source : $bucket));
+            if ($fallback_label === '') {
+                $channel_key = 'other';
+                $channel_options[$channel_key] = $default_channels['other'];
+            } else {
+                $normalized_label = ucwords(str_replace(['_', '-'], ' ', $fallback_label));
+                $channel_options[$channel_key] = $normalized_label;
+            }
+        }
+
+        if (!isset($channel_counts_all[$channel_key])) {
+            $channel_counts_all[$channel_key] = 0;
+        }
+        $channel_counts_all[$channel_key]++;
+
+        if (!empty($selected_channels) && !in_array($channel_key, $selected_channels, true)) {
+            continue;
+        }
+
         // Basic totals
         $analytics['total_bookings']++;
         $analytics['total_people'] += $people;
-        
+
         // Revenue calculation prioritizing stored booking metadata
         $booking_revenue = isset($booking->booking_value) ? (float) $booking->booking_value : 0;
         if ($booking_revenue <= 0 && isset($booking->booking_unit_value) && (float) $booking->booking_unit_value > 0) {
@@ -2449,7 +2676,7 @@ function rbf_get_booking_analytics($start_date, $end_date) {
         }
 
         $analytics['total_revenue'] += $booking_revenue;
-        
+
         // Status tracking
         $status_label = $statuses[$status] ?? $status;
         $analytics['by_status'][$status_label]++;
@@ -2464,14 +2691,21 @@ function rbf_get_booking_analytics($start_date, $end_date) {
         // Meal tracking
         $meal_label = $meals[$meal] ?? ucfirst($meal);
         $analytics['by_meal'][$meal_label]++;
-        
-        // Source tracking
-        $source_label = ucfirst($bucket ?: $source);
-        if (!isset($analytics['by_source'][$source_label])) {
-            $analytics['by_source'][$source_label] = 0;
+
+        // Source tracking with breakdown details
+        if (!isset($analytics['source_breakdown'][$channel_key])) {
+            $analytics['source_breakdown'][$channel_key] = [
+                'label' => $channel_options[$channel_key] ?? ucfirst($channel_key),
+                'bookings' => 0,
+                'people' => 0,
+                'revenue' => 0.0,
+            ];
         }
-        $analytics['by_source'][$source_label]++;
-        
+
+        $analytics['source_breakdown'][$channel_key]['bookings']++;
+        $analytics['source_breakdown'][$channel_key]['people'] += $people;
+        $analytics['source_breakdown'][$channel_key]['revenue'] += $booking_revenue;
+
         // Daily tracking
         $booking_date = DateTime::createFromFormat('Y-m-d', $booking->booking_date);
         if ($booking_date) {
@@ -2481,20 +2715,47 @@ function rbf_get_booking_analytics($start_date, $end_date) {
             }
         }
     }
-    
+
     // Calculate averages and rates
     if ($analytics['total_bookings'] > 0) {
         $analytics['avg_people_per_booking'] = $analytics['total_people'] / $analytics['total_bookings'];
         $analytics['avg_revenue_per_booking'] = $analytics['total_revenue'] / $analytics['total_bookings'];
     }
-    
+
     if ($analytics['confirmed_bookings'] > 0) {
         $analytics['completion_rate'] = ($analytics['completed_bookings'] / $analytics['confirmed_bookings']) * 100;
     }
-    
-    // Sort sources by count
-    arsort($analytics['by_source']);
-    
+
+    // Sort and normalize source breakdown data
+    if (!empty($analytics['source_breakdown'])) {
+        uasort($analytics['source_breakdown'], static function ($a, $b) {
+            return $b['bookings'] <=> $a['bookings'];
+        });
+
+        foreach ($analytics['source_breakdown'] as $channel_key => $channel_data) {
+            $analytics['by_source'][$channel_data['label']] = $channel_data['bookings'];
+        }
+    }
+
+    // Prepare channel metadata for filters
+    $filtered_channel_options = [];
+    foreach ($channel_options as $channel_key => $channel_label) {
+        $count = $channel_counts_all[$channel_key] ?? 0;
+
+        if ($count > 0 || in_array($channel_key, $selected_channels, true)) {
+            $filtered_channel_options[$channel_key] = $channel_label;
+        }
+    }
+
+    if (!empty($filtered_channel_options)) {
+        asort($filtered_channel_options, SORT_NATURAL | SORT_FLAG_CASE);
+    }
+
+    $channel_counts_all = array_intersect_key($channel_counts_all, $filtered_channel_options);
+
+    $analytics['channels_catalog'] = $filtered_channel_options;
+    $analytics['channel_counts_all'] = $channel_counts_all;
+
     return $analytics;
 }
 
