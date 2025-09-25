@@ -51,7 +51,20 @@
     padding: 2rem;
     border-radius: var(--rbf-radius);
     box-shadow: var(--rbf-shadow);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+    font-family: var(--fppr-font-body, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif);
+}
+
+.rbf-form h1,
+.rbf-form h2,
+.rbf-form h3,
+.rbf-form h4,
+.rbf-form h5,
+.rbf-form h6,
+.rbf-form button,
+.rbf-form .rbf-progress-step,
+.rbf-form .rbf-step-title,
+#rbf-submit {
+    font-family: var(--fppr-font-heading, var(--fppr-font-body, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif));
 }
 
 /* Progress Indicator */

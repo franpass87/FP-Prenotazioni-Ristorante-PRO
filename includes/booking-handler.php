@@ -551,10 +551,20 @@ function rbf_send_notifications($data, $context) {
         ]);
 
         if (is_wp_error($response)) {
+            $error_code    = $response->get_error_code();
             $error_message = $response->get_error_message();
             rbf_handle_error("Meta CAPI Error - Booking ID: {$post_id}, Error: {$error_message}", 'meta_api');
 
-            if ($response->get_error_code() === 'http_request_timeout') {
+            if (function_exists('rbf_record_tracking_event')) {
+                rbf_record_tracking_event('meta', 'Purchase', [
+                    'status' => 'error',
+                    'transport' => 'server',
+                    'code' => (string) $error_code,
+                    'message' => substr($error_message, 0, 120),
+                ]);
+            }
+
+            if ($error_code === 'http_request_timeout') {
                 wp_mail(
                     get_option('admin_email'),
                     'RBF: Meta CAPI Timeout Warning',
@@ -566,6 +576,25 @@ function rbf_send_notifications($data, $context) {
             if ($response_code < 200 || $response_code >= 300) {
                 $response_body = wp_remote_retrieve_body($response);
                 rbf_handle_error("Meta CAPI Error - Booking ID: {$post_id}, HTTP {$response_code}: {$response_body}", 'meta_api');
+
+                if (function_exists('rbf_record_tracking_event')) {
+                    rbf_record_tracking_event('meta', 'Purchase', [
+                        'status' => 'error',
+                        'transport' => 'server',
+                        'code' => (string) $response_code,
+                        'message' => substr($response_body, 0, 120),
+                    ]);
+                }
+            } else {
+                if (function_exists('rbf_record_tracking_event')) {
+                    rbf_record_tracking_event('meta', 'Purchase', [
+                        'status' => 'success',
+                        'transport' => 'server',
+                        'event_id' => (string) $event_id,
+                        'value' => (string) $valore_tot,
+                        'bucket' => $bucket_std,
+                    ]);
+                }
             }
         }
     }

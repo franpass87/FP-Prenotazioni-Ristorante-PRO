@@ -101,6 +101,211 @@ function rbf_database_table_exists($table_name) {
 }
 
 /**
+ * Detect the ID of the published page that contains one of the booking form shortcodes.
+ *
+ * @param bool $force_refresh Optional. Whether to bypass the cached result.
+ * @return int Page ID when found, zero otherwise.
+ */
+function rbf_detect_booking_page_id($force_refresh = false) {
+    static $cached_id = null;
+
+    if (!$force_refresh && $cached_id !== null) {
+        return (int) $cached_id;
+    }
+
+    $cached_id = 0;
+
+    if (!function_exists('get_post')) {
+        return $cached_id;
+    }
+
+    $settings = rbf_get_settings();
+    $configured_page_id = absint($settings['booking_page_id'] ?? 0);
+
+    if ($configured_page_id > 0) {
+        $configured_page = get_post($configured_page_id);
+        if ($configured_page instanceof WP_Post && $configured_page->post_status === 'publish') {
+            if (rbf_post_has_booking_form($configured_page)) {
+                $cached_id = (int) $configured_page->ID;
+                return $cached_id;
+            }
+        }
+    }
+
+    if (!function_exists('get_posts')) {
+        return $cached_id;
+    }
+
+    $shortcodes = rbf_get_booking_form_shortcodes();
+
+    if (empty($shortcodes)) {
+        return $cached_id;
+    }
+
+    $query_args = [
+        'post_type'              => 'page',
+        'post_status'            => 'publish',
+        'posts_per_page'         => 50,
+        'orderby'                => 'menu_order',
+        'order'                  => 'ASC',
+        'no_found_rows'          => true,
+        'update_post_meta_cache' => false,
+        'update_post_term_cache' => false,
+        'suppress_filters'       => false,
+    ];
+
+    $pages = get_posts($query_args);
+
+    foreach ($pages as $page) {
+        if (!($page instanceof WP_Post)) {
+            continue;
+        }
+
+        if (rbf_post_has_booking_form($page)) {
+            $cached_id = (int) $page->ID;
+            return $cached_id;
+        }
+    }
+
+    return $cached_id;
+}
+
+/**
+ * Ensure a published booking page exists and optionally update plugin settings.
+ *
+ * @param array $args {
+ *     Optional. Arguments controlling page creation.
+ *
+ *     @type string $title            Page title. Default 'Prenotazioni Ristorante'.
+ *     @type string $slug             Page slug. Default 'prenotazioni-ristorante'.
+ *     @type string $status           Publication status. Default 'publish'.
+ *     @type string $shortcode        Shortcode to inject. Default '[ristorante_booking_form]'.
+ *     @type bool   $update_settings  Whether to update the booking page setting. Default false.
+ *     @type bool   $force_new        Whether to bypass detection and always create/update. Default false.
+ * }
+ *
+ * @return array {
+ *     Result data about the ensured page.
+ *
+ *     @type int     $page_id   Page ID or 0 on failure.
+ *     @type bool    $created   True when a new page was created.
+ *     @type bool    $updated   True when an existing page was updated.
+ *     @type string  $page_url  Permalink for the page when available.
+ * }
+ */
+function rbf_ensure_booking_page_exists(array $args = []) {
+    $defaults = [
+        'title'           => rbf_translate_string('Prenotazioni Ristorante'),
+        'slug'            => 'prenotazioni-ristorante',
+        'status'          => 'publish',
+        'shortcode'       => '[ristorante_booking_form]',
+        'update_settings' => false,
+        'force_new'       => false,
+    ];
+
+    $args = wp_parse_args($args, $defaults);
+
+    $result = [
+        'page_id'  => 0,
+        'created'  => false,
+        'updated'  => false,
+        'page_url' => '',
+    ];
+
+    if (!function_exists('wp_insert_post') || !function_exists('get_post')) {
+        return $result;
+    }
+
+    if (!$args['force_new']) {
+        $existing_id = rbf_detect_booking_page_id(true);
+        if ($existing_id > 0) {
+            $result['page_id'] = (int) $existing_id;
+            if (function_exists('get_permalink')) {
+                $permalink = get_permalink($existing_id);
+                if (is_string($permalink)) {
+                    $result['page_url'] = $permalink;
+                }
+            }
+
+            if (!empty($args['update_settings'])) {
+                $settings = rbf_get_settings();
+                $settings['booking_page_id'] = $existing_id;
+                update_option('rbf_settings', $settings);
+            }
+
+            return $result;
+        }
+    }
+
+    $page = null;
+
+    if (!empty($args['slug']) && function_exists('get_page_by_path')) {
+        $page = get_page_by_path($args['slug'], OBJECT, 'page');
+    }
+
+    if (!$page && function_exists('get_page_by_title')) {
+        $page = get_page_by_title($args['title']);
+    }
+
+    if ($page instanceof WP_Post) {
+        $result['page_id'] = (int) $page->ID;
+        $postarr = ['ID' => $page->ID];
+        $needs_update = false;
+
+        if ($page->post_status !== $args['status']) {
+            $postarr['post_status'] = $args['status'];
+            $needs_update = true;
+        }
+
+        if (!rbf_post_has_booking_form($page)) {
+            $content = trim((string) $page->post_content);
+            $shortcode_block = "<!-- wp:shortcode -->\n{$args['shortcode']}\n<!-- /wp:shortcode -->";
+            $postarr['post_content'] = $content === '' ? $shortcode_block : $content . "\n\n" . $shortcode_block;
+            $needs_update = true;
+        }
+
+        if ($needs_update) {
+            $updated_id = wp_update_post($postarr, true);
+            if (!is_wp_error($updated_id)) {
+                $result['updated'] = true;
+                $result['page_id'] = (int) $updated_id;
+            }
+        }
+    } else {
+        $content = "<!-- wp:shortcode -->\n{$args['shortcode']}\n<!-- /wp:shortcode -->";
+        $page_id = wp_insert_post([
+            'post_title'   => $args['title'],
+            'post_name'    => sanitize_title($args['slug']),
+            'post_type'    => 'page',
+            'post_status'  => $args['status'],
+            'post_content' => $content,
+        ], true);
+
+        if (is_wp_error($page_id)) {
+            return $result;
+        }
+
+        $result['page_id'] = (int) $page_id;
+        $result['created'] = true;
+    }
+
+    if ($result['page_id'] > 0 && function_exists('get_permalink')) {
+        $permalink = get_permalink($result['page_id']);
+        if (is_string($permalink)) {
+            $result['page_url'] = $permalink;
+        }
+    }
+
+    if ($result['page_id'] > 0 && !empty($args['update_settings'])) {
+        $settings = rbf_get_settings();
+        $settings['booking_page_id'] = $result['page_id'];
+        update_option('rbf_settings', $settings);
+    }
+
+    return $result;
+}
+
+/**
  * Locate the booking page permalink used for confirmation links.
  *
  * Attempts to detect the first published page containing one of the booking
@@ -119,34 +324,10 @@ function rbf_get_booking_confirmation_base_url($force_refresh = false) {
 
     $cached_url = '';
 
-    if (!function_exists('get_posts') || !function_exists('get_permalink')) {
-        return $cached_url;
-    }
-
-    $shortcodes = rbf_get_booking_form_shortcodes();
-
-    if (!empty($shortcodes)) {
-        $query_args = [
-            'post_type'              => 'page',
-            'post_status'            => 'publish',
-            'posts_per_page'         => 50,
-            'orderby'                => 'menu_order',
-            'order'                  => 'ASC',
-            'no_found_rows'          => true,
-            'update_post_meta_cache' => false,
-            'update_post_term_cache' => false,
-            'suppress_filters'       => false,
-        ];
-
-        $pages = get_posts($query_args);
-
-        foreach ($pages as $page) {
-            if (!rbf_post_has_booking_form($page)) {
-                continue;
-            }
-
-            $permalink = get_permalink($page);
-
+    if (function_exists('get_permalink')) {
+        $booking_page_id = rbf_detect_booking_page_id($force_refresh);
+        if ($booking_page_id > 0) {
+            $permalink = get_permalink($booking_page_id);
             if (is_string($permalink) && $permalink !== '') {
                 $cached_url = $permalink;
                 return $cached_url;
@@ -407,11 +588,22 @@ function rbf_get_default_settings() {
         // Note: Advance booking limits removed - using fixed 1-hour minimum rule
         'min_advance_minutes' => 60, // Fixed at 1 hour for system compatibility
         'max_advance_minutes' => 0, // No maximum limit
-        
+
         // Custom meals system (always enabled)
         'use_custom_meals' => 'yes',
         'custom_meals' => rbf_get_default_custom_meals(),
-        
+
+        // Guided onboarding + state tracking
+        'setup_completed_at' => '',
+
+        // Branding controls (future-proofed but now surfaced in UI)
+        'brand_name' => get_bloginfo('name'),
+        'brand_logo_id' => 0,
+        'brand_logo_url' => '',
+        'brand_font_body' => 'system',
+        'brand_font_heading' => 'system',
+        'brand_profile_active' => '',
+
         // Anti-bot protection
         'recaptcha_site_key' => '',
         'recaptcha_secret_key' => '',
@@ -479,11 +671,115 @@ function rbf_get_confirmation_warning_message(array $options = []) {
 }
 
 /**
+ * Build a comma-separated list of time slots within a range.
+ *
+ * @param string $start_time     Starting time in H:i format.
+ * @param string $end_time       Ending time in H:i format.
+ * @param int    $interval_min   Minutes between slots.
+ * @return string                Normalized comma-separated list of slots.
+ */
+function rbf_generate_time_slots_range($start_time, $end_time, $interval_min = 30) {
+    $start_time = is_string($start_time) ? trim($start_time) : '';
+    $end_time   = is_string($end_time) ? trim($end_time) : '';
+    $interval   = max(5, (int) $interval_min);
+
+    $start = DateTimeImmutable::createFromFormat('!H:i', $start_time);
+    $end   = DateTimeImmutable::createFromFormat('!H:i', $end_time);
+
+    if (!$start || !$end) {
+        return '';
+    }
+
+    if ($end <= $start) {
+        $end = $end->modify('+1 hour');
+    }
+
+    $slots = [];
+    $current = $start;
+
+    for ($i = 0; $i < 200; $i++) { // Safety guard to avoid accidental infinite loops.
+        $slots[] = $current->format('H:i');
+
+        if ($current >= $end) {
+            break;
+        }
+
+        $next = $current->modify('+' . $interval . ' minutes');
+        if (!$next || $next <= $current) {
+            break;
+        }
+
+        $current = $next;
+    }
+
+    $slots = array_values(array_unique($slots));
+
+    return implode(',', $slots);
+}
+
+/**
  * Get default custom meals configuration
  */
 function rbf_get_default_custom_meals() {
-    // No restaurant-specific meals are preloaded by default. Site owners must configure their own services.
-    return [];
+    $lunch_slots  = rbf_generate_time_slots_range('12:00', '14:30', 30);
+    $dinner_slots = rbf_generate_time_slots_range('19:00', '22:30', 30);
+
+    return [
+        [
+            'id' => 'pranzo',
+            'name' => rbf_translate_string('Pranzo'),
+            'enabled' => true,
+            'capacity' => 40,
+            'time_slots' => $lunch_slots,
+            'available_days' => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'],
+            'buffer_time_minutes' => 15,
+            'buffer_time_per_person' => 5,
+            'overbooking_limit' => 10,
+            'tooltip' => rbf_translate_string('Prenotazioni per il servizio di pranzo.'),
+        ],
+        [
+            'id' => 'cena',
+            'name' => rbf_translate_string('Cena'),
+            'enabled' => true,
+            'capacity' => 50,
+            'time_slots' => $dinner_slots,
+            'available_days' => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
+            'buffer_time_minutes' => 20,
+            'buffer_time_per_person' => 5,
+            'overbooking_limit' => 15,
+            'tooltip' => rbf_translate_string('Prenotazioni per il servizio di cena.'),
+        ],
+    ];
+}
+
+/**
+ * Persist default meals when no settings exist yet.
+ *
+ * @return int Number of services seeded.
+ */
+function rbf_seed_default_meals_if_missing() {
+    $sentinel = new stdClass();
+    $raw_settings = get_option('rbf_settings', $sentinel);
+
+    if ($raw_settings !== $sentinel) {
+        return 0;
+    }
+
+    $defaults = rbf_get_default_custom_meals();
+
+    if (empty($defaults)) {
+        return 0;
+    }
+
+    $settings = rbf_get_default_settings();
+    $settings['custom_meals'] = $defaults;
+    $settings['use_custom_meals'] = 'yes';
+
+    update_option('rbf_settings', $settings, false);
+    rbf_invalidate_settings_cache();
+    update_option('rbf_bootstrap_defaults_seeded', current_time('mysql'), false);
+
+    return count($defaults);
 }
 
 /**
@@ -516,14 +812,36 @@ function rbf_get_active_meals($settings = null) {
  */
 function rbf_get_meal_config($meal_id) {
     $active_meals = rbf_get_active_meals();
-    
+
     foreach ($active_meals as $meal) {
         if ($meal['id'] === $meal_id) {
             return $meal;
         }
     }
-    
+
     return null;
+}
+
+/**
+ * Determine whether at least one meal/service is configured.
+ *
+ * @param array|null $settings Optional settings array override.
+ * @return bool
+ */
+function rbf_has_configured_meals($settings = null) {
+    $meals = rbf_get_active_meals($settings);
+
+    if (empty($meals)) {
+        return false;
+    }
+
+    foreach ($meals as $meal) {
+        if (!empty($meal['enabled'])) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 /**
@@ -1090,6 +1408,43 @@ function rbf_translate_string($text) {
         'Apri pagina di conferma' => 'Open confirmation page',
         'FP Prenotazioni Ristorante' => 'FP Restaurant Bookings',
         'Prenotazioni' => 'Bookings',
+
+        // Booking dashboard
+        'Cruscotto prenotazioni' => 'Booking dashboard',
+        'Cruscotto' => 'Dashboard',
+        'Panoramica rapida di capacità, cancellazioni e attività consigliate per lo staff.' => 'Quick overview of capacity, cancellations, and recommended staff actions.',
+        'Prenotazioni di oggi' => 'Today\'s bookings',
+        'Coperti oggi: %s' => 'Covers today: %s',
+        'Prenotazioni di domani' => 'Tomorrow\'s bookings',
+        'Coperti domani: %s' => 'Covers tomorrow: %s',
+        'Prenotazioni prossimi 7 giorni' => 'Bookings in the next 7 days',
+        'Valore previsto settimana: €%s' => 'Projected weekly value: €%s',
+        'Prenotazioni totali in arrivo' => 'Total upcoming bookings',
+        'Monitorare cancellazioni per reagire rapidamente.' => 'Monitor cancellations to react quickly.',
+        'Prossime prenotazioni' => 'Upcoming bookings',
+        'Nessuna prenotazione pianificata.' => 'No bookings scheduled.',
+        'Ora' => 'Time',
+        'Servizio' => 'Service',
+        'Azioni' => 'Actions',
+        'Apri dettaglio' => 'Open details',
+        'Capienza di oggi' => 'Today\'s capacity',
+        'Capienza residua: %d / %d' => 'Remaining capacity: %d / %d',
+        'Nessun servizio attivo configurato.' => 'No active services configured.',
+        'Suggerimento' => 'Tip',
+        "Le fasce con capacità limitata richiedono attenzione: valuta l'apertura di tavoli extra." => 'Time slots with limited capacity need attention: consider opening extra tables.',
+        'Storico ultimi 7 giorni' => 'Last 7 days history',
+        'Nessun dato disponibile per il periodo selezionato.' => 'No data available for the selected period.',
+        'Completate' => 'Completed',
+        'Annullate' => 'Cancelled',
+        'Coperti serviti' => 'Covers served',
+        'Incasso registrato' => 'Recorded revenue',
+        'Azioni rapide' => 'Quick actions',
+        'Apri calendario' => 'Open calendar',
+        'Vista settimanale staff' => 'Weekly staff view',
+        'Setup guidato' => 'Setup wizard',
+        'Stato sistema' => 'System health',
+        'Verifica accessibilità' => 'Accessibility check',
+        'Consulta la vista staff per ottimizzare gli spostamenti con drag & drop e mantenere aggiornato il monitoraggio marketing.' => 'Use the staff view to optimize drag-and-drop moves and keep marketing tracking up to date.',
         'Tutte le Prenotazioni' => 'All Bookings',
         'Prenotazione' => 'Booking',
         'Aggiungi Nuova' => 'Add New',
@@ -1324,6 +1679,11 @@ function rbf_translate_string($text) {
         'Pranzo' => 'Lunch',
         'Aperitivo' => 'Aperitif',
         'Cena' => 'Dinner',
+        'Prenotazioni per il servizio di pranzo.' => 'Bookings for the lunch service.',
+        'Prenotazioni per il servizio di cena.' => 'Bookings for the dinner service.',
+        'Servizi predefiniti attivati' => 'Default services enabled',
+        'Pagina di prenotazione pubblicata automaticamente' => 'Booking page published automatically',
+        'Setup iniziale completato: %s.' => 'Initial setup completed: %s.',
         'Brunch' => 'Brunch',
         'Il brunch è disponibile solo la domenica.' => 'Brunch is only available on Sundays.',
         'Prenotazione Ristorante - %s' => 'Reservation - %s',
@@ -2722,35 +3082,57 @@ function rbf_update_booking_status($booking_id, $new_status, $note = '') {
  */
 function rbf_get_brand_config() {
     // Start with default configuration
+    $default_fonts = rbf_get_supported_brand_fonts();
+    $default_font_body = $default_fonts['system']['stack'];
+    $default_font_heading = $default_fonts['system']['stack'];
+
     $default_config = [
         'accent_color' => '#000000',
-        'accent_color_light' => '#333333', 
+        'accent_color_light' => '#333333',
         'accent_color_dark' => '#000000',
         'secondary_color' => '#f8b500',
         'border_radius' => '8px',
         // Future extensibility
         'logo_url' => '',
-        'brand_name' => ''
+        'brand_name' => '',
+        'font_body' => $default_font_body,
+        'font_heading' => $default_font_heading,
     ];
     
     // 1. Check admin settings first (highest priority for user interface)
     $admin_settings = get_option('rbf_settings', []);
-    if (!empty($admin_settings['accent_color']) || !empty($admin_settings['secondary_color']) || !empty($admin_settings['border_radius'])) {
+    if (!empty($admin_settings['accent_color']) || !empty($admin_settings['secondary_color']) || !empty($admin_settings['border_radius']) || !empty($admin_settings['brand_logo_url']) || !empty($admin_settings['brand_name']) || !empty($admin_settings['brand_font_body']) || !empty($admin_settings['brand_font_heading'])) {
         $config = $default_config;
-        
+
         if (!empty($admin_settings['accent_color'])) {
             $config['accent_color'] = sanitize_hex_color($admin_settings['accent_color']);
             // Auto-generate light/dark variants
             $config['accent_color_light'] = rbf_lighten_color($config['accent_color'], 20);
             $config['accent_color_dark'] = rbf_darken_color($config['accent_color'], 10);
         }
-        
+
         if (!empty($admin_settings['secondary_color'])) {
             $config['secondary_color'] = sanitize_hex_color($admin_settings['secondary_color']);
         }
-        
+
         if (!empty($admin_settings['border_radius'])) {
             $config['border_radius'] = sanitize_text_field($admin_settings['border_radius']);
+        }
+
+        if (!empty($admin_settings['brand_logo_url'])) {
+            $config['logo_url'] = esc_url_raw($admin_settings['brand_logo_url']);
+        }
+
+        if (!empty($admin_settings['brand_name'])) {
+            $config['brand_name'] = rbf_sanitize_text_strict($admin_settings['brand_name']);
+        }
+
+        if (!empty($admin_settings['brand_font_body']) && isset($default_fonts[$admin_settings['brand_font_body']])) {
+            $config['font_body'] = $default_fonts[$admin_settings['brand_font_body']]['stack'];
+        }
+
+        if (!empty($admin_settings['brand_font_heading']) && isset($default_fonts[$admin_settings['brand_font_heading']])) {
+            $config['font_heading'] = $default_fonts[$admin_settings['brand_font_heading']]['stack'];
         }
     } else {
         // 2. Try to load from JSON file
@@ -2778,11 +3160,93 @@ function rbf_get_brand_config() {
     if (defined('FPPR_BORDER_RADIUS')) {
         $config['border_radius'] = FPPR_BORDER_RADIUS;
     }
-    
+
     // 4. Apply filter for programmatic override (highest priority)
     $config = apply_filters('fppr_brand_config', $config);
-    
+
     return $config;
+}
+
+/**
+ * Retrieve the catalog of supported brand fonts for the UI and frontend.
+ *
+ * @return array<string, array{label:string, stack:string, google?:string}>
+ */
+function rbf_get_supported_brand_fonts() {
+    $fonts = [
+        'system' => [
+            'label' => __('Sistema (San Serif)', 'rbf'),
+            'stack' => "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif",
+        ],
+        'playfair' => [
+            'label' => __('Playfair Display (Elegante)', 'rbf'),
+            'stack' => "'Playfair Display', 'Times New Roman', serif",
+            'google' => 'Playfair+Display:wght@400;600;700',
+        ],
+        'montserrat' => [
+            'label' => __('Montserrat (Moderno)', 'rbf'),
+            'stack' => "'Montserrat', 'Segoe UI', sans-serif",
+            'google' => 'Montserrat:wght@400;500;600;700',
+        ],
+        'lora' => [
+            'label' => __('Lora (Editoriale)', 'rbf'),
+            'stack' => "'Lora', Georgia, serif",
+            'google' => 'Lora:wght@400;500;600;700',
+        ],
+        'poppins' => [
+            'label' => __('Poppins (Rounded)', 'rbf'),
+            'stack' => "'Poppins', 'Segoe UI', sans-serif",
+            'google' => 'Poppins:wght@400;500;600;700',
+        ],
+    ];
+
+    return apply_filters('rbf_supported_brand_fonts', $fonts);
+}
+
+/**
+ * Build the list of Google Fonts stylesheets required by the configured brand fonts.
+ *
+ * @param array<string,mixed>|null $settings Optional settings array. Defaults to saved plugin settings.
+ * @param string                   $context  Context identifier used to generate unique style handles.
+ * @return array<string,string> Map of style handles => stylesheet URLs.
+ */
+function rbf_get_brand_font_stylesheets($settings = null, $context = 'frontend') {
+    if (!is_array($settings)) {
+        $settings = rbf_get_settings();
+    }
+
+    $font_keys = [];
+
+    foreach (['brand_font_body', 'brand_font_heading'] as $setting_key) {
+        if (empty($settings[$setting_key])) {
+            continue;
+        }
+
+        $font_keys[] = sanitize_key($settings[$setting_key]);
+    }
+
+    $font_keys = array_values(array_unique(array_filter($font_keys, static function ($key) {
+        return $key !== '' && $key !== 'system';
+    })));
+
+    if (empty($font_keys)) {
+        return [];
+    }
+
+    $fonts_catalog = rbf_get_supported_brand_fonts();
+    $context_suffix = $context !== '' ? '-' . sanitize_title($context) : '';
+    $stylesheets = [];
+
+    foreach ($font_keys as $font_key) {
+        if (empty($fonts_catalog[$font_key]['google'])) {
+            continue;
+        }
+
+        $handle = 'rbf-brand-font-' . sanitize_key($font_key) . $context_suffix;
+        $stylesheets[$handle] = 'https://fonts.googleapis.com/css2?family=' . $fonts_catalog[$font_key]['google'] . '&display=swap';
+    }
+
+    return $stylesheets;
 }
 
 /**
@@ -2832,7 +3296,7 @@ function rbf_get_accent_color($override_color = '') {
  */
 function rbf_generate_brand_css_vars($accent_override = '') {
     $config = rbf_get_brand_config();
-    
+
     // Allow single-instance override
     if (!empty($accent_override)) {
         $config['accent_color'] = sanitize_hex_color($accent_override);
@@ -2847,12 +3311,18 @@ function rbf_generate_brand_css_vars($accent_override = '') {
         '--fppr-accent-dark' => $config['accent_color_dark'],
         '--fppr-secondary' => $config['secondary_color'],
         '--fppr-radius' => $config['border_radius'],
+        '--fppr-font-body' => $config['font_body'],
+        '--fppr-font-heading' => $config['font_heading'],
         // Maintain backward compatibility
         '--rbf-primary' => $config['accent_color'],
         '--rbf-primary-light' => $config['accent_color_light'],
         '--rbf-primary-dark' => $config['accent_color_dark'],
     ];
-    
+
+    if (!empty($config['logo_url'])) {
+        $css_vars['--fppr-logo-url'] = sprintf('url("%s")', esc_url_raw($config['logo_url']));
+    }
+
     return $css_vars;
 }
 
