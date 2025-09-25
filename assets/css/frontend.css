@@ -26,6 +26,7 @@
     --rbf-focus-outline: 2px solid var(--rbf-focus-color);
     --rbf-input-padding: 14px 16px;
     --rbf-input-height: 50px;
+    --rbf-people-button-size: 56px;
     --rbf-tel-padding-left: 70px;
 }
 
@@ -248,8 +249,9 @@
 }
 
 .rbf-people-selector {
-    display: flex;
-    align-items: center;
+    display: grid;
+    grid-template-columns: var(--rbf-people-button-size) 1fr var(--rbf-people-button-size);
+    align-items: stretch;
     width: 100%;
     margin: 0 auto;
     border: 2px solid var(--rbf-border);
@@ -259,8 +261,10 @@
 }
 
 .rbf-people-selector button {
-    width: 50px;
-    height: 50px;
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    min-height: var(--rbf-people-button-size);
     font-size: 20px;
     font-weight: bold;
     border: none;
@@ -269,11 +273,8 @@
     line-height: 1;
     color: var(--rbf-primary);
     transition: var(--rbf-transition);
-    min-width: 50px;
-    min-height: 50px;
     margin: 0;
     border-radius: 0;
-    flex: 0 0 50px;
 }
 
 .rbf-people-selector button:first-child {
@@ -298,8 +299,8 @@
 }
 
 .rbf-people-selector input {
-    flex: 1;
-    min-height: 50px;
+    width: 100%;
+    min-height: var(--rbf-people-button-size);
     text-align: center;
     font-weight: 700;
     border: none;
@@ -983,19 +984,15 @@
         min-height: 50px;
     }
     
-    .rbf-people-selector button {
-        width: 48px;
-        height: 48px;
-        font-size: 18px;
-        min-height: 48px;
-        min-width: 48px;
-        margin: 0;
-        border-radius: 0;
-        flex: 0 0 48px;
+    :root {
+        --rbf-people-button-size: 48px;
     }
-    
+
+    .rbf-people-selector button {
+        font-size: 18px;
+    }
+
     .rbf-people-selector input {
-        min-height: 48px;
         font-size: 15px;
     }
     
@@ -1048,19 +1045,15 @@
         min-height: 52px;
     }
     
-    .rbf-people-selector button {
-        width: 48px;
-        height: 48px;
-        font-size: 18px;
-        min-width: 48px;
-        min-height: 48px;
-        margin: 0;
-        border-radius: 0;
-        flex: 0 0 48px;
+    :root {
+        --rbf-people-button-size: 48px;
     }
-    
+
+    .rbf-people-selector button {
+        font-size: 18px;
+    }
+
     .rbf-people-selector input {
-        min-height: 48px;
         font-size: 16px;
     }
     
@@ -1104,19 +1097,15 @@
         min-height: 54px;
     }
     
-    .rbf-people-selector button {
-        width: 48px;
-        height: 48px;
-        font-size: 18px;
-        min-height: 48px;
-        min-width: 48px;
-        margin: 0;
-        border-radius: 0;
-        flex: 0 0 48px;
+    :root {
+        --rbf-people-button-size: 48px;
     }
-    
+
+    .rbf-people-selector button {
+        font-size: 18px;
+    }
+
     .rbf-people-selector input {
-        min-height: 48px;
         font-size: 17px;
     }
     
@@ -1154,20 +1143,12 @@
         min-height: 56px;
     }
     
-    .rbf-people-selector button {
-        width: 48px;
-        height: 48px;
-        font-size: 18px;
-        min-width: 48px;
-        min-height: 48px;
-        margin: 0;
-        border-radius: 0;
-        flex: 0 0 48px;
+    :root {
+        --rbf-people-button-size: 48px;
     }
-    
-    .rbf-people-selector input {
-        min-height: 48px;
-        flex: 1;
+
+    .rbf-people-selector button {
+        font-size: 18px;
     }
 }
 
@@ -1199,24 +1180,20 @@
         min-height: 52px;
     }
     
+    :root {
+        --rbf-people-button-size: 48px;
+    }
+
     .rbf-people-selector {
         width: 100%;
     }
-    
+
     .rbf-people-selector button {
-        width: 48px;
-        height: 48px;
         font-size: 18px;
-        min-width: 48px;
-        min-height: 48px;
-        margin: 0;
-        border-radius: 0;
-        flex: 0 0 48px;
     }
-    
+
     .rbf-people-selector input {
-        min-height: 48px;
-        flex: 1;
+        font-size: 16px;
     }
     
     /* Better touch targets and spacing */
@@ -1271,11 +1248,6 @@
     
     /* Improve people selector touch targets */
     .rbf-people-selector button {
-        min-height: 48px;
-        min-width: 48px;
-        margin: 0;
-        border-radius: 0;
-        flex: 0 0 48px;
         -webkit-tap-highlight-color: transparent;
         touch-action: manipulation;
     }
@@ -1311,19 +1283,15 @@
         min-height: 58px;
     }
     
-    .rbf-people-selector button {
-        width: 52px;
-        height: 52px;
-        font-size: 22px;
-        min-width: 52px;
-        min-height: 52px;
-        margin: 0;
-        border-radius: 0;
-        flex: 0 0 52px;
+    :root {
+        --rbf-people-button-size: 52px;
     }
-    
+
+    .rbf-people-selector button {
+        font-size: 22px;
+    }
+
     .rbf-people-selector input {
-        min-height: 52px;
         font-size: 20px;
     }
 }

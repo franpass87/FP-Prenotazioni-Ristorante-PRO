@@ -245,6 +245,45 @@ function initializeBookingForm($) {
     submitButton: form.find('#rbf-submit')
   };
 
+  const timeFocusTracker = (() => {
+    let lastFocusedAt = 0;
+    let pendingRestore = false;
+    let blurSequence = 0;
+
+    return {
+      markFocused() {
+        lastFocusedAt = Date.now();
+        pendingRestore = false;
+      },
+      markBlurred() {
+        blurSequence += 1;
+        const currentSequence = blurSequence;
+
+        setTimeout(() => {
+          if (currentSequence === blurSequence && !pendingRestore) {
+            lastFocusedAt = 0;
+          }
+        }, 400);
+      },
+      shouldRestore() {
+        if (!lastFocusedAt) {
+          return false;
+        }
+
+        const elapsed = Date.now() - lastFocusedAt;
+        const shouldRestoreFocus = elapsed <= 2000;
+        pendingRestore = shouldRestoreFocus;
+        return shouldRestoreFocus;
+      },
+      clearPending() {
+        pendingRestore = false;
+      }
+    };
+  })();
+
+  el.timeSelect.on('focus', () => timeFocusTracker.markFocused());
+  el.timeSelect.on('blur', () => timeFocusTracker.markBlurred());
+
   // Ensure progressive steps are hidden until the wizard is fully initialized
   el.dateStep.hide();
   el.timeStep.hide();
@@ -2658,7 +2697,7 @@ function initializeBookingForm($) {
   /**
    * Load available times for the provided configuration
    */
-  function loadAvailableTimes({ dateString, selectedMeal, preserveSelectedTime = false } = {}) {
+  function loadAvailableTimes({ dateString, selectedMeal, preserveSelectedTime = false, restoreFocus = false } = {}) {
     if (!dateString || !selectedMeal) {
       return Promise.resolve({ selectionPreserved: false });
     }
@@ -2670,6 +2709,7 @@ function initializeBookingForm($) {
     showStepWithoutScroll(el.timeStep, 3);
 
     const previousSelection = preserveSelectedTime ? el.timeSelect.val() : null;
+    const shouldRestoreFocus = Boolean(restoreFocus);
 
     el.timeSelect.html(`<option value="">${rbfData.labels.loading}</option>`).prop('disabled', true);
     el.timeSelect.addClass('rbf-loading');
@@ -2861,6 +2901,27 @@ function initializeBookingForm($) {
           }
         }
 
+        if (shouldRestoreFocus) {
+          setTimeout(() => {
+            const nativeSelect = el.timeSelect.get(0);
+
+            if (nativeSelect && typeof nativeSelect.focus === 'function') {
+              nativeSelect.focus();
+            }
+
+            el.timeSelect.triggerHandler('focus');
+
+            const finalize = () => timeFocusTracker.clearPending();
+            if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+              window.requestAnimationFrame(finalize);
+            } else {
+              setTimeout(finalize, 0);
+            }
+          }, 40);
+        } else {
+          timeFocusTracker.clearPending();
+        }
+
         if (rbfData.debug) {
           console.log('RBF: Time loading AJAX completed (always handler)');
         }
@@ -2983,6 +3044,7 @@ function initializeBookingForm($) {
   });
   
   el.peopleInput.on('input', function() {
+    const shouldRestoreTimeFocus = timeFocusTracker.shouldRestore();
     const previousTimeSelection = el.timeSelect.val();
     updatePeopleButtons();
 
@@ -2995,7 +3057,8 @@ function initializeBookingForm($) {
       loadAvailableTimes({
         dateString: dateInfo.dateString,
         selectedMeal,
-        preserveSelectedTime: Boolean(previousTimeSelection)
+        preserveSelectedTime: Boolean(previousTimeSelection),
+        restoreFocus: shouldRestoreTimeFocus
       }).then(result => {
         if (result.selectionPreserved && previousTimeSelection) {
           showDetailsStepIfNeeded();
