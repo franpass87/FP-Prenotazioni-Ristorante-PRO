@@ -18,41 +18,43 @@ jobs:
       run: |
         TAG_VERSION=${GITHUB_REF#refs/tags/}
         PLUGIN_VERSION=$(grep "Version:" fp-prenotazioni-ristorante-pro.php | sed 's/.*Version:[[:space:]]*//' | sed 's/[[:space:]]*$//')
-        
+
         echo "tag_version=$TAG_VERSION" >> $GITHUB_OUTPUT
         echo "plugin_version=$PLUGIN_VERSION" >> $GITHUB_OUTPUT
         echo "plugin_name=fp-prenotazioni-ristorante-pro-${TAG_VERSION}" >> $GITHUB_OUTPUT
-        
+        echo "plugin_dir=fp-prenotazioni-ristorante-pro" >> $GITHUB_OUTPUT
+
         echo "Tag version: $TAG_VERSION"
         echo "Plugin version: $PLUGIN_VERSION"
-    
+
     - name: Create plugin directory
       run: |
-        mkdir -p build/${{ steps.get_version.outputs.plugin_name }}
-        
+        rm -rf build/${{ steps.get_version.outputs.plugin_dir }}
+        mkdir -p build/${{ steps.get_version.outputs.plugin_dir }}
+
     - name: Copy plugin files
       run: |
         # Copy main plugin file
-        cp fp-prenotazioni-ristorante-pro.php build/${{ steps.get_version.outputs.plugin_name }}/
-        
+        cp fp-prenotazioni-ristorante-pro.php build/${{ steps.get_version.outputs.plugin_dir }}/
+
         # Copy core directories
-        cp -r includes/ build/${{ steps.get_version.outputs.plugin_name }}/
-        cp -r assets/ build/${{ steps.get_version.outputs.plugin_name }}/
-        cp -r tests/ build/${{ steps.get_version.outputs.plugin_name }}/
-        
+        cp -r includes/ build/${{ steps.get_version.outputs.plugin_dir }}/
+        cp -r assets/ build/${{ steps.get_version.outputs.plugin_dir }}/
+        cp -r tests/ build/${{ steps.get_version.outputs.plugin_dir }}/
+
         # Copy documentation and configuration
-        cp README.md build/${{ steps.get_version.outputs.plugin_name }}/
-        cp *.md build/${{ steps.get_version.outputs.plugin_name }}/
-        cp fppr-brand.json build/${{ steps.get_version.outputs.plugin_name }}/
-        
+        cp README.md build/${{ steps.get_version.outputs.plugin_dir }}/
+        cp *.md build/${{ steps.get_version.outputs.plugin_dir }}/
+        cp fppr-brand.json build/${{ steps.get_version.outputs.plugin_dir }}/
+
         # Copy docs directory if it exists
         if [ -d "docs" ]; then
-          cp -r docs/ build/${{ steps.get_version.outputs.plugin_name }}/
+          cp -r docs/ build/${{ steps.get_version.outputs.plugin_dir }}/
         fi
-        
+
     - name: Create WordPress readme.txt
       run: |
-        cat > build/${{ steps.get_version.outputs.plugin_name }}/readme.txt << 'EOF'
+        cat > build/${{ steps.get_version.outputs.plugin_dir }}/readme.txt << 'EOF'
         === Prenotazioni Ristorante PRO ===
         Contributors: francescopasseri
         Tags: restaurant, booking, reservations, table, management
@@ -115,8 +117,8 @@ jobs:
         
     - name: Remove development files
       run: |
-        cd build/${{ steps.get_version.outputs.plugin_name }}
-        
+        cd build/${{ steps.get_version.outputs.plugin_dir }}
+
         # Remove development-only files
         rm -f demo*.html test-*.html *-test.html *.html
         rm -f *.sh
@@ -127,8 +129,8 @@ jobs:
     - name: Create release zip
       run: |
         cd build
-        zip -r ${{ steps.get_version.outputs.plugin_name }}.zip ${{ steps.get_version.outputs.plugin_name }}/
-        
+        zip -r ${{ steps.get_version.outputs.plugin_name }}.zip ${{ steps.get_version.outputs.plugin_dir }}/
+
         echo "=== Release Zip Info ==="
         ls -lh ${{ steps.get_version.outputs.plugin_name }}.zip
         

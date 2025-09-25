@@ -36,13 +36,15 @@ jobs:
         fi
 
         echo "package_name=$PACKAGE_NAME" >> "$GITHUB_OUTPUT"
-        echo "Package directory: $PACKAGE_NAME"
+        echo "package_dir=${PLUGIN_SLUG}" >> "$GITHUB_OUTPUT"
+        echo "Package directory: ${PLUGIN_SLUG} (zip: $PACKAGE_NAME)"
 
     - name: Stage plugin files
       run: |
         set -euo pipefail
 
-        PACKAGE_PATH="${BUILD_DIR}/${{ steps.metadata.outputs.package_name }}"
+        PACKAGE_PATH="${BUILD_DIR}/${PLUGIN_SLUG}"
+        rm -rf "$PACKAGE_PATH"
         mkdir -p "$PACKAGE_PATH"
 
         rsync -a --prune-empty-dirs \
@@ -61,7 +63,7 @@ jobs:
 
     - name: Create readme.txt for WordPress repository
       run: |
-        cat > "${BUILD_DIR}/${{ steps.metadata.outputs.package_name }}/readme.txt" << 'EOF'
+        cat > "${BUILD_DIR}/${PLUGIN_SLUG}/readme.txt" << 'EOF'
         === Prenotazioni Ristorante PRO ===
         Contributors: francescopasseri
         Tags: restaurant, booking, reservations, table, management
@@ -124,7 +126,7 @@ jobs:
         
     - name: Validate plugin structure
       run: |
-        cd "${BUILD_DIR}/${{ steps.metadata.outputs.package_name }}"
+        cd "${BUILD_DIR}/${PLUGIN_SLUG}"
 
         echo "=== Plugin Structure ==="
         find . -type f -name "*.php" | head -10
@@ -160,7 +162,7 @@ jobs:
         set -euo pipefail
 
         cd "${BUILD_DIR}"
-        zip -r "${{ steps.metadata.outputs.package_name }}.zip" "${{ steps.metadata.outputs.package_name }}"/
+        zip -r "${{ steps.metadata.outputs.package_name }}.zip" "${PLUGIN_SLUG}/"
         cp "${{ steps.metadata.outputs.package_name }}.zip" "${PLUGIN_SLUG}-latest.zip"
 
         echo "=== Zip File Info ==="
