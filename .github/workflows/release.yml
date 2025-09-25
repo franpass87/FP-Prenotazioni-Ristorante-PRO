@@ -8,69 +8,78 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
-    
+
+    env:
+      BUILD_DIR: build
+      PLUGIN_SLUG: fp-prenotazioni-ristorante-pro
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
-    - name: Get version from tag
-      id: get_version
+
+    - name: Gather plugin metadata
+      id: metadata
       run: |
+        set -euo pipefail
+
         TAG_VERSION=${GITHUB_REF#refs/tags/}
-        PLUGIN_VERSION=$(grep "Version:" fp-prenotazioni-ristorante-pro.php | sed 's/.*Version:[[:space:]]*//' | sed 's/[[:space:]]*$//')
+        VERSION=$(awk -F': +' '/^[[:space:]]*\*?[[:space:]]*Version/{gsub(/\r/, "", $2); print $2; exit}' "${PLUGIN_SLUG}.php")
 
-        echo "tag_version=$TAG_VERSION" >> $GITHUB_OUTPUT
-        echo "plugin_version=$PLUGIN_VERSION" >> $GITHUB_OUTPUT
-        echo "plugin_name=fp-prenotazioni-ristorante-pro-${TAG_VERSION}" >> $GITHUB_OUTPUT
-        echo "plugin_dir=fp-prenotazioni-ristorante-pro" >> $GITHUB_OUTPUT
+        echo "tag_version=$TAG_VERSION" >> "$GITHUB_OUTPUT"
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "package_dir=${PLUGIN_SLUG}" >> "$GITHUB_OUTPUT"
+        echo "package_name=${PLUGIN_SLUG}-${TAG_VERSION}" >> "$GITHUB_OUTPUT"
 
-        echo "Tag version: $TAG_VERSION"
-        echo "Plugin version: $PLUGIN_VERSION"
+        printf 'Tag version: %s\n' "$TAG_VERSION"
+        printf 'Plugin version from source: %s\n' "$VERSION"
 
-    - name: Create plugin directory
-      run: |
-        rm -rf build/${{ steps.get_version.outputs.plugin_dir }}
-        mkdir -p build/${{ steps.get_version.outputs.plugin_dir }}
-
-    - name: Copy plugin files
-      run: |
-        # Copy main plugin file
-        cp fp-prenotazioni-ristorante-pro.php build/${{ steps.get_version.outputs.plugin_dir }}/
-
-        # Copy core directories
-        cp -r includes/ build/${{ steps.get_version.outputs.plugin_dir }}/
-        cp -r assets/ build/${{ steps.get_version.outputs.plugin_dir }}/
-        cp -r tests/ build/${{ steps.get_version.outputs.plugin_dir }}/
-
-        # Copy documentation and configuration
-        cp README.md build/${{ steps.get_version.outputs.plugin_dir }}/
-        cp *.md build/${{ steps.get_version.outputs.plugin_dir }}/
-        cp fppr-brand.json build/${{ steps.get_version.outputs.plugin_dir }}/
-
-        # Copy docs directory if it exists
-        if [ -d "docs" ]; then
-          cp -r docs/ build/${{ steps.get_version.outputs.plugin_dir }}/
+        if [ "$TAG_VERSION" != "v${VERSION}" ]; then
+          echo "::warning title=Version mismatch::Il tag (${TAG_VERSION}) non corrisponde alla versione dichiarata nel plugin (${VERSION})."
         fi
+
+    - name: Prepare build directory
+      run: |
+        set -euo pipefail
+
+        PACKAGE_PATH="${BUILD_DIR}/${{ steps.metadata.outputs.package_dir }}"
+        rm -rf "$PACKAGE_PATH"
+        mkdir -p "$PACKAGE_PATH"
+
+        rsync -a --prune-empty-dirs \
+          --include='*/' \
+          --include="${PLUGIN_SLUG}.php" \
+          --include='fppr-brand.json' \
+          --include='README.md' \
+          --include='*.md' \
+          --include='includes/***' \
+          --include='assets/***' \
+          --include='tests/***' \
+          --include='docs/***' \
+          --include='languages/***' \
+          --exclude='*' \
+          ./ "$PACKAGE_PATH/"
 
     - name: Create WordPress readme.txt
       run: |
-        cat > build/${{ steps.get_version.outputs.plugin_dir }}/readme.txt << 'EOF'
+        set -euo pipefail
+
+        cat > "${BUILD_DIR}/${{ steps.metadata.outputs.package_dir }}/readme.txt" << 'EOF'
         === Prenotazioni Ristorante PRO ===
         Contributors: francescopasseri
         Tags: restaurant, booking, reservations, table, management
         Requires at least: 5.0
         Tested up to: 6.4
         Requires PHP: 7.4
-        Stable tag: ${{ steps.get_version.outputs.plugin_version }}
+        Stable tag: ${{ steps.metadata.outputs.version }}
         License: GPLv2 or later
         License URI: https://www.gnu.org/licenses/gpl-2.0.html
-        
+
         Sistema completo di prenotazioni per ristoranti con calendario avanzato, notifiche email e tracking marketing.
-        
+
         == Description ==
-        
-        Prenotazioni Ristorante PRO è un plugin WordPress completo per la gestione delle prenotazioni di ristoranti. 
-        
+
+        Prenotazioni Ristorante PRO è un plugin WordPress completo per la gestione delle prenotazioni di ristoranti.
+
         Caratteristiche principali:
         * 📅 Calendario avanzato con Flatpickr
         * 🌍 Supporto multilingua (IT/EN)
@@ -79,100 +88,130 @@ jobs:
         * 🎨 Giornate speciali a tema
         * 🔒 Sistema di sicurezza avanzato
         * 📱 Design responsive
-        
+
         == Installation ==
-        
+
         1. Carica la cartella del plugin in `/wp-content/plugins/`
         2. Attiva il plugin dal pannello WordPress
         3. Vai su "Prenotazioni" nel menu admin per configurare
         4. Inserisci `[ristorante_booking_form]` nella pagina desiderata
-        
+
         == Frequently Asked Questions ==
-        
+
         = Quali sono i requisiti minimi? =
-        
+
         * WordPress 5.0+
         * PHP 7.4+
         * MySQL 5.7+
         * Memory 128MB+
-        
+
         = Il plugin è compatibile con altri plugin? =
-        
+
         Sì, è stato testato con i principali plugin di caching e sicurezza.
-        
+
         == Changelog ==
-        
-        = ${{ steps.get_version.outputs.plugin_version }} =
+
+        = ${{ steps.metadata.outputs.version }} =
         * Release finale con architettura modulare completa
         * Sistema di tracking marketing avanzato
         * Sicurezza hardened con CSRF protection
         * Performance ottimizzate
         * Documentazione completa
-        
+
         == Upgrade Notice ==
-        
-        = ${{ steps.get_version.outputs.plugin_version }} =
+
+        = ${{ steps.metadata.outputs.version }} =
         Versione stabile e completa. Aggiornamento raccomandato per tutti gli utenti.
         EOF
-        
-    - name: Remove development files
-      run: |
-        cd build/${{ steps.get_version.outputs.plugin_dir }}
 
-        # Remove development-only files
-        rm -f demo*.html test-*.html *-test.html *.html
-        rm -f *.sh
-        rm -f *.png
-        rm -rf .git
-        rm -f .gitignore
-        
-    - name: Create release zip
+    - name: Remove development-only artifacts
       run: |
-        cd build
-        zip -r ${{ steps.get_version.outputs.plugin_name }}.zip ${{ steps.get_version.outputs.plugin_dir }}/
+        set -euo pipefail
 
-        echo "=== Release Zip Info ==="
-        ls -lh ${{ steps.get_version.outputs.plugin_name }}.zip
-        
+        cd "${BUILD_DIR}/${{ steps.metadata.outputs.package_dir }}"
+
+        rm -f demo*.html test-*.html *-test.html *.html || true
+        rm -f *.sh || true
+        rm -f *.png || true
+        rm -rf .git || true
+        rm -f .gitignore || true
+
+    - name: Validate packaged plugin
+      run: |
+        set -euo pipefail
+
+        cd "${BUILD_DIR}/${{ steps.metadata.outputs.package_dir }}"
+
+        echo "=== Packaged Plugin Structure ==="
+        find . -maxdepth 2 -type f | sort | head -40
+
+        echo "=== Version in main plugin file ==="
+        awk -F': +' '/Version/{print; exit}' "${PLUGIN_SLUG}.php"
+
+    - name: Create release archives
+      run: |
+        set -euo pipefail
+
+        cd "$BUILD_DIR"
+        zip -r "${{ steps.metadata.outputs.package_name }}.zip" "${{ steps.metadata.outputs.package_dir }}/"
+        cp "${{ steps.metadata.outputs.package_name }}.zip" "${PLUGIN_SLUG}-latest.zip"
+
+        echo "=== Generated archives ==="
+        ls -lh "${{ steps.metadata.outputs.package_name }}.zip" "${PLUGIN_SLUG}-latest.zip"
+
+        echo "=== Checksums ==="
+        sha256sum "${{ steps.metadata.outputs.package_name }}.zip" "${PLUGIN_SLUG}-latest.zip"
+
     - name: Create Release
       uses: actions/create-release@v1
       id: create_release
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ steps.get_version.outputs.tag_version }}
-        release_name: Prenotazioni Ristorante PRO ${{ steps.get_version.outputs.tag_version }}
+        tag_name: ${{ steps.metadata.outputs.tag_version }}
+        release_name: Prenotazioni Ristorante PRO ${{ steps.metadata.outputs.tag_version }}
         body: |
-          ## Prenotazioni Ristorante PRO ${{ steps.get_version.outputs.tag_version }}
-          
+          ## Prenotazioni Ristorante PRO ${{ steps.metadata.outputs.tag_version }}
+
           Release automatica del plugin WordPress per installazione diretta.
-          
+
           ### 📦 File per l'installazione
-          - **${{ steps.get_version.outputs.plugin_name }}.zip** - Plugin WordPress pronto per l'installazione
-          
+          - **${{ steps.metadata.outputs.package_name }}.zip** – Plugin WordPress pronto per l'installazione
+          - **${{ env.PLUGIN_SLUG }}-latest.zip** – Ultima build con lo stesso contenuto della release
+
           ### 🚀 Come installare
           1. Scarica il file zip allegato
           2. Vai su **Plugin > Aggiungi nuovo** nel tuo WordPress
           3. Clicca **Carica plugin** e seleziona il file zip
           4. Attiva il plugin dopo l'installazione
           5. Configura il plugin in **Prenotazioni > Impostazioni**
-          
+
           ### 📋 Requisiti
           - WordPress 5.0+
           - PHP 7.4+
           - MySQL 5.7+
-          
+
           ### 📚 Documentazione
           Consulta i file .md inclusi nel plugin per la documentazione completa.
         draft: false
         prerelease: false
-        
-    - name: Upload Release Asset
+
+    - name: Upload versioned release asset
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./build/${{ steps.get_version.outputs.plugin_name }}.zip
-        asset_name: ${{ steps.get_version.outputs.plugin_name }}.zip
+        asset_path: ./build/${{ steps.metadata.outputs.package_name }}.zip
+        asset_name: ${{ steps.metadata.outputs.package_name }}.zip
+        asset_content_type: application/zip
+
+    - name: Upload latest release asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./build/${{ env.PLUGIN_SLUG }}-latest.zip
+        asset_name: ${{ env.PLUGIN_SLUG }}-latest.zip
         asset_content_type: application/zip
