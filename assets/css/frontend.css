@@ -301,12 +301,23 @@
 .rbf-people-selector input {
     width: 100%;
     min-height: var(--rbf-people-button-size);
+    height: var(--rbf-people-button-size);
     text-align: center;
     font-weight: 700;
     border: none;
     font-size: 18px;
     color: var(--rbf-text);
     background: white;
+    padding: 0;
+    line-height: var(--rbf-people-button-size);
+    appearance: textfield;
+    -moz-appearance: textfield;
+}
+
+.rbf-people-selector input::-webkit-inner-spin-button,
+.rbf-people-selector input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
 }
 
 #rbf-submit {
@@ -368,6 +379,28 @@
 .rbf-error-message {
     color: white;
     background: linear-gradient(135deg, var(--rbf-error) 0%, #c82333 100%);
+}
+
+.rbf-form-container > .rbf-success-message,
+.rbf-form-container > .rbf-error-message {
+    color: var(--rbf-text);
+    background: white;
+    border: 1px solid var(--rbf-border);
+    box-shadow: none;
+}
+
+.rbf-form-container > .rbf-success-message {
+    border-color: rgba(21, 87, 36, 0.35);
+    background: linear-gradient(135deg, rgba(198, 239, 206, 0.7) 0%, rgba(224, 255, 224, 0.9) 100%);
+    color: #14532d;
+    font-weight: 600;
+}
+
+.rbf-form-container > .rbf-error-message {
+    border-color: rgba(220, 53, 69, 0.35);
+    background: linear-gradient(135deg, rgba(255, 235, 238, 0.85) 0%, rgba(255, 245, 247, 0.95) 100%);
+    color: #7f1d1d;
+    font-weight: 600;
 }
 
 /* Special Occasion Notice */
@@ -2351,14 +2384,18 @@
 
 /* Calendar day colors - use primary color instead of secondary */
 .flatpickr-day.today {
-    background: var(--rbf-primary) !important;
+    background: var(--rbf-bg-light, #ffffff) !important;
     border-color: var(--rbf-primary) !important;
-    color: white !important;
+    color: var(--rbf-primary) !important;
 }
 
 .flatpickr-day.selected {
     background: var(--rbf-primary) !important;
     border-color: var(--rbf-primary) !important;
+    color: white !important;
+}
+
+.flatpickr-day.today.selected {
     color: white !important;
 }
 
@@ -2513,8 +2550,8 @@
     100% { transform: translateY(-50%) rotate(360deg); }
 }
 
-/* Error message styling */
-.rbf-error-message {
+/* Error message styling (inline within the form) */
+.rbf-form .rbf-error-message {
     color: var(--rbf-error);
     font-size: 0.875rem;
     margin-top: 0.25rem;
@@ -2523,13 +2560,13 @@
     gap: 0.5rem;
 }
 
-.rbf-error-message::before {
+.rbf-form .rbf-error-message::before {
     content: '⚠️';
     font-size: 1rem;
 }
 
-/* Success message styling */
-.rbf-success-message {
+/* Success message styling (inline within the form) */
+.rbf-form .rbf-success-message {
     color: var(--rbf-success);
     font-size: 0.875rem;
     margin-top: 0.25rem;
@@ -2538,7 +2575,7 @@
     gap: 0.5rem;
 }
 
-.rbf-success-message::before {
+.rbf-form .rbf-success-message::before {
     content: '✅';
     font-size: 1rem;
 }

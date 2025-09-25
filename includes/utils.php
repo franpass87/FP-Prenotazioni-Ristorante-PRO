@@ -391,6 +391,8 @@ function rbf_get_default_settings() {
         'meta_access_token' => '',
         'notification_email' => get_option('admin_email'),
         'webmaster_email' => '',
+        'booking_change_email' => get_option('admin_email'),
+        'booking_change_phone' => '',
         'privacy_policy_url' => '',
         'booking_page_id' => 0,
         'brevo_api' => '',
@@ -410,6 +412,65 @@ function rbf_get_default_settings() {
         'recaptcha_secret_key' => '',
         'recaptcha_threshold' => '0.5',
     ];
+}
+
+/**
+ * Generate the confirmation modal warning message with contact details.
+ *
+ * @param array $options Plugin settings array.
+ * @return string
+ */
+function rbf_get_confirmation_warning_message(array $options = []) {
+    $base_message = rbf_translate_string('Verifica che i dati siano corretti prima di confermare.');
+
+    $email = '';
+    if (!empty($options['booking_change_email'])) {
+        $email = sanitize_email($options['booking_change_email']);
+    }
+
+    $phone = '';
+    if (!empty($options['booking_change_phone'])) {
+        $phone = rbf_sanitize_phone_field($options['booking_change_phone']);
+    }
+
+    $contact_parts = [];
+
+    if ($email) {
+        $contact_parts[] = sprintf(
+            rbf_translate_string('scrivici a %s'),
+            $email
+        );
+    }
+
+    if ($phone) {
+        $contact_parts[] = sprintf(
+            rbf_translate_string('chiamaci al %s'),
+            $phone
+        );
+    }
+
+    if (!empty($contact_parts)) {
+        $contact_clause = $contact_parts[0];
+
+        if (count($contact_parts) === 2) {
+            $contact_clause = sprintf(
+                rbf_translate_string('%1$s o %2$s'),
+                $contact_parts[0],
+                $contact_parts[1]
+            );
+        }
+
+        $contact_sentence = sprintf(
+            rbf_translate_string('Per modifiche alla prenotazione %s.'),
+            $contact_clause
+        );
+
+        return trim($base_message . ' ' . $contact_sentence);
+    }
+
+    $fallback_sentence = rbf_translate_string('Per modifiche alla prenotazione contattaci direttamente.');
+
+    return trim($base_message . ' ' . $fallback_sentence);
 }
 
 /**
@@ -1265,6 +1326,7 @@ function rbf_translate_string($text) {
         'Seleziona una data dal calendario' => 'Select a date from the calendar',
         'Seleziona un orario disponibile' => 'Select an available time',
         'Usa i pulsanti + e - per modificare' => 'Use + and - buttons to change',
+        'Usa i pulsanti + e - oppure digita il numero di persone' => 'Use the + and - buttons or type the number of guests',
         'Diminuisci numero persone' => 'Decrease number of people',
         'Aumenta numero persone' => 'Increase number of people',
         'Inserisci eventuali allergie o note particolari...' => 'Enter any allergies or special notes...',

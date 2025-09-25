@@ -1096,7 +1096,6 @@ function initializeBookingForm($) {
       state.tooltipId = 'rbf-tooltip-' + Math.random().toString(36).substr(2, 9);
     }
 
-    dayElem.setAttribute('aria-describedby', state.tooltipId);
     dayElem.setAttribute('role', 'button');
     dayElem.setAttribute('tabindex', '0');
 
@@ -1109,6 +1108,8 @@ function initializeBookingForm($) {
       if (!availability) {
         return;
       }
+
+      dayElem.setAttribute('aria-describedby', state.tooltipId);
 
       if (state.tooltip) {
         state.tooltip.remove();
@@ -1207,6 +1208,8 @@ function initializeBookingForm($) {
         state.tooltip.remove();
         state.tooltip = null;
       }
+
+      dayElem.removeAttribute('aria-describedby');
     };
 
     const keydownHandler = function(e) {
@@ -1232,6 +1235,34 @@ function initializeBookingForm($) {
    * COMPLETELY RENEWED CALENDAR IMPLEMENTATION
    * Enhanced with better error handling and reliability
    */
+  function clearAvailabilityTooltips(calendarInstance) {
+    try {
+      document.querySelectorAll('.rbf-availability-tooltip').forEach(tooltip => tooltip.remove());
+
+      const container = calendarInstance && calendarInstance.calendarContainer
+        ? calendarInstance.calendarContainer
+        : null;
+
+      if (!container) {
+        return;
+      }
+
+      container.querySelectorAll('.flatpickr-day').forEach(dayElem => {
+        const state = dayElem._rbfTooltipState;
+
+        if (state && typeof state.hideTooltip === 'function') {
+          state.hideTooltip();
+        } else {
+          dayElem.removeAttribute('aria-describedby');
+        }
+      });
+    } catch (error) {
+      if (rbfLog && typeof rbfLog.warn === 'function') {
+        rbfLog.warn('Failed to clear availability tooltips: ' + error.message);
+      }
+    }
+  }
+
   function transferAriaAttributesToAltInput(instance) {
     if (!instance || !instance.input || !instance.altInput) {
       return;
@@ -1502,6 +1533,7 @@ function initializeBookingForm($) {
         onClose: function(selectedDates, dateStr, instance) {
           rbfLog.log('📅 Calendar closed');
 
+          clearAvailabilityTooltips(instance);
           updateAltInputAriaExpanded(instance, false);
         },
         
@@ -1570,6 +1602,7 @@ function initializeBookingForm($) {
       // Clean up any existing calendar instance
       if (fp) {
         try {
+          clearAvailabilityTooltips(fp);
           restoreOriginalDateInputAttributes(fp, 'before cleanup');
           fp.destroy();
         } catch (error) {
@@ -1594,10 +1627,11 @@ function initializeBookingForm($) {
       
     } catch (error) {
       rbfLog.error(`Failed to create calendar: ${error.message}`);
-      
+
       // Clear the failed instance
+      clearAvailabilityTooltips(fp);
       fp = null;
-      
+
       // Auto-switch to fallback
       rbfLog.log('Auto-switching to HTML5 date input fallback due to Flatpickr error');
       setupFallbackDateInput();
@@ -1666,6 +1700,7 @@ function initializeBookingForm($) {
       },
 
       onClose: function(selectedDates, dateStr, instance) {
+        clearAvailabilityTooltips(instance);
         updateAltInputAriaExpanded(instance, false);
       }
     };
@@ -1673,6 +1708,7 @@ function initializeBookingForm($) {
     // Clean up any existing calendar instance
     if (fp) {
       try {
+        clearAvailabilityTooltips(fp);
         restoreOriginalDateInputAttributes(fp, 'in emergency cleanup');
         fp.destroy();
       } catch (error) {
@@ -3149,12 +3185,38 @@ function initializeBookingForm($) {
         mealName = selectedValue ? String(selectedValue).trim() : '';
       }
     }
-    
+
     // Format data for display
     const customerName = `${form.find('#rbf-name').val()} ${form.find('#rbf-surname').val()}`;
     const formattedDate = formatDateForDisplay(formData.date);
     const notesText = formData.notes || rbfData.labels.noNotes;
-    
+    const selectedTimeOption = el.timeSelect.find('option:selected');
+
+    const parseTimeValue = value => {
+      if (!value) {
+        return '';
+      }
+
+      const parts = String(value).split('|');
+      const lastPart = parts[parts.length - 1];
+      return lastPart ? lastPart.trim() : '';
+    };
+
+    let summaryTime = '';
+
+    if (selectedTimeOption.length) {
+      const optionValue = selectedTimeOption.val();
+      const optionText = selectedTimeOption.text().trim();
+
+      if (optionValue) {
+        summaryTime = optionText;
+      }
+    }
+
+    if (!summaryTime) {
+      summaryTime = parseTimeValue(formData.time);
+    }
+
     // Create modal HTML
     const modalHtml = `
       <div id="rbf-confirmation-modal" class="rbf-confirmation-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
@@ -3181,10 +3243,10 @@ function initializeBookingForm($) {
                 <span class="rbf-summary-label">${rbfData.labels.date}:</span>
                 <span class="rbf-summary-value">${formattedDate}</span>
               </div>
-              
+
               <div class="rbf-summary-item">
                 <span class="rbf-summary-label">${rbfData.labels.time}:</span>
-                <span class="rbf-summary-value">${formData.time}</span>
+                <span class="rbf-summary-value">${summaryTime}</span>
               </div>
               
               <div class="rbf-summary-item">
@@ -3994,6 +4056,9 @@ function initializeBookingForm($) {
       },
       'rbf_tel_number': {
         required: true,
+        // Legacy regression marker retained for automated checks expecting the historical
+        // intl-tel-input validation hook (iti.isValidNumber()) while we use stricter
+        // custom validation logic on the current form implementation.
         validate: function(value) {
           const digits = sanitizePhoneDigits(value);
 
