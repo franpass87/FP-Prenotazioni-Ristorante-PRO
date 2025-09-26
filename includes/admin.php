@@ -781,6 +781,7 @@ function rbf_get_plugin_admin_screen_ids() {
         'rbf_settings',
         'rbf_tracking_validation',
         'rbf_booking_dashboard',
+        'rbf_setup_wizard',
     ];
 
     $raw_ids = [
@@ -2177,11 +2178,117 @@ function rbf_calendar_page_html() {
         'nonce' => wp_create_nonce('rbf_calendar_nonce'),
         'editUrl' => admin_url('post.php?post=BOOKING_ID&action=edit')
     ]);
+    $manual_booking_url = admin_url('admin.php?page=rbf_add_booking');
+    $weekly_staff_url   = admin_url('admin.php?page=rbf_weekly_staff');
+    $tables_url         = admin_url('admin.php?page=rbf_tables');
+    $reports_url        = admin_url('admin.php?page=rbf_reports');
+
+    $status_descriptions = [
+        'confirmed' => rbf_translate_string('Prenotazione attiva e confermata.'),
+        'completed' => rbf_translate_string('Servizio concluso e registrato come completato.'),
+        'cancelled' => rbf_translate_string('Prenotazione annullata o segnalata come no-show.'),
+    ];
+    $statuses = function_exists('rbf_get_booking_statuses') ? rbf_get_booking_statuses() : [];
     ?>
-    <div class="rbf-admin-wrap rbf-admin-wrap--wide">
-        <h1><?php echo esc_html(rbf_translate_string('Prenotazioni')); ?></h1>
-        
-        <div id="rbf-calendar"></div>
+    <div class="rbf-admin-wrap rbf-admin-wrap--full rbf-calendar-screen">
+        <header class="rbf-admin-header">
+            <div class="rbf-admin-header__content">
+                <span class="rbf-admin-header__eyebrow"><?php echo esc_html(rbf_translate_string('Calendario prenotazioni')); ?></span>
+                <h1 class="rbf-admin-header__title"><?php echo esc_html(rbf_translate_string('Panoramica in tempo reale')); ?></h1>
+                <p class="rbf-admin-header__lead">
+                    <?php echo esc_html(rbf_translate_string('Controlla disponibilità, gestisci conflitti e apri rapidamente le prenotazioni in corso.')); ?>
+                </p>
+            </div>
+            <div class="rbf-admin-header__actions">
+                <a class="button button-primary" href="<?php echo esc_url($manual_booking_url); ?>">
+                    <?php echo esc_html(rbf_translate_string('Nuova prenotazione')); ?>
+                </a>
+                <a class="button button-secondary" href="<?php echo esc_url($weekly_staff_url); ?>">
+                    <?php echo esc_html(rbf_translate_string('Agenda settimanale')); ?>
+                </a>
+                <a class="button button-secondary" href="<?php echo esc_url($tables_url); ?>">
+                    <?php echo esc_html(rbf_translate_string('Gestione tavoli')); ?>
+                </a>
+            </div>
+        </header>
+
+        <div class="rbf-admin-layout rbf-admin-layout--with-aside">
+            <div class="rbf-admin-layout__main">
+                <div class="rbf-admin-toolbar">
+                    <div class="rbf-admin-toolbar__hint">
+                        <strong><?php echo esc_html(rbf_translate_string('Suggerimento:')); ?></strong>
+                        <?php echo esc_html(rbf_translate_string('usa il drag & drop per spostare rapidamente una prenotazione su un nuovo orario.')); ?>
+                    </div>
+                    <div class="rbf-admin-toolbar__meta">
+                        <span><?php echo esc_html(rbf_translate_string('Aggiornamento automatico ogni 60 secondi.')); ?></span>
+                    </div>
+                </div>
+
+                <div class="rbf-calendar-shell" role="region" aria-label="<?php echo esc_attr(rbf_translate_string('Calendario prenotazioni')); ?>">
+                    <div class="rbf-calendar-shell__body">
+                        <div id="rbf-calendar"></div>
+                    </div>
+                </div>
+            </div>
+            <aside class="rbf-admin-layout__aside">
+                <?php if (!empty($statuses)) : ?>
+                    <div class="rbf-admin-card rbf-admin-card--muted rbf-calendar-legend-card">
+                        <h2 class="rbf-heading-sm"><?php echo esc_html(rbf_translate_string('Legenda stati')); ?></h2>
+                        <ul class="rbf-admin-legend">
+                            <?php foreach ($statuses as $status_key => $status_label) : ?>
+                                <li class="rbf-admin-legend__item">
+                                    <span class="rbf-admin-legend__badge rbf-status-badge rbf-status-<?php echo esc_attr($status_key); ?>">
+                                        <?php echo esc_html($status_label); ?>
+                                    </span>
+                                    <?php if (isset($status_descriptions[$status_key])) : ?>
+                                        <span class="rbf-admin-legend__description">
+                                            <?php echo esc_html($status_descriptions[$status_key]); ?>
+                                        </span>
+                                    <?php endif; ?>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+                <?php endif; ?>
+                <div class="rbf-admin-card rbf-admin-card--muted">
+                    <h2 class="rbf-heading-sm"><?php echo esc_html(rbf_translate_string('Azioni rapide')); ?></h2>
+                    <ul class="rbf-admin-quick-actions">
+                        <li class="rbf-admin-quick-actions__item">
+                            <span class="dashicons dashicons-forms" aria-hidden="true"></span>
+                            <div>
+                                <span class="rbf-admin-quick-actions__label"><?php echo esc_html(rbf_translate_string('Registra una prenotazione manuale')); ?></span>
+                                <a href="<?php echo esc_url($manual_booking_url); ?>" class="rbf-admin-quick-actions__link">
+                                    <?php echo esc_html(rbf_translate_string('Apri modulo backend')); ?>
+                                </a>
+                            </div>
+                        </li>
+                        <li class="rbf-admin-quick-actions__item">
+                            <span class="dashicons dashicons-chart-bar" aria-hidden="true"></span>
+                            <div>
+                                <span class="rbf-admin-quick-actions__label"><?php echo esc_html(rbf_translate_string('Consulta i report giornalieri')); ?></span>
+                                <a href="<?php echo esc_url($reports_url); ?>" class="rbf-admin-quick-actions__link">
+                                    <?php echo esc_html(rbf_translate_string('Apri dashboard Analytics')); ?>
+                                </a>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+                <div class="rbf-admin-card rbf-admin-card--muted rbf-admin-card--stacked">
+                    <h2 class="rbf-heading-sm"><?php echo esc_html(rbf_translate_string('Note operative')); ?></h2>
+                    <ul class="rbf-admin-list">
+                        <li class="rbf-admin-list__item">
+                            <?php echo esc_html(rbf_translate_string('Clicca su un evento per aprire la scheda di modifica completa.')); ?>
+                        </li>
+                        <li class="rbf-admin-list__item">
+                            <?php echo esc_html(rbf_translate_string('I colori del calendario rispecchiano automaticamente lo stato della prenotazione.')); ?>
+                        </li>
+                        <li class="rbf-admin-list__item">
+                            <?php echo esc_html(rbf_translate_string('Usa i filtri della barra superiore di FullCalendar per cambiare vista o intervallo.')); ?>
+                        </li>
+                    </ul>
+                </div>
+            </aside>
+        </div>
     </div>
     <?php
 }
@@ -2222,15 +2329,99 @@ function rbf_weekly_staff_page_html() {
             'confirmMove' => rbf_translate_string('Confermi lo spostamento della prenotazione?'),
         ]
     ]);
+    $calendar_url       = admin_url('admin.php?page=rbf_calendar');
+    $manual_booking_url = admin_url('admin.php?page=rbf_add_booking');
+    $tables_url         = admin_url('admin.php?page=rbf_tables');
+    $statuses           = function_exists('rbf_get_booking_statuses') ? rbf_get_booking_statuses() : [];
+
     ?>
-    <div class="rbf-admin-wrap rbf-admin-wrap--wide">
-        <h1><?php echo esc_html(rbf_translate_string('Vista Settimanale Staff')); ?></h1>
-        <p class="description"><?php echo esc_html(rbf_translate_string('Vista compatta per lo staff con funzionalità drag & drop per spostare le prenotazioni.')); ?></p>
-        
-        <div id="rbf-weekly-staff-calendar"></div>
-        
-        <div id="rbf-move-notification" class="notice" hidden>
-            <p id="rbf-move-message"></p>
+    <div class="rbf-admin-wrap rbf-admin-wrap--full rbf-weekly-staff-screen">
+        <header class="rbf-admin-header">
+            <div class="rbf-admin-header__content">
+                <span class="rbf-admin-header__eyebrow"><?php echo esc_html(rbf_translate_string('Agenda settimanale')); ?></span>
+                <h1 class="rbf-admin-header__title"><?php echo esc_html(rbf_translate_string('Coordinamento rapido dello staff')); ?></h1>
+                <p class="rbf-admin-header__lead">
+                    <?php echo esc_html(rbf_translate_string('Trascina e rilascia le prenotazioni per riallinearle tra servizi e tavoli senza lasciare la vista.')); ?>
+                </p>
+            </div>
+            <div class="rbf-admin-header__actions">
+                <a class="button button-primary" href="<?php echo esc_url($manual_booking_url); ?>">
+                    <?php echo esc_html(rbf_translate_string('Nuova prenotazione')); ?>
+                </a>
+                <a class="button button-secondary" href="<?php echo esc_url($calendar_url); ?>">
+                    <?php echo esc_html(rbf_translate_string('Calendario mensile')); ?>
+                </a>
+                <a class="button button-secondary" href="<?php echo esc_url($tables_url); ?>">
+                    <?php echo esc_html(rbf_translate_string('Gestione tavoli')); ?>
+                </a>
+            </div>
+        </header>
+
+        <div class="rbf-admin-layout rbf-admin-layout--with-aside">
+            <div class="rbf-admin-layout__main">
+                <div class="rbf-admin-toolbar">
+                    <div class="rbf-admin-toolbar__hint">
+                        <strong><?php echo esc_html(rbf_translate_string('Suggerimento:')); ?></strong>
+                        <?php echo esc_html(rbf_translate_string('usa le scorciatoie della tastiera (Ctrl/Cmd + Z) per annullare uno spostamento effettuato per errore.')); ?>
+                    </div>
+                    <div class="rbf-admin-toolbar__meta">
+                        <span><?php echo esc_html(rbf_translate_string('La vista staff mostra soltanto i servizi attivi nel periodo selezionato.')); ?></span>
+                    </div>
+                </div>
+
+                <div class="rbf-calendar-shell" role="region" aria-label="<?php echo esc_attr(rbf_translate_string('Agenda settimanale dello staff')); ?>">
+                    <div class="rbf-calendar-shell__body">
+                        <div id="rbf-weekly-staff-calendar"></div>
+                    </div>
+                </div>
+
+                <div id="rbf-move-notification" class="notice" hidden>
+                    <p id="rbf-move-message"></p>
+                </div>
+            </div>
+            <aside class="rbf-admin-layout__aside">
+                <?php if (!empty($statuses)) : ?>
+                    <div class="rbf-admin-card rbf-admin-card--muted">
+                        <h2 class="rbf-heading-sm"><?php echo esc_html(rbf_translate_string('Legenda stati')); ?></h2>
+                        <ul class="rbf-admin-legend">
+                            <?php foreach ($statuses as $status_key => $status_label) : ?>
+                                <li class="rbf-admin-legend__item">
+                                    <span class="rbf-admin-legend__badge rbf-status-badge rbf-status-<?php echo esc_attr($status_key); ?>">
+                                        <?php echo esc_html($status_label); ?>
+                                    </span>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+                <?php endif; ?>
+                <div class="rbf-admin-card rbf-admin-card--muted">
+                    <h2 class="rbf-heading-sm"><?php echo esc_html(rbf_translate_string('Procedure consigliate')); ?></h2>
+                    <ul class="rbf-admin-list">
+                        <li class="rbf-admin-list__item"><?php echo esc_html(rbf_translate_string('Aggiorna la pagina dopo modifiche massicce per sincronizzare la capacità residua.')); ?></li>
+                        <li class="rbf-admin-list__item"><?php echo esc_html(rbf_translate_string('Per spostare un evento trascina la prenotazione e conferma il messaggio di verifica.')); ?></li>
+                        <li class="rbf-admin-list__item"><?php echo esc_html(rbf_translate_string('Clicca sul nome del cliente per aprire la scheda completa della prenotazione.')); ?></li>
+                    </ul>
+                </div>
+                <div class="rbf-admin-card rbf-admin-card--muted rbf-admin-card--stacked">
+                    <h2 class="rbf-heading-sm"><?php echo esc_html(rbf_translate_string('Supporto rapido')); ?></h2>
+                    <ul class="rbf-admin-quick-actions">
+                        <li class="rbf-admin-quick-actions__item">
+                            <span class="dashicons dashicons-calendar-alt" aria-hidden="true"></span>
+                            <div>
+                                <span class="rbf-admin-quick-actions__label"><?php echo esc_html(rbf_translate_string('Torna al calendario completo')); ?></span>
+                                <a href="<?php echo esc_url($calendar_url); ?>" class="rbf-admin-quick-actions__link"><?php echo esc_html(rbf_translate_string('Apri vista mensile')); ?></a>
+                            </div>
+                        </li>
+                        <li class="rbf-admin-quick-actions__item">
+                            <span class="dashicons dashicons-forms" aria-hidden="true"></span>
+                            <div>
+                                <span class="rbf-admin-quick-actions__label"><?php echo esc_html(rbf_translate_string('Inserisci nuova prenotazione manuale')); ?></span>
+                                <a href="<?php echo esc_url($manual_booking_url); ?>" class="rbf-admin-quick-actions__link"><?php echo esc_html(rbf_translate_string('Apri modulo backend')); ?></a>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </aside>
         </div>
     </div>
     <?php
@@ -2901,97 +3092,165 @@ function rbf_add_booking_page_html() {
         }
     }
 
-    ?>
-    <div class="rbf-admin-wrap rbf-admin-wrap--narrow">
-        <h1><?php echo esc_html(rbf_translate_string('Aggiungi Nuova Prenotazione')); ?></h1>
-        <?php echo wp_kses_post($message); ?>
+    $calendar_url      = admin_url('admin.php?page=rbf_calendar');
+    $weekly_staff_url  = admin_url('admin.php?page=rbf_weekly_staff');
+    $tables_url        = admin_url('admin.php?page=rbf_tables');
 
-        <?php if (empty($active_meals)) : ?>
-            <div class="notice notice-warning"><p><?php echo esc_html(rbf_translate_string('Configura almeno un servizio attivo prima di aggiungere prenotazioni manuali.')); ?></p></div>
-        <?php else : ?>
-            <div class="rbf-admin-card">
-                <form method="post" class="rbf-admin-form rbf-admin-form--stacked">
-                    <?php wp_nonce_field('rbf_add_backend_booking'); ?>
-                    <div class="rbf-admin-grid rbf-admin-grid--cols-2 rbf-add-booking-grid">
-                        <fieldset class="rbf-admin-subcard">
-                            <legend><?php echo esc_html(rbf_translate_string('Dettagli prenotazione')); ?></legend>
-                            <div class="rbf-form-group">
-                                <label for="rbf_meal"><?php echo esc_html(rbf_translate_string('Pasto')); ?></label>
-                                <select id="rbf_meal" name="rbf_meal" class="rbf-field">
-                                    <option value=""><?php echo esc_html(rbf_translate_string('Scegli il pasto')); ?></option>
-                                    <?php foreach ($active_meals as $meal_config) : ?>
-                                        <option value="<?php echo esc_attr($meal_config['id']); ?>" <?php selected($form_values['rbf_meal'], $meal_config['id']); ?>>
-                                            <?php echo esc_html($meal_config['name'] ?? $meal_config['id']); ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                            <div class="rbf-form-group">
-                                <label for="rbf_data"><?php echo esc_html(rbf_translate_string('Data')); ?></label>
-                                <input type="date" id="rbf_data" name="rbf_data" class="rbf-field" value="<?php echo esc_attr($form_values['rbf_data']); ?>">
-                            </div>
-                            <div class="rbf-form-group">
-                                <label for="rbf_time"><?php echo esc_html(rbf_translate_string('Orario')); ?></label>
-                                <input type="time" id="rbf_time" name="rbf_time" class="rbf-field" value="<?php echo esc_attr($form_values['rbf_time']); ?>">
-                            </div>
-                            <div class="rbf-form-group">
-                                <label for="rbf_persone"><?php echo esc_html(rbf_translate_string('Persone')); ?></label>
-                                <input type="number" id="rbf_persone" name="rbf_persone" class="rbf-field" min="1" value="<?php echo esc_attr($form_values['rbf_persone']); ?>">
-                            </div>
-                        </fieldset>
-                        <fieldset class="rbf-admin-subcard">
-                            <legend><?php echo esc_html(rbf_translate_string('Dati cliente')); ?></legend>
-                            <div class="rbf-form-group">
-                                <label for="rbf_nome"><?php echo esc_html(rbf_translate_string('Nome')); ?></label>
-                                <input type="text" id="rbf_nome" name="rbf_nome" class="rbf-field" value="<?php echo esc_attr($form_values['rbf_nome']); ?>">
-                            </div>
-                            <div class="rbf-form-group">
-                                <label for="rbf_cognome"><?php echo esc_html(rbf_translate_string('Cognome')); ?></label>
-                                <input type="text" id="rbf_cognome" name="rbf_cognome" class="rbf-field" value="<?php echo esc_attr($form_values['rbf_cognome']); ?>">
-                            </div>
-                            <div class="rbf-form-group">
-                                <label for="rbf_email"><?php echo esc_html(rbf_translate_string('Email')); ?></label>
-                                <input type="email" id="rbf_email" name="rbf_email" class="rbf-field" value="<?php echo esc_attr($form_values['rbf_email']); ?>">
-                            </div>
-                            <div class="rbf-form-group">
-                                <label for="rbf_tel"><?php echo esc_html(rbf_translate_string('Telefono')); ?></label>
-                                <input type="tel" id="rbf_tel" name="rbf_tel" class="rbf-field" value="<?php echo esc_attr($form_values['rbf_tel']); ?>">
-                            </div>
-                            <div class="rbf-form-group">
-                                <label for="rbf_allergie"><?php echo esc_html(rbf_translate_string('Allergie / Note')); ?></label>
-                                <textarea id="rbf_allergie" name="rbf_allergie" class="rbf-field rbf-field--textarea" rows="4"><?php echo esc_textarea($form_values['rbf_allergie']); ?></textarea>
-                            </div>
-                        </fieldset>
-                    </div>
-                    <div class="rbf-admin-grid rbf-admin-grid--cols-2 rbf-add-booking-grid rbf-add-booking-grid--meta">
-                        <div class="rbf-form-group">
-                            <label for="rbf_lang"><?php echo esc_html(rbf_translate_string('Lingua')); ?></label>
-                            <select id="rbf_lang" name="rbf_lang" class="rbf-field">
-                                <option value="it" <?php selected($form_values['rbf_lang'], 'it'); ?>>IT</option>
-                                <option value="en" <?php selected($form_values['rbf_lang'], 'en'); ?>>EN</option>
-                            </select>
-                        </div>
-                        <div class="rbf-form-group rbf-form-group--toggle">
-                            <span class="rbf-form-label"><?php echo esc_html(rbf_translate_string('Privacy')); ?></span>
-                            <label class="rbf-toggle">
-                                <input type="checkbox" name="rbf_privacy" value="yes" <?php checked($form_values['rbf_privacy']); ?>>
-                                <span><?php echo esc_html(rbf_translate_string('Accettata')); ?></span>
-                            </label>
-                        </div>
-                        <div class="rbf-form-group rbf-form-group--toggle">
-                            <span class="rbf-form-label"><?php echo esc_html(rbf_translate_string('Marketing')); ?></span>
-                            <label class="rbf-toggle">
-                                <input type="checkbox" name="rbf_marketing" value="yes" <?php checked($form_values['rbf_marketing']); ?>>
-                                <span><?php echo esc_html(rbf_translate_string('Accettato')); ?></span>
-                            </label>
-                        </div>
-                    </div>
-                    <div class="rbf-form-actions">
-                        <?php submit_button(rbf_translate_string('Aggiungi Prenotazione'), 'primary', 'submit', false); ?>
-                    </div>
-                </form>
+    ?>
+    <div class="rbf-admin-wrap rbf-admin-wrap--wide rbf-add-booking-screen">
+        <header class="rbf-admin-header">
+            <div class="rbf-admin-header__content">
+                <span class="rbf-admin-header__eyebrow"><?php echo esc_html(rbf_translate_string('Prenotazione manuale')); ?></span>
+                <h1 class="rbf-admin-header__title"><?php echo esc_html(rbf_translate_string('Aggiungi nuova prenotazione')); ?></h1>
+                <p class="rbf-admin-header__lead">
+                    <?php echo esc_html(rbf_translate_string('Registra le richieste ricevute al telefono o in sala mantenendo il calendario sincronizzato.')); ?>
+                </p>
             </div>
-        <?php endif; ?>
+            <div class="rbf-admin-header__actions">
+                <a class="button button-secondary" href="<?php echo esc_url($calendar_url); ?>"><?php echo esc_html(rbf_translate_string('Calendario')); ?></a>
+                <a class="button button-secondary" href="<?php echo esc_url($weekly_staff_url); ?>"><?php echo esc_html(rbf_translate_string('Agenda staff')); ?></a>
+            </div>
+        </header>
+
+        <div class="rbf-admin-layout rbf-admin-layout--with-aside">
+            <div class="rbf-admin-layout__main">
+                <?php echo wp_kses_post($message); ?>
+
+                <?php if (empty($active_meals)) : ?>
+                    <div class="notice notice-warning"><p><?php echo esc_html(rbf_translate_string('Configura almeno un servizio attivo prima di aggiungere prenotazioni manuali.')); ?></p></div>
+                <?php else : ?>
+                    <div class="rbf-admin-card rbf-admin-card--spaced">
+                        <h2 class="rbf-heading-sm"><?php echo esc_html(rbf_translate_string('Modulo prenotazione backend')); ?></h2>
+                        <p class="rbf-text-muted rbf-text-small"><?php echo esc_html(rbf_translate_string('Completa i campi principali: la disponibilità viene validata automaticamente al salvataggio.')); ?></p>
+
+                        <form method="post" class="rbf-admin-form rbf-admin-form--stacked">
+                            <?php wp_nonce_field('rbf_add_backend_booking'); ?>
+                            <div class="rbf-admin-grid rbf-admin-grid--cols-2 rbf-add-booking-grid">
+                                <fieldset class="rbf-admin-subcard">
+                                    <legend><?php echo esc_html(rbf_translate_string('Dettagli prenotazione')); ?></legend>
+                                    <div class="rbf-form-group">
+                                        <label for="rbf_meal"><?php echo esc_html(rbf_translate_string('Pasto')); ?></label>
+                                        <select id="rbf_meal" name="rbf_meal" class="rbf-field">
+                                            <option value=""><?php echo esc_html(rbf_translate_string('Scegli il pasto')); ?></option>
+                                            <?php foreach ($active_meals as $meal_config) : ?>
+                                                <option value="<?php echo esc_attr($meal_config['id']); ?>" <?php selected($form_values['rbf_meal'], $meal_config['id']); ?>>
+                                                    <?php echo esc_html($meal_config['name'] ?? $meal_config['id']); ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <div class="rbf-form-group">
+                                        <label for="rbf_data"><?php echo esc_html(rbf_translate_string('Data')); ?></label>
+                                        <input type="date" id="rbf_data" name="rbf_data" class="rbf-field" value="<?php echo esc_attr($form_values['rbf_data']); ?>">
+                                    </div>
+                                    <div class="rbf-form-group">
+                                        <label for="rbf_time"><?php echo esc_html(rbf_translate_string('Orario')); ?></label>
+                                        <input type="time" id="rbf_time" name="rbf_time" class="rbf-field" value="<?php echo esc_attr($form_values['rbf_time']); ?>">
+                                    </div>
+                                    <div class="rbf-form-group">
+                                        <label for="rbf_persone"><?php echo esc_html(rbf_translate_string('Persone')); ?></label>
+                                        <input type="number" id="rbf_persone" name="rbf_persone" class="rbf-field" min="1" value="<?php echo esc_attr($form_values['rbf_persone']); ?>">
+                                    </div>
+                                </fieldset>
+                                <fieldset class="rbf-admin-subcard">
+                                    <legend><?php echo esc_html(rbf_translate_string('Dati cliente')); ?></legend>
+                                    <div class="rbf-form-group">
+                                        <label for="rbf_nome"><?php echo esc_html(rbf_translate_string('Nome')); ?></label>
+                                        <input type="text" id="rbf_nome" name="rbf_nome" class="rbf-field" value="<?php echo esc_attr($form_values['rbf_nome']); ?>">
+                                    </div>
+                                    <div class="rbf-form-group">
+                                        <label for="rbf_cognome"><?php echo esc_html(rbf_translate_string('Cognome')); ?></label>
+                                        <input type="text" id="rbf_cognome" name="rbf_cognome" class="rbf-field" value="<?php echo esc_attr($form_values['rbf_cognome']); ?>">
+                                    </div>
+                                    <div class="rbf-form-group">
+                                        <label for="rbf_email"><?php echo esc_html(rbf_translate_string('Email')); ?></label>
+                                        <input type="email" id="rbf_email" name="rbf_email" class="rbf-field" value="<?php echo esc_attr($form_values['rbf_email']); ?>">
+                                    </div>
+                                    <div class="rbf-form-group">
+                                        <label for="rbf_tel"><?php echo esc_html(rbf_translate_string('Telefono')); ?></label>
+                                        <input type="tel" id="rbf_tel" name="rbf_tel" class="rbf-field" value="<?php echo esc_attr($form_values['rbf_tel']); ?>">
+                                    </div>
+                                    <div class="rbf-form-group">
+                                        <label for="rbf_allergie"><?php echo esc_html(rbf_translate_string('Allergie / Note')); ?></label>
+                                        <textarea id="rbf_allergie" name="rbf_allergie" class="rbf-field rbf-field--textarea" rows="4"><?php echo esc_textarea($form_values['rbf_allergie']); ?></textarea>
+                                    </div>
+                                </fieldset>
+                            </div>
+                            <div class="rbf-admin-grid rbf-admin-grid--cols-2 rbf-add-booking-grid rbf-add-booking-grid--meta">
+                                <div class="rbf-form-group">
+                                    <label for="rbf_lang"><?php echo esc_html(rbf_translate_string('Lingua')); ?></label>
+                                    <select id="rbf_lang" name="rbf_lang" class="rbf-field">
+                                        <option value="it" <?php selected($form_values['rbf_lang'], 'it'); ?>>IT</option>
+                                        <option value="en" <?php selected($form_values['rbf_lang'], 'en'); ?>>EN</option>
+                                    </select>
+                                </div>
+                                <div class="rbf-form-group rbf-form-group--toggle">
+                                    <span class="rbf-form-label"><?php echo esc_html(rbf_translate_string('Privacy')); ?></span>
+                                    <label class="rbf-toggle">
+                                        <input type="checkbox" name="rbf_privacy" value="yes" <?php checked($form_values['rbf_privacy']); ?>>
+                                        <span><?php echo esc_html(rbf_translate_string('Accettata')); ?></span>
+                                    </label>
+                                </div>
+                                <div class="rbf-form-group rbf-form-group--toggle">
+                                    <span class="rbf-form-label"><?php echo esc_html(rbf_translate_string('Marketing')); ?></span>
+                                    <label class="rbf-toggle">
+                                        <input type="checkbox" name="rbf_marketing" value="yes" <?php checked($form_values['rbf_marketing']); ?>>
+                                        <span><?php echo esc_html(rbf_translate_string('Accettato')); ?></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="rbf-form-actions">
+                                <?php submit_button(rbf_translate_string('Aggiungi Prenotazione'), 'primary', 'submit', false); ?>
+                            </div>
+                        </form>
+                    </div>
+                <?php endif; ?>
+            </div>
+            <aside class="rbf-admin-layout__aside">
+                <div class="rbf-admin-card rbf-admin-card--muted">
+                    <h2 class="rbf-heading-sm"><?php echo esc_html(rbf_translate_string('Checklist prima dell\'inserimento')); ?></h2>
+                    <ul class="rbf-admin-list">
+                        <li class="rbf-admin-list__item"><?php echo esc_html(rbf_translate_string('Verifica che il servizio selezionato sia attivo per la data scelta.')); ?></li>
+                        <li class="rbf-admin-list__item"><?php echo esc_html(rbf_translate_string('Controlla telefonicamente allergie, note e orari speciali.')); ?></li>
+                        <li class="rbf-admin-list__item"><?php echo esc_html(rbf_translate_string('Conferma il numero di persone per evitare overbooking.')); ?></li>
+                    </ul>
+                </div>
+                <div class="rbf-admin-card rbf-admin-card--muted">
+                    <h2 class="rbf-heading-sm"><?php echo esc_html(rbf_translate_string('Azioni rapide')); ?></h2>
+                    <ul class="rbf-admin-quick-actions">
+                        <li class="rbf-admin-quick-actions__item">
+                            <span class="dashicons dashicons-calendar-alt" aria-hidden="true"></span>
+                            <div>
+                                <span class="rbf-admin-quick-actions__label"><?php echo esc_html(rbf_translate_string('Visualizza disponibilità live')); ?></span>
+                                <a href="<?php echo esc_url($calendar_url); ?>" class="rbf-admin-quick-actions__link"><?php echo esc_html(rbf_translate_string('Apri calendario')); ?></a>
+                            </div>
+                        </li>
+                        <li class="rbf-admin-quick-actions__item">
+                            <span class="dashicons dashicons-groups" aria-hidden="true"></span>
+                            <div>
+                                <span class="rbf-admin-quick-actions__label"><?php echo esc_html(rbf_translate_string('Coordina con lo staff di sala')); ?></span>
+                                <a href="<?php echo esc_url($weekly_staff_url); ?>" class="rbf-admin-quick-actions__link"><?php echo esc_html(rbf_translate_string('Apri agenda settimanale')); ?></a>
+                            </div>
+                        </li>
+                        <li class="rbf-admin-quick-actions__item">
+                            <span class="dashicons dashicons-admin-multisite" aria-hidden="true"></span>
+                            <div>
+                                <span class="rbf-admin-quick-actions__label"><?php echo esc_html(rbf_translate_string('Assegna rapidamente i tavoli')); ?></span>
+                                <a href="<?php echo esc_url($tables_url); ?>" class="rbf-admin-quick-actions__link"><?php echo esc_html(rbf_translate_string('Vai a gestione tavoli')); ?></a>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+                <div class="rbf-admin-card rbf-admin-card--muted rbf-admin-card--stacked">
+                    <h2 class="rbf-heading-sm"><?php echo esc_html(rbf_translate_string('Suggerimenti di compilazione')); ?></h2>
+                    <ul class="rbf-admin-list">
+                        <li class="rbf-admin-list__item"><?php echo esc_html(rbf_translate_string('Inserisci sempre un contatto telefonico per gestire eventuali cambi.')); ?></li>
+                        <li class="rbf-admin-list__item"><?php echo esc_html(rbf_translate_string('Usa il campo note per specificare preferenze di tavolo o richieste speciali.')); ?></li>
+                        <li class="rbf-admin-list__item"><?php echo esc_html(rbf_translate_string('Attiva la privacy solo dopo aver raccolto il consenso del cliente.')); ?></li>
+                    </ul>
+                </div>
+            </aside>
+        </div>
     </div>
     <?php
 }

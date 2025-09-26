@@ -131,6 +131,221 @@ body.rbf-admin-screen #wpbody-content {
     line-height: 1.6;
 }
 
+.rbf-admin-header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 28px;
+}
+
+.rbf-admin-header__content {
+    flex: 1 1 320px;
+    display: grid;
+    gap: 8px;
+}
+
+.rbf-admin-header__eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--rbf-admin-primary);
+}
+
+.rbf-admin-header__title {
+    margin: 0;
+    border: none;
+    padding: 0;
+    color: var(--rbf-admin-text);
+}
+
+.rbf-admin-header__title::after {
+    display: none;
+}
+
+.rbf-admin-header__lead {
+    margin: 0;
+    color: #3c434a;
+    font-size: 14px;
+    line-height: 1.6;
+    max-width: 640px;
+}
+
+.rbf-admin-header__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.rbf-admin-header__actions .button {
+    font-weight: 600;
+    padding: 10px 18px;
+}
+
+.rbf-admin-layout {
+    display: grid;
+    gap: 28px;
+}
+
+.rbf-admin-layout__main {
+    display: grid;
+    gap: 24px;
+}
+
+.rbf-admin-layout__aside {
+    display: grid;
+    gap: 20px;
+}
+
+.rbf-admin-layout--with-aside {
+    grid-template-columns: 1fr;
+}
+
+@media (min-width: 1024px) {
+    .rbf-admin-layout--with-aside {
+        grid-template-columns: minmax(0, 1fr) 320px;
+        align-items: start;
+    }
+}
+
+.rbf-admin-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    background: var(--rbf-admin-surface-muted);
+    border: 1px solid var(--rbf-admin-border-soft);
+    border-radius: var(--rbf-admin-radius);
+    box-shadow: var(--rbf-admin-shadow-subtle);
+}
+
+.rbf-admin-toolbar__hint {
+    font-size: 13px;
+    color: #2f3337;
+    max-width: 520px;
+}
+
+.rbf-admin-toolbar__hint strong {
+    color: var(--rbf-admin-primary);
+}
+
+.rbf-admin-toolbar__meta {
+    font-size: 12px;
+    color: #646970;
+}
+
+.rbf-calendar-shell {
+    background: var(--rbf-admin-surface);
+    border: 1px solid var(--rbf-admin-border);
+    border-radius: var(--rbf-admin-radius);
+    box-shadow: var(--rbf-admin-shadow-subtle);
+    padding: 16px;
+}
+
+.rbf-calendar-shell__body {
+    background: #ffffff;
+    border-radius: calc(var(--rbf-admin-radius) - 2px);
+    overflow: hidden;
+}
+
+.rbf-admin-legend {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 12px;
+}
+
+.rbf-admin-legend__item {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.rbf-admin-legend__badge {
+    flex-shrink: 0;
+}
+
+.rbf-admin-legend__description {
+    font-size: 12px;
+    color: #646970;
+    line-height: 1.6;
+}
+
+.rbf-admin-quick-actions {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 14px;
+}
+
+.rbf-admin-quick-actions__item {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.rbf-admin-quick-actions__item .dashicons {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(44, 90, 160, 0.12);
+    color: var(--rbf-admin-primary);
+    font-size: 18px;
+}
+
+.rbf-admin-quick-actions__label {
+    display: block;
+    font-weight: 600;
+    color: var(--rbf-admin-text);
+}
+
+.rbf-admin-quick-actions__link {
+    font-size: 12px;
+    color: var(--rbf-admin-primary);
+    text-decoration: none;
+}
+
+.rbf-admin-quick-actions__link:hover,
+.rbf-admin-quick-actions__link:focus {
+    text-decoration: underline;
+}
+
+.rbf-admin-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 10px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #3c434a;
+}
+
+.rbf-admin-list__item {
+    position: relative;
+    padding-left: 18px;
+}
+
+.rbf-admin-list__item::before {
+    content: '\2022';
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: var(--rbf-admin-primary);
+    font-weight: 700;
+}
+
 .rbf-tab-intro {
     margin: -4px 0 28px;
     padding: 20px 22px;
@@ -2443,13 +2658,13 @@ body.rbf-admin-screen #wpbody-content {
 }
 
 #rbf-calendar {
-    background: white;
-    padding: 24px;
-    border-radius: var(--rbf-admin-radius);
-    box-shadow: 0 4px 12px rgba(0,0,0,.08);
-    max-width: 1000px;
-    margin: 20px auto;
-    border: 1px solid var(--rbf-admin-border);
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+    box-shadow: none;
+    margin: 0;
+    border: none;
+    min-height: 600px;
 }
 
 .rbf-calendar-diagnostic {
@@ -3066,11 +3281,12 @@ body.rbf-admin-screen #wpbody-content {
 }
 /* Weekly Staff View Styles */
 #rbf-weekly-staff-calendar {
-    margin-top: 20px;
-    background: white;
-    border-radius: var(--rbf-admin-radius);
-    box-shadow: var(--rbf-admin-shadow);
-    overflow: hidden;
+    margin: 0;
+    background: transparent;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: visible;
+    min-height: 520px;
 }
 
 /* Compact event styling */
@@ -3361,47 +3577,146 @@ body.rbf-admin-screen #wpbody-content {
 /* Onboarding wizard */
 .rbf-setup-wizard {
     max-width: 960px;
+    width: 100%;
 }
 
-.rbf-setup-wizard .description {
+.rbf-setup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 24px;
     margin-bottom: 24px;
-    color: #4b5563;
+}
+
+.rbf-setup-header__content h1 {
+    margin-bottom: 8px;
+}
+
+.rbf-setup-header__actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.rbf-setup-header__actions .button {
+    margin: 0;
 }
 
 .rbf-setup-steps {
     display: flex;
-    gap: 16px;
+    gap: 12px;
     list-style: none;
-    margin: 0 0 24px;
+    margin: 0 0 28px;
     padding: 0;
+    counter-reset: rbf-setup-step;
 }
 
 .rbf-step-item {
+    position: relative;
     flex: 1 1 auto;
-    padding: 10px 14px;
-    border-radius: 999px;
-    text-align: center;
-    background: #e5e7eb;
-    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: 14px;
+    border: 1px solid var(--rbf-admin-border-soft);
+    background: var(--rbf-admin-surface-muted);
     color: #374151;
+    font-weight: 600;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.rbf-step-item::before {
+    counter-increment: rbf-setup-step;
+    content: counter(rbf-setup-step);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(44, 90, 160, 0.12);
+    color: var(--rbf-admin-primary);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.rbf-step-item__label {
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
 }
 
 .rbf-step-item.is-active {
-    background: var(--fppr-accent, #000000);
+    background: var(--rbf-admin-primary);
     color: #ffffff;
+    border-color: var(--rbf-admin-primary);
+    box-shadow: var(--rbf-admin-shadow-subtle);
+}
+
+.rbf-step-item.is-active::before {
+    background: #ffffff;
+    color: var(--rbf-admin-primary);
+}
+
+.rbf-step-item.is-completed {
+    background: rgba(29, 154, 108, 0.16);
+    border-color: rgba(29, 154, 108, 0.45);
+    color: #0f5132;
+}
+
+.rbf-step-item.is-completed::before {
+    content: '✓';
+    background: #1d9a6c;
+    color: #ffffff;
+    font-size: 14px;
 }
 
 .rbf-setup-card {
-    background: #ffffff;
-    border: 1px solid #d1d5db;
-    border-radius: 12px;
-    padding: 24px;
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
-    margin-bottom: 24px;
+    margin-bottom: 32px;
 }
 
-.rbf-setup-card h2 {
-    margin-top: 0;
+.rbf-setup-card--completed {
+    border-left: 4px solid var(--rbf-admin-primary);
+}
+
+.rbf-setup-lead {
+    margin: 0 0 14px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #4b5563;
+}
+
+.rbf-setup-welcome {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 28px;
+    align-items: stretch;
+}
+
+.rbf-setup-welcome__content {
+    flex: 1 1 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.rbf-setup-checklist {
+    margin: 8px 0 0;
+    padding-left: 20px;
+    list-style: disc;
+    color: #1f2937;
+}
+
+.rbf-setup-checklist li {
+    margin-bottom: 6px;
+}
+
+.rbf-setup-welcome__cta {
+    flex: 0 1 240px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
 .rbf-setup-form label {
@@ -3410,6 +3725,31 @@ body.rbf-admin-screen #wpbody-content {
     gap: 6px;
     font-weight: 600;
     color: #1f2937;
+}
+
+.rbf-setup-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 12px;
+}
+
+.rbf-setup-grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    margin-bottom: 16px;
+}
+
+.rbf-setup-divider {
+    border-top: 1px solid var(--rbf-admin-border-soft);
+    margin: 24px 0;
+}
+
+.rbf-setup-tooltip {
+    margin-top: 12px;
 }
 
 .rbf-summary-options {
@@ -3456,11 +3796,12 @@ body.rbf-admin-screen #wpbody-content {
     margin-bottom: 6px;
 }
 
-.rbf-setup-complete-actions {
+.rbf-setup-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
-    margin-top: 18px;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
 }
 
 .rbf-service-block {
@@ -3476,7 +3817,8 @@ body.rbf-admin-screen #wpbody-content {
     padding: 0 8px;
 }
 
-.rbf-service-grid {
+.rbf-service-grid,
+.rbf-setup-grid {
     display: grid;
     gap: 12px;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -3485,7 +3827,10 @@ body.rbf-admin-screen #wpbody-content {
 
 .rbf-service-grid input[type="text"],
 .rbf-service-grid input[type="time"],
-.rbf-service-grid input[type="number"] {
+.rbf-service-grid input[type="number"],
+.rbf-setup-grid input[type="text"],
+.rbf-setup-grid input[type="time"],
+.rbf-setup-grid input[type="number"] {
     padding: 8px 10px;
     border-radius: 6px;
     border: 1px solid #d1d5db;
