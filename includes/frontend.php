@@ -1363,6 +1363,8 @@ function rbf_build_times_cache_key($meal, $date, $people) {
 }
 
 function rbf_ajax_get_calendar_availability() {
+    global $wpdb;
+
     // Verify nonce
     if (!isset($_POST['_ajax_nonce']) || !wp_verify_nonce($_POST['_ajax_nonce'], 'rbf_ajax_nonce')) {
         wp_send_json_error([
@@ -1418,26 +1420,84 @@ function rbf_ajax_get_calendar_availability() {
     }
     
     $availability_data = [];
-    
+    $debug_enabled = (defined('WP_DEBUG') && WP_DEBUG) || (defined('RBF_FORCE_LOG') && RBF_FORCE_LOG);
+    $timer_start = $debug_enabled ? microtime(true) : null;
+    $query_start = ($debug_enabled && isset($wpdb) && is_object($wpdb) && isset($wpdb->num_queries))
+        ? (int) $wpdb->num_queries
+        : null;
+
     try {
+        $bulk_bookings = rbf_get_bulk_bookings_for_meal($meal, $start_date_obj, $end_date_obj);
+        $total_capacity = rbf_get_effective_capacity($meal);
+        $has_finite_capacity = $total_capacity > 0;
+        $range_days = $date_diff->days + 1;
+        $included_days = 0;
+
         // Generate availability data for each date in the range
         while ($current_date <= $end_date_obj) {
             $date_str = $current_date->format('Y-m-d');
 
             // Check if meal is available on this day
             if (rbf_is_meal_available_on_day($meal, $date_str)) {
-                $availability_status = rbf_get_availability_status($date_str, $meal);
-                $availability_data[$date_str] = $availability_status;
+                $booked_people = isset($bulk_bookings[$date_str]) ? (int) $bulk_bookings[$date_str] : 0;
+                $remaining_capacity = null;
+                $occupancy = 0.0;
+
+                if ($has_finite_capacity && $total_capacity > 0) {
+                    $remaining_capacity = max(0, $total_capacity - $booked_people);
+                    $occupancy = $total_capacity > 0
+                        ? ($booked_people / $total_capacity) * 100
+                        : 0.0;
+                }
+
+                $level = 'available';
+                if ($has_finite_capacity) {
+                    if ($occupancy >= 100) {
+                        $level = 'full';
+                    } elseif ($occupancy >= 70) {
+                        $level = 'limited';
+                    }
+                }
+
+                $availability_data[$date_str] = [
+                    'level' => $level,
+                    'occupancy' => round($occupancy, 1),
+                    'remaining' => $has_finite_capacity ? (int) $remaining_capacity : null,
+                    'total' => $has_finite_capacity ? (int) $total_capacity : null,
+                ];
+
+                $remaining_key = 'rbf_avail_' . $date_str . '_' . $meal;
+                set_transient($remaining_key, $has_finite_capacity ? (int) $remaining_capacity : null, HOUR_IN_SECONDS);
+
+                $included_days++;
             }
 
             $current_date = $current_date->modify('+1 day');
         }
-        
+
         // Cache results for 10 minutes
         set_transient($cache_key, $availability_data, 10 * MINUTE_IN_SECONDS);
-        
+
+        if ($debug_enabled) {
+            $elapsed_ms = $timer_start !== null ? (microtime(true) - $timer_start) * 1000 : 0.0;
+            $query_delta = ($query_start !== null && isset($wpdb) && is_object($wpdb) && isset($wpdb->num_queries))
+                ? ((int) $wpdb->num_queries - $query_start)
+                : null;
+
+            rbf_log(sprintf(
+                'RBF Calendar availability for meal "%s" (%s-%s): %d/%d days processed in %.2fms (queries: %s)',
+                $meal,
+                $start_date,
+                $end_date,
+                $included_days,
+                $range_days,
+                $elapsed_ms,
+                $query_delta === null ? 'n/a' : (string) $query_delta
+            ));
+        }
+
         wp_send_json_success($availability_data);
-        
+
     } catch (Exception $e) {
         rbf_log('Calendar availability error: ' . $e->getMessage());
         wp_send_json_error([
