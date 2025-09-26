@@ -2538,35 +2538,37 @@ function rbf_get_asset_debug_info($relative_path) {
  *
  * @return string Build signature string.
  */
-function rbf_get_plugin_build_signature() {
-    static $signature = null;
+if (!function_exists('rbf_get_plugin_build_signature')) {
+    function rbf_get_plugin_build_signature() {
+        static $signature = null;
 
-    if ($signature !== null) {
+        if ($signature !== null) {
+            return apply_filters('rbf_plugin_build_signature', $signature);
+        }
+
+        $parts = [RBF_VERSION];
+
+        if (defined('RBF_PLUGIN_FILE') && is_readable(RBF_PLUGIN_FILE)) {
+            $main_hash = @md5_file(RBF_PLUGIN_FILE);
+            if (is_string($main_hash) && $main_hash !== '') {
+                $parts[] = substr($main_hash, 0, 8);
+            }
+        }
+
+        $frontend_css_hash = rbf_get_asset_checksum('css/frontend.css');
+        if ($frontend_css_hash !== '') {
+            $parts[] = 'css:' . $frontend_css_hash;
+        }
+
+        $frontend_js_hash = rbf_get_asset_checksum('js/frontend.js');
+        if ($frontend_js_hash !== '') {
+            $parts[] = 'js:' . $frontend_js_hash;
+        }
+
+        $signature = implode('-', array_filter($parts, 'strlen'));
+
         return apply_filters('rbf_plugin_build_signature', $signature);
     }
-
-    $parts = [RBF_VERSION];
-
-    if (defined('RBF_PLUGIN_FILE') && is_readable(RBF_PLUGIN_FILE)) {
-        $main_hash = @md5_file(RBF_PLUGIN_FILE);
-        if (is_string($main_hash) && $main_hash !== '') {
-            $parts[] = substr($main_hash, 0, 8);
-        }
-    }
-
-    $frontend_css_hash = rbf_get_asset_checksum('css/frontend.css');
-    if ($frontend_css_hash !== '') {
-        $parts[] = 'css:' . $frontend_css_hash;
-    }
-
-    $frontend_js_hash = rbf_get_asset_checksum('js/frontend.js');
-    if ($frontend_js_hash !== '') {
-        $parts[] = 'js:' . $frontend_js_hash;
-    }
-
-    $signature = implode('-', array_filter($parts, 'strlen'));
-
-    return apply_filters('rbf_plugin_build_signature', $signature);
 }
 
 /**

@@ -29,6 +29,82 @@ define('RBF_VERSION', '1.6.3');
 define('RBF_MIN_PHP_VERSION', '7.4');
 define('RBF_MIN_WP_VERSION', '6.0');
 
+/**
+ * Generate a signature representing the current plugin build.
+ *
+ * The signature combines the plugin version with metadata from the most
+ * critical source directories so that caches depending on a specific build
+ * can be safely invalidated when files change without bumping the version.
+ *
+ * @return string Unique signature for the active build.
+ */
+function rbf_get_plugin_build_signature() {
+    static $signature = null;
+
+    if ($signature !== null) {
+        return apply_filters('rbf_plugin_build_signature', $signature);
+    }
+
+    $signature = RBF_VERSION;
+
+    $paths = [
+        RBF_PLUGIN_FILE,
+        RBF_PLUGIN_DIR . 'includes',
+        RBF_PLUGIN_DIR . 'assets/css',
+        RBF_PLUGIN_DIR . 'assets/js',
+    ];
+
+    $components = [];
+
+    foreach ($paths as $path) {
+        if (!is_string($path) || $path === '') {
+            continue;
+        }
+
+        if (is_file($path) && is_readable($path)) {
+            $components[] = $path . '|' . filesize($path) . '|' . filemtime($path);
+            continue;
+        }
+
+        if (!is_dir($path)) {
+            continue;
+        }
+
+        try {
+            $iterator = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator(
+                    $path,
+                    FilesystemIterator::SKIP_DOTS | FilesystemIterator::CURRENT_AS_FILEINFO
+                )
+            );
+        } catch (UnexpectedValueException $e) {
+            continue;
+        }
+
+        foreach ($iterator as $file_info) {
+            if (!$file_info instanceof SplFileInfo || !$file_info->isFile()) {
+                continue;
+            }
+
+            $extension = strtolower($file_info->getExtension());
+            $relevant_extensions = ['php', 'js', 'css', 'json', 'html', 'htm'];
+
+            if (!in_array($extension, $relevant_extensions, true)) {
+                continue;
+            }
+
+            $components[] = $file_info->getPathname() . '|' . $file_info->getSize() . '|' . $file_info->getMTime();
+        }
+    }
+
+    if (!empty($components)) {
+        sort($components);
+        $signature = RBF_VERSION . ':' . md5(implode('|', $components));
+    }
+
+    return apply_filters('rbf_plugin_build_signature', $signature);
+}
+
 // Polyfills for PHP versions prior to 8.0 used in development utilities.
 if (!function_exists('str_contains')) {
     /**
@@ -255,9 +331,16 @@ function rbf_clear_transients() {
  */
 function rbf_maybe_clear_transients_on_load() {
     $version = get_option('rbf_plugin_version');
-    if ($version !== RBF_VERSION) {
+    $stored_signature = get_option('rbf_plugin_build_signature');
+    $current_signature = rbf_get_plugin_build_signature();
+
+    $version_changed = ($version !== RBF_VERSION);
+    $build_changed = ($stored_signature !== $current_signature);
+
+    if ($version_changed || $build_changed) {
         rbf_clear_transients();
         update_option('rbf_plugin_version', RBF_VERSION);
+        update_option('rbf_plugin_build_signature', $current_signature);
     }
 }
 add_action('plugins_loaded', 'rbf_maybe_clear_transients_on_load', -1);
@@ -429,6 +512,7 @@ function rbf_run_site_activation_tasks($flush_rewrite = true) {
     }
 
     update_option('rbf_plugin_version', RBF_VERSION);
+    update_option('rbf_plugin_build_signature', rbf_get_plugin_build_signature());
 
     if ($flush_rewrite && function_exists('flush_rewrite_rules')) {
         flush_rewrite_rules();
