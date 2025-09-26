@@ -40,6 +40,14 @@ if (!defined('HOUR_IN_SECONDS')) {
     define('HOUR_IN_SECONDS', 3600);
 }
 
+if (!defined('ARRAY_A')) {
+    define('ARRAY_A', 'ARRAY_A');
+}
+
+if (!defined('OBJECT')) {
+    define('OBJECT', 'OBJECT');
+}
+
 if (!class_exists('WP_Post')) {
     class WP_Post {
         public $post_content = '';
@@ -156,6 +164,20 @@ if (!function_exists('get_option')) {
     function get_option($name, $default = false) {
         global $rbf_test_options;
         return array_key_exists($name, $rbf_test_options) ? $rbf_test_options[$name] : $default;
+    }
+}
+
+if (!function_exists('get_bloginfo')) {
+    function get_bloginfo($show = '', $filter = 'raw') {
+        if ($show === 'name') {
+            return 'Test Ristorante';
+        }
+
+        if ($show === 'admin_email') {
+            return 'admin@example.com';
+        }
+
+        return 'test-value';
     }
 }
 
@@ -343,13 +365,22 @@ class Rbf_Test_WPDB {
     public $posts = 'wp_posts';
     public $postmeta = 'wp_postmeta';
     public $options = 'wp_options';
+    public $num_queries = 0;
+
+    private $last_bulk_query = null;
 
     public function prepare($query, ...$args) {
         if (count($args) === 1 && is_array($args[0])) {
             $args = $args[0];
         }
 
-        if (stripos($query, 'show tables like') === false && count($args) >= 2) {
+        if (stripos($query, 'show tables like') === false && stripos($query, 'between') !== false && count($args) >= 3) {
+            $this->last_bulk_query = [
+                'meal' => (string) $args[0],
+                'start' => (string) $args[1],
+                'end' => (string) $args[2],
+            ];
+        } elseif (stripos($query, 'show tables like') === false && count($args) >= 2) {
             global $rbf_test_current_query;
             $rbf_test_current_query = [
                 'date' => (string) $args[0],
@@ -372,6 +403,8 @@ class Rbf_Test_WPDB {
     }
 
     public function get_var($query) {
+        $this->num_queries++;
+
         if (stripos($query, 'show tables like') !== false) {
             return $this->prefix . 'rbf_booking_status';
         }
@@ -383,9 +416,15 @@ class Rbf_Test_WPDB {
         return null;
     }
 
-    public function get_results($query) {
+    public function get_results($query, $output = OBJECT) {
+        $this->num_queries++;
+
+        if (stripos($query, 'group by pm_date.meta_value') !== false) {
+            return $this->get_bulk_results($output);
+        }
+
         if (stripos($query, 'from ' . $this->posts) !== false) {
-            return $this->get_bookings_for_current_query();
+            return $this->get_bookings_for_current_query($output);
         }
 
         return [];
@@ -407,12 +446,12 @@ class Rbf_Test_WPDB {
         return $total;
     }
 
-    private function get_bookings_for_current_query() {
+    private function get_bookings_for_current_query($output) {
         global $rbf_test_existing_bookings, $rbf_test_current_query;
         $results = [];
 
         if (!$rbf_test_current_query) {
-            return $results;
+            return $this->format_results($results, $output);
         }
 
         foreach ($rbf_test_existing_bookings as $booking) {
@@ -420,13 +459,64 @@ class Rbf_Test_WPDB {
                 continue;
             }
 
-            $results[] = (object) [
+            $results[] = [
                 'booking_time' => $booking['time'],
                 'people' => $booking['people'],
             ];
         }
 
-        return $results;
+        return $this->format_results($results, $output);
+    }
+
+    private function get_bulk_results($output) {
+        global $rbf_test_existing_bookings;
+
+        if (!$this->last_bulk_query) {
+            return $this->format_results([], $output);
+        }
+
+        $totals = [];
+
+        foreach ($rbf_test_existing_bookings as $booking) {
+            if ($booking['meal'] !== $this->last_bulk_query['meal']) {
+                continue;
+            }
+
+            if ($booking['date'] < $this->last_bulk_query['start'] || $booking['date'] > $this->last_bulk_query['end']) {
+                continue;
+            }
+
+            if (!isset($totals[$booking['date']])) {
+                $totals[$booking['date']] = 0;
+            }
+
+            $totals[$booking['date']] += (int) $booking['people'];
+        }
+
+        ksort($totals);
+
+        $results = [];
+
+        foreach ($totals as $date => $people) {
+            $results[] = [
+                'booking_date' => $date,
+                'total_people' => $people,
+            ];
+        }
+
+        return $this->format_results($results, $output);
+    }
+
+    private function format_results(array $rows, $output) {
+        $normalized_output = is_string($output) ? strtoupper($output) : $output;
+
+        if ($normalized_output === 'ARRAY_A') {
+            return $rows;
+        }
+
+        return array_map(function($row) {
+            return (object) $row;
+        }, $rows);
     }
 }
 

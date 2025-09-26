@@ -101,6 +101,57 @@ function rbf_database_table_exists($table_name) {
 }
 
 /**
+ * Determine the SQL join/column to read booking statuses from.
+ *
+ * When the dedicated booking status table exists the function will reference
+ * it, otherwise it falls back to the legacy post meta storage.
+ *
+ * @return array{
+ *     join: string,
+ *     column: string,
+ * }
+ */
+function rbf_get_booking_status_sql_source() {
+    static $status_source = null;
+
+    if ($status_source !== null) {
+        return $status_source;
+    }
+
+    global $wpdb;
+
+    if (!isset($wpdb) || !is_object($wpdb)) {
+        return [
+            'join'   => '',
+            'column' => "'confirmed'",
+        ];
+    }
+
+    $status_table = $wpdb->prefix . 'rbf_booking_status';
+
+    $found_table = null;
+
+    if (method_exists($wpdb, 'prepare') && method_exists($wpdb, 'get_var')) {
+        $prepared = $wpdb->prepare('SHOW TABLES LIKE %s', $status_table);
+        $found_table = $wpdb->get_var($prepared);
+    }
+
+    if ($found_table === $status_table) {
+        $status_source = [
+            'join'   => "LEFT JOIN $status_table bs ON p.ID = bs.booking_id",
+            'column' => 'bs.status',
+        ];
+    } else {
+        $status_source = [
+            'join'   => "LEFT JOIN {$wpdb->postmeta} pm_status ON p.ID = pm_status.post_id AND pm_status.meta_key = 'rbf_booking_status'",
+            'column' => 'pm_status.meta_value',
+        ];
+    }
+
+    return $status_source;
+}
+
+/**
  * Detect the ID of the published page that contains one of the booking form shortcodes.
  *
  * @param bool $force_refresh Optional. Whether to bypass the cached result.
@@ -3790,25 +3841,7 @@ function rbf_validate_buffer_time($date, $time, $meal_id, $people_count, $ignore
         ];
     }
     
-    $status_table = $wpdb->prefix . 'rbf_booking_status';
-
-    static $status_source = null;
-    if ($status_source === null) {
-        $found_table = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $status_table));
-
-        if ($found_table === $status_table) {
-            $status_source = [
-                'join' => "LEFT JOIN $status_table bs ON p.ID = bs.booking_id",
-                'column' => 'bs.status'
-            ];
-        } else {
-            $status_source = [
-                'join' => "LEFT JOIN {$wpdb->postmeta} pm_status ON p.ID = pm_status.post_id AND pm_status.meta_key = 'rbf_booking_status'",
-                'column' => 'pm_status.meta_value'
-            ];
-        }
-    }
-
+    $status_source = rbf_get_booking_status_sql_source();
     $status_join = $status_source['join'];
     $status_column = $status_source['column'];
 
@@ -3904,6 +3937,134 @@ function rbf_get_effective_capacity($meal_id) {
 }
 
 /**
+ * Preload aggregated booking totals for a meal within the provided range.
+ *
+ * @param string                 $meal_id     Meal identifier.
+ * @param DateTimeInterface|int|string $start_date Start date (Y-m-d) or DateTimeInterface.
+ * @param DateTimeInterface|int|string $end_date   End date (Y-m-d) or DateTimeInterface.
+ * @param bool                   $force_refresh Optional. Ignore cached results for this request.
+ * @return array<string,int> Map of booking totals indexed by Y-m-d dates.
+ */
+function rbf_get_bulk_bookings_for_meal($meal_id, $start_date, $end_date, $force_refresh = false) {
+    $meal_id = is_scalar($meal_id) ? (string) $meal_id : '';
+
+    if ($meal_id === '') {
+        return [];
+    }
+
+    $timezone = rbf_wp_timezone();
+
+    $start_string = $start_date instanceof DateTimeInterface
+        ? $start_date->setTimezone($timezone)->format('Y-m-d')
+        : trim((string) $start_date);
+
+    $end_string = $end_date instanceof DateTimeInterface
+        ? $end_date->setTimezone($timezone)->format('Y-m-d')
+        : trim((string) $end_date);
+
+    $start_object = DateTimeImmutable::createFromFormat('!Y-m-d', $start_string, $timezone);
+    $start_errors = DateTimeImmutable::getLastErrors();
+
+    $end_object = DateTimeImmutable::createFromFormat('!Y-m-d', $end_string, $timezone);
+    $end_errors = DateTimeImmutable::getLastErrors();
+
+    if (!$start_object || ($start_errors && ($start_errors['warning_count'] > 0 || $start_errors['error_count'] > 0))) {
+        return [];
+    }
+
+    if (!$end_object || ($end_errors && ($end_errors['warning_count'] > 0 || $end_errors['error_count'] > 0))) {
+        return [];
+    }
+
+    if ($start_object > $end_object) {
+        [$start_object, $end_object] = [$end_object, $start_object];
+    }
+
+    $start_string = $start_object->format('Y-m-d');
+    $end_string = $end_object->format('Y-m-d');
+
+    static $bulk_cache = [];
+    $cache_key = $meal_id . '|' . $start_string . '|' . $end_string;
+
+    if ($force_refresh) {
+        unset($bulk_cache[$cache_key]);
+    }
+
+    if (isset($bulk_cache[$cache_key])) {
+        return $bulk_cache[$cache_key];
+    }
+
+    global $wpdb;
+
+    if (!isset($wpdb) || !is_object($wpdb) || !method_exists($wpdb, 'prepare') || !method_exists($wpdb, 'get_results')) {
+        return [];
+    }
+
+    $status_source = rbf_get_booking_status_sql_source();
+    $status_join = $status_source['join'];
+    $status_column = $status_source['column'];
+
+    $query = "
+        SELECT pm_date.meta_value AS booking_date,
+               SUM(CAST(pm_people.meta_value AS UNSIGNED)) AS total_people
+          FROM {$wpdb->posts} p
+          INNER JOIN {$wpdb->postmeta} pm_people ON p.ID = pm_people.post_id AND pm_people.meta_key = 'rbf_persone'
+          INNER JOIN {$wpdb->postmeta} pm_date ON p.ID = pm_date.post_id AND pm_date.meta_key = 'rbf_data'
+          LEFT JOIN {$wpdb->postmeta} pm_meal ON p.ID = pm_meal.post_id AND pm_meal.meta_key = 'rbf_meal'
+          LEFT JOIN {$wpdb->postmeta} pm_meal_legacy ON p.ID = pm_meal_legacy.post_id AND pm_meal_legacy.meta_key = 'rbf_orario'
+          {$status_join}
+         WHERE p.post_type = 'rbf_booking' AND p.post_status = 'publish'
+           AND COALESCE(pm_meal.meta_value, pm_meal_legacy.meta_value) = %s
+           AND pm_date.meta_value BETWEEN %s AND %s
+           AND COALESCE({$status_column}, 'confirmed') <> 'cancelled'
+         GROUP BY pm_date.meta_value
+         ORDER BY pm_date.meta_value ASC
+    ";
+
+    $prepared_query = $wpdb->prepare($query, $meal_id, $start_string, $end_string);
+
+    $debug_enabled = (defined('WP_DEBUG') && WP_DEBUG) || (defined('RBF_FORCE_LOG') && RBF_FORCE_LOG);
+    $query_start = ($debug_enabled && isset($wpdb->num_queries)) ? (int) $wpdb->num_queries : null;
+    $time_start = $debug_enabled ? microtime(true) : null;
+
+    $results = [];
+
+    $rows = $wpdb->get_results($prepared_query, defined('ARRAY_A') ? ARRAY_A : 'ARRAY_A');
+
+    if (is_array($rows)) {
+        foreach ($rows as $row) {
+            $date = isset($row['booking_date']) ? (string) $row['booking_date'] : '';
+            if ($date === '') {
+                continue;
+            }
+
+            $results[$date] = isset($row['total_people']) ? (int) $row['total_people'] : 0;
+        }
+    }
+
+    if ($debug_enabled) {
+        $elapsed_ms = $time_start !== null ? (microtime(true) - $time_start) * 1000 : 0.0;
+        $query_delta = ($query_start !== null && isset($wpdb->num_queries))
+            ? ((int) $wpdb->num_queries - $query_start)
+            : null;
+
+        rbf_log(sprintf(
+            'RBF Bulk booking preload for meal "%s" (%s-%s) fetched %d rows in %.2fms (queries: %s)',
+            $meal_id,
+            $start_string,
+            $end_string,
+            count($results),
+            $elapsed_ms,
+            $query_delta === null ? 'n/a' : (string) $query_delta
+        ));
+    }
+
+    $bulk_cache[$cache_key] = $results;
+
+    return $results;
+}
+
+/**
  * Sum the number of people for active (non-cancelled) bookings on a date/meal.
  *
  * @param string $date Date in Y-m-d format
@@ -3913,17 +4074,21 @@ function rbf_get_effective_capacity($meal_id) {
 function rbf_sum_active_bookings($date, $meal_id) {
     global $wpdb;
 
+    $status_source = rbf_get_booking_status_sql_source();
+    $status_join = $status_source['join'];
+    $status_column = $status_source['column'];
+
     $query = "
-        SELECT COALESCE(SUM(pm_people.meta_value), 0)
+        SELECT COALESCE(SUM(CAST(pm_people.meta_value AS UNSIGNED)), 0)
          FROM {$wpdb->posts} p
          INNER JOIN {$wpdb->postmeta} pm_people ON p.ID = pm_people.post_id AND pm_people.meta_key = 'rbf_persone'
          INNER JOIN {$wpdb->postmeta} pm_date ON p.ID = pm_date.post_id AND pm_date.meta_key = 'rbf_data'
          LEFT JOIN {$wpdb->postmeta} pm_meal ON p.ID = pm_meal.post_id AND pm_meal.meta_key = 'rbf_meal'
          LEFT JOIN {$wpdb->postmeta} pm_meal_legacy ON p.ID = pm_meal_legacy.post_id AND pm_meal_legacy.meta_key = 'rbf_orario'
-         LEFT JOIN {$wpdb->postmeta} pm_status ON p.ID = pm_status.post_id AND pm_status.meta_key = 'rbf_booking_status'
+         {$status_join}
          WHERE p.post_type = 'rbf_booking' AND p.post_status = 'publish'
          AND pm_date.meta_value = %s AND COALESCE(pm_meal.meta_value, pm_meal_legacy.meta_value) = %s
-         AND COALESCE(pm_status.meta_value, 'confirmed') <> 'cancelled'
+         AND COALESCE({$status_column}, 'confirmed') <> 'cancelled'
     ";
 
     $total_people = $wpdb->get_var($wpdb->prepare(
