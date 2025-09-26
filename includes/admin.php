@@ -831,6 +831,9 @@ function rbf_enqueue_admin_styles($hook) {
         return;
     }
 
+    $enqueued_styles  = [];
+    $enqueued_scripts = [];
+
     $admin_css_url = rbf_get_versioned_asset_url('css/admin.css');
     $admin_css_version = null;
 
@@ -845,6 +848,7 @@ function rbf_enqueue_admin_styles($hook) {
         [],
         $admin_css_version
     );
+    $enqueued_styles[] = 'rbf-admin-css';
 
     $admin_js_url = rbf_get_versioned_asset_url('js/admin.js');
     $admin_js_version = null;
@@ -863,6 +867,7 @@ function rbf_enqueue_admin_styles($hook) {
     );
 
     wp_enqueue_script('rbf-admin-js');
+    $enqueued_scripts[] = 'rbf-admin-js';
 
     $settings_hooks = [
         'rbf_calendar_page_rbf_settings',
@@ -887,6 +892,8 @@ function rbf_enqueue_admin_styles($hook) {
     if ($is_settings_screen) {
         wp_enqueue_style('wp-color-picker');
         wp_enqueue_script('wp-color-picker');
+        $enqueued_styles[]  = 'wp-color-picker';
+        $enqueued_scripts[] = 'wp-color-picker';
         if (function_exists('wp_enqueue_media')) {
             wp_enqueue_media();
         }
@@ -894,6 +901,7 @@ function rbf_enqueue_admin_styles($hook) {
         $current_settings = rbf_get_settings();
         foreach (rbf_get_brand_font_stylesheets($current_settings, 'admin') as $handle => $url) {
             wp_enqueue_style($handle, $url, [], null);
+            $enqueued_styles[] = $handle;
         }
 
         $fonts_catalog_admin = rbf_get_supported_brand_fonts();
@@ -913,6 +921,7 @@ function rbf_enqueue_admin_styles($hook) {
             $branding_js_version,
             true
         );
+        $enqueued_scripts[] = 'rbf-brand-admin';
 
         $font_payload = [];
         foreach ($fonts_catalog_admin as $key => $font) {
@@ -936,6 +945,94 @@ function rbf_enqueue_admin_styles($hook) {
 
     // Inject brand CSS variables for admin
     rbf_inject_brand_css_vars_admin();
+
+    $style_logs  = [];
+    $script_logs = [];
+
+    if (!empty($enqueued_styles) && function_exists('wp_styles')) {
+        $styles_registry = wp_styles();
+        if (class_exists('WP_Styles') && $styles_registry instanceof WP_Styles) {
+            foreach (array_unique($enqueued_styles) as $style_handle) {
+                if (!isset($styles_registry->registered[$style_handle])) {
+                    continue;
+                }
+
+                $registered = $styles_registry->registered[$style_handle];
+                $final_src  = $registered->src;
+
+                if (is_string($final_src) && $final_src !== '' && !empty($registered->ver) && strpos($final_src, 'ver=') === false) {
+                    $final_src = add_query_arg('ver', $registered->ver, $final_src);
+                }
+
+                if (!is_string($final_src) || $final_src === '') {
+                    continue;
+                }
+
+                $log_entry = ['url' => $final_src];
+
+                if (!empty($registered->ver)) {
+                    $log_entry['ver'] = (string) $registered->ver;
+                }
+
+                if (!empty($registered->deps)) {
+                    $log_entry['deps'] = array_values(array_filter((array) $registered->deps, 'is_string'));
+                }
+
+                $style_logs[$style_handle] = $log_entry;
+            }
+        }
+    }
+
+    if (!empty($enqueued_scripts) && function_exists('wp_scripts')) {
+        $scripts_registry = wp_scripts();
+        if (class_exists('WP_Scripts') && $scripts_registry instanceof WP_Scripts) {
+            foreach (array_unique($enqueued_scripts) as $script_handle) {
+                if (!isset($scripts_registry->registered[$script_handle])) {
+                    continue;
+                }
+
+                $registered = $scripts_registry->registered[$script_handle];
+                $final_src  = $registered->src;
+
+                if (is_string($final_src) && $final_src !== '' && !empty($registered->ver) && strpos($final_src, 'ver=') === false) {
+                    $final_src = add_query_arg('ver', $registered->ver, $final_src);
+                }
+
+                if (!is_string($final_src) || $final_src === '') {
+                    continue;
+                }
+
+                $log_entry = ['url' => $final_src];
+
+                if (!empty($registered->ver)) {
+                    $log_entry['ver'] = (string) $registered->ver;
+                }
+
+                if (!empty($registered->deps)) {
+                    $log_entry['deps'] = array_values(array_filter((array) $registered->deps, 'is_string'));
+                }
+
+                $script_logs[$script_handle] = $log_entry;
+            }
+        }
+    }
+
+    if (!empty($style_logs) || !empty($script_logs)) {
+        $payload = [
+            'styles'  => $style_logs,
+            'scripts' => $script_logs,
+        ];
+
+        if (function_exists('wp_json_encode')) {
+            $encoded = wp_json_encode($payload);
+        } else {
+            $encoded = json_encode($payload);
+        }
+
+        if (is_string($encoded) && $encoded !== '') {
+            rbf_log('RBF Admin Assets Enqueued: ' . $encoded);
+        }
+    }
 }
 
 add_filter('admin_body_class', 'rbf_add_plugin_admin_body_class');
