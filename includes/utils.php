@@ -414,6 +414,66 @@ function rbf_log($message) {
 }
 
 /**
+ * Retrieve the normalized WordPress environment type.
+ *
+ * @return string One of production, staging, development, local or custom value.
+ */
+function rbf_get_runtime_environment_type() {
+    static $cached = null;
+
+    if ($cached !== null) {
+        return $cached;
+    }
+
+    $environment = 'production';
+
+    if (function_exists('wp_get_environment_type')) {
+        $detected = wp_get_environment_type();
+        if (is_string($detected) && $detected !== '') {
+            $environment = strtolower($detected);
+        }
+    } elseif (defined('WP_ENVIRONMENT_TYPE')) {
+        $environment = strtolower((string) WP_ENVIRONMENT_TYPE);
+    } elseif (getenv('WP_ENVIRONMENT_TYPE')) {
+        $environment = strtolower((string) getenv('WP_ENVIRONMENT_TYPE'));
+    }
+
+    if (function_exists('apply_filters')) {
+        $filtered = apply_filters('rbf_runtime_environment_type', $environment);
+        if (is_string($filtered) && $filtered !== '') {
+            $environment = strtolower($filtered);
+        }
+    }
+
+    $cached = $environment;
+
+    return $cached;
+}
+
+/**
+ * Determine whether asset versioning should rely on file modification times.
+ *
+ * @return bool
+ */
+function rbf_should_use_filemtime_for_assets() {
+    $environment = rbf_get_runtime_environment_type();
+
+    $development_like_environments = ['local', 'development', 'staging'];
+    $use_filemtime = in_array($environment, $development_like_environments, true);
+
+    if (defined('SCRIPT_DEBUG') && SCRIPT_DEBUG) {
+        $use_filemtime = true;
+    }
+
+    if (function_exists('apply_filters')) {
+        $filtered = apply_filters('rbf_use_filemtime_for_assets', $use_filemtime, $environment);
+        $use_filemtime = (bool) $filtered;
+    }
+
+    return $use_filemtime;
+}
+
+/**
  * Retrieve the capability required to manage bookings.
  *
  * @return string
@@ -2410,18 +2470,16 @@ function rbf_get_manual_booking_success_url($booking_id, $tracking_token, $base_
  * Retrieve a cache-busting version string for plugin assets.
  *
  * @param string $relative_path Optional asset path relative to the plugin's assets directory.
- * @return string Version string combining plugin version and optional file modification timestamp.
+ * @return string Version string derived from the current environment mode.
  */
 function rbf_get_asset_version($relative_path = '') {
-    if (defined('SCRIPT_DEBUG') && SCRIPT_DEBUG) {
-        $debug_version = RBF_VERSION . '.' . time();
-
-        return apply_filters('rbf_asset_version', $debug_version, $relative_path, '');
-    }
-
     static $version_cache = [];
 
-    $cache_key = is_string($relative_path) ? $relative_path : '';
+    $use_filemtime = rbf_should_use_filemtime_for_assets();
+    $mode_prefix   = $use_filemtime ? 'mtime' : 'version';
+    $relative_key  = is_string($relative_path) ? $relative_path : '';
+    $cache_key     = $relative_key === '' ? $mode_prefix : $mode_prefix . '|' . $relative_key;
+
     if ($cache_key !== '' && isset($version_cache[$cache_key])) {
         $cached = $version_cache[$cache_key];
         $version = $cached['version'];
@@ -2436,21 +2494,14 @@ function rbf_get_asset_version($relative_path = '') {
     if (is_string($relative_path) && $relative_path !== '') {
         $asset_path = rbf_get_asset_path($relative_path);
         if ($asset_path !== '' && file_exists($asset_path)) {
-            $version_parts = [RBF_VERSION];
-
-            $modified_time = filemtime($asset_path);
-            if ($modified_time !== false) {
-                $version_parts[] = $modified_time;
-            }
-
-            if (is_readable($asset_path)) {
-                $hash = md5_file($asset_path);
-                if (is_string($hash) && $hash !== '') {
-                    $version_parts[] = substr($hash, 0, 8);
+            if ($use_filemtime) {
+                $modified_time = @filemtime($asset_path);
+                if ($modified_time !== false) {
+                    $version = (string) $modified_time;
                 }
+            } else {
+                $version = RBF_VERSION;
             }
-
-            $version = implode('.', $version_parts);
 
             if ($cache_key !== '') {
                 $version_cache[$cache_key] = [
@@ -2493,6 +2544,37 @@ function rbf_get_asset_path($relative_path) {
     $base_dir = rtrim(RBF_PLUGIN_DIR, '/\\') . '/assets/';
 
     return $base_dir . $relative_path;
+}
+
+/**
+ * Ensure the critical admin assets are present in the distributed package.
+ *
+ * @return bool True when all required assets are available, false otherwise.
+ */
+function rbf_verify_admin_assets_presence() {
+    $assets = [
+        'css/admin.css',
+        'js/admin.js',
+    ];
+
+    $missing = [];
+
+    foreach ($assets as $asset) {
+        $asset_path = rbf_get_asset_path($asset);
+        if ($asset_path === '' || !file_exists($asset_path)) {
+            $missing[] = $asset;
+        }
+    }
+
+    if (!empty($missing)) {
+        rbf_log('RBF Plugin: Missing admin assets - ' . implode(', ', $missing));
+
+        return false;
+    }
+
+    rbf_log('RBF Plugin: Admin assets verified - ' . implode(', ', $assets));
+
+    return true;
 }
 
 /**

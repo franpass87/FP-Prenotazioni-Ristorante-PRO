@@ -3,6 +3,11 @@
 Tutte le modifiche significative di **FP Prenotazioni Ristorante PRO** vengono documentate in questo file.
 Il formato segue l'approccio *Keep a Changelog* ed è coerente con la numerazione semantica introdotta dalla versione 1.x.
 
+## [1.6.4] – Routine Upgrade & Cache Busting (2024)
+### Fixed
+- Ripristinata la routine di upgrade lato admin con invalidazione OPcache e flush dell'object cache per mantenere allineate versione del codice e dati memorizzati.
+- Reso il versionamento degli asset dipendente dal filemtime in ambienti di sviluppo/staging e aggiunto logging degli handle enqueued per diagnosticare eventuali problemi di cache.
+
 ## [1.6.3] – Allineamento Versione Distribuzione (2024)
 ### Fixed
 - Incrementato il numero di versione del plugin e della documentazione per forzare il deploy delle ultime modifiche.

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: FP Prenotazioni Ristorante
  * Description: Prenotazioni con calendario Flatpickr IT/EN, gestione capienza per servizio, notifiche email (con CC), Brevo sempre e GA4/Meta (bucket standard), con supporto ai limiti temporali minimi.
- * Version:     1.6.3
+ * Version:     1.6.4
  * Requires at least: 6.0
  * Tested up to: 6.5
  * Requires PHP: 7.4
@@ -25,7 +25,7 @@ if (!defined('ABSPATH')) {
 define('RBF_PLUGIN_FILE', __FILE__);
 define('RBF_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('RBF_PLUGIN_URL', plugin_dir_url(__FILE__));
-define('RBF_VERSION', '1.6.3');
+define('RBF_VERSION', '1.6.4');
 define('RBF_MIN_PHP_VERSION', '7.4');
 define('RBF_MIN_WP_VERSION', '6.0');
 
@@ -330,20 +330,152 @@ function rbf_clear_transients() {
  * Clear transients when plugin version changes.
  */
 function rbf_maybe_clear_transients_on_load() {
-    $version = get_option('rbf_plugin_version');
-    $stored_signature = get_option('rbf_plugin_build_signature');
+    $stored_signature  = get_option('rbf_plugin_build_signature');
     $current_signature = rbf_get_plugin_build_signature();
 
-    $version_changed = ($version !== RBF_VERSION);
-    $build_changed = ($stored_signature !== $current_signature);
-
-    if ($version_changed || $build_changed) {
+    if ($stored_signature !== $current_signature) {
         rbf_clear_transients();
-        update_option('rbf_plugin_version', RBF_VERSION);
         update_option('rbf_plugin_build_signature', $current_signature);
     }
 }
 add_action('plugins_loaded', 'rbf_maybe_clear_transients_on_load', -1);
+
+/**
+ * Execute upgrade tasks when the stored plugin version differs from the code version.
+ *
+ * @param string $previous_version Previously stored plugin version.
+ * @param string $current_version  Current plugin version defined in code.
+ */
+function rbf_run_plugin_upgrade_routine($previous_version, $current_version) {
+    rbf_log(
+        sprintf(
+            'RBF Plugin: Running upgrade routine. DB version: %s → Code version: %s',
+            $previous_version !== '' ? $previous_version : '(none)',
+            $current_version
+        )
+    );
+
+    /**
+     * Allow third-party integrations to hook before the upgrade routine executes.
+     */
+    do_action('rbf_plugin_before_upgrade', $previous_version, $current_version);
+
+    rbf_clear_transients();
+
+    if (function_exists('rbf_verify_database_schema')) {
+        rbf_verify_database_schema();
+    }
+
+    if (function_exists('rbf_register_default_capabilities')) {
+        rbf_register_default_capabilities();
+    }
+
+    if (function_exists('rbf_verify_admin_assets_presence')) {
+        $assets_available = rbf_verify_admin_assets_presence();
+        if (!$assets_available) {
+            rbf_log('RBF Plugin: One or more admin assets are missing from the build package.');
+        }
+    }
+
+    /**
+     * Signal that the core upgrade routine finished running.
+     */
+    do_action('rbf_plugin_after_upgrade', $previous_version, $current_version);
+}
+
+/**
+ * Invalidate OPcache entries for all plugin PHP files.
+ */
+function rbf_invalidate_plugin_opcache() {
+    if (!function_exists('opcache_get_status') || !function_exists('opcache_invalidate')) {
+        return;
+    }
+
+    $status = @opcache_get_status(false);
+    if (!$status || !is_array($status)) {
+        return;
+    }
+
+    $invalidated = 0;
+
+    try {
+        $directory_iterator = new RecursiveDirectoryIterator(
+            RBF_PLUGIN_DIR,
+            FilesystemIterator::SKIP_DOTS | FilesystemIterator::CURRENT_AS_FILEINFO
+        );
+        $iterator = new RecursiveIteratorIterator($directory_iterator);
+    } catch (UnexpectedValueException $exception) {
+        rbf_log('RBF Plugin: Unable to iterate plugin files for OPcache invalidation.');
+        return;
+    }
+
+    foreach ($iterator as $file_info) {
+        if (!$file_info instanceof SplFileInfo || !$file_info->isFile()) {
+            continue;
+        }
+
+        if (strtolower($file_info->getExtension()) !== 'php') {
+            continue;
+        }
+
+        $path = $file_info->getPathname();
+
+        if (@opcache_invalidate($path, true)) {
+            $invalidated++;
+        }
+    }
+
+    if ($invalidated > 0) {
+        rbf_log(sprintf('RBF Plugin: Invalidated OPcache for %d PHP files.', $invalidated));
+    }
+}
+
+/**
+ * Detect version mismatches and trigger the upgrade routine from the WordPress admin.
+ */
+function rbf_run_plugin_upgrade_if_needed() {
+    static $upgrade_checked = false;
+
+    if ($upgrade_checked) {
+        return;
+    }
+
+    $upgrade_checked = true;
+
+    if (!function_exists('get_option')) {
+        return;
+    }
+
+    $stored_version  = (string) get_option('rbf_plugin_version', '');
+    $current_version = RBF_VERSION;
+
+    if ($stored_version === $current_version) {
+        return;
+    }
+
+    rbf_run_plugin_upgrade_routine($stored_version, $current_version);
+
+    update_option('rbf_plugin_version', $current_version);
+    update_option('rbf_plugin_build_signature', rbf_get_plugin_build_signature());
+    update_option('rbf_last_upgrade_completed', current_time('mysql')); // phpcs:ignore WordPress.DateTime.CurrentTimeTimestamp.Requested
+
+    rbf_invalidate_plugin_opcache();
+
+    if (function_exists('wp_cache_flush')) {
+        $flushed = wp_cache_flush();
+        rbf_log(
+            $flushed
+                ? 'RBF Plugin: Object cache flushed after upgrade.'
+                : 'RBF Plugin: Object cache flush attempted after upgrade.'
+        );
+    }
+
+    /**
+     * Notify listeners that the upgrade routine has completed.
+     */
+    do_action('rbf_plugin_upgrade_completed', $stored_version, $current_version);
+}
+add_action('admin_init', 'rbf_run_plugin_upgrade_if_needed', 0);
 
 /**
  * Load plugin modules
@@ -458,6 +590,10 @@ function rbf_run_site_activation_tasks($flush_rewrite = true) {
 
     // Load plugin modules so that CPTs and helpers are available.
     rbf_load_modules();
+
+    if (function_exists('rbf_verify_admin_assets_presence')) {
+        rbf_verify_admin_assets_presence();
+    }
 
     if (function_exists('rbf_register_default_capabilities')) {
         rbf_register_default_capabilities();
