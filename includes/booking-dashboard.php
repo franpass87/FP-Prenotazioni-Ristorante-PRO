@@ -478,7 +478,12 @@ function rbf_render_booking_dashboard_page() {
     echo '<ul class="rbf-admin-callout__list">';
     echo '<li><a class="button button-secondary" href="' . esc_url(admin_url('admin.php?page=rbf_calendar')) . '">' . esc_html(rbf_translate_string('Apri calendario')) . '</a></li>';
     echo '<li><a class="button button-secondary" href="' . esc_url(admin_url('admin.php?page=rbf_weekly_staff')) . '">' . esc_html(rbf_translate_string('Vista settimanale staff')) . '</a></li>';
-    echo '<li><a class="button button-secondary" href="' . esc_url(admin_url('admin.php?page=rbf_setup_wizard')) . '">' . esc_html(rbf_translate_string('Setup guidato')) . '</a></li>';
+    if (!function_exists('rbf_get_setup_wizard_admin_url')) {
+        require_once RBF_PLUGIN_DIR . '/includes/onboarding.php';
+    }
+
+    $setup_url = rbf_get_setup_wizard_admin_url();
+    echo '<li><a class="button button-secondary" href="' . esc_url($setup_url) . '">' . esc_html(rbf_translate_string('Setup guidato')) . '</a></li>';
     echo '<li><a class="button button-secondary" href="' . esc_url(admin_url('admin.php?page=rbf_system_health')) . '">' . esc_html(rbf_translate_string('Stato sistema')) . '</a></li>';
     echo '<li><a class="button button-secondary" href="' . esc_url(admin_url('admin.php?page=rbf_accessibility_checker')) . '">' . esc_html(rbf_translate_string('Verifica accessibilità')) . '</a></li>';
     echo '</ul>';
