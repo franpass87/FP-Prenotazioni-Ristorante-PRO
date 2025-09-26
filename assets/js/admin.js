@@ -201,6 +201,45 @@ jQuery(function($) {
 
   setupAdminTabs();
 
+  document.addEventListener('click', (event) => {
+    const trigger = event.target.closest('[data-tab-target]');
+
+    if (!trigger || trigger.closest('.rbf-admin-tabs, .nav-tab-wrapper')) {
+      return;
+    }
+
+    const target = getLinkTarget(trigger);
+
+    if (!target) {
+      return;
+    }
+
+    const matchingGroup = tabGroups.find((group) =>
+      group.links.some((info) => info.target === target)
+    );
+
+    if (!matchingGroup) {
+      return;
+    }
+
+    event.preventDefault();
+    matchingGroup.activate(target);
+
+    if (typeof window.history.replaceState === 'function') {
+      try {
+        window.history.replaceState(null, '', '#rbf-tab-' + target);
+      } catch (error) {
+        // Ignore history failures
+      }
+    }
+
+    const focusableNavLink = matchingGroup.nav.querySelector('[data-tab-target="' + target + '"], a[href="#rbf-tab-' + target + '"]');
+
+    if (focusableNavLink && typeof focusableNavLink.focus === 'function') {
+      focusableNavLink.focus();
+    }
+  });
+
   window.addEventListener('hashchange', () => {
     const target = window.location.hash || '';
     const normalizedTarget = normalizeTabTarget(target);
@@ -293,44 +332,58 @@ jQuery(function($) {
     
     // Create modal HTML
     var modalHtml = `
-      <div id="rbf-booking-modal" class="rbf-modal-overlay">
+      <div id="rbf-booking-modal" class="rbf-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="rbf-booking-modal-title">
         <div class="rbf-modal-content">
           <div class="rbf-modal-header">
-            <h3>Gestisci Prenotazione</h3>
-            <button class="rbf-modal-close">&times;</button>
+            <h3 id="rbf-booking-modal-title">Gestisci Prenotazione</h3>
+            <button class="rbf-modal-close" type="button" aria-label="Chiudi finestra">&times;</button>
           </div>
           <div class="rbf-modal-body">
             <div class="rbf-booking-details">
-              <p><strong>Cliente:</strong> 
-                <input type="text" id="rbf-customer-name" value="${event.extendedProps.customer_name}" style="width: 100%; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px;">
-              </p>
-              <p><strong>Email:</strong> 
-                <input type="email" id="rbf-customer-email" value="${event.extendedProps.customer_email}" style="width: 100%; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px;">
-              </p>
-              <p><strong>Telefono:</strong> 
-                <input type="tel" id="rbf-customer-phone" value="${event.extendedProps.customer_phone}" style="width: 100%; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px;">
-              </p>
-              <p><strong>Data:</strong> <span id="rbf-booking-date">${event.extendedProps.booking_date}</span></p>
-              <p><strong>Orario:</strong> <span id="rbf-booking-time">${event.extendedProps.booking_time}</span></p>
-              <p><strong>Persone:</strong> 
-                <input type="number" id="rbf-booking-people" value="${event.extendedProps.people}" min="1" max="30" style="width: 80px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px;">
-              </p>
-              <p><strong>Note:</strong> 
-                <textarea id="rbf-booking-notes" rows="2" style="width: 100%; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;">${event.extendedProps.notes || ''}</textarea>
-              </p>
-              <p><strong>Stato:</strong> 
-                <select id="rbf-booking-status" data-booking-id="${bookingId}" style="padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px;">
-                  <option value="confirmed" ${event.extendedProps.status === 'confirmed' ? 'selected' : ''}>Confermata</option>
-                  <option value="cancelled" ${event.extendedProps.status === 'cancelled' ? 'selected' : ''}>Cancellata</option>
-                  <option value="completed" ${event.extendedProps.status === 'completed' ? 'selected' : ''}>Completata</option>
-                </select>
-              </p>
+              <div class="rbf-modal-form" role="group" aria-label="Dettagli prenotazione">
+                <div class="rbf-modal-field">
+                  <label class="rbf-modal-field__label" for="rbf-customer-name">Cliente</label>
+                  <input type="text" id="rbf-customer-name" class="rbf-form-control" value="${event.extendedProps.customer_name}">
+                </div>
+                <div class="rbf-modal-field">
+                  <label class="rbf-modal-field__label" for="rbf-customer-email">Email</label>
+                  <input type="email" id="rbf-customer-email" class="rbf-form-control" value="${event.extendedProps.customer_email}">
+                </div>
+                <div class="rbf-modal-field">
+                  <label class="rbf-modal-field__label" for="rbf-customer-phone">Telefono</label>
+                  <input type="tel" id="rbf-customer-phone" class="rbf-form-control" value="${event.extendedProps.customer_phone}">
+                </div>
+                <div class="rbf-modal-field">
+                  <span class="rbf-modal-field__label">Data</span>
+                  <span class="rbf-modal-field__value" id="rbf-booking-date">${event.extendedProps.booking_date}</span>
+                </div>
+                <div class="rbf-modal-field">
+                  <span class="rbf-modal-field__label">Orario</span>
+                  <span class="rbf-modal-field__value" id="rbf-booking-time">${event.extendedProps.booking_time}</span>
+                </div>
+                <div class="rbf-modal-field">
+                  <label class="rbf-modal-field__label" for="rbf-booking-people">Persone</label>
+                  <input type="number" id="rbf-booking-people" class="rbf-form-control rbf-form-control--compact" value="${event.extendedProps.people}" min="1" max="30">
+                </div>
+                <div class="rbf-modal-field">
+                  <label class="rbf-modal-field__label" for="rbf-booking-notes">Note</label>
+                  <textarea id="rbf-booking-notes" class="rbf-form-control rbf-form-control--textarea" rows="2">${event.extendedProps.notes || ''}</textarea>
+                </div>
+                <div class="rbf-modal-field">
+                  <label class="rbf-modal-field__label" for="rbf-booking-status">Stato</label>
+                  <select id="rbf-booking-status" class="rbf-form-control" data-booking-id="${bookingId}">
+                    <option value="confirmed" ${event.extendedProps.status === 'confirmed' ? 'selected' : ''}>Confermata</option>
+                    <option value="cancelled" ${event.extendedProps.status === 'cancelled' ? 'selected' : ''}>Cancellata</option>
+                    <option value="completed" ${event.extendedProps.status === 'completed' ? 'selected' : ''}>Completata</option>
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
           <div class="rbf-modal-footer">
-            <button class="button button-primary" id="rbf-save-booking">Salva Modifiche</button>
-            <button class="button" id="rbf-edit-full">Modifica Completa</button>
-            <button class="button button-secondary rbf-modal-close">Chiudi</button>
+            <button class="button button-primary" id="rbf-save-booking" type="button">Salva Modifiche</button>
+            <button class="button" id="rbf-edit-full" type="button">Modifica Completa</button>
+            <button class="button button-secondary rbf-modal-close" type="button">Chiudi</button>
           </div>
         </div>
       </div>
