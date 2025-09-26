@@ -1,0 +1,27 @@
+FP Prenotazioni Ristorante PRO – Phase 2 Linters Audit
+======================================================
+
+Tooling setup
+-------------
+- Added Composer-based tooling with WordPress Coding Standards (PHPCS/WPCS) and PHPStan level 6 plus WordPress stubs.
+- Created shared configuration files: `phpcs.xml.dist`, `phpstan.neon(.dist)`, and updated `.gitignore` to exclude `vendor/`.
+
+Execution summary
+-----------------
+1. Installed dependencies via `composer install`.
+2. Ran `vendor/bin/phpcbf` against the repository, which automatically fixed 42,283 coding standard issues across 31 files.【cc4725†L1-L34】
+3. Audited the remaining coding standard violations with `vendor/bin/phpcs --report=summary`, leaving 1,496 errors and 75 warnings for later remediation phases (primarily documentation gaps, Yoda conditions, and escaping).【5cd063†L1-L36】
+4. Executed static analysis with `vendor/bin/phpstan analyse --xdebug --memory-limit=2G`, which completed in single-process mode and reported 822 level-6 errors (missing types, unreachable code, reliance on undefined WordPress constants/classes, etc.).【5e513a†L1-L107】【ff4f31†L1-L19】
+
+Key findings
+------------
+- Extensive inline comment punctuation, Yoda condition, and documentation deficiencies remain after automated fixes.
+- Static analysis highlights pervasive missing type hints, strict comparisons that always evaluate the same way, and undefined global symbols that need shims or conditional loading for compatibility.
+- Several esc_html/esc_attr calls receive non-string values, indicating sanitization/escaping gaps to prioritize in security/performance phases.
+- PHPStan required reduced parallelism and elevated memory to process the codebase, signalling sizable files that may benefit from refactoring in later phases.
+
+Next steps
+----------
+- Prioritize addressing outstanding PHPCS violations (documentation, escaping, Yoda conditions) while planning targeted refactors to break up large files.
+- Introduce WordPress-aware stubs or conditional checks to satisfy PHPStan for WP-CLI and constant references.
+- Begin triaging high-signal PHPStan findings (always true conditions, undefined properties) in upcoming security/refactoring phases.

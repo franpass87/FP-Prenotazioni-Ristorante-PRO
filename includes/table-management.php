@@ -1,26 +1,26 @@
 <?php
 /**
  * Table Management functionality for FP Prenotazioni Ristorante
- * 
+ *
  * @package FP_Prenotazioni_Ristorante_PRO
  */
 
 // Prevent direct access
-if (!defined('ABSPATH')) {
-    exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
 /**
  * Create database tables for table management on plugin activation
  */
 function rbf_create_table_management_tables() {
-    global $wpdb;
-    
-    $charset_collate = $wpdb->get_charset_collate();
-    
-    // Areas table (e.g., sala, dehors, terrazza)
-    $table_areas = $wpdb->prefix . 'rbf_areas';
-    $sql_areas = "CREATE TABLE $table_areas (
+	global $wpdb;
+
+	$charset_collate = $wpdb->get_charset_collate();
+
+	// Areas table (e.g., sala, dehors, terrazza)
+	$table_areas = $wpdb->prefix . 'rbf_areas';
+	$sql_areas   = "CREATE TABLE $table_areas (
         id mediumint(9) NOT NULL AUTO_INCREMENT,
         name varchar(100) NOT NULL,
         description text,
@@ -29,10 +29,10 @@ function rbf_create_table_management_tables() {
         PRIMARY KEY (id),
         UNIQUE KEY name (name)
     ) $charset_collate;";
-    
-    // Tables table
-    $table_tables = $wpdb->prefix . 'rbf_tables';
-    $sql_tables = "CREATE TABLE $table_tables (
+
+	// Tables table
+	$table_tables = $wpdb->prefix . 'rbf_tables';
+	$sql_tables   = "CREATE TABLE $table_tables (
         id mediumint(9) NOT NULL AUTO_INCREMENT,
         area_id mediumint(9) NOT NULL,
         name varchar(100) NOT NULL,
@@ -50,10 +50,10 @@ function rbf_create_table_management_tables() {
         KEY is_active (is_active),
         UNIQUE KEY area_table_name (area_id, name)
     ) $charset_collate;";
-    
-    // Table groups (for joinable tables)
-    $table_groups = $wpdb->prefix . 'rbf_table_groups';
-    $sql_groups = "CREATE TABLE $table_groups (
+
+	// Table groups (for joinable tables)
+	$table_groups = $wpdb->prefix . 'rbf_table_groups';
+	$sql_groups   = "CREATE TABLE $table_groups (
         id mediumint(9) NOT NULL AUTO_INCREMENT,
         name varchar(100) NOT NULL,
         area_id mediumint(9) NOT NULL,
@@ -65,10 +65,10 @@ function rbf_create_table_management_tables() {
         KEY area_id (area_id),
         KEY is_active (is_active)
     ) $charset_collate;";
-    
-    // Table group members (which tables can be joined)
-    $table_group_members = $wpdb->prefix . 'rbf_table_group_members';
-    $sql_group_members = "CREATE TABLE $table_group_members (
+
+	// Table group members (which tables can be joined)
+	$table_group_members = $wpdb->prefix . 'rbf_table_group_members';
+	$sql_group_members   = "CREATE TABLE $table_group_members (
         id mediumint(9) NOT NULL AUTO_INCREMENT,
         group_id mediumint(9) NOT NULL,
         table_id mediumint(9) NOT NULL,
@@ -79,10 +79,10 @@ function rbf_create_table_management_tables() {
         KEY table_id (table_id),
         UNIQUE KEY group_table (group_id, table_id)
     ) $charset_collate;";
-    
-    // Table assignments (which tables are assigned to which bookings)
-    $table_assignments = $wpdb->prefix . 'rbf_table_assignments';
-    $sql_assignments = "CREATE TABLE $table_assignments (
+
+	// Table assignments (which tables are assigned to which bookings)
+	$table_assignments = $wpdb->prefix . 'rbf_table_assignments';
+	$sql_assignments   = "CREATE TABLE $table_assignments (
         id mediumint(9) NOT NULL AUTO_INCREMENT,
         booking_id bigint(20) NOT NULL,
         table_id mediumint(9) NOT NULL,
@@ -97,144 +97,210 @@ function rbf_create_table_management_tables() {
         KEY group_id (group_id),
         KEY assignment_type (assignment_type)
     ) $charset_collate;";
-    
-    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-    
-    dbDelta($sql_areas);
-    dbDelta($sql_tables);
-    dbDelta($sql_groups);
-    dbDelta($sql_group_members);
-    dbDelta($sql_assignments);
-    
-    // Create default area and tables
-    rbf_create_default_table_setup();
+
+	require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+
+	dbDelta( $sql_areas );
+	dbDelta( $sql_tables );
+	dbDelta( $sql_groups );
+	dbDelta( $sql_group_members );
+	dbDelta( $sql_assignments );
+
+	// Create default area and tables
+	rbf_create_default_table_setup();
 }
 
 /**
  * Create default table setup for immediate use
  */
 function rbf_create_default_table_setup() {
-    global $wpdb;
+	global $wpdb;
 
-    $areas_table = $wpdb->prefix . 'rbf_areas';
-    $tables_table = $wpdb->prefix . 'rbf_tables';
-    $groups_table = $wpdb->prefix . 'rbf_table_groups';
-    $group_members_table = $wpdb->prefix . 'rbf_table_group_members';
-    
-    // Check if default data already exists
-    $existing_areas = $wpdb->get_var("SELECT COUNT(*) FROM $areas_table");
-    if ($existing_areas > 0) {
-        return; // Already setup
-    }
-    
-    // Create default areas
-    $wpdb->insert($areas_table, [
-        'name' => 'Sala Principale',
-        'description' => 'Area principale del ristorante'
-    ]);
-    $sala_id = $wpdb->insert_id;
-    
-    $wpdb->insert($areas_table, [
-        'name' => 'Dehors',
-        'description' => 'Area esterna'
-    ]);
-    $dehors_id = $wpdb->insert_id;
-    
-    // Create default tables for Sala Principale
-    $default_tables_sala = [
-        ['name' => 'T1', 'capacity' => 2],
-        ['name' => 'T2', 'capacity' => 2],
-        ['name' => 'T3', 'capacity' => 4],
-        ['name' => 'T4', 'capacity' => 4],
-        ['name' => 'T5', 'capacity' => 6],
-        ['name' => 'T6', 'capacity' => 6],
-        ['name' => 'T7', 'capacity' => 8],
-        ['name' => 'T8', 'capacity' => 8]
-    ];
-    
-    $table_ids_sala = [];
-    foreach ($default_tables_sala as $table) {
-        $wpdb->insert($tables_table, [
-            'area_id' => $sala_id,
-            'name' => $table['name'],
-            'capacity' => $table['capacity'],
-            'min_capacity' => max(1, $table['capacity'] - 2),
-            'max_capacity' => $table['capacity'] + 2
-        ]);
-        $table_ids_sala[] = $wpdb->insert_id;
-    }
-    
-    // Create default tables for Dehors
-    $default_tables_dehors = [
-        ['name' => 'D1', 'capacity' => 4],
-        ['name' => 'D2', 'capacity' => 4],
-        ['name' => 'D3', 'capacity' => 6],
-        ['name' => 'D4', 'capacity' => 6]
-    ];
-    
-    $table_ids_dehors = [];
-    foreach ($default_tables_dehors as $table) {
-        $wpdb->insert($tables_table, [
-            'area_id' => $dehors_id,
-            'name' => $table['name'],
-            'capacity' => $table['capacity'],
-            'min_capacity' => max(1, $table['capacity'] - 2),
-            'max_capacity' => $table['capacity'] + 2
-        ]);
-        $table_ids_dehors[] = $wpdb->insert_id;
-    }
-    
-    // Create joinable table groups
-    // Group small tables in sala
-    $wpdb->insert($groups_table, [
-        'name' => 'Piccoli Tavoli Sala',
-        'area_id' => $sala_id,
-        'max_combined_capacity' => 8
-    ]);
-    $small_group_id = $wpdb->insert_id;
-    
-    // Add small tables to group (T1, T2, T3, T4)
-    for ($i = 0; $i < 4; $i++) {
-        $wpdb->insert($group_members_table, [
-            'group_id' => $small_group_id,
-            'table_id' => $table_ids_sala[$i],
-            'join_order' => $i + 1
-        ]);
-    }
-    
-    // Group medium tables in sala
-    $wpdb->insert($groups_table, [
-        'name' => 'Tavoli Medi Sala',
-        'area_id' => $sala_id,
-        'max_combined_capacity' => 12
-    ]);
-    $medium_group_id = $wpdb->insert_id;
-    
-    // Add medium tables to group (T5, T6)
-    for ($i = 4; $i < 6; $i++) {
-        $wpdb->insert($group_members_table, [
-            'group_id' => $medium_group_id,
-            'table_id' => $table_ids_sala[$i],
-            'join_order' => $i - 3
-        ]);
-    }
-    
-    // Group dehors tables
-    $wpdb->insert($groups_table, [
-        'name' => 'Tavoli Dehors',
-        'area_id' => $dehors_id,
-        'max_combined_capacity' => 12
-    ]);
-    $dehors_group_id = $wpdb->insert_id;
-    
-    // Add dehors tables to group
-    foreach ($table_ids_dehors as $index => $table_id) {
-        $wpdb->insert($group_members_table, [
-            'group_id' => $dehors_group_id,
-            'table_id' => $table_id,
-            'join_order' => $index + 1
-        ]);
-    }
+	$areas_table         = $wpdb->prefix . 'rbf_areas';
+	$tables_table        = $wpdb->prefix . 'rbf_tables';
+	$groups_table        = $wpdb->prefix . 'rbf_table_groups';
+	$group_members_table = $wpdb->prefix . 'rbf_table_group_members';
+
+	// Check if default data already exists
+	$existing_areas = $wpdb->get_var( "SELECT COUNT(*) FROM $areas_table" );
+	if ( $existing_areas > 0 ) {
+		return; // Already setup
+	}
+
+	// Create default areas
+	$wpdb->insert(
+		$areas_table,
+		array(
+			'name'        => 'Sala Principale',
+			'description' => 'Area principale del ristorante',
+		)
+	);
+	$sala_id = $wpdb->insert_id;
+
+	$wpdb->insert(
+		$areas_table,
+		array(
+			'name'        => 'Dehors',
+			'description' => 'Area esterna',
+		)
+	);
+	$dehors_id = $wpdb->insert_id;
+
+	// Create default tables for Sala Principale
+	$default_tables_sala = array(
+		array(
+			'name'     => 'T1',
+			'capacity' => 2,
+		),
+		array(
+			'name'     => 'T2',
+			'capacity' => 2,
+		),
+		array(
+			'name'     => 'T3',
+			'capacity' => 4,
+		),
+		array(
+			'name'     => 'T4',
+			'capacity' => 4,
+		),
+		array(
+			'name'     => 'T5',
+			'capacity' => 6,
+		),
+		array(
+			'name'     => 'T6',
+			'capacity' => 6,
+		),
+		array(
+			'name'     => 'T7',
+			'capacity' => 8,
+		),
+		array(
+			'name'     => 'T8',
+			'capacity' => 8,
+		),
+	);
+
+	$table_ids_sala = array();
+	foreach ( $default_tables_sala as $table ) {
+		$wpdb->insert(
+			$tables_table,
+			array(
+				'area_id'      => $sala_id,
+				'name'         => $table['name'],
+				'capacity'     => $table['capacity'],
+				'min_capacity' => max( 1, $table['capacity'] - 2 ),
+				'max_capacity' => $table['capacity'] + 2,
+			)
+		);
+		$table_ids_sala[] = $wpdb->insert_id;
+	}
+
+	// Create default tables for Dehors
+	$default_tables_dehors = array(
+		array(
+			'name'     => 'D1',
+			'capacity' => 4,
+		),
+		array(
+			'name'     => 'D2',
+			'capacity' => 4,
+		),
+		array(
+			'name'     => 'D3',
+			'capacity' => 6,
+		),
+		array(
+			'name'     => 'D4',
+			'capacity' => 6,
+		),
+	);
+
+	$table_ids_dehors = array();
+	foreach ( $default_tables_dehors as $table ) {
+		$wpdb->insert(
+			$tables_table,
+			array(
+				'area_id'      => $dehors_id,
+				'name'         => $table['name'],
+				'capacity'     => $table['capacity'],
+				'min_capacity' => max( 1, $table['capacity'] - 2 ),
+				'max_capacity' => $table['capacity'] + 2,
+			)
+		);
+		$table_ids_dehors[] = $wpdb->insert_id;
+	}
+
+	// Create joinable table groups
+	// Group small tables in sala
+	$wpdb->insert(
+		$groups_table,
+		array(
+			'name'                  => 'Piccoli Tavoli Sala',
+			'area_id'               => $sala_id,
+			'max_combined_capacity' => 8,
+		)
+	);
+	$small_group_id = $wpdb->insert_id;
+
+	// Add small tables to group (T1, T2, T3, T4)
+	for ( $i = 0; $i < 4; $i++ ) {
+		$wpdb->insert(
+			$group_members_table,
+			array(
+				'group_id'   => $small_group_id,
+				'table_id'   => $table_ids_sala[ $i ],
+				'join_order' => $i + 1,
+			)
+		);
+	}
+
+	// Group medium tables in sala
+	$wpdb->insert(
+		$groups_table,
+		array(
+			'name'                  => 'Tavoli Medi Sala',
+			'area_id'               => $sala_id,
+			'max_combined_capacity' => 12,
+		)
+	);
+	$medium_group_id = $wpdb->insert_id;
+
+	// Add medium tables to group (T5, T6)
+	for ( $i = 4; $i < 6; $i++ ) {
+		$wpdb->insert(
+			$group_members_table,
+			array(
+				'group_id'   => $medium_group_id,
+				'table_id'   => $table_ids_sala[ $i ],
+				'join_order' => $i - 3,
+			)
+		);
+	}
+
+	// Group dehors tables
+	$wpdb->insert(
+		$groups_table,
+		array(
+			'name'                  => 'Tavoli Dehors',
+			'area_id'               => $dehors_id,
+			'max_combined_capacity' => 12,
+		)
+	);
+	$dehors_group_id = $wpdb->insert_id;
+
+	// Add dehors tables to group
+	foreach ( $table_ids_dehors as $index => $table_id ) {
+		$wpdb->insert(
+			$group_members_table,
+			array(
+				'group_id'   => $dehors_group_id,
+				'table_id'   => $table_id,
+				'join_order' => $index + 1,
+			)
+		);
+	}
 }
 
 /**
@@ -243,206 +309,225 @@ function rbf_create_default_table_setup() {
  * @return bool True when tables data exists, false otherwise.
  */
 function rbf_table_setup_exists() {
-    global $wpdb;
+	global $wpdb;
 
-    if (!isset($wpdb)) {
-        return false;
-    }
+	if ( ! isset( $wpdb ) ) {
+		return false;
+	}
 
-    $tables_table = $wpdb->prefix . 'rbf_tables';
+	$tables_table = $wpdb->prefix . 'rbf_tables';
 
-    if (!rbf_database_table_exists($tables_table)) {
-        return false;
-    }
+	if ( ! rbf_database_table_exists( $tables_table ) ) {
+		return false;
+	}
 
-    $count = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$tables_table}");
+	$count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$tables_table}" );
 
-    return $count > 0;
+	return $count > 0;
 }
 
 /**
  * Verify that the plugin database schema exists and repair it when missing.
  */
 function rbf_verify_database_schema() {
-    global $wpdb;
+	global $wpdb;
 
-    if (!isset($wpdb)) {
-        return;
-    }
+	if ( ! isset( $wpdb ) ) {
+		return;
+	}
 
-    $interval = defined('HOUR_IN_SECONDS') ? (12 * HOUR_IN_SECONDS) : 43200;
+	$interval = defined( 'HOUR_IN_SECONDS' ) ? ( 12 * HOUR_IN_SECONDS ) : 43200;
 
-    if (function_exists('apply_filters')) {
-        $interval = (int) apply_filters('rbf_schema_verification_interval', $interval);
-        if ($interval < 3600) {
-            $interval = 3600;
-        }
-    }
+	if ( function_exists( 'apply_filters' ) ) {
+		$interval = (int) apply_filters( 'rbf_schema_verification_interval', $interval );
+		if ( $interval < 3600 ) {
+			$interval = 3600;
+		}
+	}
 
-    $last_check = (int) get_option('rbf_schema_last_verified', 0);
-    $now = time();
+	$last_check = (int) get_option( 'rbf_schema_last_verified', 0 );
+	$now        = time();
 
-    if ($last_check > 0 && ($now - $last_check) < $interval) {
-        return;
-    }
+	if ( $last_check > 0 && ( $now - $last_check ) < $interval ) {
+		return;
+	}
 
-    $updated = false;
+	$updated = false;
 
-    $required_tables = [
-        $wpdb->prefix . 'rbf_areas',
-        $wpdb->prefix . 'rbf_tables',
-        $wpdb->prefix . 'rbf_table_groups',
-        $wpdb->prefix . 'rbf_table_group_members',
-        $wpdb->prefix . 'rbf_table_assignments',
-    ];
+	$required_tables = array(
+		$wpdb->prefix . 'rbf_areas',
+		$wpdb->prefix . 'rbf_tables',
+		$wpdb->prefix . 'rbf_table_groups',
+		$wpdb->prefix . 'rbf_table_group_members',
+		$wpdb->prefix . 'rbf_table_assignments',
+	);
 
-    $missing_tables = array_filter($required_tables, function($table) {
-        return !rbf_database_table_exists($table);
-    });
+	$missing_tables = array_filter(
+		$required_tables,
+		function ( $table ) {
+			return ! rbf_database_table_exists( $table );
+		}
+	);
 
-    if (!empty($missing_tables)) {
-        rbf_log('RBF Plugin: Missing table(s) detected: ' . implode(', ', $missing_tables));
-        rbf_create_table_management_tables();
-        $updated = true;
-    }
+	if ( ! empty( $missing_tables ) ) {
+		rbf_log( 'RBF Plugin: Missing table(s) detected: ' . implode( ', ', $missing_tables ) );
+		rbf_create_table_management_tables();
+		$updated = true;
+	}
 
-    $still_missing = array_filter($required_tables, function($table) {
-        return !rbf_database_table_exists($table);
-    });
+	$still_missing = array_filter(
+		$required_tables,
+		function ( $table ) {
+			return ! rbf_database_table_exists( $table );
+		}
+	);
 
-    if (!empty($still_missing) && function_exists('rbf_add_admin_notice')) {
-        $message = sprintf(
-            rbf_translate_string('Errore database: impossibile creare le tabelle richieste (%s). Verifica i permessi del database.'),
-            implode(', ', $still_missing)
-        );
-        rbf_add_admin_notice($message, 'error');
-        rbf_log('RBF Plugin: Failed to create required table(s): ' . implode(', ', $still_missing));
-    }
+	if ( ! empty( $still_missing ) && function_exists( 'rbf_add_admin_notice' ) ) {
+		$message = sprintf(
+			rbf_translate_string( 'Errore database: impossibile creare le tabelle richieste (%s). Verifica i permessi del database.' ),
+			implode( ', ', $still_missing )
+		);
+		rbf_add_admin_notice( $message, 'error' );
+		rbf_log( 'RBF Plugin: Failed to create required table(s): ' . implode( ', ', $still_missing ) );
+	}
 
-    $slot_table = $wpdb->prefix . 'rbf_slot_versions';
-    if (function_exists('rbf_create_slot_version_table') && !rbf_database_table_exists($slot_table)) {
-        rbf_create_slot_version_table();
-        $updated = true;
-    }
+	$slot_table = $wpdb->prefix . 'rbf_slot_versions';
+	if ( function_exists( 'rbf_create_slot_version_table' ) && ! rbf_database_table_exists( $slot_table ) ) {
+		rbf_create_slot_version_table();
+		$updated = true;
+	}
 
-    if (function_exists('rbf_ensure_email_log_table')) {
-        $result = rbf_ensure_email_log_table();
-        if ($result === 'created') {
-            $updated = true;
-        } elseif ($result === 'failed') {
-            rbf_log('RBF Plugin: Unable to create email notification log table.');
-        }
-    }
+	if ( function_exists( 'rbf_ensure_email_log_table' ) ) {
+		$result = rbf_ensure_email_log_table();
+		if ( $result === 'created' ) {
+			$updated = true;
+		} elseif ( $result === 'failed' ) {
+			rbf_log( 'RBF Plugin: Unable to create email notification log table.' );
+		}
+	}
 
-    update_option('rbf_schema_last_verified', $now, false);
+	update_option( 'rbf_schema_last_verified', $now, false );
 
-    if ($updated) {
-        rbf_log('RBF Plugin: Database schema verification completed.');
-    }
+	if ( $updated ) {
+		rbf_log( 'RBF Plugin: Database schema verification completed.' );
+	}
 }
 
 /**
  * Get all areas
  */
 function rbf_get_areas() {
-    global $wpdb;
-    $table = $wpdb->prefix . 'rbf_areas';
-    return $wpdb->get_results("SELECT * FROM $table ORDER BY name");
+	global $wpdb;
+	$table = $wpdb->prefix . 'rbf_areas';
+	return $wpdb->get_results( "SELECT * FROM $table ORDER BY name" );
 }
 
 /**
  * Get tables by area
  */
-function rbf_get_tables_by_area($area_id) {
-    global $wpdb;
-    $table = $wpdb->prefix . 'rbf_tables';
-    return $wpdb->get_results($wpdb->prepare(
-        "SELECT * FROM $table WHERE area_id = %d AND is_active = 1 ORDER BY name",
-        $area_id
-    ));
+function rbf_get_tables_by_area( $area_id ) {
+	global $wpdb;
+	$table = $wpdb->prefix . 'rbf_tables';
+	return $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT * FROM $table WHERE area_id = %d AND is_active = 1 ORDER BY name",
+			$area_id
+		)
+	);
 }
 
 /**
  * Get all available tables
  */
 function rbf_get_all_tables() {
-    global $wpdb;
-    $tables_table = $wpdb->prefix . 'rbf_tables';
-    $areas_table = $wpdb->prefix . 'rbf_areas';
-    
-    return $wpdb->get_results("
+	global $wpdb;
+	$tables_table = $wpdb->prefix . 'rbf_tables';
+	$areas_table  = $wpdb->prefix . 'rbf_areas';
+
+	return $wpdb->get_results(
+		"
         SELECT t.*, a.name as area_name 
         FROM $tables_table t 
         LEFT JOIN $areas_table a ON t.area_id = a.id 
         WHERE t.is_active = 1 
         ORDER BY a.name, t.name
-    ");
+    "
+	);
 }
 
 /**
  * Get table groups by area
  */
-function rbf_get_table_groups_by_area($area_id) {
-    global $wpdb;
-    $groups_table = $wpdb->prefix . 'rbf_table_groups';
-    return $wpdb->get_results($wpdb->prepare(
-        "SELECT * FROM $groups_table WHERE area_id = %d AND is_active = 1 ORDER BY name",
-        $area_id
-    ));
+function rbf_get_table_groups_by_area( $area_id ) {
+	global $wpdb;
+	$groups_table = $wpdb->prefix . 'rbf_table_groups';
+	return $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT * FROM $groups_table WHERE area_id = %d AND is_active = 1 ORDER BY name",
+			$area_id
+		)
+	);
 }
 
 /**
  * Get tables in a group
  */
-function rbf_get_group_tables($group_id) {
-    global $wpdb;
-    $tables_table = $wpdb->prefix . 'rbf_tables';
-    $group_members_table = $wpdb->prefix . 'rbf_table_group_members';
-    
-    return $wpdb->get_results($wpdb->prepare("
+function rbf_get_group_tables( $group_id ) {
+	global $wpdb;
+	$tables_table        = $wpdb->prefix . 'rbf_tables';
+	$group_members_table = $wpdb->prefix . 'rbf_table_group_members';
+
+	return $wpdb->get_results(
+		$wpdb->prepare(
+			"
         SELECT t.*, gm.join_order
         FROM $tables_table t
         INNER JOIN $group_members_table gm ON t.id = gm.table_id
         WHERE gm.group_id = %d AND t.is_active = 1
         ORDER BY gm.join_order
-    ", $group_id));
+    ",
+			$group_id
+		)
+	);
 }
 
 /**
  * Check table availability for a specific date, time and meal
  */
-function rbf_check_table_availability($date, $time, $meal) {
-    global $wpdb;
+function rbf_check_table_availability( $date, $time, $meal ) {
+	global $wpdb;
 
-    // Get all active tables
-    $all_tables = rbf_get_all_tables();
+	// Get all active tables
+	$all_tables = rbf_get_all_tables();
 
-    // Get existing assignments for this date/time/meal
-    $assignments_table = $wpdb->prefix . 'rbf_table_assignments';
-    $bookings_table = $wpdb->prefix . 'posts';
-    $status_table = $wpdb->prefix . 'rbf_booking_status';
+	// Get existing assignments for this date/time/meal
+	$assignments_table = $wpdb->prefix . 'rbf_table_assignments';
+	$bookings_table    = $wpdb->prefix . 'posts';
+	$status_table      = $wpdb->prefix . 'rbf_booking_status';
 
-    static $status_source = null;
-    if ($status_source === null) {
-        $found_table = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $status_table));
+	static $status_source = null;
+	if ( $status_source === null ) {
+		$found_table = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $status_table ) );
 
-        if ($found_table === $status_table) {
-            $status_source = [
-                'join' => "LEFT JOIN $status_table bs ON ta.booking_id = bs.booking_id",
-                'column' => 'bs.status'
-            ];
-        } else {
-            $status_source = [
-                'join' => "LEFT JOIN {$wpdb->postmeta} pm_status ON ta.booking_id = pm_status.post_id AND pm_status.meta_key = 'rbf_booking_status'",
-                'column' => 'pm_status.meta_value'
-            ];
-        }
-    }
+		if ( $found_table === $status_table ) {
+			$status_source = array(
+				'join'   => "LEFT JOIN $status_table bs ON ta.booking_id = bs.booking_id",
+				'column' => 'bs.status',
+			);
+		} else {
+			$status_source = array(
+				'join'   => "LEFT JOIN {$wpdb->postmeta} pm_status ON ta.booking_id = pm_status.post_id AND pm_status.meta_key = 'rbf_booking_status'",
+				'column' => 'pm_status.meta_value',
+			);
+		}
+	}
 
-    $status_join = $status_source['join'];
-    $status_column = $status_source['column'];
+	$status_join   = $status_source['join'];
+	$status_column = $status_source['column'];
 
-    $assigned_tables = $wpdb->get_results($wpdb->prepare("
+	$assigned_tables = $wpdb->get_results(
+		$wpdb->prepare(
+			"
         SELECT DISTINCT ta.table_id, ta.group_id, ta.assignment_type
         FROM $assignments_table ta
         INNER JOIN {$wpdb->postmeta} pm_date ON ta.booking_id = pm_date.post_id AND pm_date.meta_key = 'rbf_data'
@@ -457,236 +542,268 @@ function rbf_check_table_availability($date, $time, $meal) {
         AND COALESCE(pm_meal.meta_value, pm_meal_legacy.meta_value) = %s
         AND p.post_status = 'publish'
         AND COALESCE({$status_column}, 'confirmed') <> 'cancelled'
-    ", $date, $time, $meal));
+    ",
+			$date,
+			$time,
+			$meal
+		)
+	);
 
-    $assigned_table_ids = array_column($assigned_tables, 'table_id');
+	$assigned_table_ids = array_column( $assigned_tables, 'table_id' );
 
-    // Filter available tables
-    $available_tables = array_filter($all_tables, function($table) use ($assigned_table_ids) {
-        return !in_array($table->id, $assigned_table_ids);
-    });
-    
-    return $available_tables;
+	// Filter available tables
+	$available_tables = array_filter(
+		$all_tables,
+		function ( $table ) use ( $assigned_table_ids ) {
+			return ! in_array( $table->id, $assigned_table_ids );
+		}
+	);
+
+	return $available_tables;
 }
 
 /**
  * Table assignment algorithm - First Fit strategy
  */
-function rbf_assign_tables_first_fit($people_count, $date, $time, $meal) {
-    $available_tables = rbf_check_table_availability($date, $time, $meal);
-    
-    if (empty($available_tables)) {
-        return null; // No tables available
-    }
-    
-    // Sort tables by capacity (smallest first for optimal allocation)
-    usort($available_tables, function($a, $b) {
-        return $a->capacity - $b->capacity;
-    });
+function rbf_assign_tables_first_fit( $people_count, $date, $time, $meal ) {
+	$available_tables = rbf_check_table_availability( $date, $time, $meal );
 
-    $available_table_ids = array_column($available_tables, 'id');
+	if ( empty( $available_tables ) ) {
+		return null; // No tables available
+	}
 
-    // First try: find a single table that can accommodate the party
-    foreach ($available_tables as $table) {
-        $meets_min_capacity = !isset($table->min_capacity) || $people_count >= $table->min_capacity;
-        $meets_max_capacity = !isset($table->max_capacity) || $table->max_capacity === null || $people_count <= $table->max_capacity;
+	// Sort tables by capacity (smallest first for optimal allocation)
+	usort(
+		$available_tables,
+		function ( $a, $b ) {
+			return $a->capacity - $b->capacity;
+		}
+	);
 
-        if ($table->capacity >= $people_count && $meets_min_capacity && $meets_max_capacity) {
-            return [
-                'type' => 'single',
-                'tables' => [$table],
-                'total_capacity' => $table->capacity
-            ];
-        }
-    }
-    
-    // Second try: find joinable tables
-    $areas = rbf_get_areas();
-    foreach ($areas as $area) {
-        $groups = rbf_get_table_groups_by_area($area->id);
-        foreach ($groups as $group) {
-            $group_tables = rbf_get_group_tables($group->id);
-            
-            // Filter only available tables in this group
-            $available_group_tables = array_values(array_filter($group_tables, function($table) use ($available_table_ids, $people_count) {
-                if (!in_array($table->id, $available_table_ids)) {
-                    return false;
-                }
+	$available_table_ids = array_column( $available_tables, 'id' );
 
-                if (isset($table->max_capacity) && $table->max_capacity !== null && $table->max_capacity < $people_count) {
-                    return false;
-                }
+	// First try: find a single table that can accommodate the party
+	foreach ( $available_tables as $table ) {
+		$meets_min_capacity = ! isset( $table->min_capacity ) || $people_count >= $table->min_capacity;
+		$meets_max_capacity = ! isset( $table->max_capacity ) || $table->max_capacity === null || $people_count <= $table->max_capacity;
 
-                return true;
-            }));
-            
-            if (empty($available_group_tables)) {
-                continue;
-            }
-            
-            // Try different combinations of tables in this group
-            $combination = rbf_find_table_combination($available_group_tables, $people_count, $group->max_combined_capacity);
-            if ($combination) {
-                return [
-                    'type' => 'joined',
-                    'tables' => $combination['tables'],
-                    'group_id' => $group->id,
-                    'total_capacity' => $combination['total_capacity']
-                ];
-            }
-        }
-    }
-    
-    return null; // No suitable assignment found
+		if ( $table->capacity >= $people_count && $meets_min_capacity && $meets_max_capacity ) {
+			return array(
+				'type'           => 'single',
+				'tables'         => array( $table ),
+				'total_capacity' => $table->capacity,
+			);
+		}
+	}
+
+	// Second try: find joinable tables
+	$areas = rbf_get_areas();
+	foreach ( $areas as $area ) {
+		$groups = rbf_get_table_groups_by_area( $area->id );
+		foreach ( $groups as $group ) {
+			$group_tables = rbf_get_group_tables( $group->id );
+
+			// Filter only available tables in this group
+			$available_group_tables = array_values(
+				array_filter(
+					$group_tables,
+					function ( $table ) use ( $available_table_ids, $people_count ) {
+						if ( ! in_array( $table->id, $available_table_ids ) ) {
+							return false;
+						}
+
+						if ( isset( $table->max_capacity ) && $table->max_capacity !== null && $table->max_capacity < $people_count ) {
+							return false;
+						}
+
+						return true;
+					}
+				)
+			);
+
+			if ( empty( $available_group_tables ) ) {
+				continue;
+			}
+
+			// Try different combinations of tables in this group
+			$combination = rbf_find_table_combination( $available_group_tables, $people_count, $group->max_combined_capacity );
+			if ( $combination ) {
+				return array(
+					'type'           => 'joined',
+					'tables'         => $combination['tables'],
+					'group_id'       => $group->id,
+					'total_capacity' => $combination['total_capacity'],
+				);
+			}
+		}
+	}
+
+	return null; // No suitable assignment found
 }
 
 /**
  * Find optimal table combination within a group
  */
-function rbf_find_table_combination($available_tables, $people_count, $max_capacity) {
-    if (empty($available_tables) || $people_count <= 0 || $people_count > $max_capacity) {
-        return null;
-    }
+function rbf_find_table_combination( $available_tables, $people_count, $max_capacity ) {
+	if ( empty( $available_tables ) || $people_count <= 0 || $people_count > $max_capacity ) {
+		return null;
+	}
 
-    // Sort tables by capacity
-    usort($available_tables, function($a, $b) {
-        return $a->capacity - $b->capacity;
-    });
+	// Sort tables by capacity
+	usort(
+		$available_tables,
+		function ( $a, $b ) {
+			return $a->capacity - $b->capacity;
+		}
+	);
 
-    // Filter tables that cannot accommodate the party size due to capacity limits
-    $eligible_tables = array_values(array_filter($available_tables, function($table) use ($people_count) {
-        if (isset($table->max_capacity) && $table->max_capacity !== null && $table->max_capacity < $people_count) {
-            return false;
-        }
+	// Filter tables that cannot accommodate the party size due to capacity limits
+	$eligible_tables = array_values(
+		array_filter(
+			$available_tables,
+			function ( $table ) use ( $people_count ) {
+				if ( isset( $table->max_capacity ) && $table->max_capacity !== null && $table->max_capacity < $people_count ) {
+					return false;
+				}
 
-        if (isset($table->min_capacity) && $table->min_capacity > $people_count) {
-            return false;
-        }
+				if ( isset( $table->min_capacity ) && $table->min_capacity > $people_count ) {
+					return false;
+				}
 
-        return true;
-    }));
+				return true;
+			}
+		)
+	);
 
-    if (empty($eligible_tables)) {
-        return null;
-    }
+	if ( empty( $eligible_tables ) ) {
+		return null;
+	}
 
-    // Explore combinations starting from the required capacity up to the maximum allowed
-    for ($target_capacity = $people_count; $target_capacity <= $max_capacity; $target_capacity++) {
-        $combination = rbf_search_tables_for_capacity($eligible_tables, $target_capacity, $people_count);
+	// Explore combinations starting from the required capacity up to the maximum allowed
+	for ( $target_capacity = $people_count; $target_capacity <= $max_capacity; $target_capacity++ ) {
+		$combination = rbf_search_tables_for_capacity( $eligible_tables, $target_capacity, $people_count );
 
-        if ($combination !== null) {
-            $total_capacity = 0;
-            foreach ($combination as $table) {
-                $total_capacity += $table->capacity;
-            }
+		if ( $combination !== null ) {
+			$total_capacity = 0;
+			foreach ( $combination as $table ) {
+				$total_capacity += $table->capacity;
+			}
 
-            return [
-                'tables' => $combination,
-                'total_capacity' => $total_capacity
-            ];
-        }
-    }
+			return array(
+				'tables'         => $combination,
+				'total_capacity' => $total_capacity,
+			);
+		}
+	}
 
-    return null;
+	return null;
 }
 
-function rbf_search_tables_for_capacity($tables, $target_capacity, $people_count, $start_index = 0, $current_combination = [], $current_sum = 0) {
-    if ($current_sum === $target_capacity) {
-        return $current_combination;
-    }
+function rbf_search_tables_for_capacity( $tables, $target_capacity, $people_count, $start_index = 0, $current_combination = array(), $current_sum = 0 ) {
+	if ( $current_sum === $target_capacity ) {
+		return $current_combination;
+	}
 
-    $count = count($tables);
-    for ($i = $start_index; $i < $count; $i++) {
-        $table = $tables[$i];
+	$count = count( $tables );
+	for ( $i = $start_index; $i < $count; $i++ ) {
+		$table = $tables[ $i ];
 
-        if (isset($table->max_capacity) && $table->max_capacity !== null && $table->max_capacity < $people_count) {
-            continue;
-        }
+		if ( isset( $table->max_capacity ) && $table->max_capacity !== null && $table->max_capacity < $people_count ) {
+			continue;
+		}
 
-        $new_sum = $current_sum + $table->capacity;
+		$new_sum = $current_sum + $table->capacity;
 
-        if ($new_sum > $target_capacity) {
-            break;
-        }
+		if ( $new_sum > $target_capacity ) {
+			break;
+		}
 
-        $next_combination = $current_combination;
-        $next_combination[] = $table;
+		$next_combination   = $current_combination;
+		$next_combination[] = $table;
 
-        $result = rbf_search_tables_for_capacity($tables, $target_capacity, $people_count, $i + 1, $next_combination, $new_sum);
-        if ($result !== null) {
-            return $result;
-        }
-    }
+		$result = rbf_search_tables_for_capacity( $tables, $target_capacity, $people_count, $i + 1, $next_combination, $new_sum );
+		if ( $result !== null ) {
+			return $result;
+		}
+	}
 
-    return null;
+	return null;
 }
 
 /**
  * Save table assignment for a booking
  */
-function rbf_save_table_assignment($booking_id, $assignment) {
-    global $wpdb;
-    
-    if (!$assignment || empty($assignment['tables'])) {
-        return false;
-    }
-    
-    $assignments_table = $wpdb->prefix . 'rbf_table_assignments';
-    
-    // Remove existing assignments for this booking
-    $wpdb->delete($assignments_table, ['booking_id' => $booking_id]);
-    
-    // Add new assignments
-    foreach ($assignment['tables'] as $table) {
-        $wpdb->insert($assignments_table, [
-            'booking_id' => $booking_id,
-            'table_id' => $table->id,
-            'group_id' => $assignment['group_id'] ?? null,
-            'assignment_type' => $assignment['type'],
-            'assigned_capacity' => $table->capacity
-        ]);
-    }
-    
-    return true;
+function rbf_save_table_assignment( $booking_id, $assignment ) {
+	global $wpdb;
+
+	if ( ! $assignment || empty( $assignment['tables'] ) ) {
+		return false;
+	}
+
+	$assignments_table = $wpdb->prefix . 'rbf_table_assignments';
+
+	// Remove existing assignments for this booking
+	$wpdb->delete( $assignments_table, array( 'booking_id' => $booking_id ) );
+
+	// Add new assignments
+	foreach ( $assignment['tables'] as $table ) {
+		$wpdb->insert(
+			$assignments_table,
+			array(
+				'booking_id'        => $booking_id,
+				'table_id'          => $table->id,
+				'group_id'          => $assignment['group_id'] ?? null,
+				'assignment_type'   => $assignment['type'],
+				'assigned_capacity' => $table->capacity,
+			)
+		);
+	}
+
+	return true;
 }
 
 /**
  * Get table assignment for a booking
  */
-function rbf_get_booking_table_assignment($booking_id) {
-    global $wpdb;
-    
-    $assignments_table = $wpdb->prefix . 'rbf_table_assignments';
-    $tables_table = $wpdb->prefix . 'rbf_tables';
-    $areas_table = $wpdb->prefix . 'rbf_areas';
-    
-    $assignments = $wpdb->get_results($wpdb->prepare("
+function rbf_get_booking_table_assignment( $booking_id ) {
+	global $wpdb;
+
+	$assignments_table = $wpdb->prefix . 'rbf_table_assignments';
+	$tables_table      = $wpdb->prefix . 'rbf_tables';
+	$areas_table       = $wpdb->prefix . 'rbf_areas';
+
+	$assignments = $wpdb->get_results(
+		$wpdb->prepare(
+			"
         SELECT ta.*, t.name as table_name, t.capacity, a.name as area_name
         FROM $assignments_table ta
         INNER JOIN $tables_table t ON ta.table_id = t.id
         INNER JOIN $areas_table a ON t.area_id = a.id
         WHERE ta.booking_id = %d
         ORDER BY ta.id
-    ", $booking_id));
-    
-    if (empty($assignments)) {
-        return null;
-    }
-    
-    return [
-        'type' => $assignments[0]->assignment_type,
-        'group_id' => $assignments[0]->group_id,
-        'tables' => $assignments,
-        'total_capacity' => array_sum(array_column($assignments, 'capacity'))
-    ];
+    ",
+			$booking_id
+		)
+	);
+
+	if ( empty( $assignments ) ) {
+		return null;
+	}
+
+	return array(
+		'type'           => $assignments[0]->assignment_type,
+		'group_id'       => $assignments[0]->group_id,
+		'tables'         => $assignments,
+		'total_capacity' => array_sum( array_column( $assignments, 'capacity' ) ),
+	);
 }
 
 /**
  * Remove table assignment for a booking
  */
-function rbf_remove_table_assignment($booking_id) {
-    global $wpdb;
-    
-    $assignments_table = $wpdb->prefix . 'rbf_table_assignments';
-    return $wpdb->delete($assignments_table, ['booking_id' => $booking_id]);
+function rbf_remove_table_assignment( $booking_id ) {
+	global $wpdb;
+
+	$assignments_table = $wpdb->prefix . 'rbf_table_assignments';
+	return $wpdb->delete( $assignments_table, array( 'booking_id' => $booking_id ) );
 }

@@ -1,0 +1,27 @@
+{
+    "name": "fp-prenotazioni-ristorante-pro/plugin",
+    "description": "Developer tooling for the FP Prenotazioni Ristorante PRO plugin audit.",
+    "type": "project",
+    "require-dev": {
+        "dealerdirect/phpcodesniffer-composer-installer": "^1.1",
+        "php-stubs/wordpress-stubs": "^6.5",
+        "phpstan/phpstan": "^1.11",
+        "squizlabs/php_codesniffer": "^3.10",
+        "wp-coding-standards/wpcs": "^3.1",
+        "phpunit/phpunit": "^9.6"
+    },
+    "scripts": {
+        "lint:phpcs": "phpcs --standard=phpcs.xml.dist",
+        "lint:phpcbf": "phpcbf --standard=phpcs.xml.dist",
+        "lint:phpstan": "phpstan analyse",
+        "test:unit": "phpunit --configuration phpunit.xml.dist"
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        },
+        "platform": {
+            "php": "8.1.0"
+        }
+    }
+}

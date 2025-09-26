@@ -8,8 +8,8 @@
 use RBF\Backend\Kernel;
 
 // Prevent direct access.
-if (!defined('ABSPATH')) {
-    exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
 require_once __DIR__ . '/class-rbf-backend-kernel.php';
@@ -21,24 +21,24 @@ require_once __DIR__ . '/booking/class-rbf-notification-service.php';
 require_once __DIR__ . '/booking/class-rbf-tracking-builder.php';
 require_once __DIR__ . '/booking/class-rbf-booking-pipeline.php';
 
-if (!function_exists('rbf_backend')) {
-    /**
-     * Retrieve the backend kernel or a specific service.
-     *
-     * @param string|null $service Optional service identifier.
-     * @return Kernel|object
-     */
-    function rbf_backend($service = null) {
-        static $kernel;
+if ( ! function_exists( 'rbf_backend' ) ) {
+	/**
+	 * Retrieve the backend kernel or a specific service.
+	 *
+	 * @param string|null $service Optional service identifier.
+	 * @return Kernel|object
+	 */
+	function rbf_backend( $service = null ) {
+		static $kernel;
 
-        if (!$kernel) {
-            $kernel = new Kernel();
-        }
+		if ( ! $kernel ) {
+			$kernel = new Kernel();
+		}
 
-        if ($service === null) {
-            return $kernel;
-        }
+		if ( $service === null ) {
+			return $kernel;
+		}
 
-        return $kernel->get($service);
-    }
+		return $kernel->get( $service );
+	}
 }

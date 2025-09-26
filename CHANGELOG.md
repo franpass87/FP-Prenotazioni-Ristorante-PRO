@@ -3,6 +3,23 @@
 Tutte le modifiche significative di **FP Prenotazioni Ristorante PRO** vengono documentate in questo file.
 Il formato segue l'approccio *Keep a Changelog* ed è coerente con la numerazione semantica introdotta dalla versione 1.x.
 
+## [1.7.0] – Release completa audit (2025-09-26)
+### Added
+- `RBF_Upgrade_Manager` con migrazione della tabella `rbf_booking_status`, backfill dei dati legacy e flush automatico di cache/OPcache.
+- `RBF_Module_Loader` per caricare i moduli solo nei contesti (admin, frontend, CLI, shared) realmente necessari.
+- Runtime logger con intercettazione di errori PHP, hook WordPress deprecati e log applicativi verso l'audit log.
+- Stack tooling: workflow GitHub Actions, configurazioni PHPCS/PHPStan e suite PHPUnit con fixture modulari.
+
+### Changed
+- Hardening di endpoint AJAX e handler booking con sanificazione approfondita, validazione ISO date e controllo capability/nonce.
+- Helper multisite per sincronizzare opzioni e transients di rete, invalidando i cache layer condivisi.
+- Cache runtime per configurazioni pasti e refactoring della documentazione tecnica (README, docs/audit/*).
+
+### Fixed
+- Normalizzazione degli ID prenotazione e fallback sicuri per campi opzionali così da prevenire notice e stati corrotti.
+- Query dei cruscotti settimanali riallineate alle sorgenti SQL condivise evitando duplicazioni e stati inconsistenziati.
+- Flush coerente dei log e delle cache dopo le routine di upgrade per prevenire effetti di codice obsoleto.
+
 ## [1.6.3] – Allineamento Versione Distribuzione (2024)
 ### Fixed
 - Incrementato il numero di versione del plugin e della documentazione per forzare il deploy delle ultime modifiche.
