@@ -96,6 +96,34 @@ function initializeBookingForm($) {
   const form = $('#rbf-form');
   if (!form.length) return;
 
+  function logBuildMetadata() {
+    if (!rbfData || !rbfData.build) {
+      return;
+    }
+
+    const signature = rbfData.build.signature || '';
+    if (signature) {
+      form.attr('data-rbf-build', signature);
+      window.rbfBuildSignature = signature;
+    }
+
+    if (rbfData.build.assets) {
+      window.rbfBuildAssets = rbfData.build.assets;
+    }
+
+    const shouldLog = isDebugMode || !!window.rbfDebug;
+    if (shouldLog && window.console && (window.console.info || window.console.log)) {
+      const logger = window.console.info ? window.console.info.bind(window.console) : window.console.log.bind(window.console);
+      logger('RBF: Build metadata', {
+        signature,
+        version: rbfData.build.version || null,
+        assets: rbfData.build.assets || {}
+      });
+    }
+  }
+
+  logBuildMetadata();
+
   const adminBannerState = {
     displayedKeys: new Set()
   };

@@ -2445,6 +2445,157 @@ function rbf_get_asset_path($relative_path) {
 }
 
 /**
+ * Generate a short checksum for a plugin asset.
+ *
+ * Provides a predictable hash that can be surfaced in diagnostic interfaces
+ * to confirm that the expected build is active on production environments.
+ *
+ * @param string $relative_path Asset path relative to the plugin's assets directory.
+ * @return string 8 character checksum or empty string when unavailable.
+ */
+function rbf_get_asset_checksum($relative_path) {
+    static $checksum_cache = [];
+
+    $cache_key = is_string($relative_path) ? $relative_path : '';
+    if ($cache_key !== '' && isset($checksum_cache[$cache_key])) {
+        $cached = $checksum_cache[$cache_key];
+
+        return apply_filters('rbf_asset_checksum', $cached['checksum'], $relative_path, $cached['asset_path']);
+    }
+
+    $asset_path = rbf_get_asset_path($relative_path);
+    $checksum = '';
+
+    if ($asset_path !== '' && is_readable($asset_path) && file_exists($asset_path)) {
+        $hash = @md5_file($asset_path);
+        if (is_string($hash) && $hash !== '') {
+            $checksum = substr($hash, 0, 8);
+        }
+    }
+
+    if ($cache_key !== '') {
+        $checksum_cache[$cache_key] = [
+            'checksum'   => $checksum,
+            'asset_path' => $asset_path,
+        ];
+    }
+
+    return apply_filters('rbf_asset_checksum', $checksum, $relative_path, $asset_path);
+}
+
+/**
+ * Retrieve diagnostic information for a plugin asset.
+ *
+ * @param string $relative_path Asset path relative to the plugin's assets directory.
+ * @return array {
+ *     @type string $path      Relative path provided.
+ *     @type string $url       Public URL for the asset (may be empty).
+ *     @type string $version   Cache-busting version string.
+ *     @type string $checksum  Short checksum derived from the file contents.
+ *     @type string $modified  ISO-8601 representation of the last modified time.
+ *     @type int    $size      File size in bytes. Zero when unavailable.
+ *     @type bool   $exists    Whether the asset exists on disk.
+ * }
+ */
+function rbf_get_asset_debug_info($relative_path) {
+    $asset_path = rbf_get_asset_path($relative_path);
+    $asset_url = rbf_get_asset_url($relative_path);
+    $exists = ($asset_path !== '' && file_exists($asset_path));
+
+    $modified = '';
+    $size = 0;
+
+    if ($exists) {
+        $modified_time = @filemtime($asset_path);
+        if ($modified_time !== false) {
+            $modified = gmdate('c', $modified_time);
+        }
+
+        $size_bytes = @filesize($asset_path);
+        if ($size_bytes !== false) {
+            $size = (int) $size_bytes;
+        }
+    }
+
+    $debug_info = [
+        'path'     => $relative_path,
+        'url'      => $asset_url,
+        'version'  => rbf_get_asset_version($relative_path),
+        'checksum' => rbf_get_asset_checksum($relative_path),
+        'modified' => $modified,
+        'size'     => $size,
+        'exists'   => $exists,
+    ];
+
+    return apply_filters('rbf_asset_debug_info', $debug_info, $relative_path, $asset_path);
+}
+
+/**
+ * Generate a reproducible build signature for the plugin.
+ *
+ * Combines the plugin version with short hashes of critical assets to help
+ * diagnose deployment issues where updated files are not reflected online.
+ *
+ * @return string Build signature string.
+ */
+function rbf_get_plugin_build_signature() {
+    static $signature = null;
+
+    if ($signature !== null) {
+        return apply_filters('rbf_plugin_build_signature', $signature);
+    }
+
+    $parts = [RBF_VERSION];
+
+    if (defined('RBF_PLUGIN_FILE') && is_readable(RBF_PLUGIN_FILE)) {
+        $main_hash = @md5_file(RBF_PLUGIN_FILE);
+        if (is_string($main_hash) && $main_hash !== '') {
+            $parts[] = substr($main_hash, 0, 8);
+        }
+    }
+
+    $frontend_css_hash = rbf_get_asset_checksum('css/frontend.css');
+    if ($frontend_css_hash !== '') {
+        $parts[] = 'css:' . $frontend_css_hash;
+    }
+
+    $frontend_js_hash = rbf_get_asset_checksum('js/frontend.js');
+    if ($frontend_js_hash !== '') {
+        $parts[] = 'js:' . $frontend_js_hash;
+    }
+
+    $signature = implode('-', array_filter($parts, 'strlen'));
+
+    return apply_filters('rbf_plugin_build_signature', $signature);
+}
+
+/**
+ * Collect build metadata for frontend diagnostics.
+ *
+ * @return array {
+ *     @type string $signature Build signature string.
+ *     @type string $version   Plugin version.
+ *     @type array  $assets    Debug information for key frontend assets.
+ * }
+ */
+function rbf_get_frontend_build_metadata() {
+    $assets = ['css/frontend.css', 'js/frontend.js'];
+    $asset_data = [];
+
+    foreach ($assets as $asset) {
+        $asset_data[$asset] = rbf_get_asset_debug_info($asset);
+    }
+
+    $metadata = [
+        'signature' => rbf_get_plugin_build_signature(),
+        'version'   => RBF_VERSION,
+        'assets'    => $asset_data,
+    ];
+
+    return apply_filters('rbf_frontend_build_metadata', $metadata);
+}
+
+/**
  * Retrieve the publicly accessible URL to an asset bundled with the plugin.
  *
  * @param string $relative_path Asset path relative to the plugin's assets directory.

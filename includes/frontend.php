@@ -216,6 +216,7 @@ JS;
         'nonce' => wp_create_nonce('rbf_ajax_nonce'),
         'locale' => $locale, // it/en
         'debug' => defined('WP_DEBUG') && WP_DEBUG, // Enable debug mode if WP_DEBUG is on
+        'build' => rbf_get_frontend_build_metadata(),
 
         // RENEWED: Enhanced data validation to ensure arrays are always arrays
         'closedDays' => rbf_ensure_array($closed_days),
@@ -672,8 +673,17 @@ function rbf_render_booking_form($atts = []) {
         }
     }
 
+    $build_signature = rbf_get_plugin_build_signature();
+    $build_signature_attr = '';
+    if ($build_signature !== '') {
+        $build_signature_attr = sprintf(' data-rbf-build="%s"', esc_attr($build_signature));
+    }
+
     ob_start(); ?>
-    <div class="rbf-form-container">
+    <?php if ($build_signature !== '') : ?>
+        <!-- FP Prenotazioni Ristorante build: <?php echo esc_html($build_signature); ?> -->
+    <?php endif; ?>
+    <div class="rbf-form-container"<?php echo $build_signature_attr; ?>>
         <div id="rbf-message-anchor"></div>
         <?php if (isset($_GET['rbf_success'])) : ?>
             <div class="rbf-success-message">
