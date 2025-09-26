@@ -24,8 +24,37 @@ function rbf_get_setup_wizard_admin_url() {
         }
     }
 
-    if ($wizard_url === '' && function_exists('admin_url')) {
-        $wizard_url = admin_url('admin.php?page=rbf_setup_wizard');
+    $fallback_url = '';
+
+    if (function_exists('is_network_admin') && is_network_admin() && function_exists('network_admin_url')) {
+        $fallback_url = network_admin_url('admin.php?page=rbf_setup_wizard');
+    } elseif (function_exists('admin_url')) {
+        $fallback_url = admin_url('admin.php?page=rbf_setup_wizard');
+    } elseif (function_exists('site_url')) {
+        $site_base = site_url();
+        if (function_exists('trailingslashit')) {
+            $site_base = trailingslashit($site_base);
+        } else {
+            $site_base = rtrim($site_base, '/\\') . '/';
+        }
+        $fallback_url = $site_base . 'wp-admin/admin.php?page=rbf_setup_wizard';
+    }
+
+    if ($wizard_url === '' && $fallback_url !== '') {
+        $wizard_url = $fallback_url;
+    }
+
+    if (is_string($wizard_url) && $wizard_url !== '') {
+        $parsed_url = function_exists('wp_parse_url') ? wp_parse_url($wizard_url) : parse_url($wizard_url);
+
+        $has_host = is_array($parsed_url) && !empty($parsed_url['host']);
+        $path = is_array($parsed_url) && isset($parsed_url['path']) ? (string) $parsed_url['path'] : '';
+        $has_wp_admin_path = $path !== '' && strpos($path, 'wp-admin') !== false;
+        $is_relative_admin = !$has_host && strpos($wizard_url, 'admin.php') === 0;
+
+        if (!$is_relative_admin && !$has_wp_admin_path && $fallback_url !== '') {
+            $wizard_url = $fallback_url;
+        }
     }
 
     /**
@@ -35,7 +64,11 @@ function rbf_get_setup_wizard_admin_url() {
      */
     $wizard_url = apply_filters('rbf_setup_wizard_admin_url', $wizard_url);
 
-    return is_string($wizard_url) ? $wizard_url : '';
+    if (!is_string($wizard_url) || $wizard_url === '') {
+        return $fallback_url;
+    }
+
+    return $wizard_url;
 }
 
 /**
