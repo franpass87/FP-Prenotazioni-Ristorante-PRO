@@ -294,7 +294,7 @@ function rbf_custom_column_data($column, $post_id) {
             $status = get_post_meta($post_id, 'rbf_booking_status', true) ?: 'confirmed';
             $statuses = rbf_get_booking_statuses();
             $color = rbf_get_status_color($status);
-            echo '<span style="display: inline-block; padding: 4px 8px; border-radius: 4px; background: ' . esc_attr($color) . '; color: white; font-size: 12px; font-weight: bold;">';
+            echo '<span class="rbf-color-badge" style="--rbf-color: ' . esc_attr($color) . ';">';
             echo esc_html($statuses[$status] ?? $status);
             echo '</span>';
             break;
@@ -391,10 +391,10 @@ function rbf_custom_column_data($column, $post_id) {
                 
                 $type_label = ($assignment['type'] === 'joined') ? 'Uniti' : 'Singolo';
                 echo '<strong>' . implode(', ', $table_names) . '</strong>';
-                echo '<br><small><span style="color: #666;">Tipo: ' . esc_html($type_label) . '</span></small>';
-                echo '<br><small><span style="color: #666;">Capacità: ' . intval($assignment['total_capacity']) . '</span></small>';
+                echo '<br><small class="rbf-text-muted">' . esc_html(sprintf('%s: %s', rbf_translate_string('Tipo'), $type_label)) . '</small>';
+                echo '<br><small class="rbf-text-muted">' . esc_html(sprintf('%s: %d', rbf_translate_string('Capacità'), intval($assignment['total_capacity']))) . '</small>';
             } else {
-                echo '<em style="color: #999;">Non assegnato</em>';
+                echo '<em class="rbf-text-muted">' . esc_html(rbf_translate_string('Non assegnato')) . '</em>';
             }
             break;
             
@@ -415,7 +415,7 @@ function rbf_custom_column_data($column, $post_id) {
             break;
             
         case 'rbf_actions':
-            echo '<div class="row-actions" style="position: static;">';
+            echo '<div class="row-actions rbf-row-actions-static">';
             rbf_render_booking_actions($post_id);
             echo '</div>';
             break;
@@ -433,12 +433,12 @@ function rbf_render_booking_actions($post_id) {
         $delete_url = admin_url('post.php?post=' . $post_id . '&action=delete');
         $delete_nonce = wp_create_nonce('delete-post_' . $post_id);
         echo '<a href="' . esc_url($delete_url . '&_wpnonce=' . $delete_nonce) . '" ';
-        echo 'style="color: #ef4444; font-weight: bold; text-decoration: none;" ';
+        echo 'class="rbf-link-danger" ';
         echo 'onclick="return confirm(\'' . esc_js(rbf_translate_string('Elimina definitivamente questa prenotazione?')) . '\')">';
         echo esc_html(rbf_translate_string('Elimina'));
         echo '</a>';
     } else {
-        echo '<span style="color: #6b7280; font-style: italic;">' . esc_html(rbf_translate_string('Gestione Automatica')) . '</span>';
+        echo '<span class="rbf-text-muted rbf-text-italic">' . esc_html(rbf_translate_string('Gestione Automatica')) . '</span>';
     }
 }
 
@@ -989,89 +989,115 @@ function rbf_render_custom_meal_item($index, $meal, array $day_labels, $is_templ
     $meal_number = $is_template ? '__NUMBER__' : (string) ((int) $index + 1);
 
     ob_start();
+    $field_prefix = sprintf('rbf-custom-meal-%s', $index_attr);
     ?>
-    <div class="custom-meal-item" data-meal-index="<?php echo esc_attr($index_attr); ?>" style="border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; background: #f9f9f9;">
-        <h4><?php echo esc_html(rbf_translate_string('Pasto')); ?> <span class="rbf-meal-number"><?php echo esc_html($meal_number); ?></span></h4>
+    <div class="custom-meal-item rbf-meal-card" data-meal-index="<?php echo esc_attr($index_attr); ?>">
+        <div class="rbf-meal-card__header">
+            <h4 class="rbf-meal-card__title"><?php echo esc_html(rbf_translate_string('Pasto')); ?> <span class="rbf-meal-number"><?php echo esc_html($meal_number); ?></span></h4>
+            <div class="rbf-meal-card__actions">
+                <button type="button" class="button-link-delete rbf-meal-card__remove remove-meal"><?php echo esc_html(rbf_translate_string('Rimuovi Pasto')); ?></button>
+            </div>
+        </div>
 
-        <table class="form-table">
-            <tr>
-                <th><label><?php echo esc_html(rbf_translate_string('Attivo')); ?></label></th>
-                <td><input type="checkbox" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][enabled]" value="1" <?php checked(!empty($meal['enabled'])); ?>></td>
-            </tr>
-            <tr>
-                <th><label><?php echo esc_html(rbf_translate_string('ID')); ?></label></th>
-                <td>
-                    <input type="text" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][id]" value="<?php echo esc_attr($meal['id']); ?>" class="regular-text" placeholder="es: pranzo">
-                    <p class="description"><?php echo esc_html(rbf_translate_string('ID univoco del pasto (senza spazi, solo lettere e numeri)')); ?></p>
-                </td>
-            </tr>
-            <tr>
-                <th><label><?php echo esc_html(rbf_translate_string('Nome')); ?></label></th>
-                <td><input type="text" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][name]" value="<?php echo esc_attr($meal['name']); ?>" class="regular-text" placeholder="es: Pranzo"></td>
-            </tr>
-            <tr>
-                <th><label><?php echo esc_html(rbf_translate_string('Capienza')); ?></label></th>
-                <td><input type="number" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][capacity]" value="<?php echo esc_attr($meal['capacity']); ?>" min="1"></td>
-            </tr>
-            <tr>
-                <th><label><?php echo esc_html(rbf_translate_string('Orari')); ?></label></th>
-                <td>
-                    <input type="text" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][time_slots]" value="<?php echo esc_attr($meal['time_slots']); ?>" class="regular-text" placeholder="es: 12:00,12:30,13:00">
-                    <p class="description"><?php echo esc_html(rbf_translate_string('Orari separati da virgola')); ?></p>
-                </td>
-            </tr>
-            <tr>
-                <th><label><?php echo esc_html(rbf_translate_string('Prezzo (€)')); ?></label></th>
-                <td><input type="number" step="0.01" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][price]" value="<?php echo esc_attr($meal['price']); ?>" min="0"></td>
-            </tr>
-            <tr>
-                <th><label><?php echo esc_html(rbf_translate_string('Giorni disponibili')); ?></label></th>
-                <td>
-                    <?php foreach ($day_labels as $day_key => $day_label) { ?>
-                        <label style="display: inline-block; margin-right: 15px;">
-                            <input type="checkbox" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][available_days][]" value="<?php echo esc_attr($day_key); ?>" <?php checked(in_array($day_key, (array) $meal['available_days'], true)); ?>>
-                            <?php echo esc_html($day_label); ?>
-                        </label>
-                    <?php } ?>
-                </td>
-            </tr>
-            <tr>
-                <th><label><?php echo esc_html(rbf_translate_string('Tooltip informativo')); ?></label></th>
-                <td>
-                    <textarea name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][tooltip]" class="regular-text" rows="2" placeholder="es: Di Domenica il servizio è Brunch con menù alla carta."><?php echo esc_textarea($meal['tooltip']); ?></textarea>
-                    <p class="description"><?php echo esc_html(rbf_translate_string('Testo informativo che apparirà quando questo pasto viene selezionato (opzionale)')); ?></p>
-                </td>
-            </tr>
-            <tr>
-                <th><label><?php echo esc_html(rbf_translate_string('Buffer Base (minuti)')); ?></label></th>
-                <td>
-                    <input type="number" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][buffer_time_minutes]" value="<?php echo esc_attr($meal['buffer_time_minutes']); ?>" min="0" max="120">
-                    <p class="description"><?php echo esc_html(rbf_translate_string('Tempo minimo di buffer tra prenotazioni (minuti)')); ?></p>
-                </td>
-            </tr>
-            <tr>
-                <th><label><?php echo esc_html(rbf_translate_string('Buffer per Persona (minuti)')); ?></label></th>
-                <td>
-                    <input type="number" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][buffer_time_per_person]" value="<?php echo esc_attr($meal['buffer_time_per_person']); ?>" min="0" max="30">
-                    <p class="description"><?php echo esc_html(rbf_translate_string('Tempo aggiuntivo di buffer per ogni persona (minuti)')); ?></p>
-                </td>
-            </tr>
-            <tr>
-                <th><label><?php echo esc_html(rbf_translate_string('Limite Overbooking (%)')); ?></label></th>
-                <td>
-                    <input type="number" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][overbooking_limit]" value="<?php echo esc_attr($meal['overbooking_limit']); ?>" min="0" max="50">
-                    <p class="description"><?php echo esc_html(rbf_translate_string('Percentuale di overbooking consentita oltre la capienza normale')); ?></p>
-                </td>
-            </tr>
-            <tr>
-                <th><label><?php echo esc_html(rbf_translate_string('Durata Slot (minuti)')); ?></label></th>
-                <td>
-                    <input type="number" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][slot_duration_minutes]" value="<?php echo esc_attr($meal['slot_duration_minutes']); ?>" min="30" max="240">
-                    <p class="description"><?php echo esc_html(rbf_translate_string('Durata di occupazione del tavolo per questo servizio (minuti)')); ?></p>
-                </td>
-            </tr>
-        </table>
-        <button type="button" class="button button-secondary remove-meal" style="margin-top: 10px;"><?php echo esc_html(rbf_translate_string('Rimuovi Pasto')); ?></button>
+        <div class="rbf-meal-card__grid">
+            <div class="rbf-field rbf-field--inline">
+                <label class="rbf-field__label" for="<?php echo esc_attr($field_prefix . '-enabled'); ?>"><?php echo esc_html(rbf_translate_string('Attivo')); ?></label>
+                <div class="rbf-field__control">
+                    <input type="checkbox" id="<?php echo esc_attr($field_prefix . '-enabled'); ?>" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][enabled]" value="1" <?php checked(!empty($meal['enabled'])); ?>>
+                </div>
+            </div>
+
+            <div class="rbf-field">
+                <label class="rbf-field__label" for="<?php echo esc_attr($field_prefix . '-id'); ?>"><?php echo esc_html(rbf_translate_string('ID')); ?></label>
+                <div class="rbf-field__control">
+                    <input type="text" id="<?php echo esc_attr($field_prefix . '-id'); ?>" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][id]" value="<?php echo esc_attr($meal['id']); ?>" class="regular-text" placeholder="<?php echo esc_attr(rbf_translate_string('es: pranzo')); ?>">
+                    <p class="description rbf-field__description"><?php echo esc_html(rbf_translate_string('ID univoco del pasto (senza spazi, solo lettere e numeri)')); ?></p>
+                </div>
+            </div>
+
+            <div class="rbf-field">
+                <label class="rbf-field__label" for="<?php echo esc_attr($field_prefix . '-name'); ?>"><?php echo esc_html(rbf_translate_string('Nome')); ?></label>
+                <div class="rbf-field__control">
+                    <input type="text" id="<?php echo esc_attr($field_prefix . '-name'); ?>" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][name]" value="<?php echo esc_attr($meal['name']); ?>" class="regular-text" placeholder="<?php echo esc_attr(rbf_translate_string('es: Pranzo')); ?>">
+                </div>
+            </div>
+
+            <div class="rbf-field">
+                <label class="rbf-field__label" for="<?php echo esc_attr($field_prefix . '-capacity'); ?>"><?php echo esc_html(rbf_translate_string('Capienza')); ?></label>
+                <div class="rbf-field__control">
+                    <input type="number" id="<?php echo esc_attr($field_prefix . '-capacity'); ?>" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][capacity]" value="<?php echo esc_attr($meal['capacity']); ?>" min="1">
+                </div>
+            </div>
+
+            <div class="rbf-field rbf-field--full">
+                <label class="rbf-field__label" for="<?php echo esc_attr($field_prefix . '-time-slots'); ?>"><?php echo esc_html(rbf_translate_string('Orari')); ?></label>
+                <div class="rbf-field__control">
+                    <input type="text" id="<?php echo esc_attr($field_prefix . '-time-slots'); ?>" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][time_slots]" value="<?php echo esc_attr($meal['time_slots']); ?>" class="regular-text" placeholder="<?php echo esc_attr(rbf_translate_string('es: 12:00,12:30,13:00')); ?>">
+                    <p class="description rbf-field__description"><?php echo esc_html(rbf_translate_string('Orari separati da virgola')); ?></p>
+                </div>
+            </div>
+
+            <div class="rbf-field">
+                <label class="rbf-field__label" for="<?php echo esc_attr($field_prefix . '-price'); ?>"><?php echo esc_html(rbf_translate_string('Prezzo (€)')); ?></label>
+                <div class="rbf-field__control">
+                    <input type="number" step="0.01" id="<?php echo esc_attr($field_prefix . '-price'); ?>" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][price]" value="<?php echo esc_attr($meal['price']); ?>" min="0">
+                </div>
+            </div>
+
+            <div class="rbf-field rbf-field--full">
+                <span class="rbf-field__label"><?php echo esc_html(rbf_translate_string('Giorni disponibili')); ?></span>
+                <div class="rbf-field__control">
+                    <div class="rbf-field__checkbox-group">
+                        <?php foreach ($day_labels as $day_key => $day_label) { ?>
+                            <label class="rbf-checkbox-pill">
+                                <input type="checkbox" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][available_days][]" value="<?php echo esc_attr($day_key); ?>" <?php checked(in_array($day_key, (array) $meal['available_days'], true)); ?>>
+                                <span><?php echo esc_html($day_label); ?></span>
+                            </label>
+                        <?php } ?>
+                    </div>
+                </div>
+            </div>
+
+            <div class="rbf-field rbf-field--full">
+                <label class="rbf-field__label" for="<?php echo esc_attr($field_prefix . '-tooltip'); ?>"><?php echo esc_html(rbf_translate_string('Tooltip informativo')); ?></label>
+                <div class="rbf-field__control">
+                    <textarea id="<?php echo esc_attr($field_prefix . '-tooltip'); ?>" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][tooltip]" class="regular-text" rows="2" placeholder="<?php echo esc_attr(rbf_translate_string('es: Di Domenica il servizio è Brunch con menù alla carta.')); ?>"><?php echo esc_textarea($meal['tooltip']); ?></textarea>
+                    <p class="description rbf-field__description"><?php echo esc_html(rbf_translate_string('Testo informativo che apparirà quando questo pasto viene selezionato (opzionale)')); ?></p>
+                </div>
+            </div>
+
+            <div class="rbf-field">
+                <label class="rbf-field__label" for="<?php echo esc_attr($field_prefix . '-buffer'); ?>"><?php echo esc_html(rbf_translate_string('Buffer Base (minuti)')); ?></label>
+                <div class="rbf-field__control">
+                    <input type="number" id="<?php echo esc_attr($field_prefix . '-buffer'); ?>" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][buffer_time_minutes]" value="<?php echo esc_attr($meal['buffer_time_minutes']); ?>" min="0" max="120">
+                    <p class="description rbf-field__description"><?php echo esc_html(rbf_translate_string('Tempo minimo di buffer tra prenotazioni (minuti)')); ?></p>
+                </div>
+            </div>
+
+            <div class="rbf-field">
+                <label class="rbf-field__label" for="<?php echo esc_attr($field_prefix . '-buffer-per-person'); ?>"><?php echo esc_html(rbf_translate_string('Buffer per Persona (minuti)')); ?></label>
+                <div class="rbf-field__control">
+                    <input type="number" id="<?php echo esc_attr($field_prefix . '-buffer-per-person'); ?>" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][buffer_time_per_person]" value="<?php echo esc_attr($meal['buffer_time_per_person']); ?>" min="0" max="30">
+                    <p class="description rbf-field__description"><?php echo esc_html(rbf_translate_string('Tempo aggiuntivo di buffer per ogni persona (minuti)')); ?></p>
+                </div>
+            </div>
+
+            <div class="rbf-field">
+                <label class="rbf-field__label" for="<?php echo esc_attr($field_prefix . '-overbooking'); ?>"><?php echo esc_html(rbf_translate_string('Limite Overbooking (%)')); ?></label>
+                <div class="rbf-field__control">
+                    <input type="number" id="<?php echo esc_attr($field_prefix . '-overbooking'); ?>" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][overbooking_limit]" value="<?php echo esc_attr($meal['overbooking_limit']); ?>" min="0" max="50">
+                    <p class="description rbf-field__description"><?php echo esc_html(rbf_translate_string('Percentuale di overbooking consentita oltre la capienza normale')); ?></p>
+                </div>
+            </div>
+
+            <div class="rbf-field">
+                <label class="rbf-field__label" for="<?php echo esc_attr($field_prefix . '-slot-duration'); ?>"><?php echo esc_html(rbf_translate_string('Durata Slot (minuti)')); ?></label>
+                <div class="rbf-field__control">
+                    <input type="number" id="<?php echo esc_attr($field_prefix . '-slot-duration'); ?>" name="rbf_settings[custom_meals][<?php echo esc_attr($index_attr); ?>][slot_duration_minutes]" value="<?php echo esc_attr($meal['slot_duration_minutes']); ?>" min="30" max="240">
+                    <p class="description rbf-field__description"><?php echo esc_html(rbf_translate_string('Durata di occupazione del tavolo per questo servizio (minuti)')); ?></p>
+                </div>
+            </div>
+        </div>
     </div>
     <?php
 
@@ -1103,17 +1129,218 @@ function rbf_settings_page_html() {
     $tracking_catalog = rbf_get_tracking_package_catalog();
     $tracking_packages = rbf_get_tracking_packages();
     $recent_tracking_events = array_slice(rbf_get_recent_tracking_events(), 0, 5);
+
+    $custom_meals_config = $options['custom_meals'] ?? [];
+    $custom_meals_count = 0;
+    $active_meals_count = 0;
+
+    if (is_array($custom_meals_config)) {
+        $custom_meals_count = count($custom_meals_config);
+
+        foreach ($custom_meals_config as $meal_config) {
+            if (!empty($meal_config['enabled'])) {
+                $active_meals_count++;
+            }
+        }
+    }
+
+    $open_days_count = 0;
+    foreach ($day_labels as $day_key => $day_label) {
+        $option_key = "open_{$day_key}";
+        if (($options[$option_key] ?? 'yes') === 'yes') {
+            $open_days_count++;
+        }
+    }
+
+    $closed_dates_raw = trim((string) ($options['closed_dates'] ?? ''));
+    $exceptions_count = 0;
+    if ($closed_dates_raw !== '') {
+        $exceptions_rows = preg_split('/\r?\n/', $closed_dates_raw);
+        $exceptions_count = count(array_filter($exceptions_rows, static function ($row) {
+            return trim((string) $row) !== '';
+        }));
+    }
+
+    $enabled_tracking_packages = array_filter($tracking_packages, static function ($package) {
+        return !empty($package['enabled']);
+    });
+    $tracking_enabled_count = count($enabled_tracking_packages);
+
+    $restaurant_name = trim((string) ($options['restaurant_name'] ?? ''));
+    $restaurant_email = trim((string) ($options['restaurant_email'] ?? ''));
+    $restaurant_logo = trim((string) ($options['restaurant_logo'] ?? ''));
+    $branding_ready = ($restaurant_name !== '' && $restaurant_email !== '');
+    $branding_description = $branding_ready
+        ? ($restaurant_logo !== ''
+            ? rbf_translate_string('Logo e contatti sono pronti per essere mostrati nel form e nelle notifiche email.')
+            : rbf_translate_string('Contatti aggiornati e pronti per il front-end. Aggiungi il logo per completare il profilo.'))
+        : rbf_translate_string('Imposta nome, contatti e logo per allineare il modulo pubblico all\'identità del ristorante.');
+
+    $meals_ready = $active_meals_count > 0;
+    if ($meals_ready) {
+        $meals_description = $active_meals_count === 1
+            ? rbf_translate_string('Hai 1 pasto attivo pronto per essere prenotato.')
+            : sprintf(
+                rbf_translate_string('Hai %d pasti attivi pronti per essere prenotati.'),
+                $active_meals_count
+            );
+    } else {
+        $meals_description = rbf_translate_string('Aggiungi almeno un pasto personalizzato e attivalo per rendere operativo il modulo di prenotazione.');
+    }
+
+    $availability_ready = $open_days_count > 0;
+    $availability_description = $availability_ready
+        ? rbf_translate_string('Giorni e fasce orarie sono sincronizzati con il modulo di prenotazione.')
+        : rbf_translate_string('Definisci giorni e orari di apertura per rendere disponibili gli slot ai clienti.');
+
+    $tracking_ready = $tracking_enabled_count > 0;
+    if ($tracking_ready) {
+        $tracking_description = $tracking_enabled_count === 1
+            ? rbf_translate_string('Stai monitorando 1 pacchetto marketing attivo.')
+            : sprintf(
+                rbf_translate_string('Stai monitorando %d pacchetti marketing attivi.'),
+                $tracking_enabled_count
+            );
+    } else {
+        $tracking_description = rbf_translate_string('Collega Google Analytics, Meta o altri strumenti per seguire le conversioni delle prenotazioni.');
+    }
+
+    $settings_status_labels = [
+        'complete' => rbf_translate_string('Completato'),
+        'pending'  => rbf_translate_string('Da completare'),
+        'optional' => rbf_translate_string('Opzionale'),
+    ];
+
+    $settings_checklist_items = [
+        [
+            'target'      => 'branding',
+            'icon'        => 'dashicons-admin-site-alt3',
+            'title'       => rbf_translate_string('Profilo del ristorante'),
+            'description' => $branding_description,
+            'action'      => $branding_ready
+                ? rbf_translate_string('Rivedi impostazioni brand')
+                : rbf_translate_string('Configura brand'),
+            'status'      => $branding_ready ? 'complete' : 'pending',
+        ],
+        [
+            'target'      => 'branding',
+            'icon'        => 'dashicons-products',
+            'title'       => rbf_translate_string('Pasti e servizi'),
+            'description' => $meals_description,
+            'action'      => $meals_ready
+                ? rbf_translate_string('Gestisci pasti personalizzati')
+                : rbf_translate_string('Aggiungi un pasto'),
+            'status'      => $meals_ready ? 'complete' : 'pending',
+        ],
+        [
+            'target'      => 'availability',
+            'icon'        => 'dashicons-schedule',
+            'title'       => rbf_translate_string('Disponibilità settimanale'),
+            'description' => $availability_description,
+            'action'      => $availability_ready
+                ? rbf_translate_string('Rivedi disponibilità')
+                : rbf_translate_string('Imposta disponibilità'),
+            'status'      => $availability_ready ? 'complete' : 'pending',
+        ],
+        [
+            'target'      => 'integrations',
+            'icon'        => 'dashicons-chart-area',
+            'title'       => rbf_translate_string('Tracking e integrazioni'),
+            'description' => $tracking_description,
+            'action'      => $tracking_ready
+                ? rbf_translate_string('Rivedi integrazioni')
+                : rbf_translate_string('Configura tracking'),
+            'status'      => $tracking_ready ? 'complete' : 'optional',
+        ],
+    ];
     ?>
     <div class="rbf-admin-wrap rbf-admin-wrap--wide">
         <h1><?php echo esc_html(rbf_translate_string('Impostazioni Prenotazioni Ristorante')); ?></h1>
-        <style>
-            .rbf-settings-tabs-wrapper { margin-top: 20px; }
-            .rbf-settings-tab-panel { display: none; }
-            .rbf-settings-tab-panel.is-active { display: block; }
-            .rbf-settings-tab-panel .form-table { margin-top: 0; }
-            .rbf-settings-tab-panel h2 { margin-top: 1.5em; }
-            .no-js .rbf-settings-tab-panel { display: block !important; }
-        </style>
+        <p class="rbf-admin-intro">
+            <?php echo esc_html(rbf_translate_string('Configura brand, servizi e integrazioni con un layout vicino alle schermate native di WordPress. Ogni sezione include indicazioni rapide per guidarti nella configurazione.')); ?>
+        </p>
+        <div class="rbf-admin-hero" role="region" aria-label="<?php echo esc_attr(rbf_translate_string('Stato configurazione ristorante')); ?>">
+            <div class="rbf-admin-hero__intro">
+                <p class="rbf-admin-hero__lead"><?php echo esc_html(rbf_translate_string('Rivedi rapidamente lo stato della configurazione e raggiungi le schermate operative più usate.')); ?></p>
+                <div class="rbf-admin-hero__actions">
+                    <a class="button button-primary" href="<?php echo esc_url(admin_url('admin.php?page=rbf_calendar')); ?>"><?php echo esc_html(rbf_translate_string('Vai al Calendario')); ?></a>
+                    <a class="button button-secondary" href="<?php echo esc_url(admin_url('admin.php?page=rbf_weekly_staff')); ?>"><?php echo esc_html(rbf_translate_string('Agenda Settimanale')); ?></a>
+                </div>
+            </div>
+            <div class="rbf-admin-hero__stats" role="list">
+                <div class="rbf-admin-stat" role="listitem">
+                    <span class="rbf-admin-stat__label"><?php echo esc_html(rbf_translate_string('Pasti attivi')); ?></span>
+                    <span class="rbf-admin-stat__value"><?php echo esc_html($active_meals_count); ?></span>
+                    <span class="rbf-admin-stat__meta"><?php echo esc_html(sprintf(rbf_translate_string('su %d configurati'), $custom_meals_count)); ?></span>
+                </div>
+                <div class="rbf-admin-stat" role="listitem">
+                    <span class="rbf-admin-stat__label"><?php echo esc_html(rbf_translate_string('Giorni di apertura')); ?></span>
+                    <span class="rbf-admin-stat__value"><?php echo esc_html($open_days_count); ?></span>
+                    <span class="rbf-admin-stat__meta"><?php echo esc_html(sprintf(rbf_translate_string('su %d totali'), count($day_labels))); ?></span>
+                </div>
+                <div class="rbf-admin-stat" role="listitem">
+                    <span class="rbf-admin-stat__label"><?php echo esc_html(rbf_translate_string('Eccezioni calendario')); ?></span>
+                    <span class="rbf-admin-stat__value"><?php echo esc_html($exceptions_count); ?></span>
+                    <span class="rbf-admin-stat__meta"><?php echo esc_html(rbf_translate_string('date personalizzate')); ?></span>
+                </div>
+                <div class="rbf-admin-stat" role="listitem">
+                    <span class="rbf-admin-stat__label"><?php echo esc_html(rbf_translate_string('Pacchetti marketing')); ?></span>
+                    <span class="rbf-admin-stat__value"><?php echo esc_html($tracking_enabled_count); ?></span>
+                    <span class="rbf-admin-stat__meta"><?php echo esc_html(rbf_translate_string('attivi su questa installazione')); ?></span>
+                </div>
+            </div>
+        </div>
+        <?php if (!empty($settings_checklist_items)) : ?>
+            <div class="rbf-admin-checklist" role="list" aria-label="<?php echo esc_attr(rbf_translate_string('Prossimi passi consigliati')); ?>">
+                <?php foreach ($settings_checklist_items as $item) :
+                    $status = isset($item['status']) ? (string) $item['status'] : 'pending';
+                    $status_label = $settings_status_labels[$status] ?? '';
+                    $card_classes = ['rbf-checklist-card'];
+                    if ($status !== '') {
+                        $card_classes[] = 'rbf-checklist-card--' . sanitize_html_class($status, 'pending');
+                    }
+                    ?>
+                    <article class="<?php echo esc_attr(implode(' ', $card_classes)); ?>" role="listitem">
+                        <div class="rbf-checklist-card__icon" aria-hidden="true">
+                            <span class="dashicons <?php echo esc_attr($item['icon']); ?>"></span>
+                        </div>
+                        <div class="rbf-checklist-card__content">
+                            <?php if ($status_label !== '') : ?>
+                                <span class="rbf-checklist-card__status"><?php echo esc_html($status_label); ?></span>
+                            <?php endif; ?>
+                            <h3 class="rbf-checklist-card__title"><?php echo esc_html($item['title']); ?></h3>
+                            <p class="rbf-checklist-card__description"><?php echo esc_html($item['description']); ?></p>
+                            <a class="rbf-checklist-card__action" href="#rbf-tab-<?php echo esc_attr($item['target']); ?>" data-tab-target="<?php echo esc_attr($item['target']); ?>">
+                                <?php echo esc_html($item['action']); ?>
+                            </a>
+                        </div>
+                    </article>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+        <nav class="rbf-admin-shortcuts" aria-label="<?php echo esc_attr(rbf_translate_string('Collegamenti rapidi')); ?>">
+            <a class="rbf-admin-shortcut" href="<?php echo esc_url(admin_url('admin.php?page=rbf_calendar')); ?>">
+                <span class="rbf-admin-shortcut__icon dashicons dashicons-calendar-alt" aria-hidden="true"></span>
+                <span class="rbf-admin-shortcut__label"><?php echo esc_html(rbf_translate_string('Calendario live')); ?></span>
+                <span class="rbf-admin-shortcut__description"><?php echo esc_html(rbf_translate_string('Controlla le prenotazioni del giorno e gestisci i turni in corso.')); ?></span>
+            </a>
+            <a class="rbf-admin-shortcut" href="<?php echo esc_url(admin_url('admin.php?page=rbf_weekly_staff')); ?>">
+                <span class="rbf-admin-shortcut__icon dashicons dashicons-calendar" aria-hidden="true"></span>
+                <span class="rbf-admin-shortcut__label"><?php echo esc_html(rbf_translate_string('Agenda settimanale')); ?></span>
+                <span class="rbf-admin-shortcut__description"><?php echo esc_html(rbf_translate_string('Visualizza il carico dei prossimi giorni e assegna lo staff.')); ?></span>
+            </a>
+            <a class="rbf-admin-shortcut" href="<?php echo esc_url(admin_url('admin.php?page=rbf_tables')); ?>">
+                <span class="rbf-admin-shortcut__icon dashicons dashicons-screenoptions" aria-hidden="true"></span>
+                <span class="rbf-admin-shortcut__label"><?php echo esc_html(rbf_translate_string('Gestione tavoli')); ?></span>
+                <span class="rbf-admin-shortcut__description"><?php echo esc_html(rbf_translate_string('Configura sale, tavoli e capacità per sincronizzare il front-end.')); ?></span>
+            </a>
+            <a class="rbf-admin-shortcut" href="<?php echo esc_url(admin_url('admin.php?page=rbf_reports')); ?>">
+                <span class="rbf-admin-shortcut__icon dashicons dashicons-chart-bar" aria-hidden="true"></span>
+                <span class="rbf-admin-shortcut__label"><?php echo esc_html(rbf_translate_string('Report & trend')); ?></span>
+                <span class="rbf-admin-shortcut__description"><?php echo esc_html(rbf_translate_string('Analizza volumi, servizi più richiesti e performance marketing.')); ?></span>
+            </a>
+        </nav>
+
         <form method="post" action="options.php" class="rbf-settings-form">
             <?php settings_fields('rbf_opts_group'); ?>
             <div class="rbf-settings-tabs-wrapper">
@@ -1126,8 +1353,25 @@ function rbf_settings_page_html() {
             </div>
 
             <div class="rbf-settings-tab-panel rbf-tab-panel is-active" id="rbf-tab-branding" data-tab-panel="branding" role="tabpanel" aria-labelledby="rbf-tab-link-branding">
-                <table class="form-table" role="presentation">
-                    <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Configurazione Brand e Colori')); ?></h2></th></tr>
+                <div class="rbf-tab-intro" role="note">
+                    <div class="rbf-tab-intro__icon" aria-hidden="true">
+                        <span class="dashicons dashicons-admin-appearance"></span>
+                    </div>
+                    <div class="rbf-tab-intro__content">
+                        <h3 class="rbf-tab-intro__title"><?php echo esc_html(rbf_translate_string('Immagine coordinata e messaggi')); ?></h3>
+                        <p class="rbf-tab-intro__description"><?php echo esc_html(rbf_translate_string('Gestisci loghi, palette, font e i testi automatici che i clienti vedono nelle email di conferma.')); ?></p>
+                        <p class="rbf-tab-intro__description"><?php echo esc_html(rbf_translate_string('Usa i profili brand per salvare combinazioni riutilizzabili tra più siti o ambienti di test.')); ?></p>
+                    </div>
+                </div>
+                <table class="form-table rbf-form-section" role="presentation">
+                    <tr class="rbf-form-section__header">
+                        <th colspan="2">
+                            <div class="rbf-section__header">
+                                <h2 class="rbf-section__title"><?php echo esc_html(rbf_translate_string('Configurazione Brand e Colori')); ?></h2>
+                                <p class="rbf-section__description"><?php echo esc_html(rbf_translate_string('Personalizza logo, palette e tipografia per mantenere continuità visiva con il sito.')); ?></p>
+                            </div>
+                        </th>
+                    </tr>
                     <tr>
                         <th><label for="rbf_brand_name"><?php echo esc_html(rbf_translate_string('Nome Brand')); ?></label></th>
                         <td>
@@ -1138,23 +1382,23 @@ function rbf_settings_page_html() {
                     <tr>
                         <th><label for="rbf_brand_logo_url"><?php echo esc_html(rbf_translate_string('Logo')); ?></label></th>
                         <td>
-                            <div class="rbf-brand-logo-control" style="display:flex; gap:15px; align-items:center;">
-                                <div class="rbf-brand-logo-preview" style="width:80px; height:80px; border:1px solid #dcdcdc; border-radius:8px; background:#f8f9fa; display:flex; align-items:center; justify-content:center; overflow:hidden;">
+                            <div class="rbf-brand-logo-control">
+                                <div class="rbf-brand-logo-preview">
                                     <?php if (!empty($options['brand_logo_url'])) : ?>
-                                        <img src="<?php echo esc_url($options['brand_logo_url']); ?>" alt="" style="max-width:100%; max-height:100%;" id="rbf-brand-logo-preview-img" />
+                                        <img src="<?php echo esc_url($options['brand_logo_url']); ?>" alt="" id="rbf-brand-logo-preview-img" />
                                     <?php else : ?>
-                                        <span id="rbf-brand-logo-preview-placeholder" style="color:#666;font-size:12px;text-align:center;padding:6px;">
+                                        <span id="rbf-brand-logo-preview-placeholder" class="rbf-brand-logo-placeholder">
                                             <?php echo esc_html(rbf_translate_string('Nessun logo')); ?>
                                         </span>
                                     <?php endif; ?>
                                 </div>
-                                <div style="flex:1;">
+                                <div class="rbf-brand-logo-control__details">
                                     <input type="hidden" id="rbf_brand_logo_id" name="rbf_settings[brand_logo_id]" value="<?php echo esc_attr($options['brand_logo_id'] ?? 0); ?>">
                                     <input type="url" id="rbf_brand_logo_url" name="rbf_settings[brand_logo_url]" value="<?php echo esc_attr($options['brand_logo_url'] ?? ''); ?>" class="regular-text" placeholder="https://...">
-                                    <p style="margin-top:8px;">
+                                    <div class="rbf-action-group rbf-spacing-top-sm">
                                         <button type="button" class="button" id="rbf-brand-logo-select"><?php echo esc_html(rbf_translate_string('Scegli da Libreria')); ?></button>
                                         <button type="button" class="button-link" id="rbf-brand-logo-reset"><?php echo esc_html(rbf_translate_string('Rimuovi logo')); ?></button>
-                                    </p>
+                                    </div>
                                 </div>
                             </div>
                         </td>
@@ -1211,7 +1455,7 @@ function rbf_settings_page_html() {
                     <tr>
                         <th><?php echo esc_html(rbf_translate_string('Anteprima live')); ?></th>
                         <td>
-                            <div id="rbf-brand-preview" class="rbf-brand-preview" data-accent="<?php echo esc_attr($options['accent_color'] ?? '#000000'); ?>" data-secondary="<?php echo esc_attr($options['secondary_color'] ?? '#f8b500'); ?>" data-radius="<?php echo esc_attr($options['border_radius'] ?? '8px'); ?>" data-font-body="<?php echo esc_attr($options['brand_font_body'] ?? 'system'); ?>" data-font-heading="<?php echo esc_attr($options['brand_font_heading'] ?? 'system'); ?>" data-logo="<?php echo esc_url($options['brand_logo_url'] ?? ''); ?>" data-brand-name="<?php echo esc_attr($options['brand_name'] ?? ''); ?>">
+                            <div id="rbf-brand-preview" class="rbf-brand-preview rbf-form-card rbf-form-card--surface rbf-form-card--preview" data-accent="<?php echo esc_attr($options['accent_color'] ?? '#000000'); ?>" data-secondary="<?php echo esc_attr($options['secondary_color'] ?? '#f8b500'); ?>" data-radius="<?php echo esc_attr($options['border_radius'] ?? '8px'); ?>" data-font-body="<?php echo esc_attr($options['brand_font_body'] ?? 'system'); ?>" data-font-heading="<?php echo esc_attr($options['brand_font_heading'] ?? 'system'); ?>" data-logo="<?php echo esc_url($options['brand_logo_url'] ?? ''); ?>" data-brand-name="<?php echo esc_attr($options['brand_name'] ?? ''); ?>">
                                 <div class="rbf-brand-preview__header">
                                     <div class="rbf-brand-preview__logo"></div>
                                     <div class="rbf-brand-preview__title"></div>
@@ -1231,14 +1475,20 @@ function rbf_settings_page_html() {
                             </div>
                         </td>
                     </tr>
-                    <tr><th colspan="2"><h3><?php echo esc_html(rbf_translate_string('Profili brand')); ?></h3></th></tr>
+                    <tr class="rbf-form-section__subheader">
+                        <th colspan="2">
+                            <div class="rbf-section__header">
+                                <h3 class="rbf-section__subtitle"><?php echo esc_html(rbf_translate_string('Profili brand')); ?></h3>
+                            </div>
+                        </th>
+                    </tr>
                     <tr>
                         <th><?php echo esc_html(rbf_translate_string('Salva profilo attuale')); ?></th>
                         <td>
-                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="rbf-brand-profile-form" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="rbf-brand-profile-form">
                                 <input type="hidden" name="action" value="rbf_save_brand_profile">
                                 <?php wp_nonce_field('rbf_manage_brand_profiles'); ?>
-                                <input type="text" name="profile_name" class="regular-text" placeholder="<?php echo esc_attr(rbf_translate_string('Es. Ristorante Milano')); ?>" style="max-width:260px;">
+                                <input type="text" name="profile_name" class="regular-text" placeholder="<?php echo esc_attr(rbf_translate_string('Es. Ristorante Milano')); ?>">
                                 <?php submit_button(rbf_translate_string('Salva profilo'), 'secondary', '', false); ?>
                                 <span class="description"><?php echo esc_html(rbf_translate_string('Salva colori, font e logo per riutilizzarli su altri siti.')); ?></span>
                             </form>
@@ -1256,13 +1506,13 @@ function rbf_settings_page_html() {
                                             <strong><?php echo esc_html($profile_data['name'] ?? $profile_id); ?></strong><br>
                                             <span class="description"><?php echo esc_html(rbf_translate_string('Aggiornato il')); ?> <?php echo esc_html($profile_data['saved_at'] ?? ''); ?></span>
                                             <div class="rbf-brand-profile-card__actions">
-                                                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline;">
+                                                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="rbf-inline-form">
                                                     <?php wp_nonce_field('rbf_manage_brand_profiles'); ?>
                                                     <input type="hidden" name="action" value="rbf_apply_brand_profile">
                                                     <input type="hidden" name="profile_id" value="<?php echo esc_attr($profile_id); ?>">
                                                     <?php submit_button(rbf_translate_string('Applica'), 'primary', '', false); ?>
                                                 </form>
-                                                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline;" onsubmit="return confirm('<?php echo esc_js(rbf_translate_string('Eliminare questo profilo brand?')); ?>');">
+                                                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="rbf-inline-form" onsubmit="return confirm('<?php echo esc_js(rbf_translate_string('Eliminare questo profilo brand?')); ?>');">
                                                     <?php wp_nonce_field('rbf_manage_brand_profiles'); ?>
                                                     <input type="hidden" name="action" value="rbf_delete_brand_profile">
                                                     <input type="hidden" name="profile_id" value="<?php echo esc_attr($profile_id); ?>">
@@ -1278,19 +1528,27 @@ function rbf_settings_page_html() {
                     <tr>
                         <th><?php echo esc_html(rbf_translate_string('Importa / esporta')); ?></th>
                         <td>
-                            <label for="rbf-brand-profiles-export" class="description" style="display:block; margin-bottom:6px;"><?php echo esc_html(rbf_translate_string('Esporta profili (copia e incolla il JSON)')); ?></label>
-                            <textarea readonly id="rbf-brand-profiles-export" class="large-text code" rows="5"><?php echo esc_textarea($brand_profiles_export); ?></textarea>
-                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-top:10px;">
-                                <?php wp_nonce_field('rbf_manage_brand_profiles'); ?>
-                                <input type="hidden" name="action" value="rbf_import_brand_profiles">
-                                <label for="rbf-brand-profiles-import" class="description" style="display:block; margin-bottom:6px;"><?php echo esc_html(rbf_translate_string('Importa profili (incolla JSON e conferma)')); ?></label>
-                                <textarea id="rbf-brand-profiles-import" name="brand_profiles_json" class="large-text code" rows="4" placeholder="<?php echo esc_attr('[{"profile_id":{"name":"Brand","settings":{...}}}]'); ?>"></textarea>
-                                <?php submit_button(rbf_translate_string('Importa profili'), 'secondary'); ?>
-                            </form>
+                            <div class="rbf-form-card rbf-form-card--surface rbf-form-card--stack">
+                                <label for="rbf-brand-profiles-export" class="description rbf-label-block"><?php echo esc_html(rbf_translate_string('Esporta profili (copia e incolla il JSON)')); ?></label>
+                                <textarea readonly id="rbf-brand-profiles-export" class="large-text code rbf-code-input" rows="5"><?php echo esc_textarea($brand_profiles_export); ?></textarea>
+                                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="rbf-spacing-top-sm">
+                                    <?php wp_nonce_field('rbf_manage_brand_profiles'); ?>
+                                    <input type="hidden" name="action" value="rbf_import_brand_profiles">
+                                    <label for="rbf-brand-profiles-import" class="description rbf-label-block"><?php echo esc_html(rbf_translate_string('Importa profili (incolla JSON e conferma)')); ?></label>
+                                    <textarea id="rbf-brand-profiles-import" name="brand_profiles_json" class="large-text code rbf-code-input" rows="4" placeholder="<?php echo esc_attr('[{"profile_id":{"name":"Brand","settings":{...}}}]'); ?>"></textarea>
+                                    <?php submit_button(rbf_translate_string('Importa profili'), 'secondary'); ?>
+                                </form>
+                            </div>
                         </td>
                     </tr>
 
-                    <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Pagina di Conferma Prenotazione')); ?></h2></th></tr>
+                    <tr class="rbf-form-section__subheader">
+                        <th colspan="2">
+                            <div class="rbf-section__header">
+                                <h3 class="rbf-section__subtitle"><?php echo esc_html(rbf_translate_string('Pagina di Conferma Prenotazione')); ?></h3>
+                            </div>
+                        </th>
+                    </tr>
                     <tr>
                         <th><label for="rbf_booking_page_id"><?php echo esc_html(rbf_translate_string('Pagina del modulo di prenotazione')); ?></label></th>
                         <td>
@@ -1310,111 +1568,161 @@ function rbf_settings_page_html() {
             </div>
 
             <div class="rbf-settings-tab-panel rbf-tab-panel" id="rbf-tab-availability" data-tab-panel="availability" role="tabpanel" aria-labelledby="rbf-tab-link-availability">
-                <table class="form-table" role="presentation">
-                    <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Disponibilità Settimanale')); ?></h2></th></tr>
+                <div class="rbf-tab-intro" role="note">
+                    <div class="rbf-tab-intro__icon" aria-hidden="true">
+                        <span class="dashicons dashicons-schedule"></span>
+                    </div>
+                    <div class="rbf-tab-intro__content">
+                        <h3 class="rbf-tab-intro__title"><?php echo esc_html(rbf_translate_string('Orari e servizi offerti')); ?></h3>
+                        <p class="rbf-tab-intro__description"><?php echo esc_html(rbf_translate_string('Attiva i giorni di apertura e definisci i pasti personalizzati con capienza, durate e fasce orarie dedicate.')); ?></p>
+                        <p class="rbf-tab-intro__description"><?php echo esc_html(rbf_translate_string('I pasti attivati qui vengono mostrati nel form pubblico e nelle prenotazioni inserite manualmente dallo staff.')); ?></p>
+                    </div>
+                </div>
+                <table class="form-table rbf-form-section" role="presentation">
+                    <tr class="rbf-form-section__header">
+                        <th colspan="2">
+                            <div class="rbf-section__header">
+                                <h2 class="rbf-section__title"><?php echo esc_html(rbf_translate_string('Disponibilità Settimanale')); ?></h2>
+                                <p class="rbf-section__description"><?php echo esc_html(rbf_translate_string('Attiva i giorni di apertura e imposta fasce orarie coerenti con il servizio.')); ?></p>
+                            </div>
+                        </th>
+                    </tr>
                     <tr>
                         <th><?php echo esc_html(rbf_translate_string('Giorni di apertura')); ?></th>
                         <td>
-                            <div class="rbf-weekday-toggle-group" style="display: flex; flex-wrap: wrap; gap: 10px;">
+                            <div class="rbf-weekday-toggle-group">
                                 <?php foreach ($day_labels as $day_key => $day_label) {
                                     $option_key = "open_{$day_key}";
                                     $is_open = ($options[$option_key] ?? 'yes') === 'yes';
                                     ?>
-                                    <label style="display: flex; align-items: center; gap: 6px; background: #fff; border: 1px solid #ddd; padding: 8px 12px; border-radius: 6px; min-width: 150px;">
+                                    <label class="rbf-checkbox-pill">
                                         <input type="checkbox" name="rbf_settings[<?php echo esc_attr($option_key); ?>]" value="yes" <?php checked($is_open); ?>>
                                         <span><?php echo esc_html($day_label); ?></span>
                                     </label>
                                     <?php
                                 } ?>
                             </div>
-                            <p class="description" style="margin-top: 8px;">
+                            <p class="description rbf-spacing-top-sm">
                                 <?php echo esc_html(rbf_translate_string('Deseleziona i giorni in cui il ristorante resta chiuso.')); ?>
                             </p>
                         </td>
                     </tr>
 
-                    <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Configurazione Pasti')); ?></h2></th></tr>
+                    <tr class="rbf-form-section__subheader">
+                        <th colspan="2">
+                            <div class="rbf-section__header">
+                                <h3 class="rbf-section__subtitle"><?php echo esc_html(rbf_translate_string('Configurazione Pasti')); ?></h3>
+                            </div>
+                        </th>
+                    </tr>
                     <tr>
                         <th><?php echo esc_html(rbf_translate_string('Pasti Personalizzati')); ?></th>
                         <td>
-                            <div id="custom-meals-container">
-                                <?php
-                                $custom_meals = $options['custom_meals'] ?? rbf_get_default_custom_meals();
-                                if (!is_array($custom_meals)) {
-                                    $custom_meals = [];
-                                }
-                                ?>
-                                <div class="notice notice-info inline" style="margin: 0 0 15px 0;">
-                                    <p><?php echo esc_html(rbf_translate_string('Importante: dopo l\'installazione non sono presenti pasti preconfigurati. Configura i servizi del tuo ristorante utilizzando "Aggiungi Pasto" e salva le modifiche per renderli disponibili nel form.')); ?></p>
-                                </div>
-                                <?php
-                                if (empty($custom_meals)) {
+                            <div class="rbf-form-card rbf-form-card--surface rbf-form-card--stack">
+                                <div id="custom-meals-container">
+                                    <?php
+                                    $custom_meals = $options['custom_meals'] ?? rbf_get_default_custom_meals();
+                                    if (!is_array($custom_meals)) {
+                                        $custom_meals = [];
+                                    }
                                     ?>
-                                    <div class="notice notice-warning inline rbf-no-meals-notice" style="margin: 0 0 15px 0;">
-                                        <p><?php echo esc_html(rbf_translate_string('Nessun pasto è attualmente configurato. Il modulo di prenotazione rimane inattivo finché non aggiungi e attivi almeno un pasto personalizzato.')); ?></p>
+                                    <div class="notice notice-info inline rbf-notice-stack">
+                                        <p><?php echo esc_html(rbf_translate_string('Importante: dopo l\'installazione non sono presenti pasti preconfigurati. Configura i servizi del tuo ristorante utilizzando "Aggiungi Pasto" e salva le modifiche per renderli disponibili nel form.')); ?></p>
                                     </div>
                                     <?php
-                                }
+                                    if (empty($custom_meals)) {
+                                        ?>
+                                        <div class="notice notice-warning inline rbf-no-meals-notice rbf-notice-stack">
+                                            <p><?php echo esc_html(rbf_translate_string('Nessun pasto è attualmente configurato. Il modulo di prenotazione rimane inattivo finché non aggiungi e attivi almeno un pasto personalizzato.')); ?></p>
+                                        </div>
+                                        <?php
+                                    }
 
-                                foreach ($custom_meals as $index => $meal) {
-                                    echo rbf_render_custom_meal_item($index, $meal, $day_labels);
-                                }
-                                ?>
+                                    foreach ($custom_meals as $index => $meal) {
+                                        echo rbf_render_custom_meal_item($index, $meal, $day_labels);
+                                    }
+                                    ?>
+                                </div>
+
+                                <button type="button" id="add-meal" class="button button-primary rbf-spacing-top-sm">
+                                    <?php echo esc_html(rbf_translate_string('Aggiungi Pasto')); ?>
+                                </button>
                             </div>
-
-                            <button type="button" id="add-meal" class="button button-primary" style="margin-top: 10px;">
-                                <?php echo esc_html(rbf_translate_string('Aggiungi Pasto')); ?>
-                            </button>
                         </td>
                     </tr>
                 </table>
             </div>
 
             <div class="rbf-settings-tab-panel rbf-tab-panel" id="rbf-tab-calendar" data-tab-panel="calendar" role="tabpanel" aria-labelledby="rbf-tab-link-calendar">
-                <table class="form-table" role="presentation">
-                    <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Eccezioni Calendario')); ?></h2></th></tr>
+                <div class="rbf-tab-intro" role="note">
+                    <div class="rbf-tab-intro__icon" aria-hidden="true">
+                        <span class="dashicons dashicons-calendar-alt"></span>
+                    </div>
+                    <div class="rbf-tab-intro__content">
+                        <h3 class="rbf-tab-intro__title"><?php echo esc_html(rbf_translate_string('Gestione calendario avanzata')); ?></h3>
+                        <p class="rbf-tab-intro__description"><?php echo esc_html(rbf_translate_string('Configura chiusure straordinarie, giornate speciali e orari estesi per mantenere il calendario sempre coerente.')); ?></p>
+                        <p class="rbf-tab-intro__description"><?php echo esc_html(rbf_translate_string('Le modifiche vengono raccolte nel riquadro sottostante: puoi affinarle anche manualmente seguendo il formato guidato.')); ?></p>
+                    </div>
+                </div>
+                <table class="form-table rbf-form-section" role="presentation">
+                    <tr class="rbf-form-section__header">
+                        <th colspan="2">
+                            <div class="rbf-section__header">
+                                <h2 class="rbf-section__title"><?php echo esc_html(rbf_translate_string('Calendario & Eccezioni')); ?></h2>
+                                <p class="rbf-section__description"><?php echo esc_html(rbf_translate_string('Gestisci festivi, chiusure e giornate speciali mantenendo una chiara panoramica.')); ?></p>
+                            </div>
+                        </th>
+                    </tr>
                     <tr>
                         <th><label for="rbf_closed_dates"><?php echo esc_html(rbf_translate_string('Gestione Eccezioni')); ?></label></th>
                         <td>
-                            <div id="rbf_exceptions_manager">
-                                <p class="description" style="margin-bottom: 15px;">
+                            <div id="rbf_exceptions_manager" class="rbf-form-card rbf-form-card--surface rbf-form-card--stack">
+                                <p class="description rbf-spacing-bottom-md">
                                     <?php echo esc_html(rbf_translate_string('Gestisci chiusure straordinarie, festività, eventi speciali e orari estesi.')); ?>
                                 </p>
 
-                                <div class="rbf-exception-add" style="background: #f9f9f9; padding: 15px; border: 1px solid #ddd; margin-bottom: 15px;">
-                                    <h4 style="margin: 0 0 10px 0;"><?php echo esc_html(rbf_translate_string('Aggiungi Nuova Eccezione')); ?></h4>
-                                    <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: end;">
-                                        <div>
-                                            <label style="display: block; margin-bottom: 5px; font-weight: bold;"><?php echo esc_html(rbf_translate_string('Data')); ?></label>
-                                            <input type="date" id="exception_date" style="padding: 5px;">
+                                <div class="rbf-exception-add">
+                                    <h4><?php echo esc_html(rbf_translate_string('Aggiungi Nuova Eccezione')); ?></h4>
+                                    <div class="rbf-exception-add__grid">
+                                        <div class="rbf-field">
+                                            <label class="rbf-field__label" for="exception_date"><?php echo esc_html(rbf_translate_string('Data')); ?></label>
+                                            <div class="rbf-field__control">
+                                                <input type="date" id="exception_date">
+                                            </div>
                                         </div>
-                                        <div>
-                                            <label style="display: block; margin-bottom: 5px; font-weight: bold;"><?php echo esc_html(rbf_translate_string('Tipo')); ?></label>
-                                            <select id="exception_type" style="padding: 5px;">
-                                                <option value="closure"><?php echo esc_html(rbf_translate_string('Chiusura')); ?></option>
-                                                <option value="holiday"><?php echo esc_html(rbf_translate_string('Festività')); ?></option>
-                                                <option value="special"><?php echo esc_html(rbf_translate_string('Evento Speciale')); ?></option>
-                                                <option value="extended"><?php echo esc_html(rbf_translate_string('Orari Estesi')); ?></option>
-                                            </select>
+                                        <div class="rbf-field">
+                                            <label class="rbf-field__label" for="exception_type"><?php echo esc_html(rbf_translate_string('Tipo')); ?></label>
+                                            <div class="rbf-field__control">
+                                                <select id="exception_type">
+                                                    <option value="closure"><?php echo esc_html(rbf_translate_string('Chiusura')); ?></option>
+                                                    <option value="holiday"><?php echo esc_html(rbf_translate_string('Festività')); ?></option>
+                                                    <option value="special"><?php echo esc_html(rbf_translate_string('Evento Speciale')); ?></option>
+                                                    <option value="extended"><?php echo esc_html(rbf_translate_string('Orari Estesi')); ?></option>
+                                                </select>
+                                            </div>
                                         </div>
-                                        <div id="special_hours_container" style="display: none;">
-                                            <label style="display: block; margin-bottom: 5px; font-weight: bold;"><?php echo esc_html(rbf_translate_string('Orari Speciali')); ?></label>
-                                            <input type="text" id="special_hours" placeholder="es. 18:00-02:00" style="padding: 5px;">
+                                        <div id="special_hours_container" class="rbf-field rbf-exception-add__special">
+                                            <label class="rbf-field__label" for="special_hours"><?php echo esc_html(rbf_translate_string('Orari Speciali')); ?></label>
+                                            <div class="rbf-field__control">
+                                                <input type="text" id="special_hours" placeholder="es. 18:00-02:00">
+                                            </div>
                                         </div>
-                                        <div style="flex-grow: 1;">
-                                            <label style="display: block; margin-bottom: 5px; font-weight: bold;"><?php echo esc_html(rbf_translate_string('Descrizione')); ?></label>
-                                            <input type="text" id="exception_description" placeholder="<?php echo esc_attr(rbf_translate_string('es. Chiusura per ferie')); ?>" style="padding: 5px; width: 100%;">
+                                        <div class="rbf-field rbf-field--full rbf-exception-add__description">
+                                            <label class="rbf-field__label" for="exception_description"><?php echo esc_html(rbf_translate_string('Descrizione')); ?></label>
+                                            <div class="rbf-field__control">
+                                                <input type="text" id="exception_description" placeholder="<?php echo esc_attr(rbf_translate_string('es. Chiusura per ferie')); ?>">
+                                            </div>
                                         </div>
                                         <button type="button" id="add_exception_btn" class="button button-primary"><?php echo esc_html(rbf_translate_string('Aggiungi')); ?></button>
                                     </div>
                                 </div>
 
-                                <div class="rbf-exceptions-list" style="margin-bottom: 15px;">
+                                <div class="rbf-exceptions-list">
                                     <h4><?php echo esc_html(rbf_translate_string('Eccezioni Attive')); ?></h4>
                                     <div id="exceptions_list_display"></div>
                                 </div>
 
-                                <textarea id="rbf_closed_dates" name="rbf_settings[closed_dates]" rows="8" class="large-text" style="font-family: monospace; font-size: 12px;"><?php echo esc_textarea($options['closed_dates']); ?></textarea>
+                                <textarea id="rbf_closed_dates" name="rbf_settings[closed_dates]" rows="8" class="large-text rbf-code-input"><?php echo esc_textarea($options['closed_dates']); ?></textarea>
                                 <p class="description">
                                     <?php echo esc_html(rbf_translate_string('Formato manuale: Data|Tipo|Orari|Descrizione (es. 2024-12-25|closure||Natale) oppure formato semplice (es. 2024-12-25)')); ?>
                                 </p>
@@ -1425,8 +1733,25 @@ function rbf_settings_page_html() {
             </div>
 
             <div class="rbf-settings-tab-panel rbf-tab-panel" id="rbf-tab-integrations" data-tab-panel="integrations" role="tabpanel" aria-labelledby="rbf-tab-link-integrations">
-                <table class="form-table" role="presentation">
-                    <tr><th colspan="2"><h2><?php echo esc_html(rbf_translate_string('Integrazioni e Marketing')); ?></h2></th></tr>
+                <div class="rbf-tab-intro" role="note">
+                    <div class="rbf-tab-intro__icon" aria-hidden="true">
+                        <span class="dashicons dashicons-shield"></span>
+                    </div>
+                    <div class="rbf-tab-intro__content">
+                        <h3 class="rbf-tab-intro__title"><?php echo esc_html(rbf_translate_string('Integrazioni e sicurezza')); ?></h3>
+                        <p class="rbf-tab-intro__description"><?php echo esc_html(rbf_translate_string('Controlla i preset di tracking, la gestione email e le difese anti-bot per mantenere affidabile il flusso di prenotazione.')); ?></p>
+                        <p class="rbf-tab-intro__description"><?php echo esc_html(rbf_translate_string('Ricordati di salvare al termine per applicare le modifiche in modo permanente.')); ?></p>
+                    </div>
+                </div>
+                <table class="form-table rbf-form-section" role="presentation">
+                    <tr class="rbf-form-section__header">
+                        <th colspan="2">
+                            <div class="rbf-section__header">
+                                <h2 class="rbf-section__title"><?php echo esc_html(rbf_translate_string('Integrazioni e Marketing')); ?></h2>
+                                <p class="rbf-section__description"><?php echo esc_html(rbf_translate_string('Collega gli strumenti di tracciamento e comunicazione con indicazioni sempre a portata di mano.')); ?></p>
+                            </div>
+                        </th>
+                    </tr>
                     <tr>
                         <th><label for="rbf_notification_email"><?php echo esc_html(rbf_translate_string('Email per Notifiche Ristorante')); ?></label></th>
                         <td><input type="email" id="rbf_notification_email" name="rbf_settings[notification_email]" value="<?php echo esc_attr($options['notification_email']); ?>" class="regular-text" placeholder="es. ristorante@esempio.com"></td>
@@ -1435,7 +1760,13 @@ function rbf_settings_page_html() {
                         <th><label for="rbf_webmaster_email"><?php echo esc_html(rbf_translate_string('Email per Notifiche Webmaster')); ?></label></th>
                         <td><input type="email" id="rbf_webmaster_email" name="rbf_settings[webmaster_email]" value="<?php echo esc_attr($options['webmaster_email']); ?>" class="regular-text" placeholder="es. webmaster@esempio.com"></td>
                     </tr>
-                    <tr><th colspan="2"><h3><?php echo esc_html(rbf_translate_string('Contatti per Modifiche Prenotazioni')); ?></h3></th></tr>
+                    <tr class="rbf-form-section__subheader">
+                        <th colspan="2">
+                            <div class="rbf-section__header">
+                                <h3 class="rbf-section__subtitle"><?php echo esc_html(rbf_translate_string('Contatti per Modifiche Prenotazioni')); ?></h3>
+                            </div>
+                        </th>
+                    </tr>
                     <tr>
                         <th><label for="rbf_booking_change_email"><?php echo esc_html(rbf_translate_string('Email per Richieste di Modifica')); ?></label></th>
                         <td>
@@ -1483,7 +1814,13 @@ function rbf_settings_page_html() {
                         <td><input type="password" id="rbf_meta_access_token" name="rbf_settings[meta_access_token]" value="<?php echo esc_attr($options['meta_access_token']); ?>" class="regular-text"></td>
                     </tr>
 
-                    <tr><th colspan="2"><h3><?php echo esc_html(rbf_translate_string('Pacchetti plug & play')); ?></h3></th></tr>
+                    <tr class="rbf-form-section__subheader">
+                        <th colspan="2">
+                            <div class="rbf-section__header">
+                                <h3 class="rbf-section__subtitle"><?php echo esc_html(rbf_translate_string('Pacchetti plug & play')); ?></h3>
+                            </div>
+                        </th>
+                    </tr>
                     <tr>
                         <th><?php echo esc_html(rbf_translate_string('Preset disponibili')); ?></th>
                         <td>
@@ -1504,7 +1841,7 @@ function rbf_settings_page_html() {
                                         <?php if (!empty($missing_fields)) : ?>
                                             <p class="rbf-tracking-warning"><?php echo esc_html(rbf_translate_string('Completa prima i campi:')); ?> <strong><?php echo esc_html(implode(', ', $missing_fields)); ?></strong></p>
                                         <?php endif; ?>
-                                        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block; margin-top:6px;">
+                                        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="rbf-inline-form rbf-spacing-top-xs">
                                             <?php wp_nonce_field('rbf_toggle_tracking_package'); ?>
                                             <input type="hidden" name="action" value="rbf_toggle_tracking_package">
                                             <input type="hidden" name="package" value="<?php echo esc_attr($package_id); ?>">
@@ -1516,13 +1853,13 @@ function rbf_settings_page_html() {
                                         <?php if ($package_id === 'consent_helper') :
                                             $snippets = rbf_get_consent_helper_snippets();
                                             ?>
-                                            <details style="margin-top:10px;">
+                                            <details class="rbf-spacing-top-sm">
                                                 <summary><?php echo esc_html(rbf_translate_string('Snippet CMP pronti all\'uso')); ?></summary>
                                                 <ul>
                                                     <?php foreach ($snippets as $snippet) : ?>
                                                         <li>
                                                             <strong><?php echo esc_html($snippet['label']); ?></strong>
-                                                            <textarea readonly class="large-text code" rows="2" style="margin-top:4px;"><?php echo esc_textarea($snippet['code']); ?></textarea>
+                                                            <textarea readonly class="large-text code rbf-code-input rbf-spacing-top-xs" rows="2"><?php echo esc_textarea($snippet['code']); ?></textarea>
                                                         </li>
                                                     <?php endforeach; ?>
                                                 </ul>
@@ -1556,7 +1893,13 @@ function rbf_settings_page_html() {
                         </td>
                     </tr>
 
-                    <tr><th colspan="2"><h3><?php echo esc_html(rbf_translate_string('Impostazioni Brevo')); ?></h3></th></tr>
+                    <tr class="rbf-form-section__subheader">
+                        <th colspan="2">
+                            <div class="rbf-section__header">
+                                <h3 class="rbf-section__subtitle"><?php echo esc_html(rbf_translate_string('Impostazioni Brevo')); ?></h3>
+                            </div>
+                        </th>
+                    </tr>
                     <tr>
                         <th><label for="rbf_brevo_api"><?php echo esc_html(rbf_translate_string('API Key Brevo')); ?></label></th>
                         <td><input type="password" id="rbf_brevo_api" name="rbf_settings[brevo_api]" value="<?php echo esc_attr($options['brevo_api']); ?>" class="regular-text"></td>
@@ -1570,7 +1913,13 @@ function rbf_settings_page_html() {
                         <td><input type="number" id="rbf_brevo_list_en" name="rbf_settings[brevo_list_en]" value="<?php echo esc_attr($options['brevo_list_en']); ?>"></td>
                     </tr>
 
-                    <tr><th colspan="2"><h3><?php echo esc_html(rbf_translate_string('Protezione Anti-Bot')); ?></h3></th></tr>
+                    <tr class="rbf-form-section__subheader">
+                        <th colspan="2">
+                            <div class="rbf-section__header">
+                                <h3 class="rbf-section__subtitle"><?php echo esc_html(rbf_translate_string('Protezione Anti-Bot')); ?></h3>
+                            </div>
+                        </th>
+                    </tr>
                     <tr>
                         <th><label for="rbf_recaptcha_site_key"><?php echo esc_html(rbf_translate_string('reCAPTCHA v3 Site Key')); ?></label></th>
                         <td>
@@ -1588,7 +1937,7 @@ function rbf_settings_page_html() {
                     <tr>
                         <th><label for="rbf_recaptcha_threshold"><?php echo esc_html(rbf_translate_string('Soglia reCAPTCHA')); ?></label></th>
                         <td>
-                            <input type="number" id="rbf_recaptcha_threshold" name="rbf_settings[recaptcha_threshold]" value="<?php echo esc_attr($options['recaptcha_threshold'] ?? '0.5'); ?>" step="0.1" min="0" max="1" style="width: 80px;">
+                            <input type="number" id="rbf_recaptcha_threshold" name="rbf_settings[recaptcha_threshold]" value="<?php echo esc_attr($options['recaptcha_threshold'] ?? '0.5'); ?>" step="0.1" min="0" max="1" class="rbf-input-compact">
                             <p class="description"><?php echo esc_html(rbf_translate_string('Soglia minima per considerare valida una submission (0.0-1.0). Default: 0.5')); ?></p>
                         </td>
                     </tr>
@@ -1840,7 +2189,7 @@ function rbf_weekly_staff_page_html() {
         
         <div id="rbf-weekly-staff-calendar"></div>
         
-        <div id="rbf-move-notification" class="notice" style="display: none;">
+        <div id="rbf-move-notification" class="notice" hidden>
             <p id="rbf-move-message"></p>
         </div>
     </div>
@@ -4733,149 +5082,161 @@ function rbf_email_notifications_page_html() {
     <div class="rbf-admin-wrap rbf-admin-wrap--wide">
         <h1><?php echo esc_html(rbf_translate_string('Sistema Email Failover')); ?></h1>
 
-        <div style="background: #f8f9fb; padding: 20px; border-radius: 8px; border: 1px solid #dcdcde; margin-bottom: 30px;">
-            <h2 style="margin-top: 0; margin-bottom: 10px; font-size: 20px; color: #1d2327;">
-                <?php echo esc_html(rbf_translate_string('Gestione registro notifiche')); ?>
-            </h2>
-            <p style="margin: 0 0 10px 0; color: #3c434a;">
+        <div class="rbf-admin-banner">
+            <h2 class="rbf-admin-banner__title"><?php echo esc_html(rbf_translate_string('Gestione registro notifiche')); ?></h2>
+            <p class="rbf-admin-banner__text">
                 <?php echo esc_html(sprintf(rbf_translate_string('I log vengono conservati per %d giorni.'), $default_retention_days)); ?>
             </p>
-            <p style="margin: 0 0 15px 0; color: #3c434a;">
+            <p class="rbf-admin-banner__text">
                 <?php if ($next_cleanup_timestamp) : ?>
                     <?php echo esc_html(sprintf(rbf_translate_string('Prossima pulizia automatica: %s'), $next_cleanup_readable)); ?>
                 <?php else : ?>
-                    <span style="color: #d63638; font-weight: 600;">
+                    <span class="rbf-text-danger">
                         <?php echo esc_html(rbf_translate_string('Pulizia automatica non ancora pianificata. Verrà programmata automaticamente al prossimo cron.')); ?>
                     </span>
                 <?php endif; ?>
             </p>
-            <form method="post" style="display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end;">
+            <form method="post" class="rbf-form-inline">
                 <?php wp_nonce_field('rbf_email_cleanup'); ?>
                 <input type="hidden" name="rbf_email_cleanup" value="1">
-                <div>
-                    <label for="rbf-retention-days" style="display: block; font-weight: 600; margin-bottom: 5px;">
+                <div class="rbf-form-inline__group">
+                    <label for="rbf-retention-days" class="rbf-form-label">
                         <?php echo esc_html(rbf_translate_string('Giorni da conservare')); ?>
                     </label>
                     <input type="number" id="rbf-retention-days" name="retention_days" min="1" class="small-text" value="<?php echo esc_attr($default_retention_days); ?>">
                 </div>
-                <button type="submit" class="button button-secondary" style="height: 32px;">
+                <button type="submit" class="button button-secondary rbf-button--compact">
                     <?php echo esc_html(rbf_translate_string('Esegui pulizia manuale')); ?>
                 </button>
             </form>
         </div>
 
+        <?php
+        $brevo_percentage = $stats_summary['total'] > 0 ? ($stats_summary['by_provider']['brevo'] / $stats_summary['total']) * 100 : 0;
+        $fallback_percentage = $stats_summary['total'] > 0 ? ($stats_summary['by_provider']['wp_mail'] / $stats_summary['total']) * 100 : 0;
+
+        $health_class = 'rbf-health-indicator--danger';
+        $health_icon = '✗';
+
+        if ($stats_summary['success_rate'] >= 90) {
+            $health_class = 'rbf-health-indicator--success';
+            $health_icon = '✓';
+        } elseif ($stats_summary['success_rate'] >= 75) {
+            $health_class = 'rbf-health-indicator--warning';
+            $health_icon = '!';
+        }
+        ?>
+
         <!-- Statistics Dashboard -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px;">
-            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <h3 style="margin: 0 0 10px 0; color: #2271b1;"><?php echo esc_html(rbf_translate_string('Notifiche Totali')); ?></h3>
-                <div style="font-size: 32px; font-weight: bold; color: #2271b1;"><?php echo esc_html($stats_summary['total']); ?></div>
-                <div style="font-size: 14px; color: #666;">Ultimi <?php echo esc_html($filter_days); ?> giorni</div>
+        <div class="rbf-stat-grid">
+            <div class="rbf-stat-card rbf-stat-card--primary">
+                <h3 class="rbf-stat-card__title"><?php echo esc_html(rbf_translate_string('Notifiche Totali')); ?></h3>
+                <div class="rbf-stat-card__value"><?php echo esc_html($stats_summary['total']); ?></div>
+                <div class="rbf-stat-card__hint"><?php echo esc_html(sprintf(rbf_translate_string('Ultimi %d giorni'), $filter_days)); ?></div>
             </div>
             
-            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <h3 style="margin: 0 0 10px 0; color: #00a32a;"><?php echo esc_html(rbf_translate_string('Tasso di Successo')); ?></h3>
-                <div style="font-size: 32px; font-weight: bold; color: #00a32a;"><?php echo number_format($stats_summary['success_rate'], 1); ?>%</div>
-                <div style="font-size: 14px; color: #666;">
-                    <?php echo esc_html($stats_summary['success'] + $stats_summary['fallback_success']); ?> 
-                    / <?php echo esc_html($stats_summary['total']); ?> inviate
+            <div class="rbf-stat-card rbf-stat-card--success">
+                <h3 class="rbf-stat-card__title"><?php echo esc_html(rbf_translate_string('Tasso di Successo')); ?></h3>
+                <div class="rbf-stat-card__value"><?php echo esc_html(number_format($stats_summary['success_rate'], 1)); ?>%</div>
+                <div class="rbf-stat-card__hint">
+                    <?php echo esc_html($stats_summary['success'] + $stats_summary['fallback_success']); ?>
+                    / <?php echo esc_html($stats_summary['total']); ?> <?php echo esc_html(rbf_translate_string('inviate')); ?>
                 </div>
             </div>
             
-            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <h3 style="margin: 0 0 10px 0; color: #dba617;"><?php echo esc_html(rbf_translate_string('Uso Fallback')); ?></h3>
-                <div style="font-size: 32px; font-weight: bold; color: #dba617;"><?php echo number_format($stats_summary['fallback_rate'], 1); ?>%</div>
-                <div style="font-size: 14px; color: #666;">
-                    <?php echo esc_html($stats_summary['fallback_success']); ?> tramite wp_mail
+            <div class="rbf-stat-card rbf-stat-card--warning">
+                <h3 class="rbf-stat-card__title"><?php echo esc_html(rbf_translate_string('Uso Fallback')); ?></h3>
+                <div class="rbf-stat-card__value"><?php echo esc_html(number_format($stats_summary['fallback_rate'], 1)); ?>%</div>
+                <div class="rbf-stat-card__hint">
+                    <?php echo esc_html($stats_summary['fallback_success']); ?> <?php echo esc_html(rbf_translate_string('Notifiche fallback')); ?>
                 </div>
             </div>
             
-            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <h3 style="margin: 0 0 10px 0; color: #d63638;"><?php echo esc_html(rbf_translate_string('Notifiche Fallite')); ?></h3>
-                <div style="font-size: 32px; font-weight: bold; color: #d63638;"><?php echo esc_html($stats_summary['failed']); ?></div>
-                <div style="font-size: 14px; color: #666;">
-                    Richiedono attenzione
-                </div>
+            <div class="rbf-stat-card rbf-stat-card--danger">
+                <h3 class="rbf-stat-card__title"><?php echo esc_html(rbf_translate_string('Notifiche Fallite')); ?></h3>
+                <div class="rbf-stat-card__value"><?php echo esc_html($stats_summary['failed']); ?></div>
+                <div class="rbf-stat-card__hint"><?php echo esc_html(rbf_translate_string('Richiedono attenzione')); ?></div>
             </div>
         </div>
-        
+
         <!-- Provider Usage Chart -->
-        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 30px;">
+        <div class="rbf-admin-card rbf-admin-card--spaced rbf-notification-breakdown">
             <h3><?php echo esc_html(rbf_translate_string('Utilizzo Provider Email')); ?></h3>
-            <div style="display: flex; gap: 30px; align-items: center;">
-                <div style="flex: 1;">
-                    <div style="background: #f0f8ff; padding: 15px; border-radius: 6px; margin-bottom: 10px;">
-                        <strong>Brevo (Primario):</strong> <?php echo esc_html($stats_summary['by_provider']['brevo']); ?> notifiche
-                        <div style="background: #2271b1; height: 8px; border-radius: 4px; width: <?php echo $stats_summary['total'] > 0 ? ($stats_summary['by_provider']['brevo'] / $stats_summary['total']) * 100 : 0; ?>%; margin-top: 5px;"></div>
+            <div class="rbf-notification-breakdown__content">
+                <div class="rbf-notification-breakdown__providers">
+                    <div class="rbf-notification-provider rbf-notification-provider--primary" style="--rbf-progress: <?php echo esc_attr($brevo_percentage); ?>%;">
+                        <strong>Brevo (Primario)</strong>
+                        <span class="rbf-notification-provider__value"><?php echo esc_html($stats_summary['by_provider']['brevo']); ?> <?php echo esc_html(rbf_translate_string('Notifiche')); ?></span>
+                        <div class="rbf-progress"></div>
                     </div>
-                    <div style="background: #fff8f0; padding: 15px; border-radius: 6px;">
-                        <strong>wp_mail (Fallback):</strong> <?php echo esc_html($stats_summary['by_provider']['wp_mail']); ?> notifiche
-                        <div style="background: #dba617; height: 8px; border-radius: 4px; width: <?php echo $stats_summary['total'] > 0 ? ($stats_summary['by_provider']['wp_mail'] / $stats_summary['total']) * 100 : 0; ?>%; margin-top: 5px;"></div>
+                    <div class="rbf-notification-provider rbf-notification-provider--fallback" style="--rbf-progress: <?php echo esc_attr($fallback_percentage); ?>%;">
+                        <strong>wp_mail (Fallback)</strong>
+                        <span class="rbf-notification-provider__value"><?php echo esc_html($stats_summary['by_provider']['wp_mail']); ?> <?php echo esc_html(rbf_translate_string('Notifiche')); ?></span>
+                        <div class="rbf-progress rbf-progress--fallback"></div>
                     </div>
                 </div>
-                <div style="text-align: center;">
-                    <div style="font-size: 14px; color: #666; margin-bottom: 10px;">Sistema Funzionante</div>
-                    <div style="width: 60px; height: 60px; border-radius: 50%; background: <?php echo $stats_summary['success_rate'] >= 90 ? '#00a32a' : ($stats_summary['success_rate'] >= 75 ? '#dba617' : '#d63638'); ?>; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
-                        <?php echo $stats_summary['success_rate'] >= 90 ? '✓' : ($stats_summary['success_rate'] >= 75 ? '!' : '✗'); ?>
-                    </div>
+                <div class="rbf-notification-breakdown__health">
+                    <div class="rbf-text-muted rbf-spacing-bottom-sm"><?php echo esc_html(rbf_translate_string('Sistema funzionante')); ?></div>
+                    <div class="rbf-health-indicator <?php echo esc_attr($health_class); ?>"><?php echo esc_html($health_icon); ?></div>
                 </div>
             </div>
         </div>
         
         <!-- Filters -->
-        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px;">
-            <form method="get">
+        <div class="rbf-admin-card rbf-admin-card--spaced">
+            <form method="get" class="rbf-form-inline">
                 <input type="hidden" name="page" value="rbf_email_notifications">
-                <div style="display: flex; gap: 15px; align-items: end; flex-wrap: wrap;">
-                    <div>
-                        <label style="display: block; margin-bottom: 5px; font-weight: bold;"><?php echo esc_html(rbf_translate_string('Stato')); ?></label>
-                        <select name="filter_status">
-                            <option value=""><?php echo esc_html(rbf_translate_string('Tutti gli stati')); ?></option>
-                            <option value="success" <?php selected($filter_status, 'success'); ?>><?php echo esc_html(rbf_translate_string('Successo')); ?></option>
-                            <option value="fallback_success" <?php selected($filter_status, 'fallback_success'); ?>><?php echo esc_html(rbf_translate_string('Fallback Successo')); ?></option>
-                            <option value="failed" <?php selected($filter_status, 'failed'); ?>><?php echo esc_html(rbf_translate_string('Fallito')); ?></option>
-                            <option value="pending" <?php selected($filter_status, 'pending'); ?>><?php echo esc_html(rbf_translate_string('In Attesa')); ?></option>
-                        </select>
-                    </div>
-                    <div>
-                        <label style="display: block; margin-bottom: 5px; font-weight: bold;"><?php echo esc_html(rbf_translate_string('Tipo')); ?></label>
-                        <select name="filter_type">
-                            <option value=""><?php echo esc_html(rbf_translate_string('Tutti i tipi')); ?></option>
-                            <option value="admin_notification" <?php selected($filter_type, 'admin_notification'); ?>><?php echo esc_html(rbf_translate_string('Notifica Admin')); ?></option>
-                            <option value="customer_notification" <?php selected($filter_type, 'customer_notification'); ?>><?php echo esc_html(rbf_translate_string('Notifica Cliente')); ?></option>
-                        </select>
-                    </div>
-                    <div>
-                        <label style="display: block; margin-bottom: 5px; font-weight: bold;"><?php echo esc_html(rbf_translate_string('Periodo')); ?></label>
-                        <select name="filter_days">
-                            <option value="1" <?php selected($filter_days, 1); ?>><?php echo esc_html(rbf_translate_string('Ultimo giorno')); ?></option>
-                            <option value="7" <?php selected($filter_days, 7); ?>><?php echo esc_html(rbf_translate_string('Ultimi 7 giorni')); ?></option>
-                            <option value="30" <?php selected($filter_days, 30); ?>><?php echo esc_html(rbf_translate_string('Ultimi 30 giorni')); ?></option>
-                        </select>
-                    </div>
-                    <button type="submit" class="button"><?php echo esc_html(rbf_translate_string('Filtra')); ?></button>
-                    <a href="<?php echo admin_url('admin.php?page=rbf_email_notifications'); ?>" class="button"><?php echo esc_html(rbf_translate_string('Reset')); ?></a>
+                <div class="rbf-form-inline__group">
+                    <label class="rbf-form-label" for="rbf-filter-status"><?php echo esc_html(rbf_translate_string('Stato')); ?></label>
+                    <select id="rbf-filter-status" name="filter_status">
+                        <option value=""><?php echo esc_html(rbf_translate_string('Tutti gli stati')); ?></option>
+                        <option value="success" <?php selected($filter_status, 'success'); ?>><?php echo esc_html(rbf_translate_string('Successo')); ?></option>
+                        <option value="fallback_success" <?php selected($filter_status, 'fallback_success'); ?>><?php echo esc_html(rbf_translate_string('Fallback Successo')); ?></option>
+                        <option value="failed" <?php selected($filter_status, 'failed'); ?>><?php echo esc_html(rbf_translate_string('Fallito')); ?></option>
+                        <option value="pending" <?php selected($filter_status, 'pending'); ?>><?php echo esc_html(rbf_translate_string('In Attesa')); ?></option>
+                    </select>
+                </div>
+                <div class="rbf-form-inline__group">
+                    <label class="rbf-form-label" for="rbf-filter-type"><?php echo esc_html(rbf_translate_string('Tipo')); ?></label>
+                    <select id="rbf-filter-type" name="filter_type">
+                        <option value=""><?php echo esc_html(rbf_translate_string('Tutti i tipi')); ?></option>
+                        <option value="admin_notification" <?php selected($filter_type, 'admin_notification'); ?>><?php echo esc_html(rbf_translate_string('Notifica Admin')); ?></option>
+                        <option value="customer_notification" <?php selected($filter_type, 'customer_notification'); ?>><?php echo esc_html(rbf_translate_string('Notifica Cliente')); ?></option>
+                    </select>
+                </div>
+                <div class="rbf-form-inline__group">
+                    <label class="rbf-form-label" for="rbf-filter-days"><?php echo esc_html(rbf_translate_string('Periodo')); ?></label>
+                    <select id="rbf-filter-days" name="filter_days">
+                        <option value="1" <?php selected($filter_days, 1); ?>><?php echo esc_html(rbf_translate_string('Ultimo giorno')); ?></option>
+                        <option value="7" <?php selected($filter_days, 7); ?>><?php echo esc_html(rbf_translate_string('Ultimi 7 giorni')); ?></option>
+                        <option value="30" <?php selected($filter_days, 30); ?>><?php echo esc_html(rbf_translate_string('Ultimi 30 giorni')); ?></option>
+                    </select>
+                </div>
+                <div class="rbf-form-inline__actions">
+                    <button type="submit" class="button button-primary rbf-button--compact"><?php echo esc_html(rbf_translate_string('Filtra')); ?></button>
+                    <a href="<?php echo admin_url('admin.php?page=rbf_email_notifications'); ?>" class="button rbf-button--compact"><?php echo esc_html(rbf_translate_string('Reset')); ?></a>
                 </div>
             </form>
         </div>
         
         <!-- Notification Logs -->
-        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <div class="rbf-admin-card">
             <h3><?php echo esc_html(rbf_translate_string('Log Notifiche Email')); ?></h3>
-            
+
             <?php if (!empty($logs)): ?>
-                <div style="overflow-x: auto;">
+                <div class="rbf-table-responsive">
                     <table class="wp-list-table widefat fixed striped">
                         <thead>
                             <tr>
-                                <th style="width: 80px;"><?php echo esc_html(rbf_translate_string('ID')); ?></th>
-                                <th style="width: 100px;"><?php echo esc_html(rbf_translate_string('Prenotazione')); ?></th>
-                                <th style="width: 120px;"><?php echo esc_html(rbf_translate_string('Tipo')); ?></th>
+                                <th class="rbf-column--id"><?php echo esc_html(rbf_translate_string('ID')); ?></th>
+                                <th class="rbf-column--booking"><?php echo esc_html(rbf_translate_string('Prenotazione')); ?></th>
+                                <th class="rbf-column--type"><?php echo esc_html(rbf_translate_string('Tipo')); ?></th>
                                 <th><?php echo esc_html(rbf_translate_string('Destinatario')); ?></th>
-                                <th style="width: 100px;"><?php echo esc_html(rbf_translate_string('Provider')); ?></th>
-                                <th style="width: 120px;"><?php echo esc_html(rbf_translate_string('Stato')); ?></th>
-                                <th style="width: 60px;"><?php echo esc_html(rbf_translate_string('Tentativi')); ?></th>
-                                <th style="width: 150px;"><?php echo esc_html(rbf_translate_string('Data/Ora')); ?></th>
-                                <th style="width: 100px;"><?php echo esc_html(rbf_translate_string('Azioni')); ?></th>
+                                <th class="rbf-column--provider"><?php echo esc_html(rbf_translate_string('Provider')); ?></th>
+                                <th class="rbf-column--status"><?php echo esc_html(rbf_translate_string('Stato')); ?></th>
+                                <th class="rbf-column--attempts"><?php echo esc_html(rbf_translate_string('Tentativi')); ?></th>
+                                <th class="rbf-column--datetime"><?php echo esc_html(rbf_translate_string('Data/Ora')); ?></th>
+                                <th class="rbf-column--actions"><?php echo esc_html(rbf_translate_string('Azioni')); ?></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -4900,53 +5261,66 @@ function rbf_email_notifications_page_html() {
                                         echo esc_html($type_labels[$log->notification_type] ?? $log->notification_type);
                                         ?>
                                     </td>
-                                    <td style="word-break: break-all;">
+                                    <td class="rbf-text-break">
                                         <?php echo esc_html($log->recipient_email); ?>
                                     </td>
                                     <td>
-                                        <span style="padding: 3px 8px; border-radius: 3px; font-size: 12px; font-weight: bold; color: white; background: <?php echo $log->provider_used === 'brevo' ? '#2271b1' : '#dba617'; ?>;">
+                                        <?php
+                                        $provider_class = $log->provider_used === 'brevo'
+                                            ? 'rbf-badge--provider-primary'
+                                            : 'rbf-badge--provider-fallback';
+                                        ?>
+                                        <span class="rbf-badge <?php echo esc_attr($provider_class); ?>">
                                             <?php echo esc_html(ucfirst($log->provider_used)); ?>
                                         </span>
                                     </td>
                                     <td>
                                         <?php
-                                        $status_colors = [
-                                            'success' => '#00a32a',
-                                            'fallback_success' => '#dba617',
-                                            'failed' => '#d63638',
-                                            'pending' => '#666'
+                                        $status_variants = [
+                                            'success' => [
+                                                'label' => 'Successo',
+                                                'class' => 'rbf-badge--success',
+                                            ],
+                                            'fallback_success' => [
+                                                'label' => 'Fallback OK',
+                                                'class' => 'rbf-badge--fallback',
+                                            ],
+                                            'failed' => [
+                                                'label' => 'Fallito',
+                                                'class' => 'rbf-badge--error',
+                                            ],
+                                            'pending' => [
+                                                'label' => 'In Attesa',
+                                                'class' => 'rbf-badge--pending',
+                                            ],
                                         ];
-                                        $status_labels = [
-                                            'success' => 'Successo',
-                                            'fallback_success' => 'Fallback OK',
-                                            'failed' => 'Fallito',
-                                            'pending' => 'In Attesa'
+                                        $variant = $status_variants[$log->status] ?? [
+                                            'label' => $log->status,
+                                            'class' => '',
                                         ];
-                                        $color = $status_colors[$log->status] ?? '#666';
-                                        $label = $status_labels[$log->status] ?? $log->status;
                                         ?>
-                                        <span style="padding: 3px 8px; border-radius: 3px; font-size: 12px; font-weight: bold; color: white; background: <?php echo esc_attr($color); ?>;">
-                                            <?php echo esc_html($label); ?>
+                                        <span class="rbf-badge <?php echo esc_attr($variant['class']); ?>">
+                                            <?php echo esc_html($variant['label']); ?>
                                         </span>
                                     </td>
-                                    <td style="text-align: center;">
+                                    <td class="rbf-text-center">
                                         <?php echo esc_html($log->attempt_number); ?>
                                     </td>
                                     <td>
-                                        <div style="font-size: 12px;">
+                                        <div class="rbf-text-small">
                                             <?php echo esc_html(date('d/m/Y H:i', strtotime($log->attempted_at))); ?>
                                         </div>
                                         <?php if ($log->completed_at && $log->completed_at !== $log->attempted_at): ?>
-                                            <div style="font-size: 11px; color: #666;">
+                                            <div class="rbf-text-xs rbf-text-muted">
                                                 <?php echo esc_html(rbf_translate_string('Completato')); ?>: <?php echo esc_html(date('H:i', strtotime($log->completed_at))); ?>
                                             </div>
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <div style="display: flex; gap: 5px;">
+                                        <div class="rbf-action-group">
                                             <?php if ($log->status === 'failed'): ?>
-                                                <a href="<?php echo wp_nonce_url(admin_url('admin.php?page=rbf_email_notifications&action=retry&log_id=' . $log->id), 'rbf_email_action'); ?>" 
-                                                   class="button button-small" 
+                                                <a href="<?php echo wp_nonce_url(admin_url('admin.php?page=rbf_email_notifications&action=retry&log_id=' . $log->id), 'rbf_email_action'); ?>"
+                                                   class="button button-small"
                                                    title="<?php echo esc_attr(rbf_translate_string('Riprova invio')); ?>"
                                                    onclick="return confirm('<?php echo esc_js(rbf_translate_string('Riprovare l\'invio di questa notifica?')); ?>')">
                                                     ↻
@@ -4968,30 +5342,30 @@ function rbf_email_notifications_page_html() {
                     </table>
                 </div>
             <?php else: ?>
-                <p style="text-align: center; color: #666; font-style: italic; padding: 40px;">
+                <p class="rbf-empty-state">
                     <?php echo esc_html(rbf_translate_string('Nessuna notifica trovata con i filtri selezionati.')); ?>
                 </p>
             <?php endif; ?>
         </div>
-        
+
         <!-- Configuration Help -->
-        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 30px;">
+        <div class="rbf-admin-card rbf-admin-card--muted rbf-admin-card--spaced">
             <h3><?php echo esc_html(rbf_translate_string('Configurazione Sistema Failover')); ?></h3>
-            
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+
+            <div class="rbf-admin-grid rbf-admin-grid--feature">
                 <div>
                     <h4><?php echo esc_html(rbf_translate_string('Provider Primario (Brevo)')); ?></h4>
-                    <ul style="margin: 10px 0; padding-left: 20px;">
+                    <ul class="rbf-admin-list">
                         <li><?php echo esc_html(rbf_translate_string('Automazioni clienti (liste e eventi)')); ?></li>
                         <li><?php echo esc_html(rbf_translate_string('Email transazionali admin')); ?></li>
                         <li><?php echo esc_html(rbf_translate_string('Supporto multilingua')); ?></li>
                         <li><?php echo esc_html(rbf_translate_string('Analytics avanzate')); ?></li>
                     </ul>
                 </div>
-                
+
                 <div>
                     <h4><?php echo esc_html(rbf_translate_string('Provider Fallback (wp_mail)')); ?></h4>
-                    <ul style="margin: 10px 0; padding-left: 20px;">
+                    <ul class="rbf-admin-list">
                         <li><?php echo esc_html(rbf_translate_string('Solo notifiche admin')); ?></li>
                         <li><?php echo esc_html(rbf_translate_string('Attivazione automatica su errore Brevo')); ?></li>
                         <li><?php echo esc_html(rbf_translate_string('Configurazione SMTP WordPress')); ?></li>
@@ -4999,33 +5373,33 @@ function rbf_email_notifications_page_html() {
                     </ul>
                 </div>
             </div>
-            
-            <div style="background: white; padding: 15px; border-radius: 6px; margin-top: 20px;">
+
+            <div class="rbf-admin-card rbf-admin-card--soft rbf-admin-card--stacked">
                 <strong><?php echo esc_html(rbf_translate_string('Stato Configurazione Attuale:')); ?></strong>
-                <div style="margin-top: 10px;">
+                <div class="rbf-spacing-top-sm">
                     <?php
                     $options = rbf_get_settings();
                     $brevo_configured = !empty($options['brevo_api']);
                     $emails_configured = !empty($options['notification_email']) || !empty($options['webmaster_email']);
                     ?>
-                    
-                    <div style="display: flex; align-items: center; margin-bottom: 8px;">
-                        <span style="color: <?php echo $brevo_configured ? '#00a32a' : '#d63638'; ?>; margin-right: 10px;">
+
+                    <div class="rbf-status-indicator">
+                        <span class="rbf-status-icon <?php echo $brevo_configured ? 'rbf-status-icon--success' : 'rbf-status-icon--error'; ?>">
                             <?php echo $brevo_configured ? '✓' : '✗'; ?>
                         </span>
-                        <span>
+                        <span class="rbf-status-text">
                             <?php echo esc_html(rbf_translate_string('Brevo API configurata')); ?>
                             <?php if (!$brevo_configured): ?>
                                 - <a href="<?php echo admin_url('admin.php?page=rbf_settings'); ?>"><?php echo esc_html(rbf_translate_string('Configura ora')); ?></a>
                             <?php endif; ?>
                         </span>
                     </div>
-                    
-                    <div style="display: flex; align-items: center;">
-                        <span style="color: <?php echo $emails_configured ? '#00a32a' : '#d63638'; ?>; margin-right: 10px;">
+
+                    <div class="rbf-status-indicator">
+                        <span class="rbf-status-icon <?php echo $emails_configured ? 'rbf-status-icon--success' : 'rbf-status-icon--error'; ?>">
                             <?php echo $emails_configured ? '✓' : '✗'; ?>
                         </span>
-                        <span>
+                        <span class="rbf-status-text">
                             <?php echo esc_html(rbf_translate_string('Email amministratori configurate')); ?>
                             <?php if (!$emails_configured): ?>
                                 - <a href="<?php echo admin_url('admin.php?page=rbf_settings'); ?>"><?php echo esc_html(rbf_translate_string('Configura ora')); ?></a>
@@ -5037,34 +5411,6 @@ function rbf_email_notifications_page_html() {
         </div>
     </div>
     
-    <style>
-    .rbf-admin-wrap h1 {
-        margin-bottom: 20px;
-    }
-    
-    .rbf-admin-wrap table th,
-    .rbf-admin-wrap table td {
-        padding: 12px 8px;
-        vertical-align: middle;
-    }
-    
-    .rbf-admin-wrap .button-small {
-        padding: 3px 8px;
-        font-size: 11px;
-        line-height: 1.2;
-        min-height: auto;
-    }
-    
-    @media (max-width: 768px) {
-        .rbf-admin-wrap table {
-            font-size: 12px;
-        }
-        .rbf-admin-wrap table th,
-        .rbf-admin-wrap table td {
-            padding: 8px 4px;
-        }
-    }
-    </style>
     <?php
 }
 
@@ -5357,53 +5703,53 @@ function rbf_tracking_validation_page_html() {
         <h1><?php echo esc_html(rbf_translate_string('Validazione Sistema Tracking')); ?></h1>
         
         <!-- Configuration Overview -->
-        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 30px;">
+        <div class="rbf-admin-card rbf-admin-card--spaced">
             <h2><?php echo esc_html(rbf_translate_string('Panoramica Configurazione')); ?></h2>
-            
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+
+            <div class="rbf-config-grid">
                 <div>
                     <h3><?php echo esc_html(rbf_translate_string('Google Analytics 4')); ?></h3>
-                    <div style="margin-bottom: 10px;">
+                    <div class="rbf-config-meta">
                         <strong><?php echo esc_html(rbf_translate_string('ID Misurazione')); ?>:</strong>
-                        <code><?php echo esc_html($options['ga4_id'] ?: 'Non configurato'); ?></code>
+                        <code><?php echo esc_html($options['ga4_id'] ?: rbf_translate_string('Non configurato')); ?></code>
                     </div>
-                    <div style="margin-bottom: 10px;">
+                    <div class="rbf-config-meta">
                         <strong><?php echo esc_html(rbf_translate_string('API Secret')); ?>:</strong>
-                        <code><?php echo esc_html($options['ga4_api_secret'] ? 'Configurato' : 'Non configurato'); ?></code>
+                        <code><?php echo esc_html($options['ga4_api_secret'] ? rbf_translate_string('Configurato') : rbf_translate_string('Non configurato')); ?></code>
                     </div>
                 </div>
-                
+
                 <div>
                     <h3><?php echo esc_html(rbf_translate_string('Google Tag Manager')); ?></h3>
-                    <div style="margin-bottom: 10px;">
+                    <div class="rbf-config-meta">
                         <strong><?php echo esc_html(rbf_translate_string('Container ID')); ?>:</strong>
-                        <code><?php echo esc_html($options['gtm_id'] ?: 'Non configurato'); ?></code>
+                        <code><?php echo esc_html($options['gtm_id'] ?: rbf_translate_string('Non configurato')); ?></code>
                     </div>
-                    <div style="margin-bottom: 10px;">
+                    <div class="rbf-config-meta">
                         <strong><?php echo esc_html(rbf_translate_string('Modalità Ibrida')); ?>:</strong>
-                        <code><?php echo esc_html(($options['gtm_hybrid'] === 'yes') ? 'Attiva' : 'Disattiva'); ?></code>
+                        <code><?php echo esc_html(($options['gtm_hybrid'] === 'yes') ? rbf_translate_string('Attiva') : rbf_translate_string('Disattiva')); ?></code>
                     </div>
                 </div>
-                
+
                 <div>
                     <h3><?php echo esc_html(rbf_translate_string('Meta Pixel')); ?></h3>
-                    <div style="margin-bottom: 10px;">
+                    <div class="rbf-config-meta">
                         <strong><?php echo esc_html(rbf_translate_string('Pixel ID')); ?>:</strong>
-                        <code><?php echo esc_html($options['meta_pixel_id'] ?: 'Non configurato'); ?></code>
+                        <code><?php echo esc_html($options['meta_pixel_id'] ?: rbf_translate_string('Non configurato')); ?></code>
                     </div>
-                    <div style="margin-bottom: 10px;">
+                    <div class="rbf-config-meta">
                         <strong><?php echo esc_html(rbf_translate_string('Access Token (CAPI)')); ?>:</strong>
-                        <code><?php echo esc_html($options['meta_access_token'] ? 'Configurato' : 'Non configurato'); ?></code>
+                        <code><?php echo esc_html($options['meta_access_token'] ? rbf_translate_string('Configurato') : rbf_translate_string('Non configurato')); ?></code>
                     </div>
                 </div>
 
                 <div>
                     <h3><?php echo esc_html(rbf_translate_string('Google Ads')); ?></h3>
-                    <div style="margin-bottom: 10px;">
+                    <div class="rbf-config-meta">
                         <strong><?php echo esc_html(rbf_translate_string('ID Conversione Google Ads')); ?>:</strong>
                         <code><?php echo esc_html($options['google_ads_conversion_id'] ?: rbf_translate_string('Non configurato')); ?></code>
                     </div>
-                    <div style="margin-bottom: 10px;">
+                    <div class="rbf-config-meta">
                         <strong><?php echo esc_html(rbf_translate_string('Etichetta Conversione Google Ads')); ?>:</strong>
                         <code><?php echo esc_html($options['google_ads_conversion_label'] ?: rbf_translate_string('Non configurato')); ?></code>
                     </div>
@@ -5412,45 +5758,54 @@ function rbf_tracking_validation_page_html() {
         </div>
         
         <!-- Validation Results -->
-        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 30px;">
+        <div class="rbf-admin-card rbf-admin-card--spaced">
             <h2><?php echo esc_html(rbf_translate_string('Risultati Validazione')); ?></h2>
-            
-            <?php foreach ($validation_results as $check_name => $result): ?>
-                <div style="display: flex; align-items: center; padding: 15px; margin-bottom: 10px; border-radius: 6px; background: <?php 
-                    echo $result['status'] === 'ok' ? '#f0f9ff' : 
-                        ($result['status'] === 'warning' ? '#fff8f0' : '#f8f9fa'); 
-                ?>;">
-                    <span style="font-size: 20px; margin-right: 15px; color: <?php 
-                        echo $result['status'] === 'ok' ? '#00a32a' : 
-                            ($result['status'] === 'warning' ? '#dba617' : '#666'); 
-                    ?>;">
-                        <?php echo $result['status'] === 'ok' ? '✓' : ($result['status'] === 'warning' ? '⚠' : 'ℹ'); ?>
-                    </span>
-                    <div style="flex: 1;">
-                        <strong style="display: block; margin-bottom: 5px;">
-                            <?php echo esc_html(ucfirst(str_replace('_', ' ', $check_name))); ?>
-                        </strong>
-                        <span style="color: #666;">
-                            <?php echo esc_html($result['message']); ?>
-                        </span>
+
+            <div class="rbf-validation-list">
+                <?php foreach ($validation_results as $check_name => $result): ?>
+                    <?php
+                    $status_variant = [
+                        'class' => 'rbf-validation-item--info',
+                        'icon'  => 'ℹ',
+                    ];
+
+                    if ($result['status'] === 'ok') {
+                        $status_variant = [
+                            'class' => 'rbf-validation-item--ok',
+                            'icon'  => '✓',
+                        ];
+                    } elseif ($result['status'] === 'warning') {
+                        $status_variant = [
+                            'class' => 'rbf-validation-item--warning',
+                            'icon'  => '⚠',
+                        ];
+                    }
+                    ?>
+                    <div class="rbf-validation-item <?php echo esc_attr($status_variant['class']); ?>">
+                        <span class="rbf-validation-item__icon"><?php echo esc_html($status_variant['icon']); ?></span>
+                        <div class="rbf-validation-item__content">
+                            <span class="rbf-validation-item__title"><?php echo esc_html(ucfirst(str_replace('_', ' ', $check_name))); ?></span>
+                            <span class="rbf-validation-item__message"><?php echo esc_html($result['message']); ?></span>
+                        </div>
                     </div>
-                </div>
-            <?php endforeach; ?>
+                <?php endforeach; ?>
+            </div>
         </div>
         
         <!-- Test Tracking -->
-        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 30px;">
+        <div class="rbf-admin-card rbf-admin-card--spaced">
             <h2><?php echo esc_html(rbf_translate_string('Test Sistema Tracking')); ?></h2>
-            
+
             <?php if ($test_result): ?>
-                <div style="padding: 15px; margin-bottom: 20px; border-radius: 6px; background: <?php echo $test_result['success'] ? '#f0f9ff' : '#fff0f0'; ?>; border: 1px solid <?php echo $test_result['success'] ? '#00a32a' : '#d63638'; ?>;">
-                    <strong><?php echo esc_html($test_result['success'] ? 'Test Completato' : 'Test Fallito'); ?></strong>
-                    <div style="margin-top: 10px;">
+                <?php $test_class = $test_result['success'] ? 'rbf-test-result--success' : 'rbf-test-result--error'; ?>
+                <div class="rbf-test-result <?php echo esc_attr($test_class); ?>">
+                    <strong><?php echo esc_html($test_result['success'] ? rbf_translate_string('Test completato') : rbf_translate_string('Test fallito')); ?></strong>
+                    <div class="rbf-spacing-top-xs">
                         <?php echo wp_kses_post($test_result['message']); ?>
                     </div>
                 </div>
             <?php endif; ?>
-            
+
             <form method="post">
                 <?php wp_nonce_field('rbf_tracking_test'); ?>
                 <p><?php echo esc_html(rbf_translate_string('Esegui un test del sistema di tracking per verificare che tutti i componenti funzionino correttamente.')); ?></p>
@@ -5461,30 +5816,6 @@ function rbf_tracking_validation_page_html() {
         </div>
     </div>
     
-    <style>
-    .rbf-admin-wrap h1 {
-        margin-bottom: 20px;
-    }
-    
-    .rbf-admin-wrap h2 {
-        margin-top: 0;
-        margin-bottom: 20px;
-        color: #1f2937;
-    }
-    
-    .rbf-admin-wrap h3 {
-        margin-top: 0;
-        margin-bottom: 15px;
-        color: #374151;
-    }
-    
-    .rbf-admin-wrap code {
-        background: #f3f4f6;
-        padding: 2px 6px;
-        border-radius: 3px;
-        font-family: monospace;
-    }
-    </style>
     <?php
 }
 
