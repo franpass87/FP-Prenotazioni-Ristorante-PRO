@@ -696,23 +696,43 @@ if (function_exists('rbf_sanitize_input_fields')) {
      */
     function rbf_sanitize_input_fields(array $input_data, array $field_map) {
         $sanitized = [];
-        
+
         foreach ($field_map as $key => $type) {
-            if (!isset($input_data[$key])) {
+            if (!array_key_exists($key, $input_data)) {
                 continue;
             }
-            
-            $value = $input_data[$key];
-            
-            // First level: remove potential null bytes and control characters
-            $value = str_replace(chr(0), '', $value);
-            
+
+            $raw_value = $input_data[$key];
+            $default_value = rbf_sanitization_default_for_type($type);
+
+            if (is_object($raw_value)) {
+                if (method_exists($raw_value, '__toString')) {
+                    $value = (string) $raw_value;
+                } else {
+                    $sanitized[$key] = $default_value;
+                    continue;
+                }
+            } elseif (is_scalar($raw_value) || $raw_value === null) {
+                $value = $raw_value;
+            } else {
+                $sanitized[$key] = $default_value;
+                continue;
+            }
+
+            if (function_exists('wp_unslash')) {
+                $value = wp_unslash($value);
+            }
+
+            if (is_string($value)) {
+                $value = str_replace(chr(0), '', $value);
+            }
+
             switch ($type) {
                 case 'text':
                     $sanitized[$key] = rbf_sanitize_text_strict($value);
                     break;
                 case 'email':
-                    $sanitized[$key] = sanitize_email($value);
+                    $sanitized[$key] = sanitize_email((string) $value);
                     break;
                 case 'textarea':
                     $sanitized[$key] = rbf_sanitize_textarea_strict($value);
@@ -724,7 +744,7 @@ if (function_exists('rbf_sanitize_input_fields')) {
                     $sanitized[$key] = floatval($value);
                     break;
                 case 'url':
-                    $sanitized[$key] = esc_url_raw($value);
+                    $sanitized[$key] = esc_url_raw((string) $value);
                     break;
                 case 'name':
                     $sanitized[$key] = rbf_sanitize_name_field($value);
@@ -736,14 +756,37 @@ if (function_exists('rbf_sanitize_input_fields')) {
                     $sanitized[$key] = rbf_sanitize_text_strict($value);
             }
         }
-        
+
         return $sanitized;
+    }
+
+    function rbf_sanitization_default_for_type($type) {
+        switch ($type) {
+            case 'int':
+                return 0;
+            case 'float':
+                return 0.0;
+            default:
+                return '';
+        }
     }
 
     /**
      * Strict text field sanitization with enhanced security
      */
     function rbf_sanitize_text_strict($value) {
+        if (is_object($value)) {
+            if (method_exists($value, '__toString')) {
+                $value = (string) $value;
+            } else {
+                return '';
+            }
+        } elseif (!is_scalar($value)) {
+            return '';
+        }
+
+        $value = (string) $value;
+
         // Remove potential script tags and dangerous characters
         $value = strip_tags($value);
         $value = sanitize_text_field($value);
@@ -771,6 +814,18 @@ if (function_exists('rbf_sanitize_input_fields')) {
      * Strict textarea sanitization while preserving basic formatting
      */
     function rbf_sanitize_textarea_strict($value) {
+        if (is_object($value)) {
+            if (method_exists($value, '__toString')) {
+                $value = (string) $value;
+            } else {
+                return '';
+            }
+        } elseif (!is_scalar($value)) {
+            return '';
+        }
+
+        $value = (string) $value;
+
         // Allow only safe HTML tags for formatting
         $allowed_tags = '<br><p>';
         $value = strip_tags($value, $allowed_tags);
@@ -814,6 +869,18 @@ if (function_exists('rbf_sanitize_input_fields')) {
      * Sanitize phone fields with validation
      */
     function rbf_sanitize_phone_field($value) {
+        if (is_object($value)) {
+            if (method_exists($value, '__toString')) {
+                $value = (string) $value;
+            } else {
+                return '';
+            }
+        } elseif (!is_scalar($value)) {
+            return '';
+        }
+
+        $value = (string) $value;
+
         $value = sanitize_text_field($value);
         
         // Phone should only contain numbers, spaces, hyphens, parentheses, and plus sign
@@ -829,6 +896,18 @@ if (function_exists('rbf_sanitize_input_fields')) {
      * Escape data for safe use in email templates (HTML context)
      */
     function rbf_escape_for_email($value, $context = 'html') {
+        if (is_object($value)) {
+            if (method_exists($value, '__toString')) {
+                $value = (string) $value;
+            } else {
+                $value = '';
+            }
+        } elseif (!is_scalar($value)) {
+            $value = '';
+        }
+
+        $value = (string) $value;
+
         switch ($context) {
             case 'html':
                 return esc_html($value);
@@ -1065,9 +1144,21 @@ if (function_exists('rbf_sanitize_input_fields')) {
      * Escape text for ICS format
      */
     function rbf_escape_for_ics($text) {
+        if (is_object($text)) {
+            if (method_exists($text, '__toString')) {
+                $text = (string) $text;
+            } else {
+                return '';
+            }
+        } elseif (!is_scalar($text)) {
+            return '';
+        }
+
+        $text = (string) $text;
+
         // ICS format escaping rules
         $text = str_replace(['\\', ';', ',', "\n", "\r"], ['\\\\', '\\;', '\\,', '\\n', ''], $text);
-        
+
         // Remove any remaining control characters
         $text = preg_replace('/[\x00-\x1F\x7F]/', '', $text);
         
