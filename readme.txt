@@ -4,7 +4,7 @@ Tags: prenotazioni, ristorante, calendario, booking, marketing
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 1.7.0
+Stable tag: 1.6.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -42,12 +42,6 @@ Certamente. Dal pannello impostazioni trovi la sezione "Branding" con variabili 
 Dalla scheda "Disponibilità" puoi configurare giorni singoli, intervalli o eccezioni con slot personalizzati. Le informazioni vengono sincronizzate con il calendario e mostrate all'utente tramite tooltip.
 
 == Changelog ==
-
-= 1.7.0 =
-* Upgrade manager con migrazione tabella `rbf_booking_status` e flush automatico delle cache.
-* Runtime logger e audit log condiviso per notice PHP, deprecazioni e log applicativi.
-* Loader modulare contestuale, helper multisite e caching runtime per configurazioni pasti.
-* Tooling completo: workflow GitHub Actions, PHPCS/PHPStan e suite PHPUnit con fixture.
 
 = 1.6 =
 * Refactor completo in architettura modulare.

@@ -1,22 +1,12 @@
 # FP-Prenotazioni-Ristorante-PRO
 
-**Version:** 1.7.0
+**Version:** 1.6.4
 **Author:** Francesco Passeri  
 **Website:** [francescopasseri.com](https://francescopasseri.com)  
 **Email:** [info@francescopasseri.com](mailto:info@francescopasseri.com)  
 **License:** GPLv2 or later
 
 Sistema completo di prenotazioni per ristoranti con calendario Flatpickr multilingue (IT/EN), gestione capienza per servizio, notifiche email avanzate, integrazione Brevo e tracciamento completo GA4/Meta con attribution intelligence.
-
-## 🆕 Novità della versione 1.7.0
-
-- **Upgrade Manager** con migrazione automatica dello stato prenotazioni e flush di cache/OPcache dopo gli update.
-- **Loader modulare** che carica i componenti solo nel contesto corretto (frontend, admin, CLI, shared) riducendo l'overhead.
-- **Runtime logger** per catturare warning/notices PHP, deprecazioni WordPress e log applicativi in un audit log centralizzato.
-- **Hardening sicurezza** con sanificazione profonda degli input, normalizzazione ID prenotazioni e protezioni nonce/capability.
-- **Performance**: cache runtime per le configurazioni pasti e query ottimizzate per i cruscotti settimanali.
-- **Compatibilità multisite** grazie a nuovi helper per opzioni di rete e invalidazione transients condivisi.
-- **Tooling**: workflow GitHub Actions, PHPStan livello 6, PHPCS WordPress e suite PHPUnit con fixture dedicate.
 
 ## ⚙️ Requisiti di Sistema
 
@@ -106,34 +96,37 @@ filtri nelle regole di attivazione, per evitare l'invio doppio degli stessi even
 
 ## 🏗️ Architettura Modulare
 
-Il refactor 1.7.0 introduce il `RBF_Module_Loader`, che inizializza dinamicamente i moduli in base al contesto di esecuzione (admin, frontend, CLI o runtime condiviso). La struttura completa è documentata in [docs/code-map.md](docs/code-map.md) e può essere riassunta così:
+Il plugin è stato refactorizzato da una struttura monolitica (1162+ linee) in un'architettura modulare avanzata per migliore manutenibilità e performance:
 
 ```
 fp-prenotazioni-ristorante-pro/
-├── fp-prenotazioni-ristorante-pro.php  # Bootstrap principale, loader e runtime logger
-├── includes/
-│   ├── core/                           # Loader, upgrade manager, helper multisite e cache
-│   ├── backend/                        # Servizi di disponibilità, pipeline booking, notifiche
-│   ├── admin.php                       # Pannello impostazioni, AJAX e pagine diagnostica
-│   ├── frontend.php                    # Shortcode pubblico e orchestrazione assets
-│   ├── utils.php                       # Helper condivisi, cache runtime pasti, normalizzazioni
-│   ├── runtime-logger.php              # Gestione audit log e hooks runtime
-│   └── *.php                           # Integrazioni GA4, privacy, marketing, email, ecc.
-├── assets/                             # CSS/JS pronti per produzione
-├── languages/                          # Traduzioni .po/.mo
-└── tests/                              # Suite PHPUnit con fixture modulari
+├── fp-prenotazioni-ristorante-pro.php    # Main plugin file
+├── includes/                             # Moduli core (6 moduli)
+│   ├── admin.php                        # Backend e configurazione
+│   ├── booking-handler.php              # Gestione prenotazioni
+│   ├── frontend.php                     # Frontend e shortcode
+│   ├── utils.php                        # Utilities e traduzioni
+│   ├── integrations.php                 # Integrazioni third-party
+│   └── utm-validator.php                # Validazione UTM avanzata
+└── assets/                              # CSS e JavaScript
+    ├── css/
+    │   ├── admin.css                    # Stili backend (17KB)
+    │   └── frontend.css                 # Stili frontend responsive (26KB)
+    └── js/
+        ├── admin.js                     # JavaScript backend (8KB)
+        └── frontend.js                  # UTM capture e form logic (20KB)
 ```
 
-### Vantaggi architettura modulare e loader contestuale
-- ✅ **Caricamento lazy**: vengono inclusi solo i moduli necessari nel contesto corrente.
-- ✅ **Manutenzione facilitata**: servizi riusabili e helper centralizzati in `includes/core/`.
-- ✅ **Osservabilità**: runtime logger con persistenza su audit log consultabile in admin.
-- ✅ **Compatibilità**: helper multisite per sincronizzare opzioni e transients di rete.
-- ✅ **Testing & CI**: suite PHPUnit e workflow GitHub Actions garantiscono regressioni sotto controllo.
+### Vantaggi Architettura Modulare
+- ✅ **Organizzazione Migliore**: Funzionalità correlate raggruppate
+- ✅ **Manutenzione Facilitata**: Modifiche isolate ai singoli moduli
+- ✅ **Leggibilità Migliorata**: File più piccoli, più facili da navigare
+- ✅ **Separazione delle Responsabilità**: Ogni modulo ha uno scopo specifico
+- ✅ **Testing Semplificato**: Moduli testabili individualmente
 
 ## 📚 Documentazione Tecnica Completa
 
-La documentazione ufficiale del plugin è allineata alla versione 1.7 ed è curata da Francesco Passeri. Di seguito trovi un indice tematico per orientarti rapidamente tra le guide disponibili.
+La documentazione ufficiale del plugin è stata allineata alla versione 1.6 ed è curata da Francesco Passeri. Di seguito trovi un indice tematico per orientarti rapidamente tra le guide disponibili.
 
 ### Panoramica, Delivery & Branding
 - [IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md) – panoramica dell'architettura modulare e delle funzionalità core completate.
@@ -142,15 +135,8 @@ La documentazione ufficiale del plugin è allineata alla versione 1.7 ed è cura
 - [CHANGELOG.md](CHANGELOG.md) – cronologia ufficiale delle versioni con riepilogo delle modifiche principali.
 - [BRAND_CONFIGURATION.md](BRAND_CONFIGURATION.md) – personalizzazione centralizzata di colori e identità visiva multi-brand.
 - [docs/email-failover-system.md](docs/email-failover-system.md) – architettura del sistema di failover email e procedure di test.
-- [docs/code-map.md](docs/code-map.md) – panoramica aggiornata di moduli, hook e flussi dati 1.7.0.
-- [docs/audit/discovery-report.md](docs/audit/discovery-report.md) – outcome dell'audit tecnico e rischi prioritari.
-- [docs/audit/security.md](docs/audit/security.md) – riepilogo hardening, nonce e sanificazioni introdotte nel ciclo 1.7.
-- [docs/audit/perf.md](docs/audit/perf.md) – interventi di caching e ottimizzazione delle query.
-- [docs/audit/compatibility.md](docs/audit/compatibility.md) – note su multisite, requisiti PHP/WP e fallback.
-- [docs/audit/tests-ci.md](docs/audit/tests-ci.md) – panoramica della pipeline GitHub Actions e suite di test automatizzati.
 - [docs/BREVO_SEGMENTATION_ENHANCEMENT.md](docs/BREVO_SEGMENTATION_ENHANCEMENT.md) – strategia di segmentazione avanzata per campagne Brevo.
 - [docs/BREVO_SEGMENTATION_EXAMPLES.md](docs/BREVO_SEGMENTATION_EXAMPLES.md) – casi d'uso pratici per attivare automazioni marketing mirate.
-- [docs/audit/release.md](docs/audit/release.md) – riepilogo della fase 10 con test, QA e packaging della release 1.7.0.
 
 ### Calendario, Disponibilità e Suggerimenti
 - [CALENDAR_FIX_DOCUMENTATION.md](CALENDAR_FIX_DOCUMENTATION.md) – primo intervento correttivo per ripristinare la selezione delle date.
@@ -193,7 +179,6 @@ Il repository include **GitHub Actions workflows** per build automatici:
 
 1. **Release Ufficiali**: Vai su [Releases](../../releases) e scarica l'ultimo `.zip`
 2. **Build Latest**: Vai su [Actions](../../actions/workflows/build-wordpress-plugin.yml) e scarica l'artifact `fp-prenotazioni-ristorante-pro-latest`
-3. **Pacchetto locale**: utilizza `dist/fp-prenotazioni-ristorante-pro-1.7.0.zip` generato in questa repository.
 
 ### 📦 Installazione WordPress
 
@@ -211,11 +196,6 @@ git clone https://github.com/franpass87/FP-Prenotazioni-Ristorante-PRO.git
 ```
 
 > 📚 **Documentazione Build**: Vedi [GITHUB_ACTIONS_WORKFLOWS.md](GITHUB_ACTIONS_WORKFLOWS.md) per dettagli sui workflows automatici
-
-## 🔄 Aggiornamenti
-
-- Consulta [UPGRADE.md](UPGRADE.md) per le note di migrazione 1.7.0, inclusa la nuova tabella `rbf_booking_status` e i passaggi consigliati per staging/produzione.
-- Dopo l'aggiornamento verifica la voce **Registri Runtime** nel pannello admin per monitorare eventuali warning e completare i controlli post-release.
 
 ## 🧰 Comandi WP-CLI
 
@@ -656,9 +636,3 @@ Per supporto tecnico e sviluppi personalizzati contatta **Francesco Passeri**:
 **Stato Implementazione:** PRODUCTION READY ✅  
 **Ultima Verifica Compatibility:** WordPress 6.4+  
 **Test Coverage:** Funzionalità core e integrazioni testate
-
-## Build & Release (CI)
-- Gli artefatti di build (zip) **non** sono versionati nel repository.
-- La CI su **Pull Request** crea lo zip e lo pubblica come **artifact**.
-- Il push di un tag `v*` crea una **GitHub Release** e allega lo zip e il checksum.
-- Build locale: `bash scripts/build-plugin-zip.sh` → output in `dist/`.

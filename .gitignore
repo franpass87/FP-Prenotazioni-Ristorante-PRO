@@ -1,27 +1,12 @@
-# === Build artifacts ===
-dist/
-build/
-*.zip
-fp-prenotazioni-ristorante-pro-v*.zip
-fp-prenotazioni-ristorante-pro-latest.zip
-
-# === Node / Composer ===
-node_modules/
-vendor/
-
-# === Tests / Coverage / CI temp ===
-coverage/
-.phpunit.result.cache
-
-# === Plugin backups ===
+# Backup files
 fp-prenotazioni-ristorante-pro-original.php
 
-# === Test scripts ===
+# Test files
 test-bucket-normalization.php
 test-booking-scenarios.php
 validate-booking-flow.php
 
-# === Demo files (testing only) ===
+# Demo files (testing only)
 skeleton-demo.html
 tooltip-demo.html
 calendar-test.html
@@ -29,20 +14,26 @@ simple-calendar-test.html
 test-telephone-height-analysis.html
 test-height-fix-verification.html
 
-# === Temporary files ===
+# Temporary files
 *.tmp
 *.temp
 *~
 
-# === IDE files ===
+# IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# === macOS ===
+# macOS
 .DS_Store
 
-# === GitHub Actions artifacts ===
+# Build artifacts
+build/
+*.zip
+fp-prenotazioni-ristorante-pro-v*.zip
+fp-prenotazioni-ristorante-pro-latest.zip
+
+# GitHub Actions
 .github/workflows/test-results/test-time-loading-debug.html
 verify-time-loading-fix.html

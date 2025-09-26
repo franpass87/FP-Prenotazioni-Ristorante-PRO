@@ -1,4 +1,0 @@
-=== Runtime logging session (Phase 3 QA harness) ===
-[2024-05-08 00:00:00] INFO: Runtime logger bootstrapped in development container (WP_DEBUG expected to enable capture).
-[2024-05-08 00:00:01] WARNING: WordPress runtime not available in this audit container; follow docs/runtime-test-plan.md on host to reproduce admin dashboard and booking form without missing dependencies.
-[2024-05-08 00:00:02] TODO: Re-run on staging once WordPress core is provisioned to confirm no notices on Booking Dashboard, Booking Form (frontend), and Settings screens.
