@@ -2467,6 +2467,57 @@ function rbf_get_asset_url($relative_path) {
 }
 
 /**
+ * Retrieve an asset URL with a resilient cache-busting query argument.
+ *
+ * Some performance plugins strip the default `ver` query parameter from
+ * enqueued assets which prevents browsers from fetching the latest
+ * stylesheet/JavaScript updates. By appending our own namespaced
+ * `rbf_ver` parameter directly to the asset URL we ensure that cache
+ * invalidation survives aggressive optimizations while still exposing a
+ * filter for further customization.
+ *
+ * @param string $relative_path Asset path relative to the plugin's assets directory.
+ * @return string Versioned asset URL. Falls back to the plain URL when
+ *                the asset cannot be resolved.
+ */
+function rbf_get_versioned_asset_url($relative_path) {
+    $asset_url = rbf_get_asset_url($relative_path);
+
+    if ($asset_url === '') {
+        return '';
+    }
+
+    $version = rbf_get_asset_version($relative_path);
+    if (!is_string($version) || $version === '') {
+        return $asset_url;
+    }
+
+    $query_key = 'rbf_ver';
+
+    if (function_exists('wp_parse_url')) {
+        $parsed_url = wp_parse_url($asset_url);
+    } else {
+        $parsed_url = parse_url($asset_url);
+    }
+
+    if (is_array($parsed_url) && !empty($parsed_url['query'])) {
+        parse_str($parsed_url['query'], $existing_params);
+        if (isset($existing_params[$query_key]) && (string) $existing_params[$query_key] === (string) $version) {
+            return $asset_url;
+        }
+    }
+
+    if (function_exists('add_query_arg')) {
+        $versioned_url = add_query_arg($query_key, $version, $asset_url);
+    } else {
+        $separator = strpos($asset_url, '?') === false ? '?' : '&';
+        $versioned_url = $asset_url . $separator . $query_key . '=' . rawurlencode($version);
+    }
+
+    return apply_filters('rbf_versioned_asset_url', $versioned_url, $relative_path, $version);
+}
+
+/**
  * Centralized UTM parameter sanitization
  * Consolidates sanitization logic used across multiple files
  */

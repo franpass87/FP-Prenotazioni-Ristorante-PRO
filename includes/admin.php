@@ -830,18 +830,34 @@ function rbf_enqueue_admin_styles($hook) {
         return;
     }
 
+    $admin_css_url = rbf_get_versioned_asset_url('css/admin.css');
+    $admin_css_version = null;
+
+    if ($admin_css_url === '') {
+        $admin_css_url = plugin_dir_url(dirname(__FILE__)) . 'assets/css/admin.css';
+        $admin_css_version = rbf_get_asset_version('css/admin.css');
+    }
+
     wp_enqueue_style(
         'rbf-admin-css',
-        plugin_dir_url(dirname(__FILE__)) . 'assets/css/admin.css',
+        $admin_css_url,
         [],
-        rbf_get_asset_version('css/admin.css')
+        $admin_css_version
     );
+
+    $admin_js_url = rbf_get_versioned_asset_url('js/admin.js');
+    $admin_js_version = null;
+
+    if ($admin_js_url === '') {
+        $admin_js_url = plugin_dir_url(dirname(__FILE__)) . 'assets/js/admin.js';
+        $admin_js_version = rbf_get_asset_version('js/admin.js');
+    }
 
     wp_register_script(
         'rbf-admin-js',
-        plugin_dir_url(dirname(__FILE__)) . 'assets/js/admin.js',
+        $admin_js_url,
         ['jquery'],
-        rbf_get_asset_version('js/admin.js'),
+        $admin_js_version,
         true
     );
 
@@ -881,11 +897,19 @@ function rbf_enqueue_admin_styles($hook) {
 
         $fonts_catalog_admin = rbf_get_supported_brand_fonts();
 
+        $branding_js_url = rbf_get_versioned_asset_url('js/admin-branding.js');
+        $branding_js_version = null;
+
+        if ($branding_js_url === '') {
+            $branding_js_url = plugin_dir_url(dirname(__FILE__)) . 'assets/js/admin-branding.js';
+            $branding_js_version = rbf_get_asset_version('js/admin-branding.js');
+        }
+
         wp_enqueue_script(
             'rbf-brand-admin',
-            plugin_dir_url(dirname(__FILE__)) . 'assets/js/admin-branding.js',
+            $branding_js_url,
             ['jquery', 'wp-color-picker'],
-            rbf_get_asset_version('js/admin-branding.js'),
+            $branding_js_version,
             true
         );
 
@@ -2129,11 +2153,19 @@ function rbf_calendar_page_html() {
     rbf_enqueue_fullcalendar_assets();
 
     if (!wp_script_is('rbf-admin-js', 'registered')) {
+        $admin_js_url = rbf_get_versioned_asset_url('js/admin.js');
+        $admin_js_version = null;
+
+        if ($admin_js_url === '') {
+            $admin_js_url = plugin_dir_url(dirname(__FILE__)) . 'assets/js/admin.js';
+            $admin_js_version = rbf_get_asset_version('js/admin.js');
+        }
+
         wp_register_script(
             'rbf-admin-js',
-            plugin_dir_url(dirname(__FILE__)) . 'assets/js/admin.js',
+            $admin_js_url,
             ['jquery'],
-            rbf_get_asset_version('js/admin.js'),
+            $admin_js_version,
             true
         );
     }
@@ -2163,11 +2195,19 @@ function rbf_weekly_staff_page_html() {
     }
 
     rbf_enqueue_fullcalendar_assets();
+    $weekly_staff_js_url = rbf_get_versioned_asset_url('js/weekly-staff.js');
+    $weekly_staff_js_version = null;
+
+    if ($weekly_staff_js_url === '') {
+        $weekly_staff_js_url = plugin_dir_url(dirname(__FILE__)) . 'assets/js/weekly-staff.js';
+        $weekly_staff_js_version = rbf_get_asset_version('js/weekly-staff.js');
+    }
+
     wp_enqueue_script(
         'rbf-weekly-staff-js',
-        plugin_dir_url(dirname(__FILE__)) . 'assets/js/weekly-staff.js',
+        $weekly_staff_js_url,
         ['jquery', 'fullcalendar-js'],
-        rbf_get_asset_version('js/weekly-staff.js'),
+        $weekly_staff_js_version,
         true
     );
 

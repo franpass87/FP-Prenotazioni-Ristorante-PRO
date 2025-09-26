@@ -92,20 +92,36 @@ function rbf_enqueue_frontend_assets() {
     }
 
     // Frontend styles and brand variables
+    $frontend_css_url = rbf_get_versioned_asset_url('css/frontend.css');
+    $frontend_css_version = null;
+
+    if ($frontend_css_url === '') {
+        $frontend_css_url = rbf_get_asset_url('css/frontend.css');
+        $frontend_css_version = rbf_get_asset_version('css/frontend.css');
+    }
+
     wp_enqueue_style(
         'rbf-frontend-css',
-        rbf_get_asset_url('css/frontend.css'),
+        $frontend_css_url,
         ['rbf-flatpickr-css'],
-        rbf_get_asset_version('css/frontend.css')
+        $frontend_css_version
     );
     rbf_inject_brand_css_vars();
 
     // Register frontend script before attaching inline fallbacks
+    $frontend_js_url = rbf_get_versioned_asset_url('js/frontend.js');
+    $frontend_js_version = null;
+
+    if ($frontend_js_url === '') {
+        $frontend_js_url = rbf_get_asset_url('js/frontend.js');
+        $frontend_js_version = rbf_get_asset_version('js/frontend.js');
+    }
+
     wp_register_script(
         'rbf-frontend-js',
-        rbf_get_asset_url('js/frontend.js'),
+        $frontend_js_url,
         $deps,
-        rbf_get_asset_version('js/frontend.js'),
+        $frontend_js_version,
         true
     );
 
