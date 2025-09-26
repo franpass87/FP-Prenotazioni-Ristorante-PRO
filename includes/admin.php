@@ -3357,8 +3357,45 @@ function rbf_reports_page_html() {
         $end_date = $end_dt->format('Y-m-d');
     }
 
-    $raw_source_filters = isset($_GET['source_filter']) ? (array) $_GET['source_filter'] : [];
-    $source_filters = array_values(array_filter(array_map('sanitize_key', $raw_source_filters)));
+    $source_filters = [];
+
+    if (isset($_GET['source_filter'])) {
+        $raw_source_filters = wp_unslash($_GET['source_filter']);
+        $stack = is_array($raw_source_filters) ? array_values($raw_source_filters) : [$raw_source_filters];
+
+        while (!empty($stack)) {
+            $value = array_shift($stack);
+
+            if (is_array($value)) {
+                foreach ($value as $nested_value) {
+                    $stack[] = $nested_value;
+                }
+                continue;
+            }
+
+            if (!is_scalar($value)) {
+                continue;
+            }
+
+            $value = (string) $value;
+
+            if ($value === '') {
+                continue;
+            }
+
+            $sanitized = sanitize_key($value);
+
+            if ($sanitized === '') {
+                continue;
+            }
+
+            $source_filters[] = $sanitized;
+        }
+
+        if (!empty($source_filters)) {
+            $source_filters = array_values(array_unique($source_filters));
+        }
+    }
 
     $analytics = rbf_get_booking_analytics($start_date, $end_date, $source_filters);
     $channel_options = $analytics['channels_catalog'] ?? [];
