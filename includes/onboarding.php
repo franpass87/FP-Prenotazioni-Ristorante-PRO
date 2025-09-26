@@ -10,6 +10,35 @@ if (!defined('ABSPATH')) {
 }
 
 /**
+ * Retrieve the admin URL for the setup wizard, ensuring a valid string is returned.
+ *
+ * @return string
+ */
+function rbf_get_setup_wizard_admin_url() {
+    $wizard_url = '';
+
+    if (function_exists('menu_page_url')) {
+        $wizard_url = menu_page_url('rbf_setup_wizard', false);
+        if (!is_string($wizard_url)) {
+            $wizard_url = '';
+        }
+    }
+
+    if ($wizard_url === '' && function_exists('admin_url')) {
+        $wizard_url = admin_url('admin.php?page=rbf_setup_wizard');
+    }
+
+    /**
+     * Filter the admin URL used for the setup wizard entry point.
+     *
+     * @param string $wizard_url Default URL for the setup wizard.
+     */
+    $wizard_url = apply_filters('rbf_setup_wizard_admin_url', $wizard_url);
+
+    return is_string($wizard_url) ? $wizard_url : '';
+}
+
+/**
  * Register submenu and notices for the onboarding wizard.
  */
 add_action('admin_menu', 'rbf_register_setup_wizard_menu', 8);
@@ -47,7 +76,7 @@ function rbf_setup_wizard_admin_notice() {
         return;
     }
 
-    $wizard_url = admin_url('admin.php?page=rbf_setup_wizard');
+    $wizard_url = rbf_get_setup_wizard_admin_url();
     $dismiss_url = wp_nonce_url(add_query_arg('rbf-dismiss-setup', '1'), 'rbf-dismiss-setup');
 
     echo '<div class="notice notice-warning is-dismissible rbf-setup-notice">';
@@ -456,7 +485,9 @@ function rbf_render_setup_wizard_page() {
         echo '<div class="rbf-setup-card">';
         echo '<h2>' . esc_html(rbf_translate_string('Benvenuto!')) . '</h2>';
         echo '<p>' . esc_html(rbf_translate_string('Il setup guidato crea automaticamente pranzo e cena con orari consigliati, imposta le email di notifica e abilita gli eventi GA4/Meta. Puoi modificare tutto in seguito.')) . '</p>';
-        echo '<a class="button button-primary button-hero" href="' . esc_url(add_query_arg('step', 'services')) . '">' . esc_html(rbf_translate_string('Iniziamo')) . '</a>';
+        $services_step_url = add_query_arg('step', 'services', rbf_get_setup_wizard_admin_url());
+
+        echo '<a class="button button-primary button-hero" href="' . esc_url($services_step_url) . '">' . esc_html(rbf_translate_string('Iniziamo')) . '</a>';
         echo '</div>';
         echo '</div>';
         return;

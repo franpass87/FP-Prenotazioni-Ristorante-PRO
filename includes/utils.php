@@ -2363,20 +2363,63 @@ function rbf_get_manual_booking_success_url($booking_id, $tracking_token, $base_
  */
 function rbf_get_asset_version($relative_path = '') {
     if (defined('SCRIPT_DEBUG') && SCRIPT_DEBUG) {
-        return RBF_VERSION . '.' . time();
+        $debug_version = RBF_VERSION . '.' . time();
+
+        return apply_filters('rbf_asset_version', $debug_version, $relative_path, '');
     }
+
+    static $version_cache = [];
+
+    $cache_key = is_string($relative_path) ? $relative_path : '';
+    if ($cache_key !== '' && isset($version_cache[$cache_key])) {
+        $cached = $version_cache[$cache_key];
+        $version = $cached['version'];
+        $asset_path = $cached['asset_path'];
+
+        return apply_filters('rbf_asset_version', $version, $relative_path, $asset_path);
+    }
+
+    $asset_path = '';
+    $version = RBF_VERSION;
 
     if (is_string($relative_path) && $relative_path !== '') {
         $asset_path = rbf_get_asset_path($relative_path);
         if ($asset_path !== '' && file_exists($asset_path)) {
+            $version_parts = [RBF_VERSION];
+
             $modified_time = filemtime($asset_path);
             if ($modified_time !== false) {
-                return RBF_VERSION . '.' . $modified_time;
+                $version_parts[] = $modified_time;
             }
+
+            if (is_readable($asset_path)) {
+                $hash = md5_file($asset_path);
+                if (is_string($hash) && $hash !== '') {
+                    $version_parts[] = substr($hash, 0, 8);
+                }
+            }
+
+            $version = implode('.', $version_parts);
+
+            if ($cache_key !== '') {
+                $version_cache[$cache_key] = [
+                    'version'    => $version,
+                    'asset_path' => $asset_path,
+                ];
+            }
+
+            return apply_filters('rbf_asset_version', $version, $relative_path, $asset_path);
         }
     }
 
-    return RBF_VERSION;
+    if ($cache_key !== '') {
+        $version_cache[$cache_key] = [
+            'version'    => $version,
+            'asset_path' => $asset_path,
+        ];
+    }
+
+    return apply_filters('rbf_asset_version', $version, $relative_path, $asset_path);
 }
 
 /**
